@@ -11,10 +11,9 @@ newwindow(void)
 	Window *w;
 
 	w = emalloc(sizeof(Window));
-	w->ctl = open("/mnt/wsys/new/ctl", ORDWR|OCEXEC);
+	w->ctl = open("/mnt/acme/new/ctl", ORDWR|OCEXEC);
 	if(w->ctl<0 || read(w->ctl, buf, 12)!=12)
 		error("can't open window ctl file: %r");
-	ctlprint(w->ctl, "noscroll\n");
 	w->id = atoi(buf);
 	w->event = winopenfile(w, "event");
 	w->addr = winopenfile(w, "addr");
@@ -54,7 +53,7 @@ winopenfile(Window *w, char *f)
 	char buf[64];
 	int fd;
 
-	sprint(buf, "/mnt/wsys/%d/%s", w->id, f);
+	sprint(buf, "/mnt/acme/%d/%s", w->id, f);
 	fd = open(buf, ORDWR|OCEXEC);
 	if(fd < 0)
 		error("can't open window file %s: %r", f);

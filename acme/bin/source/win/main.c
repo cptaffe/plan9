@@ -73,7 +73,7 @@ threadmain(int argc, char *argv[])
 	snprint(buf, sizeof buf, "%d", win->id);
 	putenv("winid", buf);
 	winname(win, tag);
-	wintagwrite(win, "Send Noscroll", 5+8);
+	wintagwrite(win, "Send", 4);
 	threadcreate(mainctl, win, STACK);
 	mountcons();
 	threadcreate(fsloop, nil, STACK);
@@ -88,7 +88,6 @@ threadmain(int argc, char *argv[])
 		j += 1+strlen(argv[i]);
 	}
 
-	ctlprint(win->ctl, "scroll");
 	winsetdump(win, dir, buf);
 }
 
@@ -112,14 +111,7 @@ command(Window *w, char *s)
 		threadexitsall(nil);
 		return 1;
 	}
-	if(EQUAL(s, "scroll")){
-		ctlprint(w->ctl, "scroll\nshow");
-		return 1;
-	}
-	if(EQUAL(s, "noscroll")){
-		ctlprint(w->ctl, "noscroll");
-		return 1;
-	}
+	/* p9web: plan9port's Acme scrolls by itself (autoscroll), and has no scroll or noscroll */
 	return 0;
 }
 
@@ -498,8 +490,14 @@ mainctl(void *v)
 					endpt = e->q1;
 				if(e->q0 < hostpt)
 					hostpt += delta;
-				if(e->nr>0 && e->r[e->nr-1]==0x7F){
+				/* p9web: ^C too, as plan9port's win: its Acme erases with Delete (0x7F) */
+				if(e->nr>0 && (e->r[e->nr-1]==0x7F || e->r[e->nr-1]==0x03)){
 					write(notepg, "interrupt", 9);
+					/* p9web: the typed ^C out of the body, as plan9port's win takes it */
+					sprint(tmp, "#%d,#%d", e->q1-1, e->q1);
+					winsetaddr(w, tmp, 0);
+					write(w->data, tmp, 0);
+					endpt--;
 					hostpt = endpt;
 					break;
 				}
@@ -605,6 +603,7 @@ execproc(void *v)
 	struct Exec *e;
 	char *cmd, **av;
 	Channel *cpid;
+	int fd[3] = {0, 1, 2};
 
 	e = v;
 	rfork(RFCFDG|RFNOTEG);
@@ -616,10 +615,11 @@ execproc(void *v)
 	dup(1, 2);
 	cpid = e->cpid;
 	free(e);
-	procexec(cpid, av[0], av);
+	/* p9web: plan9port's threadexec, with cons as 0, 1 and 2, for Plan 9's procexec */
+	threadexec(cpid, fd, av[0], av);
 	if(lookinbin(av[0])){
 		cmd = estrstrdup("/bin/", av[0]);
-		procexec(cpid, cmd, av);
+		threadexec(cpid, fd, cmd, av);
 	}
 	error("can't exec %s: %r", av[0]);
 }
@@ -636,7 +636,7 @@ startcmd(char *argv[], int *notepg)
 	e->argv = argv;
 	cpid = chancreate(sizeof(ulong), 0);
 	e->cpid = cpid;
-	sprint(buf, "/mnt/wsys/%d", win->id);
+	sprint(buf, "/mnt/acme/%d", win->id);	/* p9web: Acme's files are at /mnt/acme */
 	bind(buf, "/dev/acme", MREPL);
 	proccreate(execproc, e, EXECSTACK);
 	do

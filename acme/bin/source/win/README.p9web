@@ -1,0 +1,13 @@
+win on p9web (github.com/cptaffe/plan9web): Plan 9's win, as this tree has it (9legacy's), on
+plan9port's libthread and lib9p, which p9web's build compiles it with.
+
+Changes for p9web (this branch's commit):
+	main.c	threadexec (plan9port's libthread) in place of procexec; /mnt/acme in place of
+		/mnt/wsys; no Scroll and Noscroll, and no scroll ctl message (plan9port's Acme
+		scrolls by itself, and refuses them: its commit ba31ab30); ^C (0x03) is an
+		interrupt too, as in plan9port's win, since that Acme erases with Delete; the
+		typed interrupt is taken out of the body, as there
+	win.c	/mnt/acme in place of /mnt/wsys; no noscroll ctl message
+
+win serves cons and consctl (lib9p) and mounts them before /dev in its namespace; rc reads and
+writes them. A note to rc's note group is an interrupt (Del, or ^C).
