@@ -6,6 +6,12 @@
 #include <bio.h>
 #include <regexp.h>
 
+#ifdef PLAN9PORT
+/* plan9port's Resub names its unions */
+#define rsp s.rsp
+#define rep e.rep
+#endif
+
 enum
 {
 	FNSIZE	= 128,		/* file name */

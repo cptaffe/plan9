@@ -3,6 +3,10 @@
 #include <bio.h>
 #include <ctype.h>
 
+#ifdef PLAN9PORT
+#define getdate prgetdate /* not time.h's */
+#endif
+
 /*
  *	PR command (print files in pages and columns, with headings)
  *	2+head+2+page[56]+5

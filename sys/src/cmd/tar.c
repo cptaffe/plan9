@@ -10,7 +10,12 @@
 #include <libc.h>
 #include <ctype.h>
 #include <fcall.h>		/* for %M */
+#ifdef PLAN9PORT
+#include <libString.h>
+#define strnlen tarstrnlen /* not string.h's */
+#else
 #include <String.h>
+#endif
 
 /*
  * modified versions of those in libc.h; scans only the first arg for

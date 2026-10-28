@@ -1,6 +1,19 @@
 #include <u.h>
 #include <libc.h>
 
+#ifdef PLAN9PORT
+/* wasi-libc's sbrk takes only whole pages */
+static void*
+ddsbrk(ulong n)
+{
+	void *p;
+
+	p = malloc(n);
+	return p != nil ? p : (void*)-1;
+}
+#define sbrk ddsbrk
+#endif
+
 #define	BIG	((1UL<<31)-1)
 #define VBIG	((1ULL<<63)-1)
 #define	LCASE	(1<<0)
