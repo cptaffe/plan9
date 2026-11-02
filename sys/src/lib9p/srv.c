@@ -122,7 +122,7 @@ filewalk(Req *r)
 	f = r->fid->file;
 	assert(f != nil);
 
-	incref(f);
+	incref(&f->Ref);
 	for(i=0; i<r->ifcall.nwname; i++)
 		if(f = walkfile(f, r->ifcall.wname[i]))
 			r->ofcall.wqid[i] = f->qid;
@@ -228,7 +228,7 @@ sattach(Srv *srv, Req *r)
 	r->fid->uid = estrdup9p(r->ifcall.uname);
 	if(srv->tree){
 		r->fid->file = srv->tree->root;
-		incref(r->fid->file);
+		incref(&r->fid->file->Ref);
 		r->ofcall.qid = r->fid->file->qid;
 		r->fid->qid = r->ofcall.qid;
 	}

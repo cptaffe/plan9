@@ -110,7 +110,7 @@ cleanfilelist(File *f)
 void
 closefile(File *f)
 {
-	if(decref(f) == 0){
+	if(decref(&f->Ref) == 0){
 		f->tree->destroy(f);
 		freefile(f);
 	}
@@ -140,20 +140,20 @@ removefile(File *f)
 		return -1;
 	}
 
-	wlock(f);
-	wlock(fp);
+	wlock(&f->RWLock);
+	wlock(&fp->RWLock);
 	if(f->nchild != 0){
 		werrstr("has children");
-		wunlock(fp);
-		wunlock(f);
+		wunlock(&fp->RWLock);
+		wunlock(&f->RWLock);
 		closefile(f);
 		return -1;
 	}
 
 	if(f->parent != fp){
 		werrstr("parent changed underfoot");
-		wunlock(fp);
-		wunlock(f);
+		wunlock(&fp->RWLock);
+		wunlock(&f->RWLock);
 		closefile(f);
 		return -1;
 	}
@@ -167,10 +167,10 @@ removefile(File *f)
 	fp->nchild--;
 	fp->nxchild++;
 	f->parent = nil;
-	wunlock(f);
+	wunlock(&f->RWLock);
 
 	cleanfilelist(fp);
-	wunlock(fp);
+	wunlock(&fp->RWLock);
 
 	closefile(fp);	/* reference from child */
 	closefile(f);	/* reference from tree */
@@ -190,7 +190,7 @@ createfile(File *fp, char *name, char *uid, ulong perm, void *aux)
 		return nil;
 	}
 
-	wlock(fp);
+	wlock(&fp->RWLock);
 	/*
 	 * We might encounter blank spots along the
 	 * way due to deleted files that have not yet
@@ -201,7 +201,7 @@ createfile(File *fp, char *name, char *uid, ulong perm, void *aux)
 	 */
 	for(l=&fp->filelist; fl=*l; l=&fl->link){
 		if(fl->f && strcmp(fl->f->name, name) == 0){
-			wunlock(fp);
+			wunlock(&fp->RWLock);
 			werrstr("file already exists");
 			return nil;
 		}
@@ -233,14 +233,14 @@ createfile(File *fp, char *name, char *uid, ulong perm, void *aux)
 	f->atime = f->mtime = time(0);
 	f->length = 0;
 	f->parent = fp;
-	incref(fp);
+	incref(&fp->Ref);
 	f->tree = fp->tree;
 
-	incref(f);	/* being returned */
-	incref(f);	/* for the tree */
+	incref(&f->Ref);	/* being returned */
+	incref(&f->Ref);	/* for the tree */
 	fl->f = f;
 	fp->nchild++;
-	wunlock(fp);
+	wunlock(&fp->RWLock);
 
 	return f;
 }
@@ -251,11 +251,11 @@ walkfile1(File *dir, char *elem)
 	File *fp;
 	Filelist *fl;
 
-	rlock(dir);
+	rlock(&dir->RWLock);
 	if(strcmp(elem, "..") == 0){
 		fp = dir->parent;
-		incref(fp);
-		runlock(dir);
+		incref(&fp->Ref);
+		runlock(&dir->RWLock);
 		closefile(dir);
 		return fp;
 	}
@@ -264,11 +264,11 @@ walkfile1(File *dir, char *elem)
 	for(fl=dir->filelist; fl; fl=fl->link)
 		if(fl->f && strcmp(fl->f->name, elem)==0){
 			fp = fl->f;
-			incref(fp);
+			incref(&fp->Ref);
 			break;
 		}
 
-	runlock(dir);
+	runlock(&dir->RWLock);
 	closefile(dir);
 	return fp;
 }
@@ -329,7 +329,7 @@ alloctree(char *uid, char *gid, ulong mode, void (*destroy)(File*))
 	f->gid = gid;
 	f->muid = muid;
 
-	incref(f);
+	incref(&f->Ref);
 	t->root = f;
 	t->qidgen = 0;
 	t->dirqidgen = 1;
@@ -367,9 +367,9 @@ opendirfile(File *dir)
 {
 	Readdir *r;
 
-	rlock(dir);
+	rlock(&dir->RWLock);
 	if((dir->mode & DMDIR)==0){
-		runlock(dir);
+		runlock(&dir->RWLock);
 		return nil;
 	}
 	r = emalloc9p(sizeof(*r));
@@ -383,7 +383,7 @@ opendirfile(File *dir)
 	r->fl = dir->filelist;
 	r->dir = dir;
 	incref(&dir->readers);
-	runlock(dir);
+	runlock(&dir->RWLock);
 	return r;
 }
 
@@ -396,7 +396,7 @@ readdirfile(Readdir *r, uchar *buf, long n)
 	for(fl=r->fl, m=0; fl && m+2<=n; fl=fl->link, m+=x){
 		if(fl->f == nil)
 			x = 0;
-		else if((x=convD2M(fl->f, buf+m, n-m)) <= BIT16SZ)
+		else if((x=convD2M(&fl->f->Dir, buf+m, n-m)) <= BIT16SZ)
 			break;
 	}
 	r->fl = fl;
@@ -407,9 +407,9 @@ void
 closedirfile(Readdir *r)
 {
 	if(decref(&r->dir->readers) == 0){
-		wlock(r->dir);
+		wlock(&r->dir->RWLock);
 		cleanfilelist(r->dir);
-		wunlock(r->dir);
+		wunlock(&r->dir->RWLock);
 	}
 	free(r);
 }

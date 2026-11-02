@@ -18,6 +18,8 @@ void*	deletekey(Intmap*, ulong);
 /*
  * Fid and Request structures.
  */
+#define	Anon(T)	union { T; T T; }
+
 typedef struct Fid		Fid;
 typedef struct Req		Req;
 typedef struct Fidpool	Fidpool;
@@ -111,13 +113,13 @@ void		dirread9p(Req*, Dirgen*, void*);
  * File trees.
  */
 struct File {
-	Ref;
-	Dir;
+	Anon(Ref);
+	Anon(Dir);
 	File *parent;
 	void *aux;
 
 /* below is implementation-specific; don't use */
-	RWLock;
+	RWLock RWLock;		/* p9web: named, for a compiler without Plan 9's conversion */
 	Filelist *filelist;
 	Tree *tree;
 	int nchild;
