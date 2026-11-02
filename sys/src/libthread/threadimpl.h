@@ -113,6 +113,7 @@ struct Execjob
 	int *fd;
 	char *cmd;
 	char **argv;
+	char *dir;
 	Channel *c;
 };
 

@@ -82,18 +82,34 @@ static void
 execproc(void *v)
 {
 	Execjob *e;
+	char *bin;
+	int i;
 
 	e = v;
 	rfork(RFFDG);
 	dup(e->fd[0], 0);
 	dup(e->fd[1], 1);
 	dup(e->fd[2], 2);
-	procexec(e->c, e->cmd, e->argv);
+	/* the spawner's descriptors, and any that are the same one, close once */
+	for(i = 0; i < 3; i++)
+		if(e->fd[i] > 2 && (i == 0 || e->fd[i] != e->fd[i-1]))
+			close(e->fd[i]);
+	if(e->dir != nil)
+		chdir(e->dir);
+	/* a name with no slash is here, then in /bin, as rc's default path */
+	if(e->cmd[0] == '/' || strncmp(e->cmd, "./", 2) == 0 || access(e->cmd, AEXEC) == 0)
+		procexec(e->c, e->cmd, e->argv);
+	else{
+		bin = smprint("/bin/%s", e->cmd);
+		procexec(e->c, bin, e->argv);
+		free(bin);
+	}
 	threadexits(nil);
 }
 
+/* threadspawnd is threadspawn in the directory dir (nil: this one's). */
 int
-threadspawn(int fd[3], char *cmd, char *argv[])
+threadspawnd(int fd[3], char *cmd, char *argv[], char *dir)
 {
 	int pid;
 	Execjob e;
@@ -101,14 +117,24 @@ threadspawn(int fd[3], char *cmd, char *argv[])
 	e.fd = fd;
 	e.cmd = cmd;
 	e.argv = argv;
+	e.dir = dir;
 	e.c = chancreate(sizeof(void*), 0);
 	proccreate(execproc, &e, 65536);
-	close(fd[0]);
-	close(fd[1]);
-	close(fd[2]);
+	/* after the send: execproc's rfork has copied them by then; and two may be one */
 	pid = recvul(e.c);
+	close(fd[0]);
+	if(fd[1] != fd[0])
+		close(fd[1]);
+	if(fd[2] != fd[1] && fd[2] != fd[0])
+		close(fd[2]);
 	chanfree(e.c);
-	return pid;
+	return pid == ~0 ? -1 : pid;
+}
+
+int
+threadspawn(int fd[3], char *cmd, char *argv[])
+{
+	return threadspawnd(fd, cmd, argv, nil);
 }
 
 int
