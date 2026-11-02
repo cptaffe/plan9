@@ -8,6 +8,7 @@ enum
 	Qeditout,
 	Qindex,
 	Qlabel,
+	Qlog,
 	Qnew,
 
 	QWaddr,
@@ -17,6 +18,9 @@ enum
 	QWeditout,
 	QWerrors,
 	QWevent,
+	QWlog,
+	QWseq,
+	QWstyle,
 	QWrdsel,
 	QWwrsel,
 	QWtag,
@@ -27,7 +31,7 @@ enum
 enum
 {
 	Blockincr =	256,
-	Maxblock = 	16*1024,
+	Maxblock = 	32*1024,
 	NRange =		10,
 	Infinity = 		0x7FFFFFFF,	/* huge value for regexp address */
 };
@@ -51,6 +55,9 @@ typedef	struct	Row Row;
 typedef	struct	Runestr Runestr;
 typedef	struct	Text Text;
 typedef	struct	Timer Timer;
+typedef	struct	WinEditLog WinEditLog;
+typedef	struct	WinStyleEntry WinStyleEntry;
+typedef	struct	WinStyleRun WinStyleRun;
 typedef	struct	Window Window;
 typedef	struct	Xfid Xfid;
 
@@ -68,18 +75,18 @@ struct Range
 
 struct Block
 {
-	uint		addr;	/* disk address in bytes */
+	vlong		addr;	/* disk address in bytes */
 	union
 	{
 		uint	n;		/* number of used runes in block */
 		Block	*next;	/* pointer to next in free list */
-	};
+	} u;
 };
 
 struct Disk
 {
 	int		fd;
-	uint		addr;	/* length of temp file */
+	vlong		addr;	/* length of temp file */
 	Block	*free[Maxblock/Blockincr+1];
 };
 
@@ -103,7 +110,7 @@ struct Buffer
 };
 void		bufinsert(Buffer*, uint, Rune*, uint);
 void		bufdelete(Buffer*, uint, uint);
-uint		bufload(Buffer*, uint, int, int*);
+uint		bufload(Buffer*, uint, int, int*, DigestState*);
 void		bufread(Buffer*, uint, Rune*, uint);
 void		bufclose(Buffer*);
 void		bufreset(Buffer*);
@@ -125,7 +132,7 @@ void	elogapply(File*);
 
 struct File
 {
-	Buffer;			/* the data */
+	Buffer	b;			/* the data */
 	Buffer	delta;	/* transcript of changes */
 	Buffer	epsilon;	/* inversion of delta for redo */
 	Buffer	*elogbuf;	/* log of pending editor changes */
@@ -133,8 +140,9 @@ struct File
 	Rune		*name;	/* name of associated file */
 	int		nname;	/* size of name */
 	uvlong	qidpath;	/* of file when read */
-	uint		mtime;	/* of file when read */
+	ulong	mtime;	/* of file when read */
 	int		dev;		/* of file when read */
+	uchar	sha1[20];		/* of file when read */
 	int		unread;	/* file has not been read from disk */
 	int		editclean;	/* mark clean after edit command */
 
@@ -150,7 +158,7 @@ void		fileclose(File*);
 void		filedelete(File*, uint, uint);
 void		filedeltext(File*, Text*);
 void		fileinsert(File*, uint, Rune*, uint);
-uint		fileload(File*, uint, int, int*);
+uint		fileload(File*, uint, int, int*, DigestState*);
 void		filemark(File*);
 void		filereset(File*);
 void		filesetname(File*, Rune*, int);
@@ -171,7 +179,7 @@ enum	/* Text.what */
 struct Text
 {
 	File		*file;
-	Frame;
+	Frame	fr;
 	Reffont	*reffont;
 	uint	org;
 	uint	q0;
@@ -185,17 +193,20 @@ struct Text
 	Row		*row;
 	Column	*col;
 
+	uint	iq1;	/* last input position */
 	uint	eq0;	/* start of typing for ESC */
 	uint	cq0;	/* cache position */
 	int		ncache;	/* storage for insert */
 	int		ncachealloc;
 	Rune	*cache;
 	int	nofill;
+	int	needundo;
 };
 
 uint		textbacknl(Text*, uint, uint);
 uint		textbsinsert(Text*, uint, Rune*, uint, int, int*);
 int		textbswidth(Text*, Rune);
+int		textclickhtmlmatch(Text*, uint*, uint*);
 int		textclickmatch(Text*, int, int, int, uint*);
 void		textclose(Text*);
 void		textcolumnate(Text*, Dirlist**, int);
@@ -207,7 +218,7 @@ void		textfill(Text*);
 void		textframescroll(Text*, int);
 void		textinit(Text*, File*, Rectangle, Reffont*, Image**);
 void		textinsert(Text*, uint, Rune*, uint, int);
-uint		textload(Text*, uint, char*, int);
+int		textload(Text*, uint, char*, int);
 Rune		textreadc(Text*, uint);
 void		textredraw(Text*, Rectangle, Font*, Image*, int);
 void		textreset(Text*);
@@ -223,10 +234,62 @@ void		textsetselect(Text*, uint, uint);
 void		textshow(Text*, uint, uint, int);
 void		texttype(Text*, Rune);
 
+/*
+ * WinEvRing — shared event ring buffer for a window.
+ *
+ * Events are stored as: [uint size][owner byte][text (size-1 bytes, ends \n)]
+ * All positions (base, tail, Fid.ev*) are monotonically increasing file
+ * offsets.  To access position P: buf[P - base].  The buffer grows on
+ * demand; GC compacts it once all readers have advanced past the front.
+ */
+typedef	struct	WinEvRing WinEvRing;
+struct WinEvRing
+{
+	char	*buf;	/* raw bytes */
+	int	cap;	/* allocated capacity */
+	vlong	base;	/* file offset of buf[0] */
+	vlong	tail;	/* file offset of next write */
+};
+struct WinEditLog
+{
+	QLock	lk;
+	Rendez	r;
+	vlong	start;
+	char		**ev;
+	int		nev;
+	int		mev;
+	Fid		**f;
+	int		nf;
+	int		mf;
+	Xfid		**read;
+	int		nread;
+	int		mread;
+	int		closed;
+};
+
+struct WinStyleEntry
+{
+	char		*name;
+	ulong	fg;
+	ulong	bg;
+};
+
+enum
+{
+	Nocolor = 0,
+};
+
+struct WinStyleRun
+{
+	ulong	start;
+	ulong	len;
+	int		paletteidx;
+};
+
 struct Window
 {
-		QLock;
-		Ref;
+		QLock	lk;
+		Ref	ref;
 	Text		tag;
 	Text		body;
 	Rectangle	r;
@@ -238,16 +301,18 @@ struct Window
 	uchar	showdel;
 	int		id;
 	Range	addr;
+	int		hasaddr;	/* 1 after a write to addr, cleared when style fid opens OWRITE */
+	int		seq;	/* monotonic edit count; incremented on each body edit (winlogedit) */
+	int		wantseq;
 	Range	limit;
 	uchar	nopen[QMAX];
 	uchar	nomark;
-	uchar	noscroll;
+	uchar	noecho;
 	Range	wrselrange;
 	int		rdselfd;
 	Column	*col;
-	Xfid		*eventx;
-	char		*events;
-	int		nevents;
+	WinEvRing	evring;	/* shared event ring buffer */
+	Fid	*eventhead;	/* newest reader (pipeline head); nil if none */
 	int		owner;
 	int		maxlines;
 	Dirlist	**dlp;
@@ -269,6 +334,11 @@ struct Window
 	int		taglines;
 	Rectangle	tagtop;
 	QLock	editoutlk;
+	WinStyleEntry	*wpalette;
+	int		nwpalette;
+	WinStyleRun	*wruns;
+	int		nwruns;
+	WinEditLog	editlog;	/* per-window body edit notification log */
 };
 
 void	wininit(Window*, Window*, Rectangle);
@@ -316,7 +386,7 @@ void		colmousebut(Column*);
 
 struct Row
 {
-	QLock;
+	QLock	lk;
 	Rectangle r;
 	Text	tag;
 	Column	**col;
@@ -385,16 +455,30 @@ struct Fid
 	Window	*w;
 	Dirtab	*dir;
 	Fid		*next;
+	Fid	*eventnext;	/* next reader toward acme (lower priority) */
+	vlong	evhead;	/* oldest unacknowledged event position in ring */
+	vlong	evread;	/* next position to deliver to this reader */
+	vlong	evlimit;	/* permission boundary: may read up to here */
+	Xfid	*eventx;	/* Xfid blocked waiting for events, or nil */
 	Mntdir	*mntdir;
 	int		nrpart;
 	uchar	rpart[UTFmax];
+	vlong	logoff;	/* for putlog */
+	int		logmismatch;
+	int		seq;
+	int		styleopen;
+	int		stylehasaddr;
+	Range	styleaddr;
+	char		*stylebuf;
+	int		nstylebuf;
+	int		mstylebuf;
 };
 
 
 struct Xfid
 {
 	void		*arg;	/* args to xfidinit */
-	Fcall;
+	Fcall	fcall;
 	Xfid	*next;
 	Channel	*c;		/* chan(void(*)(Xfid*)) */
 	Fid	*f;
@@ -415,10 +499,22 @@ void		xfideventwrite(Xfid*, Window*);
 void		xfidindexread(Xfid*);
 void		xfidutfread(Xfid*, Text*, uint, int);
 int		xfidruneread(Xfid*, Text*, uint, uint);
+void		xfidlogopen(Xfid*);
+void		xfidlogread(Xfid*);
+void		xfidlogflush(Xfid*);
+void		xfidlog(Window*, char*);
+
+/* per-window body-edit notification log (QWlog / "<winid>/log") */
+void		xfidwinlogopen(Xfid*, Window*);
+void		xfidwinlogclose(Xfid*, Window*);
+void		xfidwinlogread(Xfid*, Window*);
+void		xfidwinlogflush(Xfid*, Window*);
+void	winlogedit(Window*, char, ulong, ulong, Rune *, int);
+void		winlogfree(Window*);
 
 struct Reffont
 {
-	Ref;
+	Ref	ref;
 	Font		*f;
 
 };
@@ -445,10 +541,11 @@ struct Expand
 	int	nname;
 	char	*bname;
 	int	jump;
+	int	reverse;
 	union{
 		Text	*at;
 		Rune	*ar;
-	};
+	} u;
 	int	(*agetc)(void*, uint);
 	int	a0;
 	int	a1;
@@ -460,15 +557,19 @@ enum
 	BUFSIZE = Maxblock+IOHDRSZ,	/* size from fbufalloc() */
 	RBUFSIZE = BUFSIZE/sizeof(Rune),
 	EVENTSIZE = 256,
-	Scrollwid = 12,	/* width of scroll bar */
-	Scrollgap = 4,	/* gap right of scroll bar */
-	Margin = 4,	/* margin around text */
-	Border = 2,	/* line between rows, cols, windows */
 };
+
+#define	Scrollwid	scalesize(display, 12)	/* width of scroll bar */
+#define	Scrollgap	scalesize(display, 4)	/* gap right of scroll bar */
+#define	Margin	scalesize(display, 4)	/* margin around text */
+#define	Border	scalesize(display, 2)	/* line between rows, cols, windows */
+#define	ButtonBorder	scalesize(display, 2)
 
 #define	QID(w,q)	((w<<8)|(q))
 #define	WIN(q)	((((ulong)(q).path)>>8) & 0xFFFFFF)
 #define	FILE(q)	((q).path & 0xFF)
+#define	unsetenv(s)	remove("/env/" s)
+#define	chansetname(c, ...)
 
 enum
 {
@@ -520,6 +621,7 @@ Text			*mousetext;	/* global because Text.close needs to clear it */
 Text			*typetext;		/* global because Text.close needs to clear it */
 Text			*barttext;		/* shared between mousetask and keyboardthread */
 int			bartflag;
+int			swapscrollbuttons;
 Window		*activewin;
 Column		*activecol;
 Buffer		snarfbuf;
@@ -528,16 +630,18 @@ int			fsyspid;
 char			*cputype;
 char			*objtype;
 char			*home;
-char			*fontnames[2];
-char			acmeerrorfile[128];
+char			*acmeshell;
+char	*fontnames[2];
 Image		*tagcols[NCOL];
 Image		*textcols[NCOL];
-int			plumbsendfd;
-int			plumbeditfd;
-char			wdir[];
+extern char		wdir[];
 int			editing;
+int			erroutfd;
+int			cfd;
 int			messagesize;		/* negotiated in 9P version setup */
 int			globalautoindent;
+int			dodollarsigns;
+char*		mtpt;
 
 enum
 {
@@ -559,4 +663,6 @@ Channel	*cerr;		/* chan(char*) */
 Channel	*cedit;		/* chan(int) */
 Channel	*cwarn;		/* chan(void*)[1] (really chan(unit)[1]) */
 
-#define	STACK	8192
+QLock	editoutlk;
+
+#define	STACK	65536

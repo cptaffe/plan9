@@ -22,6 +22,7 @@ extern	void		closekeyboard(Keyboardctl*);
 enum {
 	KF=	0xF000,	/* Rune: beginning of private Unicode space */
 	Spec=	0xF800,
+	Kcmd=	0xF100,	/* Mac Command: Kcmd+'c' is Command-C (plan9port's) */
 	/* KF|1, KF|2, ..., KF|0xC is F1, F2, ..., F12 */
 	Khome=	KF|0x0D,
 	Kup=	KF|0x0E,

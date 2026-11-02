@@ -8,11 +8,15 @@
 #include <frame.h>
 #include <fcall.h>
 #include <plumb.h>
+#include <libsec.h>
 #include "dat.h"
 #include "fns.h"
 
 Rangeset	sel;
 Rune		*lastregexp;
+
+#undef class
+#define class regxclass /* some systems declare "class" in system headers */
 
 /*
  * Machine Information
@@ -20,18 +24,18 @@ Rune		*lastregexp;
 typedef struct Inst Inst;
 struct Inst
 {
-	uint	type;	/* <= Runemax+1 ==> literal, otherwise action */
+	uint	type;	/* < OPERATOR ==> literal, otherwise action */
 	union {
 		int sid;
 		int subid;
 		int class;
 		Inst *other;
 		Inst *right;
-	};
+	} u;
 	union{
 		Inst *left;
 		Inst *next;
-	};
+	} u1;
 };
 
 #define	NPROG	1024
@@ -58,31 +62,30 @@ static	Rangeset sempty;
 /*
  * Actions and Tokens
  *
- *	0x100xx are operators, value == precedence
- *	0x200xx are tokens, i.e. operands for operators
+ *	0x10000xx are operators, value == precedence
+ *	0x20000xx are tokens, i.e. operands for operators
  */
-enum {
-	OPERATOR = Runemask+1,	/* Bitmask of all operators */
-	START	= OPERATOR,	/* Start, used for marker on stack */
-	RBRA,			/* Right bracket, ) */
-	LBRA,			/* Left bracket, ( */
-	OR,			/* Alternation, | */
-	CAT,			/* Concatentation, implicit operator */
-	STAR,			/* Closure, * */
-	PLUS,			/* a+ == aa* */
-	QUEST,			/* a? == a|nothing, i.e. 0 or 1 a's */
+#define	OPERATOR	0x1000000	/* Bit set in all operators */
+#define	START		(OPERATOR+0)	/* Start, used for marker on stack */
+#define	RBRA		(OPERATOR+1)	/* Right bracket, ) */
+#define	LBRA		(OPERATOR+2)	/* Left bracket, ( */
+#define	OR		(OPERATOR+3)	/* Alternation, | */
+#define	CAT		(OPERATOR+4)	/* Concatentation, implicit operator */
+#define	STAR		(OPERATOR+5)	/* Closure, * */
+#define	PLUS		(OPERATOR+6)	/* a+ == aa* */
+#define	QUEST		(OPERATOR+7)	/* a? == a|nothing, i.e. 0 or 1 a's */
+#define	ANY		0x2000000	/* Any character but newline, . */
+#define	NOP		(ANY+1)	/* No operation, internal use only */
+#define	BOL		(ANY+2)	/* Beginning of line, ^ */
+#define	EOL		(ANY+3)	/* End of line, $ */
+#define	CCLASS		(ANY+4)	/* Character class, [] */
+#define	NCCLASS		(ANY+5)	/* Negated character class, [^] */
+#define	END		(ANY+0x77)	/* Terminate: match found */
 
-	ANY	= OPERATOR<<1,	/* Any character but newline, . */
-	NOP,			/* No operation, internal use only */
-	BOL,			/* Beginning of line, ^ */
-	EOL,			/* End of line, $ */
-	CCLASS,			/* Character class, [] */
-	NCCLASS,		/* Negated character class, [^] */
-	END,			/* Terminate: match found */
+#define	ISATOR		OPERATOR
+#define	ISAND		ANY
 
-	ISATOR	= OPERATOR,
-	ISAND	= OPERATOR<<1,
-};
+#define	QUOTED	0x4000000	/* Bit set for \-ed lex characters */
 
 /*
  * Parser Information
@@ -131,6 +134,7 @@ void
 rxinit(void)
 {
 	rechan = chancreate(sizeof(Inst*), 0);
+	chansetname(rechan, "rechan");
 	lastregexp = runemalloc(1);
 }
 
@@ -149,8 +153,8 @@ newinst(int t)
 	if(progp >= &program[NPROG])
 		regerror("expression too long");
 	progp->type = t;
-	progp->left = nil;
-	progp->right = nil;
+	progp->u1.left = nil;
+	progp->u.right = nil;
 	return progp++;
 }
 
@@ -232,7 +236,7 @@ operand(int t)
 	if(t == CCLASS){
 		if(negateclass)
 			i->type = NCCLASS;	/* UGH */
-		i->class = nclass-1;		/* UGH */
+		i->u.class = nclass-1;		/* UGH */
 	}
 	pushand(i, i);
 	lastwasand = TRUE;
@@ -313,11 +317,11 @@ evaluntil(int pri)
 		case LBRA:
 			op1 = popand('(');
 			inst2 = newinst(RBRA);
-			inst2->subid = *subidp;
-			op1->last->next = inst2;
+			inst2->u.subid = *subidp;
+			op1->last->u1.next = inst2;
 			inst1 = newinst(LBRA);
-			inst1->subid = *subidp;
-			inst1->next = op1->first;
+			inst1->u.subid = *subidp;
+			inst1->u1.next = op1->first;
 			pushand(inst1, inst2);
 			return;		/* must have been RBRA */
 		default:
@@ -327,11 +331,11 @@ evaluntil(int pri)
 			op2 = popand('|');
 			op1 = popand('|');
 			inst2 = newinst(NOP);
-			op2->last->next = inst2;
-			op1->last->next = inst2;
+			op2->last->u1.next = inst2;
+			op1->last->u1.next = inst2;
 			inst1 = newinst(OR);
-			inst1->right = op1->first;
-			inst1->left = op2->first;
+			inst1->u.right = op1->first;
+			inst1->u1.left = op2->first;
 			pushand(inst1, inst2);
 			break;
 		case CAT:
@@ -342,30 +346,30 @@ evaluntil(int pri)
 				op1 = op2;
 				op2 = t;
 			}
-			op1->last->next = op2->first;
+			op1->last->u1.next = op2->first;
 			pushand(op1->first, op2->last);
 			break;
 		case STAR:
 			op2 = popand('*');
 			inst1 = newinst(OR);
-			op2->last->next = inst1;
-			inst1->right = op2->first;
+			op2->last->u1.next = inst1;
+			inst1->u.right = op2->first;
 			pushand(inst1, inst1);
 			break;
 		case PLUS:
 			op2 = popand('+');
 			inst1 = newinst(OR);
-			op2->last->next = inst1;
-			inst1->right = op2->first;
+			op2->last->u1.next = inst1;
+			inst1->u.right = op2->first;
 			pushand(op2->first, inst1);
 			break;
 		case QUEST:
 			op2 = popand('?');
 			inst1 = newinst(OR);
 			inst2 = newinst(NOP);
-			inst1->left = inst2;
-			inst1->right = op2->first;
-			op2->last->next = inst2;
+			inst1->u1.left = inst2;
+			inst1->u.right = op2->first;
+			op2->last->u1.next = inst2;
 			pushand(inst1, inst2);
 			break;
 		}
@@ -379,10 +383,10 @@ optimize(Inst *start)
 	Inst *inst, *target;
 
 	for(inst=start; inst->type!=END; inst++){
-		target = inst->next;
+		target = inst->u1.next;
 		while(target->type == NOP)
-			target = target->next;
-		inst->next = target;
+			target = target->u1.next;
+		inst->u1.next = target;
 	}
 }
 
@@ -455,7 +459,7 @@ nextrec(void)
 			exprp++;
 			return '\n';
 		}
-		return *exprp++|(Runemax+1);
+		return *exprp++|QUOTED;
 	}
 	return *exprp++;
 }
@@ -495,7 +499,7 @@ bldcclass(void)
 			classp[n+2] = c2;
 			n += 3;
 		}else
-			classp[n++] = c1;
+			classp[n++] = c1 & ~QUOTED;
 	}
 	classp[n] = 0;
 	if(nclass == Nclass){
@@ -574,7 +578,7 @@ rxexecute(Text *t, Rune *r, uint startp, uint eof, Rangeset *rp)
 	list[0][0].inst = list[1][0].inst = nil;
 	sel.r[0].q0 = -1;
 	if(t != nil)
-		nc = t->file->nc;
+		nc = t->file->b.nc;
 	else
 		nc = runestrlen(r);
 	/* Execute machine once for each character */
@@ -629,20 +633,20 @@ rxexecute(Text *t, Rune *r, uint startp, uint eof, Rangeset *rp)
 			default:	/* regular character */
 				if(inst->type==c){
 	Addinst:
-					if(addinst(nl, inst->next, &tlp->se))
+					if(addinst(nl, inst->u1.next, &tlp->se))
 					if(++nnl >= NLIST)
 						goto Overflow;
 				}
 				break;
 			case LBRA:
-				if(inst->subid>=0)
-					tlp->se.r[inst->subid].q0 = p;
-				inst = inst->next;
+				if(inst->u.subid>=0)
+					tlp->se.r[inst->u.subid].q0 = p;
+				inst = inst->u1.next;
 				goto Switchstmt;
 			case RBRA:
-				if(inst->subid>=0)
-					tlp->se.r[inst->subid].q1 = p;
-				inst = inst->next;
+				if(inst->u.subid>=0)
+					tlp->se.r[inst->u.subid].q1 = p;
+				inst = inst->u1.next;
 				goto Switchstmt;
 			case ANY:
 				if(c!='\n')
@@ -651,7 +655,7 @@ rxexecute(Text *t, Rune *r, uint startp, uint eof, Rangeset *rp)
 			case BOL:
 				if(p==0 || (t!=nil && textreadc(t, p-1)=='\n') || (r!=nil && r[p-1]=='\n')){
 	Step:
-					inst = inst->next;
+					inst = inst->u1.next;
 					goto Switchstmt;
 				}
 				break;
@@ -660,20 +664,20 @@ rxexecute(Text *t, Rune *r, uint startp, uint eof, Rangeset *rp)
 					goto Step;
 				break;
 			case CCLASS:
-				if(c>=0 && classmatch(inst->class, c, 0))
+				if(c>=0 && classmatch(inst->u.class, c, 0))
 					goto Addinst;
 				break;
 			case NCCLASS:
-				if(c>=0 && classmatch(inst->class, c, 1))
+				if(c>=0 && classmatch(inst->u.class, c, 1))
 					goto Addinst;
 				break;
 			case OR:
 				/* evaluate right choice later */
-				if(addinst(tlp, inst->right, &tlp->se))
+				if(addinst(tlp, inst->u.right, &tlp->se))
 				if(++ntl >= NLIST)
 					goto Overflow;
 				/* efficiency: advance and re-evaluate */
-				inst = inst->left;
+				inst = inst->u1.left;
 				goto Switchstmt;
 			case END:	/* Match! */
 				tlp->se.r[0].q1 = p;
@@ -728,7 +732,7 @@ rxbexecute(Text *t, uint startp, Rangeset *rp)
 				if(sel.r[0].q0>=0)
 					goto Return;
 				list[0][0].inst = list[1][0].inst = nil;
-				p = t->file->nc;
+				p = t->file->b.nc;
 				goto doloop;
 			case 3:
 			default:
@@ -767,20 +771,20 @@ rxbexecute(Text *t, uint startp, Rangeset *rp)
 			default:	/* regular character */
 				if(inst->type == c){
 	Addinst:
-					if(addinst(nl, inst->next, &tlp->se))
+					if(addinst(nl, inst->u1.next, &tlp->se))
 					if(++nnl >= NLIST)
 						goto Overflow;
 				}
 				break;
 			case LBRA:
-				if(inst->subid>=0)
-					tlp->se.r[inst->subid].q0 = p;
-				inst = inst->next;
+				if(inst->u.subid>=0)
+					tlp->se.r[inst->u.subid].q0 = p;
+				inst = inst->u1.next;
 				goto Switchstmt;
 			case RBRA:
-				if(inst->subid >= 0)
-					tlp->se.r[inst->subid].q1 = p;
-				inst = inst->next;
+				if(inst->u.subid >= 0)
+					tlp->se.r[inst->u.subid].q1 = p;
+				inst = inst->u1.next;
 				goto Switchstmt;
 			case ANY:
 				if(c != '\n')
@@ -789,29 +793,29 @@ rxbexecute(Text *t, uint startp, Rangeset *rp)
 			case BOL:
 				if(c=='\n' || p==0){
 	Step:
-					inst = inst->next;
+					inst = inst->u1.next;
 					goto Switchstmt;
 				}
 				break;
 			case EOL:
-				if(p<t->file->nc && textreadc(t, p)=='\n')
+				if(p<t->file->b.nc && textreadc(t, p)=='\n')
 					goto Step;
 				break;
 			case CCLASS:
-				if(c>0 && classmatch(inst->class, c, 0))
+				if(c>0 && classmatch(inst->u.class, c, 0))
 					goto Addinst;
 				break;
 			case NCCLASS:
-				if(c>0 && classmatch(inst->class, c, 1))
+				if(c>0 && classmatch(inst->u.class, c, 1))
 					goto Addinst;
 				break;
 			case OR:
 				/* evaluate right choice later */
-				if(addinst(tl, inst->right, &tlp->se))
+				if(addinst(tl, inst->u.right, &tlp->se))
 				if(++ntl >= NLIST)
 					goto Overflow;
 				/* efficiency: advance and re-evaluate */
-				inst = inst->left;
+				inst = inst->u1.left;
 				goto Switchstmt;
 			case END:	/* Match! */
 				tlp->se.r[0].q0 = -tlp->se.r[0].q0; /* minus sign */

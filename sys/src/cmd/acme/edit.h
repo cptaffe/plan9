@@ -19,7 +19,7 @@ struct Addr
 	union{
 		String	*re;
 		Addr	*left;		/* left side of , and ; */
-	};
+	} u;
 	ulong	num;
 	Addr	*next;			/* or right side of , and ; */
 };
@@ -38,7 +38,7 @@ struct Cmd
 		Cmd	*cmd;		/* target of x, g, {, etc. */
 		String	*text;		/* text of a, c, i; rhs of s */
 		Addr	*mtaddr;		/* address for m, t */
-	};
+	} u;
 	Cmd	*next;			/* pointer to next element in {} */
 	short	num;
 	ushort	flag;			/* whatever */
@@ -68,7 +68,7 @@ struct List
 		void*	*ptr;
 		uchar*	*ucharptr;
 		String*	*stringptr;
-	};
+	} u;
 };
 
 enum Defaddr{	/* default addresses */
