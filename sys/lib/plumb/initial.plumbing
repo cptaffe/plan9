@@ -1,0 +1,5 @@
+# the rules of a home with no lib/plumbing: what newuser writes there
+
+editor = acme
+
+include basic
