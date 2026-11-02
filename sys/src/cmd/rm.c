@@ -1,5 +1,8 @@
 #include <u.h>
 #include <libc.h>
+#ifdef PLAN9PORT
+#define rmdir rmdirall /* not unistd.h's */
+#endif
 
 char	errbuf[ERRMAX];
 int	ignerr = 0;

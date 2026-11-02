@@ -93,6 +93,12 @@ struct Thread
 	Alt		*alt;		/* pointer to current alt structure (debugging) */
 
 	void*	udata[NPRIV];	/* User per-thread data pointer */
+
+	/* wasm: a thread is a fiber (wasm.c) */
+	int		fiber;
+	void		(*fn)(void*);
+	void		*arg;
+	uchar		*abuf;
 };
 
 struct Execargs
@@ -107,6 +113,7 @@ struct Execjob
 	int *fd;
 	char *cmd;
 	char **argv;
+	char *dir;
 	Channel *c;
 };
 
@@ -142,6 +149,8 @@ struct Proc
 	void*		wdata;			/* Lib(worker) per-proc data pointer */
 	void*		udata;			/* User per-proc data pointer */
 	char		threadint;		/* tag for threadexitsall() */
+
+	int		fiber;			/* wasm: its scheduler's fiber (wasm.c) */
 };
 
 struct Pqueue {		/* Proc queue */
@@ -161,6 +170,15 @@ struct Ioproc
 	char err[ERRMAX];
 	Ioproc *next;
 };
+
+#ifdef __wasm__
+void	_threadfirstproc(void);
+int	_threadinsched(Proc*);
+void	_threadjump(Thread*);
+void	_threadpause(Proc*, Thread*);
+void	_threadschedend(char*);
+void	_threadschedself(Proc*);
+#endif
 
 void	_freeproc(Proc*);
 void	_freethread(Thread*);

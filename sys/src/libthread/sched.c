@@ -32,9 +32,14 @@ _schedinit(void *arg)
 
 	p = arg;
 	_threadsetproc(p);
-	p->pid = _tos->pid; //getpid();
+	p->pid = getpid();
+#ifdef __wasm__
+	_threadschedself(p);
+Top:
+#else
 	while(setjmp(p->sched))
 		;
+#endif
 	_threaddebug(DBGSCHED, "top of schedinit, _threadexitsallstatus=%p", _threadexitsallstatus);
 	if(_threadexitsallstatus)
 		exits(_threadexitsallstatus);
@@ -57,10 +62,16 @@ _schedinit(void *arg)
 				_threadbreakrendez();
 			}
 			free(t->stk);
+#ifdef __wasm__
+			free(t->abuf);
+#endif
 			free(t->cmdname);
 			free(t);	/* XXX how do we know there are no references? */
 			t = nil;
 			_sched();
+#ifdef __wasm__
+			goto Top;
+#endif
 		}
 		if(p->needexec){
 			t->ret = _schedexec(&p->exec);
@@ -76,6 +87,9 @@ _schedinit(void *arg)
 	}
 	unlock(&p->lock);
 	_sched();
+#ifdef __wasm__
+	goto Top;
+#endif
 }
 
 void
@@ -105,10 +119,17 @@ _sched(void)
 Resched:
 	p = _threadgetproc();
 	if((t = p->thread) != nil){
+#ifndef __wasm__
 		needstack(128);
+#endif
 		_threaddebug(DBGSCHED, "pausing, state=%s", psstate(t->state));
+#ifdef __wasm__
+		if(!_threadinsched(p))
+			_threadpause(p, t);
+#else
 		if(setjmp(t->sched)==0)
 			longjmp(p->sched, 1);
+#endif
 		return;
 	}else{
 		t = runthread(p);
@@ -124,7 +145,11 @@ Resched:
 		}
 		t->state = Running;
 		t->nextstate = Ready;
+#ifdef __wasm__
+		_threadjump(t);
+#else
 		longjmp(t->sched, 1);
+#endif
 	}
 }
 

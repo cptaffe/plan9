@@ -27,6 +27,7 @@ buildfont(Display *d, char *buf, char *name)
 	memset(fnt, 0, sizeof(Font));
 	fnt->display = d;
 	fnt->name = strdup(name);
+	fnt->namespec = strdup(name);
 	fnt->ncache = NFCACHE+NFLOOK;
 	fnt->nsubf = NFSUBF;
 	fnt->cache = malloc(fnt->ncache * sizeof(fnt->cache[0]));
@@ -70,7 +71,7 @@ buildfont(Display *d, char *buf, char *name)
 		}
 		max = strtol(s, &s, 0);
 		s = skip(s);
-		if(*s==0 || min>=Runemax || max>=Runemax || min>max){
+		if(*s==0 || min>Runemax || max>Runemax || min>max){
 			werrstr("illegal subfont range");
     Err3:
 			freefont(fnt);

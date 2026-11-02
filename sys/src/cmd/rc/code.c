@@ -486,7 +486,7 @@ codefree(code *cp)
 		if(p->f==Xappend || p->f==Xclose || p->f==Xread || p->f==Xwrite
 		|| p->f==Xrdwr
 		|| p->f==Xasync || p->f==Xbackq || p->f==Xcase || p->f==Xfalse
-		|| p->f==Xfor || p->f==Xjump
+		|| p->f==Xfor || p->f==Xif || p->f==Xifnot || p->f==Xjump
 		|| p->f==Xsubshell || p->f==Xtrue) p++;
 		else if(p->f==Xdup || p->f==Xpipefd) p+=2;
 		else if(p->f==Xpipe) p+=4;

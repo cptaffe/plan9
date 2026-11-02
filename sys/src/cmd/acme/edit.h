@@ -1,4 +1,4 @@
-#pragma	varargck	argpos	editerror	1
+/*#pragma	varargck	argpos	editerror	1*/
 
 typedef struct Addr	Addr;
 typedef struct Address	Address;
@@ -19,7 +19,7 @@ struct Addr
 	union{
 		String	*re;
 		Addr	*left;		/* left side of , and ; */
-	};
+	} u;
 	ulong	num;
 	Addr	*next;			/* or right side of , and ; */
 };
@@ -38,7 +38,7 @@ struct Cmd
 		Cmd	*cmd;		/* target of x, g, {, etc. */
 		String	*text;		/* text of a, c, i; rhs of s */
 		Addr	*mtaddr;		/* address for m, t */
-	};
+	} u;
 	Cmd	*next;			/* pointer to next element in {} */
 	short	num;
 	ushort	flag;			/* whatever */
@@ -59,7 +59,7 @@ extern struct cmdtab{
 
 #define	INCR	25	/* delta when growing list */
 
-struct List
+struct List	/* code depends on a long being able to hold a pointer */
 {
 	int	nalloc;
 	int	nused;
@@ -68,13 +68,13 @@ struct List
 		void*	*ptr;
 		uchar*	*ucharptr;
 		String*	*stringptr;
-	};
+	} u;
 };
 
 enum Defaddr{	/* default addresses */
 	aNo,
 	aDot,
-	aAll,
+	aAll
 };
 
 int	nl_cmd(Text*, Cmd*), a_cmd(Text*, Cmd*), b_cmd(Text*, Cmd*);
@@ -88,7 +88,7 @@ int	x_cmd(Text*, Cmd*), X_cmd(Text*, Cmd*), pipe_cmd(Text*, Cmd*);
 int	eq_cmd(Text*, Cmd*);
 
 String	*allocstring(int);
-void	freestring(String*);
+void		freestring(String*);
 String	*getregexp(int);
 Addr	*newaddr(void);
 Address	cmdaddress(Addr*, Address, int);

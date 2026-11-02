@@ -123,6 +123,24 @@ Stereo bass tone control.
 Sampling rate for the D/A and A/D converters,
 expressed in Hz.
 Defaults to 44100.
+.SS p9web
+The device is
+.B k/src/kernel/audio.ts.
+Its card is a ring of 256 KB that an AudioWorklet plays in a page, and a clock
+elsewhere; it plays nothing until the page has had a press or a key, and
+writers wait on the ring until then.
+There is output alone, so a read of
+.B audio
+returns a zero length.
+The sources are
+.BR audio ,
+.BR speed ,
+and, from 9front,
+.BR delay ,
+which limits the output buffered to a number of samples, 8820 to begin.
+.B Audio
+defaults to 100, which leaves samples as written.
+A close does not wait for what is buffered to play.
 .SH SOURCE
 .B /sys/src/9/port/devaudio.c
 .SH SEE ALSO

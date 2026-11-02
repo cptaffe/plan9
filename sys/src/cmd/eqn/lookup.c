@@ -209,7 +209,7 @@ void install(tbl **tblp, char *name, char *cval, int ival)	/* install name, vals
 void init_tbl(void)	/* initialize tables */
 {
 	int i;
-	extern int init_tune(void);
+	extern void init_tune(void);
 
 	for (i = 0; keyword[i].key != NULL; i++)
 		install(keytbl, keyword[i].key, (char *) 0, keyword[i].keyval);

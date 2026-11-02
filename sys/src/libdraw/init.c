@@ -121,6 +121,8 @@ initdraw(void(*error)(Display*, char*), char *fontname , char *label)
 	return geninitdraw(dev, error, fontname, label, dev, Refnone);
 }
 
+static void querydpi(Display*);
+
 /*
  * Attach, or possibly reattach, to window.
  * If reattaching, maintain value of screen pointer.
@@ -129,10 +131,13 @@ int
 gengetwindow(Display *d, char *winname, Image **winp, Screen **scrp, int ref)
 {
 	int n, fd;
-	char buf[64+1];
+	char buf[64+1], obuf[64+1];
 	Image *image;
 	Rectangle r;
+	Font *f;
 
+	obuf[0] = 0;
+retry:
 	fd = open(winname, OREAD);
 	if(fd<0 || (n=read(fd, buf, sizeof buf-1))<=0){
 		if((image=d->image) == nil){
@@ -145,18 +150,27 @@ gengetwindow(Display *d, char *winname, Image **winp, Screen **scrp, int ref)
 	}else{
 		close(fd);
 		buf[n] = '\0';
+		/*
+		 * 9front's: the window can change between the read and the lookup, which rio
+		 * renames at each resize, so keep trying while the name keeps changing; and
+		 * the old window goes only when there is a new one.
+		 */
+		image = namedimage(d, buf);
+		if(image == 0){
+			if(strcmp(buf, obuf) != 0){
+				strcpy(obuf, buf);
+				goto retry;
+			}
+			fprint(2, "namedimage %s failed: %r\n", buf);
+			*winp = nil;
+			d->screenimage = nil;
+			return -1;
+		}
 		if(*winp != nil){
 			_freeimage1(*winp);
 			freeimage((*scrp)->image);
 			freescreen(*scrp);
 			*scrp = nil;
-		}
-		image = namedimage(d, buf);
-		if(image == 0){
-			fprint(2, "namedimage %s failed: %r\n", buf);
-			*winp = nil;
-			d->screenimage = nil;
-			return -1;
 		}
 		assert(image->chan != 0);
 	}
@@ -170,9 +184,10 @@ gengetwindow(Display *d, char *winname, Image **winp, Screen **scrp, int ref)
 		return -1;
 	}
 
+	querydpi(d);
 	r = image->r;
 	if(strncmp(buf, "noborder", 8) != 0)
-		r = insetrect(image->r, Borderwidth);
+		r = insetrect(image->r, scalesize(d, Borderwidth));
 	*winp = _allocwindow(*winp, *scrp, r, ref, DWhite);
 	if(*winp == nil){
 		freescreen(*scrp);
@@ -183,7 +198,43 @@ gengetwindow(Display *d, char *winname, Image **winp, Screen **scrp, int ref)
 	}
 	d->screenimage = *winp;
 	assert((*winp)->chan != 0);
+	if(d->dpi >= DefaultDPI*3/2){
+		for(f = d->firstfont; f != nil; f = f->next)
+			loadhidpi(f);
+	}else{
+		for(f = d->firstfont; f != nil; f = f->next)
+			if(f->lodpi != nil && f->lodpi != f)
+				swapfont(f, &f->hidpi, &f->lodpi);
+	}
 	return 1;
+}
+
+/* querydpi asks the device for the screen's dpi (draw(3)'s q message, plan9port's). */
+static void
+querydpi(Display *d)
+{
+	char info[13];
+	uchar *a;
+
+	d->dpi = 100;
+	a = bufimage(d, 3);
+	if(a == nil)
+		return;
+	a[0] = 'q';
+	a[1] = 1;
+	a[2] = 'd';
+	if(flushimage(d, 0) >= 0 && read(d->fd, info, 12) == 12){
+		info[12] = 0;
+		d->dpi = atoi(info);
+	}
+}
+
+int
+scalesize(Display *d, int n)
+{
+	if(d == nil || d->dpi <= DefaultDPI)
+		return n;
+	return (n*d->dpi+DefaultDPI/2)/DefaultDPI;
 }
 
 int

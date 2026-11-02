@@ -3,7 +3,6 @@
 #include <fcall.h>
 #include <thread.h>
 #include <9p.h>
-#include <auth.h>
 
 static void postproc(void*);
 
@@ -50,7 +49,7 @@ _postmountsrv(Srv *s, char *name, char *mtpt, int flag)
 	}
 
 	if(mtpt){
-		if(amount(s->srvfd, mtpt, flag, "") == -1)
+		if(mount(s->srvfd, -1, mtpt, flag, "") == -1)	/* p9web: no factotum to ask */
 			sysfatal("mount %s: %r", mtpt);
 	}else
 		close(s->srvfd);

@@ -8,6 +8,7 @@
 #include <frame.h>
 #include <fcall.h>
 #include <plumb.h>
+#include <libsec.h>
 #include "dat.h"
 #include "fns.h"
 
@@ -66,15 +67,15 @@ textscrdraw(Text *t)
 	r1 = r;
 	r1.min.x = 0;
 	r1.max.x = Dx(r);
-	r2 = scrpos(r1, t->org, t->org+t->nchars, t->file->nc);
+	r2 = scrpos(r1, t->org, t->org+t->fr.nchars, t->file->b.nc);
 	if(!eqrect(r2, t->lastsr)){
 		t->lastsr = r2;
-		draw(b, r1, t->cols[BORD], nil, ZP);
-		draw(b, r2, t->cols[BACK], nil, ZP);
+		draw(b, r1, t->fr.cols[BORD], nil, ZP);
+		draw(b, r2, t->fr.cols[BACK], nil, ZP);
 		r2.min.x = r2.max.x-1;
-		draw(b, r2, t->cols[BORD], nil, ZP);
-		draw(t->b, r, b, nil, Pt(0, r1.min.y));
-/*flushimage(display, 1);/*BUG?*/
+		draw(b, r2, t->fr.cols[BORD], nil, ZP);
+		draw(t->fr.b, r, b, nil, Pt(0, r1.min.y));
+/*flushimage(display, 1); // BUG? */
 	}
 }
 
@@ -128,7 +129,7 @@ textscroll(Text *t, int but)
 		}
 		if(but == 2){
 			y = my;
-			p0 = (vlong)t->file->nc*(y-s.min.y)/h;
+			p0 = (vlong)t->file->b.nc*(y-s.min.y)/h;
 			if(p0 >= t->q1)
 				p0 = textbacknl(t, p0, 2);
 			if(oldp0 != p0)
@@ -138,9 +139,9 @@ textscroll(Text *t, int but)
 			continue;
 		}
 		if(but == 1)
-			p0 = textbacknl(t, t->org, (my-s.min.y)/t->font->height);
+			p0 = textbacknl(t, t->org, (my-s.min.y)/t->fr.font->height);
 		else
-			p0 = t->org+frcharofpt(t, Pt(s.max.x, my));
+			p0 = t->org+frcharofpt(&t->fr, Pt(s.max.x, my));
 		if(oldp0 != p0)
 			textsetorigin(t, p0, TRUE);
 		oldp0 = p0;

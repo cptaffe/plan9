@@ -8,8 +8,20 @@
 #include <frame.h>
 #include <fcall.h>
 #include <plumb.h>
+#include <libsec.h>
 #include "dat.h"
 #include "fns.h"
+
+static Rune Lheader[] = {
+	'N', 'e', 'w', ' ',
+	'C', 'u', 't', ' ',
+	'P', 'a', 's', 't', 'e', ' ',
+	'S', 'n', 'a', 'r', 'f', ' ',
+	'S', 'o', 'r', 't', ' ',
+	'Z', 'e', 'r', 'o', 'x', ' ',
+	'D', 'e', 'l', 'c', 'o', 'l', ' ',
+	0
+};
 
 void
 colinit(Column *c, Rectangle r)
@@ -31,8 +43,8 @@ colinit(Column *c, Rectangle r)
 	r1.min.y = r1.max.y;
 	r1.max.y += Border;
 	draw(screen, r1, display->black, nil, ZP);
-	textinsert(t, 0, L"New Cut Paste Snarf Sort Zerox Delcol ", 38, TRUE);
-	textsetselect(t, t->file->nc, t->file->nc);
+	textinsert(t, 0, Lheader, 38, TRUE);
+	textsetselect(t, t->file->b.nc, t->file->b.nc);
 	draw(screen, t->scrollr, colbutton, nil, colbutton->r.min);
 	c->safe = TRUE;
 }
@@ -42,14 +54,14 @@ coladd(Column *c, Window *w, Window *clone, int y)
 {
 	Rectangle r, r1;
 	Window *v;
-	int i, t;
+	int i, j, minht, ymax, buggered;
 
 	v = nil;
 	r = c->r;
-	r.min.y = c->tag.r.max.y+Border;
+	r.min.y = c->tag.fr.r.max.y+Border;
 	if(y<r.min.y && c->nw>0){	/* steal half of last window by default */
 		v = c->w[c->nw-1];
-		y = v->body.r.min.y+Dy(v->body.r)/2;
+		y = v->body.fr.r.min.y+Dy(v->body.fr.r)/2;
 	}
 	/* look for window we'll land on */
 	for(i=0; i<c->nw; i++){
@@ -57,29 +69,59 @@ coladd(Column *c, Window *w, Window *clone, int y)
 		if(y < v->r.max.y)
 			break;
 	}
+	buggered = 0;
 	if(c->nw > 0){
 		if(i < c->nw)
 			i++;	/* new window will go after v */
 		/*
-		 * if v's too small, grow it first.
+		 * if landing window (v) is too small, grow it first.
 		 */
-		if(!c->safe || v->body.maxlines<=3){
+		minht = v->tag.fr.font->height+Border+1;
+		j = 0;
+		while(!c->safe || v->body.fr.maxlines<=3 || Dy(v->body.all) <= minht){
+			if(++j > 10){
+				buggered = 1;	/* too many windows in column */
+				break;
+			}
 			colgrow(c, v, 1);
-			y = v->body.r.min.y+Dy(v->body.r)/2;
 		}
-		r = v->r;
-		if(i == c->nw)
-			t = c->r.max.y;
+
+		/*
+		 * figure out where to split v to make room for w
+		 */
+
+		/* new window stops where next window begins */
+		if(i < c->nw)
+			ymax = c->w[i]->r.min.y-Border;
 		else
-			t = c->w[i]->r.min.y-Border;
-		r.max.y = t;
+			ymax = c->r.max.y;
+
+		/* new window must start after v's tag ends */
+		y = max(y, v->tagtop.max.y+Border);
+
+		/* new window must start early enough to end before ymax */
+		y = min(y, ymax - minht);
+
+		/* if y is too small, too many windows in column */
+		if(y < v->tagtop.max.y+Border)
+			buggered = 1;
+
+		/*
+		 * resize & redraw v
+		 */
+		r = v->r;
+		r.max.y = ymax;
 		draw(screen, r, textcols[BACK], nil, ZP);
 		r1 = r;
-		y = min(y, t-(v->tag.font->height*v->taglines+v->body.font->height+Border+1));
-		r1.max.y = min(y, v->body.r.min.y+v->body.nlines*v->body.font->height);
+		y = min(y, ymax-(v->tag.fr.font->height*v->taglines+v->body.fr.font->height+Border+1));
+		r1.max.y = min(y, v->body.fr.r.min.y+v->body.fr.nlines*v->body.fr.font->height);
 		r1.min.y = winresize(v, r1, FALSE, FALSE);
 		r1.max.y = r1.min.y+Border;
 		draw(screen, r1, display->black, nil, ZP);
+
+		/*
+		 * leave r with w's coordinates
+		 */
 		r.min.y = r1.max.y;
 	}
 	if(w == nil){
@@ -99,11 +141,19 @@ coladd(Column *c, Window *w, Window *clone, int y)
 	memmove(c->w+i+1, c->w+i, (c->nw-i)*sizeof(Window*));
 	c->nw++;
 	c->w[i] = w;
-	savemouse(w);
-	/* near but not on the button */
-	moveto(mousectl, addpt(w->tag.scrollr.max, Pt(3, 3)));
-	barttext = &w->body;
 	c->safe = TRUE;
+
+	/* if there were too many windows, redraw the whole column */
+	if(buggered)
+		colresize(c, c->r);
+
+	savemouse(w);
+	/* near the button, but in the body */
+	/* don't move the mouse to the new window if a mouse button is depressed */
+	if(!mousectl->Mouse.buttons)
+		moveto(mousectl, addpt(w->tag.scrollr.max, Pt(3, 3)));
+
+	barttext = &w->body;
 	return w;
 }
 
@@ -130,8 +180,8 @@ colclose(Column *c, Window *w, int dofree)
 		windelete(w);
 		winclose(w);
 	}
-	memmove(c->w+i, c->w+i+1, (c->nw-i)*sizeof(Window*));
 	c->nw--;
+	memmove(c->w+i, c->w+i+1, (c->nw-i)*sizeof(Window*));
 	c->w = realloc(c->w, c->nw*sizeof(Window*));
 	if(c->nw == 0){
 		draw(screen, r, display->white, nil, ZP);
@@ -143,15 +193,16 @@ colclose(Column *c, Window *w, int dofree)
 		r.min.y = w->r.min.y;
 		r.max.y = c->r.max.y;
 	}else{			/* extend next window up */
+		up = 1;
 		w = c->w[i];
 		r.max.y = w->r.max.y;
-		up = 1;
 	}
 	draw(screen, r, textcols[BACK], nil, ZP);
-	if(c->safe){
+	if(c->safe) {
+		if(!didmouse && up)
+			w->showdel = TRUE;
 		winresize(w, r, FALSE, TRUE);
-		USED(up);
-		if(!didmouse)
+		if(!didmouse && up)
 			movetodel(w);
 	}
 }
@@ -167,6 +218,7 @@ colcloseall(Column *c)
 	textclose(&c->tag);
 	for(i=0; i<c->nw; i++){
 		w = c->w[i];
+		windelete(w);
 		winclose(w);
 	}
 	c->nw = 0;
@@ -184,26 +236,33 @@ colmousebut(Column *c)
 void
 colresize(Column *c, Rectangle r)
 {
-	int i;
+	int i, old, new;
 	Rectangle r1, r2;
 	Window *w;
 
 	clearmouse();
 	r1 = r;
-	r1.max.y = r1.min.y + c->tag.font->height;
+	r1.max.y = r1.min.y + c->tag.fr.font->height;
 	textresize(&c->tag, r1, TRUE);
 	draw(screen, c->tag.scrollr, colbutton, nil, colbutton->r.min);
 	r1.min.y = r1.max.y;
 	r1.max.y += Border;
 	draw(screen, r1, display->black, nil, ZP);
 	r1.max.y = r.max.y;
+	new = Dy(r) - c->nw*(Border + font->height);
+	old = Dy(c->r) - c->nw*(Border + font->height);
 	for(i=0; i<c->nw; i++){
 		w = c->w[i];
 		w->maxlines = 0;
 		if(i == c->nw-1)
 			r1.max.y = r.max.y;
-		else
-			r1.max.y = r1.min.y+(Dy(w->r)+Border)*Dy(r)/Dy(c->r);
+		else{
+			r1.max.y = r1.min.y;
+			if(new > 0 && old > 0 && Dy(w->r) > Border+font->height){
+				r1.max.y += (Dy(w->r)-Border-font->height)*new/old + Border + font->height;
+			}
+		}
+		r1.max.y = max(r1.max.y, r1.min.y + Border+font->height);
 		r2 = r1;
 		r2.max.y = r2.min.y+Border;
 		draw(screen, r2, display->black, nil, ZP);
@@ -215,7 +274,7 @@ colresize(Column *c, Rectangle r)
 
 static
 int
-colcmp(void *a, void *b)
+colcmp(const void *a, const void *b)
 {
 	Rune *r1, *r2;
 	int i, nr1, nr2;
@@ -246,11 +305,11 @@ colsort(Column *c)
 	rp = emalloc(c->nw*sizeof(Rectangle));
 	wp = emalloc(c->nw*sizeof(Window*));
 	memmove(wp, c->w, c->nw*sizeof(Window*));
-	qsort(wp, c->nw, sizeof(Window*), colcmp);
+	qsort(wp, c->nw, sizeof(Window*), (int(*)(void*, void*))colcmp);
 	for(i=0; i<c->nw; i++)
 		rp[i] = wp[i]->r;
 	r = c->r;
-	r.min.y = c->tag.r.max.y;
+	r.min.y = c->tag.fr.r.max.y;
 	draw(screen, r, textcols[BACK], nil, ZP);
 	y = r.min.y;
 	for(i=0; i<c->nw; i++){
@@ -290,7 +349,7 @@ colgrow(Column *c, Window *w, int but)
 		if(i==c->nw-1 || c->safe==FALSE)
 			r.max.y = cr.max.y;
 		else
-			r.max.y = c->w[i+1]->r.min.y;
+			r.max.y = c->w[i+1]->r.min.y - Border;
 		winresize(w, r, FALSE, TRUE);
 		return;
 	}
@@ -304,17 +363,17 @@ colgrow(Column *c, Window *w, int but)
 		draw(screen, cr, textcols[BACK], nil, ZP);
 		winresize(w, cr, FALSE, TRUE);
 		for(i=1; i<c->nw; i++)
-			c->w[i]->body.maxlines = 0;
+			c->w[i]->body.fr.maxlines = 0;
 		c->safe = FALSE;
 		return;
 	}
 	/* store old #lines for each window */
-	onl = w->body.maxlines;
+	onl = w->body.fr.maxlines;
 	nl = emalloc(c->nw * sizeof(int));
 	ny = emalloc(c->nw * sizeof(int));
 	tot = 0;
 	for(j=0; j<c->nw; j++){
-		l = c->w[j]->taglines-1 + c->w[j]->body.maxlines;
+		l = c->w[j]->taglines-1 + c->w[j]->body.fr.maxlines;
 		nl[j] = l;
 		tot += l;
 	}
@@ -357,9 +416,9 @@ colgrow(Column *c, Window *w, int but)
 		r.min.y = y1;
 		r.max.y = y1+Dy(v->tagtop);
 		if(nl[j])
-			r.max.y += 1 + nl[j]*v->body.font->height;
+			r.max.y += 1 + nl[j]*v->body.fr.font->height;
 		r.min.y = winresize(v, r, c->safe, FALSE);
-		r.max.y += Border;
+		r.max.y = r.min.y + Border;
 		draw(screen, r, display->black, nil, ZP);
 		y1 = r.max.y;
 	}
@@ -370,7 +429,7 @@ colgrow(Column *c, Window *w, int but)
 		r = v->r;
 		r.min.y = y2-Dy(v->tagtop);
 		if(nl[j])
-			r.min.y -= 1 + nl[j]*v->body.font->height;
+			r.min.y -= 1 + nl[j]*v->body.fr.font->height;
 		r.min.y -= Border;
 		ny[j] = r.min.y;
 		y2 = r.min.y;
@@ -379,7 +438,7 @@ colgrow(Column *c, Window *w, int but)
 	r = w->r;
 	r.min.y = y1;
 	r.max.y = y2;
-	h = w->body.font->height;
+	h = w->body.fr.font->height;
 	if(Dy(r) < Dy(w->tagtop)+1+h+Border)
 		r.max.y = r.min.y + Dy(w->tagtop)+1+h+Border;
 	/* draw window */
@@ -399,19 +458,15 @@ colgrow(Column *c, Window *w, int but)
 		r.min.y = y1;
 		r.max.y = y1+Dy(v->tagtop);
 		if(nl[j])
-			r.max.y += 1 + nl[j]*v->body.font->height;
-		winresize(v, r, c->safe, j==c->nw-1);
+			r.max.y += 1 + nl[j]*v->body.fr.font->height;
+		y1 = winresize(v, r, c->safe, j==c->nw-1);
 		if(j < c->nw-1){	/* no border on last window */
-			r.min.y = v->r.max.y;
+			r.min.y = y1;
 			r.max.y += Border;
 			draw(screen, r, display->black, nil, ZP);
+			y1 = r.max.y;
 		}
-		y1 = r.max.y;
 	}
-	r = w->r;
-	r.min.y = y1;
-	r.max.y = c->r.max.y;
-	draw(screen, r, textcols[BACK], nil, ZP);
 	free(nl);
 	free(ny);
 	c->safe = TRUE;
@@ -483,9 +538,9 @@ coldragwin(Column *c, Window *w, int but)
 		p.y = w->r.max.y-Dy(w->tagtop)-Border;
 	r = v->r;
 	r.max.y = p.y;
-	if(r.max.y > v->body.r.min.y){
-		r.max.y -= (r.max.y-v->body.r.min.y)%v->body.font->height;
-		if(v->body.r.min.y == v->body.r.max.y)
+	if(r.max.y > v->body.fr.r.min.y){
+		r.max.y -= (r.max.y-v->body.fr.r.min.y)%v->body.fr.font->height;
+		if(v->body.fr.r.min.y == v->body.fr.r.max.y)
 			r.max.y++;
 	}
 	r.min.y = winresize(v, r, c->safe, FALSE);
@@ -498,7 +553,7 @@ coldragwin(Column *c, Window *w, int but)
 		r.max.y = c->w[i+1]->r.min.y-Border;
 	winresize(w, r, c->safe, TRUE);
 	c->safe = TRUE;
-    	winmousebut(w);
+	winmousebut(w);
 }
 
 Text*
@@ -516,11 +571,11 @@ colwhich(Column *c, Point p)
 		if(ptinrect(p, w->r)){
 			if(ptinrect(p, w->tagtop) || ptinrect(p, w->tag.all))
 				return &w->tag;
+			/* exclude partial line at bottom */
+			if(p.x >= w->body.scrollr.max.x && p.y >= w->body.fr.r.max.y)
+				return nil;
 			return &w->body;
 		}
-		/* scrollr drops below w->r on low windows */
-		if(ptinrect(p, w->body.scrollr))
-			return &w->body;
 	}
 	return nil;
 }

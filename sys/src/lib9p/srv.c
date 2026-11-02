@@ -122,7 +122,7 @@ filewalk(Req *r)
 	f = r->fid->file;
 	assert(f != nil);
 
-	incref(f);
+	incref(&f->Ref);
 	for(i=0; i<r->ifcall.nwname; i++)
 		if(f = walkfile(f, r->ifcall.wname[i]))
 			r->ofcall.wqid[i] = f->qid;
@@ -228,7 +228,7 @@ sattach(Srv *srv, Req *r)
 	r->fid->uid = estrdup9p(r->ifcall.uname);
 	if(srv->tree){
 		r->fid->file = srv->tree->root;
-		incref(r->fid->file);
+		incref(&r->fid->file->Ref);
 		r->ofcall.qid = r->fid->file->qid;
 		r->fid->qid = r->ofcall.qid;
 	}
@@ -690,31 +690,37 @@ rwstat(Req*, char*)
 {
 }
 
-void
-srv(Srv *srv)
+static void
+srvclose(Srv *srv)
 {
+	if(srv->rref.ref || srv->sref.ref)
+		return;
+
+	free(srv->rbuf);
+	srv->rbuf = nil;
+	free(srv->wbuf);
+	srv->wbuf = nil;
+	srv->msize = 0;
+	freefidpool(srv->fpool);
+	srv->fpool = nil;
+	freereqpool(srv->rpool);
+	srv->rpool = nil;
+}
+
+/* srvwork, srvrelease and srvacquire are 9front's */
+static void
+srvwork(void *v)
+{
+	Srv *srv = v;
 	Req *r;
 
-	fmtinstall('D', dirfmt);
-	fmtinstall('F', fcallfmt);
-
-	if(srv->fpool == nil)
-		srv->fpool = allocfidpool(srv->destroyfid);
-	if(srv->rpool == nil)
-		srv->rpool = allocreqpool(srv->destroyreq);
-	if(srv->msize == 0)
-		srv->msize = 16*1024+IOHDRSZ;
-
-	changemsize(srv, srv->msize);
-
-	srv->fpool->srv = srv;
-	srv->rpool->srv = srv;
-
 	while(r = getreq(srv)){
+		incref(&srv->rref);
 		if(r->error){
 			respond(r, r->error);
 			continue;
 		}
+		qlock(&srv->slock);
 		switch(r->ifcall.type){
 		default:
 			respond(r, "unknown message");
@@ -733,20 +739,64 @@ srv(Srv *srv)
 		case Tstat:	sstat(srv, r);	break;
 		case Twstat:	swstat(srv, r);	break;
 		}
+		if(srv->sref.ref > 8 && srv->spid != getpid()){
+			decref(&srv->sref);
+			qunlock(&srv->slock);
+			return;
+		}
+		qunlock(&srv->slock);
 	}
 
-	free(srv->rbuf);
-	srv->rbuf = nil;
-	free(srv->wbuf);
-	srv->wbuf = nil;
-	srv->msize = 0;
-	freefidpool(srv->fpool);
-	srv->fpool = nil;
-	freereqpool(srv->rpool);
-	srv->rpool = nil;
-
-	if(srv->end)
+	if(srv->end && srv->sref.ref == 1)
 		srv->end(srv);
+	if(decref(&srv->sref) == 0)
+		srvclose(srv);
+}
+
+void
+srvacquire(Srv *srv)
+{
+	incref(&srv->sref);
+	qlock(&srv->slock);
+}
+
+void
+srvrelease(Srv *srv)
+{
+	if(decref(&srv->sref) == 0){
+		incref(&srv->sref);
+		_forker(srvwork, srv, 0);
+	}
+	qunlock(&srv->slock);
+}
+
+void
+srv(Srv *srv)
+{
+	fmtinstall('D', dirfmt);
+	fmtinstall('F', fcallfmt);
+
+	srv->spid = getpid();
+	memset(&srv->sref, 0, sizeof(srv->sref));
+	memset(&srv->rref, 0, sizeof(srv->rref));
+
+	if(srv->fpool == nil)
+		srv->fpool = allocfidpool(srv->destroyfid);
+	if(srv->rpool == nil)
+		srv->rpool = allocreqpool(srv->destroyreq);
+	if(srv->msize == 0)
+		srv->msize = 16*1024+IOHDRSZ;
+
+	changemsize(srv, srv->msize);
+
+	srv->fpool->srv = srv;
+	srv->rpool->srv = srv;
+
+	if(srv->start)
+		srv->start(srv);
+
+	incref(&srv->sref);
+	srvwork(srv);
 }
 
 void
@@ -824,6 +874,8 @@ if(chatty9p)
 		closereq(r);
 	else
 		free(r);
+	if(decref(&srv->rref) == 0)
+		srvclose(srv);
 }
 
 void

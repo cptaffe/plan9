@@ -1,3 +1,5 @@
+#define getline	troffgetline	/* POSIX has one in <stdio.h> */
+
 /*
  * other
  */

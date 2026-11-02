@@ -8,11 +8,32 @@
 #include <frame.h>
 #include <fcall.h>
 #include <plumb.h>
+#include <libsec.h>
 #include "dat.h"
 #include "fns.h"
 
 static	Point		prevmouse;
 static	Window	*mousew;
+
+Range
+range(int q0, int q1)
+{
+	Range r;
+
+	r.q0 = q0;
+	r.q1 = q1;
+	return r;
+}
+
+Runestr
+runestr(Rune *r, uint n)
+{
+	Runestr rs;
+
+	rs.r = r;
+	rs.nr = n;
+	return rs;
+}
 
 void
 cvttorunes(char *p, int n, Rune *r, int *nb, int *nr, int *nulls)
@@ -51,8 +72,7 @@ void
 error(char *s)
 {
 	fprint(2, "acme: %s: %r\n", s);
-	remove(acmeerrorfile);
-	abort();
+	threadexitsall(nil);
 }
 
 Window*
@@ -61,13 +81,14 @@ errorwin1(Rune *dir, int ndir, Rune **incl, int nincl)
 	Window *w;
 	Rune *r;
 	int i, n;
+	static Rune Lpluserrors[] = { '+', 'E', 'r', 'r', 'o', 'r', 's', 0 };
 
 	r = runemalloc(ndir+8);
-	if(n = ndir){	/* assign = */
+	if((n = ndir) != 0){
 		runemove(r, dir, ndir);
 		r[n++] = L'/';
 	}
-	runemove(r+n, L"+Errors", 7);
+	runemove(r+n, Lpluserrors, 7);
 	n += 7;
 	w = lookfile(r, n);
 	if(w == nil){
@@ -77,6 +98,7 @@ errorwin1(Rune *dir, int ndir, Rune **incl, int nincl)
 		w = coladd(row.col[row.ncol-1], nil, nil, -1);
 		w->filemenu = FALSE;
 		winsetname(w, r, n);
+		xfidlog(w, "new");
 	}
 	free(r);
 	for(i=nincl; --i>=0; ){
@@ -210,15 +232,15 @@ flushwarnings(void)
 		 * place), to avoid a big memory footprint.
 		 */
 		r = fbufalloc();
-		q0 = t->file->nc;
+		q0 = t->file->b.nc;
 		for(n = 0; n < warn->buf.nc; n += nr){
 			nr = warn->buf.nc - n;
 			if(nr > RBUFSIZE)
 				nr = RBUFSIZE;
 			bufread(&warn->buf, n, r, nr);
-			textbsinsert(t, t->file->nc, r, nr, TRUE, &nr);
+			textbsinsert(t, t->file->b.nc, r, nr, TRUE, &nr);
 		}
-		textshow(t, q0, t->file->nc, 1);
+		textshow(t, q0, t->file->b.nc, 1);
 		free(r);
 		winsettag(t->w);
 		textscrdraw(t);
@@ -254,6 +276,8 @@ runeeq(Rune *s1, uint n1, Rune *s2, uint n2)
 {
 	if(n1 != n2)
 		return FALSE;
+	if(n1 == 0)
+		return TRUE;
 	return memcmp(s1, s2, n1*sizeof(Rune)) == 0;
 }
 
@@ -307,13 +331,10 @@ isalnum(Rune c)
 	 * Hard to get absolutely right.  Use what we know about ASCII
 	 * and assume anything above the Latin control characters is
 	 * potentially an alphanumeric.
-	 *
-	 * Treat 0xA0 (non-breaking space) as a special alphanumeric
-	 * character [sape]
 	 */
 	if(c <= ' ')
 		return FALSE;
-	if(0x7F<=c && c<0xA0)
+	if(0x7F<=c && c<=0xA0)
 		return FALSE;
 	if(utfrune("!\"#$%&'()*+,-./:;<=>?@[\\]^`{|}~", c))
 		return FALSE;
@@ -332,7 +353,7 @@ tgetc(void *a, uint n)
 	Text *t;
 
 	t = a;
-	if(n >= t->file->nc)
+	if(n >= t->file->b.nc)
 		return 0;
 	return textreadc(t, n);
 }
@@ -372,7 +393,7 @@ restoremouse(Window *w)
 	int did;
 
 	did = 0;
-	if(mousew!=nil && mousew==w){
+	if(mousew!=nil && mousew==w) {
 		moveto(mousectl, prevmouse);
 		did = 1;
 	}
@@ -453,16 +474,16 @@ makenewwindow(Text *t)
 	for(i=1; i<c->nw; i++){
 		w = c->w[i];
 		/* use >= to choose one near bottom of screen */
-		if(w->body.maxlines >= bigw->body.maxlines)
+		if(w->body.fr.maxlines >= bigw->body.fr.maxlines)
 			bigw = w;
-		if(w->body.maxlines-w->body.nlines >= emptyw->body.maxlines-emptyw->body.nlines)
+		if(w->body.fr.maxlines-w->body.fr.nlines >= emptyw->body.fr.maxlines-emptyw->body.fr.nlines)
 			emptyw = w;
 	}
 	emptyb = &emptyw->body;
-	el = emptyb->maxlines-emptyb->nlines;
+	el = emptyb->fr.maxlines-emptyb->fr.nlines;
 	/* if empty space is big, use it */
-	if(el>15 || (el>3 && el>(bigw->body.maxlines-1)/2))
-		y = emptyb->r.min.y+emptyb->nlines*font->height;
+	if(el>15 || (el>3 && el>(bigw->body.fr.maxlines-1)/2))
+		y = emptyb->fr.r.min.y+emptyb->fr.nlines*font->height;
 	else{
 		/* if this window is in column and isn't much smaller, split it */
 		if(t->col==c && Dy(t->w->r)>2*Dy(bigw->r)/3)
@@ -470,7 +491,7 @@ makenewwindow(Text *t)
 		y = (bigw->r.min.y + bigw->r.max.y)/2;
 	}
 	w = coladd(c, nil, nil, y);
-	if(w->body.maxlines < 2)
+	if(w->body.fr.maxlines < 2)
 		colgrow(w->col, w, 1);
 	return w;
 }

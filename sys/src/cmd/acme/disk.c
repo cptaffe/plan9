@@ -8,6 +8,7 @@
 #include <frame.h>
 #include <fcall.h>
 #include <plumb.h>
+#include <libsec.h>
 #include "dat.h"
 #include "fns.h"
 
@@ -71,20 +72,23 @@ disknewblock(Disk *d, uint n)
 	size = ntosize(n, &i);
 	b = d->free[i];
 	if(b)
-		d->free[i] = b->next;
+		d->free[i] = b->u.next;
 	else{
 		/* allocate in chunks to reduce malloc overhead */
 		if(blist == nil){
 			blist = emalloc(100*sizeof(Block));
 			for(j=0; j<100-1; j++)
-				blist[j].next = &blist[j+1];
+				blist[j].u.next = &blist[j+1];
 		}
 		b = blist;
-		blist = b->next;
+		blist = b->u.next;
 		b->addr = d->addr;
+		if(d->addr+size < d->addr){
+			error("temp file overflow");
+		}
 		d->addr += size;
 	}
-	b->n = n;
+	b->u.n = n;
 	return b;
 }
 
@@ -93,8 +97,8 @@ diskrelease(Disk *d, Block *b)
 {
 	uint i;
 
-	ntosize(b->n, &i);
-	b->next = d->free[i];
+	ntosize(b->u.n, &i);
+	b->u.next = d->free[i];
 	d->free[i] = b;
 }
 
@@ -105,7 +109,7 @@ diskwrite(Disk *d, Block **bp, Rune *r, uint n)
 	Block *b;
 
 	b = *bp;
-	size = ntosize(b->n, nil);
+	size = ntosize(b->u.n, nil);
 	nsize = ntosize(n, nil);
 	if(size != nsize){
 		diskrelease(d, b);
@@ -114,26 +118,16 @@ diskwrite(Disk *d, Block **bp, Rune *r, uint n)
 	}
 	if(pwrite(d->fd, r, n*sizeof(Rune), b->addr) != n*sizeof(Rune))
 		error("write error to temp file");
-	b->n = n;
+	b->u.n = n;
 }
 
 void
 diskread(Disk *d, Block *b, Rune *r, uint n)
 {
-	int tot, nr;
-	char *p;
-
-	if(n > b->n)
+	if(n > b->u.n)
 		error("internal error: diskread");
 
-	ntosize(b->n, nil);
-	n *= sizeof(Rune);
-	p = (char*)r;
-	for(tot = 0; tot < n; tot += nr){
-		nr = pread(d->fd, p+tot, n-tot, b->addr+tot);
-		if(nr <= 0)
-			break;		/* tot < n, so error */
-	}
-	if(tot != n)
+	ntosize(b->u.n, nil);
+	if(pread(d->fd, r, n*sizeof(Rune), b->addr) != n*sizeof(Rune))
 		error("read error from temp file");
 }

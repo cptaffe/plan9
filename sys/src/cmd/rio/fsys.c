@@ -206,7 +206,7 @@ filsysproc(void *arg)
 			x->fs = fs;
 		}
 		x->buf = buf;
-		if(convM2S(buf, n, x) != n)
+		if(convM2S(buf, n, &x->Fcall) != n)
 			error("convert error in convM2S");
 		if(DEBUG)
 			fprint(2, "rio:<-%F\n", &x->Fcall);
@@ -371,7 +371,7 @@ filsyswalk(Filsys *fs, Xfid *x, Fid *f)
 		nf->dir = f->dir;
 		nf->qid = f->qid;
 		nf->w = f->w;
-		incref(f->w);
+		incref(&f->w->Ref);
 		nf->nrpart = 0;	/* not open, so must be zero */
 		f = nf;	/* walk f */
 	}
@@ -423,7 +423,7 @@ filsyswalk(Filsys *fs, Xfid *x, Fid *f)
 				path = Qwsysdir;
 				type = QTDIR;
 				qunlock(&all);
-				incref(w);
+				incref(&w->Ref);
 				sendp(winclosechan, f->w);
 				f->w = w;
 				dir = dirtab;

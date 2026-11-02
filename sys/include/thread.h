@@ -99,6 +99,7 @@ void	threadkillgrp(int);	/* kill threads in group */
 void	threadmain(int argc, char *argv[]);
 void	threadnonotes(void);
 int	threadspawn(int[3], char*, char*[]);
+int	threadspawnd(int[3], char*, char*[], char*);
 int	threadspawnl(int[3], char*, ...);
 int	threadnotify(int (*f)(void*, char*), int in);
 int	threadid(void);

@@ -1,7 +1,6 @@
 #include <u.h>
 #include <libc.h>
 #include <draw.h>
-#include <thread.h>
 #include <mouse.h>
 #include <frame.h>
 
@@ -19,6 +18,10 @@ frinit(Frame *f, Rectangle r, Font *ft, Image *b, Image *cols[NCOL])
 	f->p1 = 0;
 	f->box = 0;
 	f->lastlinefull = 0;
+	f->nstylecols = 0;
+	f->stylecols = nil;
+	f->nstyles = 0;
+	f->styles = nil;
 	if(cols != 0)
 		memmove(f->cols, cols, sizeof f->cols);
 	frsetrects(f, r, b);
@@ -32,11 +35,14 @@ frinittick(Frame *f)
 	Image *b;
 	Font *ft;
 
+	if(f->cols[BACK] == nil || f->display == nil)
+		return;
+	f->tickscale = scalesize(f->display, 1);
 	b = f->display->screenimage;
 	ft = f->font;
 	if(f->tick)
 		freeimage(f->tick);
-	f->tick = allocimage(f->display, Rect(0, 0, FRTICKW, ft->height), b->chan, 0, DWhite);
+	f->tick = allocimage(f->display, Rect(0, 0, f->tickscale*FRTICKW, ft->height), b->chan, 0, DWhite);
 	if(f->tick == nil)
 		return;
 	if(f->tickback)
@@ -50,10 +56,10 @@ frinittick(Frame *f)
 	/* background color */
 	draw(f->tick, f->tick->r, f->cols[BACK], nil, ZP);
 	/* vertical line */
-	draw(f->tick, Rect(FRTICKW/2, 0, FRTICKW/2+1, ft->height), f->cols[TEXT], nil, ZP);
+	draw(f->tick, Rect(f->tickscale*(FRTICKW/2), 0, f->tickscale*(FRTICKW/2+1), ft->height), f->cols[TEXT], nil, ZP);
 	/* box on each end */
-	draw(f->tick, Rect(0, 0, FRTICKW, FRTICKW), f->cols[TEXT], nil, ZP);
-	draw(f->tick, Rect(0, ft->height-FRTICKW, FRTICKW, ft->height), f->cols[TEXT], nil, ZP);
+	draw(f->tick, Rect(0, 0, f->tickscale*FRTICKW, f->tickscale*FRTICKW), f->cols[TEXT], nil, ZP);
+	draw(f->tick, Rect(0, ft->height-f->tickscale*FRTICKW, f->tickscale*FRTICKW, ft->height), f->cols[TEXT], nil, ZP);
 }
 
 void
@@ -73,6 +79,17 @@ frclear(Frame *f, int freeall)
 		_frdelbox(f, 0, f->nbox-1);
 	if(f->box)
 		free(f->box);
+	/* Style arrays are always freed here.  In Acme, callers that need to
+	 * protect against concurrent style RLE updates (frstyleinsert/
+	 * frstyledelete) must pre-clear f->styles and f->stylecols (setting
+	 * them to nil under their own lock) before calling frclear; the
+	 * free(nil) calls below are then no-ops. */
+	free(f->stylecols);
+	f->stylecols  = nil;
+	f->nstylecols = 0;
+	free(f->styles);
+	f->styles     = nil;
+	f->nstyles    = 0;
 	if(freeall){
 		freeimage(f->tick);
 		freeimage(f->tickback);
@@ -82,3 +99,5 @@ frclear(Frame *f, int freeall)
 	f->box = 0;
 	f->ticked = 0;
 }
+
+/* frsetstyles, frstylesync, frstyleinsert, frstyledelete are in frstyle.c */

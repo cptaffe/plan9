@@ -8,6 +8,7 @@
 #include <frame.h>
 #include <fcall.h>
 #include <plumb.h>
+#include <libsec.h>
 #include "dat.h"
 #include "fns.h"
 
@@ -33,7 +34,7 @@ struct Undo
 
 enum
 {
-	Undosize = sizeof(Undo)/sizeof(Rune),
+	Undosize = sizeof(Undo)/sizeof(Rune)
 };
 
 File*
@@ -73,11 +74,11 @@ filedeltext(File *f, Text *t)
 void
 fileinsert(File *f, uint p0, Rune *s, uint ns)
 {
-	if(p0 > f->nc)
+	if(p0 > f->b.nc)
 		error("internal error: fileinsert");
 	if(f->seq > 0)
 		fileuninsert(f, &f->delta, p0, ns);
-	bufinsert(f, p0, s, ns);
+	bufinsert(&f->b, p0, s, ns);
 	if(ns)
 		f->mod = TRUE;
 }
@@ -99,11 +100,11 @@ fileuninsert(File *f, Buffer *delta, uint p0, uint ns)
 void
 filedelete(File *f, uint p0, uint p1)
 {
-	if(!(p0<=p1 && p0<=f->nc && p1<=f->nc))
+	if(!(p0<=p1 && p0<=f->b.nc && p1<=f->b.nc))
 		error("internal error: filedelete");
 	if(f->seq > 0)
 		fileundelete(f, &f->delta, p0, p1);
-	bufdelete(f, p0, p1);
+	bufdelete(&f->b, p0, p1);
 	if(p1 > p0)
 		f->mod = TRUE;
 }
@@ -126,7 +127,7 @@ fileundelete(File *f, Buffer *delta, uint p0, uint p1)
 		n = p1 - i;
 		if(n > RBUFSIZE)
 			n = RBUFSIZE;
-		bufread(f, i, buf, n);
+		bufread(&f->b, i, buf, n);
 		bufinsert(delta, delta->nc, buf, n);
 	}
 	fbuffree(buf);
@@ -163,11 +164,11 @@ fileunsetname(File *f, Buffer *delta)
 }
 
 uint
-fileload(File *f, uint p0, int fd, int *nulls)
+fileload(File *f, uint p0, int fd, int *nulls, DigestState *h)
 {
 	if(f->seq > 0)
 		error("undo in file.load unimplemented");
-	return bufload(f, p0, fd, nulls);
+	return bufload(&f->b, p0, fd, nulls, h);
 }
 
 /* return sequence number of pending redo */
@@ -230,7 +231,7 @@ fileundo(File *f, int isundo, uint *q0p, uint *q1p)
 			f->seq = u.seq;
 			fileundelete(f, epsilon, u.p0, u.p0+u.n);
 			f->mod = u.mod;
-			bufdelete(f, u.p0, u.p0+u.n);
+			bufdelete(&f->b, u.p0, u.p0+u.n);
 			for(j=0; j<f->ntext; j++)
 				textdelete(f->text[j], u.p0, u.p0+u.n, FALSE);
 			*q0p = u.p0;
@@ -247,7 +248,7 @@ fileundo(File *f, int isundo, uint *q0p, uint *q1p)
 				if(n > RBUFSIZE)
 					n = RBUFSIZE;
 				bufread(delta, up+i, buf, n);
-				bufinsert(f, u.p0+i, buf, n);
+				bufinsert(&f->b, u.p0+i, buf, n);
 				for(j=0; j<f->ntext; j++)
 					textinsert(f->text[j], u.p0+i, buf, n, FALSE);
 			}
@@ -294,7 +295,7 @@ fileclose(File *f)
 	free(f->text);
 	f->ntext = 0;
 	f->text = nil;
-	bufclose(f);
+	bufclose(&f->b);
 	bufclose(&f->delta);
 	bufclose(&f->epsilon);
 	elogclose(f);

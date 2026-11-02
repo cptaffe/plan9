@@ -14,7 +14,7 @@ struct	Mouse
 
 struct Mousectl
 {
-	Mouse;
+	union { Mouse; Mouse Mouse; };	/* its fields, and a name for clang (Plan 9's compiler needs neither) */
 	Channel	*c;	/* chan(Mouse) */
 	Channel	*resizec;	/* chan(int)[2] */
 			/* buffered in case client is waiting for a mouse action before handling resize */

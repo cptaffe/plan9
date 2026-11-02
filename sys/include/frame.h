@@ -1,3 +1,9 @@
+#ifndef _FRAME_H_
+#define _FRAME_H_ 1
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #pragma	src	"/sys/src/libframe"
 #pragma	lib	"libframe.a"
 
@@ -14,18 +20,13 @@ enum{
 };
 
 #define	FRTICKW	3
-
 struct Frbox
 {
 	long		wid;		/* in pixels */
 	long		nrune;		/* <0 ==> negate and treat as break char */
-	union{
-		uchar	*ptr;
-		struct{
-			short	bc;	/* break char */
-			short	minwid;
-		};
-	};
+	uchar	*ptr;
+	short	bc;	/* break char */
+	short	minwid;
 };
 
 struct Frame
@@ -50,6 +51,12 @@ struct Frame
 	Image		*tickback;	/* saved image under tick */
 	int			ticked;	/* flag: is tick onscreen? */
 	int			noredraw;	/* don't draw on the screen */
+	int			tickscale;	/* tick scaling factor */
+	/* optional per-character styling */
+	int		nstylecols;	/* number of entries in stylecols (0 = unstyled) */
+	Image	**stylecols;	/* nstylecols*NCOL image pointers; [0..NCOL-1] mirrors cols */
+	int		nstyles;	/* number of run-length style segments */
+	ulong	*styles;	/* 2*nstyles ulongs: {style_index, length, ...} */
 };
 
 ulong	frcharofpt(Frame*, Point);
@@ -59,10 +66,16 @@ void	frinsert(Frame*, Rune*, Rune*, ulong);
 void	frselect(Frame*, Mousectl*);
 void	frselectpaint(Frame*, Point, Point, Image*);
 void	frdrawsel(Frame*, Point, ulong, ulong, int);
-Point frdrawsel0(Frame*, Point, ulong, ulong, Image*, Image*);
+Point	frdrawsel0(Frame*, Point, ulong, ulong, Image*, Image*);
+Point	frdrawrange(Frame*, Point, ulong, ulong);
 void	frinit(Frame*, Rectangle, Font*, Image*, Image**);
 void	frsetrects(Frame*, Rectangle, Image*);
 void	frclear(Frame*, int);
+void	frredraw(Frame*);
+void	frstylesync(Frame*);
+int	frsetstyles(Frame*, int, Image**, int, ulong*);
+void	frstyleinsert(Frame*, ulong, ulong);
+void	frstyledelete(Frame*, ulong, ulong);
 
 uchar	*_frallocstr(Frame*, unsigned);
 void	_frinsure(Frame*, int, unsigned);
@@ -81,14 +94,17 @@ void	_fradvance(Frame*, Point*, Frbox*);
 int	_frnewwid(Frame*, Point, Frbox*);
 int	_frnewwid0(Frame*, Point, Frbox*);
 void	_frclean(Frame*, Point, int, int);
-void	_frdrawtext(Frame*, Point, Image*, Image*);
+
 void	_fraddbox(Frame*, int, int);
 Point	_frptofcharptb(Frame*, ulong, Point, int);
 Point	_frptofcharnb(Frame*, ulong, int);
 int	_frstrlen(Frame*, int);
 void	frtick(Frame*, Point, int);
 void	frinittick(Frame*);
-void	frredraw(Frame*);
 
 #define	NRUNE(b)	((b)->nrune<0? 1 : (b)->nrune)
 #define	NBYTE(b)	strlen((char*)(b)->ptr)
+#if defined(__cplusplus)
+}
+#endif
+#endif

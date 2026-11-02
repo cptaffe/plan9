@@ -9,8 +9,18 @@
 #include <fcall.h>
 #include <bio.h>
 #include <plumb.h>
+#include <libsec.h>
 #include "dat.h"
 #include "fns.h"
+
+static Rune Lcolhdr[] = {
+	'N', 'e', 'w', 'c', 'o', 'l', ' ',
+	'K', 'i', 'l', 'l', ' ',
+	'P', 'u', 't', 'a', 'l', 'l', ' ',
+	'D', 'u', 'm', 'p', ' ',
+	'E', 'x', 'i', 't', ' ',
+	0
+};
 
 void
 rowinit(Row *row, Rectangle r)
@@ -33,8 +43,8 @@ rowinit(Row *row, Rectangle r)
 	r1.min.y = r1.max.y;
 	r1.max.y += Border;
 	draw(screen, r1, display->black, nil, ZP);
-	textinsert(t, 0, L"Newcol Kill Putall Dump Exit ", 29, TRUE);
-	textsetselect(t, t->file->nc, t->file->nc);
+	textinsert(t, 0, Lcolhdr, 29, TRUE);
+	textsetselect(t, t->file->b.nc, t->file->b.nc);
 }
 
 Column*
@@ -46,7 +56,7 @@ rowadd(Row *row, Column *c, int x)
 
 	d = nil;
 	r = row->r;
-	r.min.y = row->tag.r.max.y+Border;
+	r.min.y = row->tag.fr.r.max.y+Border;
 	if(x<r.min.x && row->ncol>0){	/*steal 40% of last column by default */
 		d = row->col[row->ncol-1];
 		x = d->r.min.x + 3*Dx(d->r)/5;
@@ -65,7 +75,7 @@ rowadd(Row *row, Column *c, int x)
 			return nil;
 		draw(screen, r, display->white, nil, ZP);
 		r1 = r;
-		r1.max.x = min(x, r.max.x-50);
+		r1.max.x = min(x-Border, r.max.x-50);
 		if(Dx(r1) < 50)
 			r1.max.x = r1.min.x+50;
 		colresize(d, r1);
@@ -77,7 +87,7 @@ rowadd(Row *row, Column *c, int x)
 	if(c == nil){
 		c = emalloc(sizeof(Column));
 		colinit(c, r);
-		incref(&reffont);
+		incref(&reffont.ref);
 	}else
 		colresize(c, r);
 	c->row = row;
@@ -93,12 +103,11 @@ rowadd(Row *row, Column *c, int x)
 void
 rowresize(Row *row, Rectangle r)
 {
-	int i, dx, odx;
-	Rectangle r1, r2;
+	int i;
+	Rectangle or, r1, r2;
 	Column *c;
 
-	dx = Dx(r);
-	odx = Dx(row->r);
+	or = row->r;
 	row->r = r;
 	r1 = r;
 	r1.max.y = r1.min.y + font->height;
@@ -112,10 +121,11 @@ rowresize(Row *row, Rectangle r)
 	for(i=0; i<row->ncol; i++){
 		c = row->col[i];
 		r1.min.x = r1.max.x;
+		/* the test should not be necessary, but guarantee we don't lose a pixel */
 		if(i == row->ncol-1)
 			r1.max.x = r.max.x;
 		else
-			r1.max.x = r1.min.x+Dx(c->r)*dx/odx;
+			r1.max.x = r.min.x + (c->r.max.x-or.min.x)*Dx(r)/Dx(or);
 		if(i > 0){
 			r2 = r1;
 			r2.max.x = r2.min.x+Border;
@@ -127,12 +137,14 @@ rowresize(Row *row, Rectangle r)
 }
 
 void
-rowdragcol(Row *row, Column *c, int)
+rowdragcol(Row *row, Column *c, int _0)
 {
 	Rectangle r;
 	int i, b, x;
 	Point p, op;
 	Column *d;
+
+	USED(_0);
 
 	clearmouse();
 	setcursor(mousectl, &boxcursor);
@@ -206,8 +218,8 @@ rowclose(Row *row, Column *c, int dofree)
 	r = c->r;
 	if(dofree)
 		colcloseall(c);
-	memmove(row->col+i, row->col+i+1, (row->ncol-i)*sizeof(Column*));
 	row->ncol--;
+	memmove(row->col+i, row->col+i+1, (row->ncol-i)*sizeof(Column*));
 	row->col = realloc(row->col, row->ncol*sizeof(Column*));
 	if(row->ncol == 0){
 		draw(screen, r, display->white, nil, ZP);
@@ -258,8 +270,11 @@ rowtype(Row *row, Rune r, Point p)
 	Window *w;
 	Text *t;
 
+	if(r == 0)
+		r = Runeerror;
+
 	clearmouse();
-	qlock(row);
+	qlock(&row->lk);
 	if(bartflag)
 		t = barttext;
 	else
@@ -281,7 +296,7 @@ rowtype(Row *row, Rune r, Point p)
 			winunlock(w);
 		}
 	}
-	qunlock(row);
+	qunlock(&row->lk);
 	return t;
 }
 
@@ -300,10 +315,10 @@ rowclean(Row *row)
 void
 rowdump(Row *row, char *file)
 {
-	int i, j, fd, m, n, dumped;
+	int i, j, fd, m, n, start, dumped;
 	uint q0, q1;
 	Biobuf *b;
-	char *buf, *a, *fontname;
+	char *buf, *a, *fontname, *fontfmt, *fontnamelo, *fontnamehi;
 	Rune *r;
 	Column *c;
 	Window *w, *w1;
@@ -333,7 +348,7 @@ rowdump(Row *row, char *file)
 	Bprint(b, "%s\n", fontnames[1]);
 	for(i=0; i<row->ncol; i++){
 		c = row->col[i];
-		Bprint(b, "%11d", 100*(c->r.min.x-row->r.min.x)/Dx(row->r));
+		Bprint(b, "%11.7f", 100.0*(c->r.min.x-row->r.min.x)/Dx(row->r));
 		if(i == row->ncol-1)
 			Bputc(b, '\n');
 		else
@@ -343,6 +358,21 @@ rowdump(Row *row, char *file)
 		c = row->col[i];
 		for(j=0; j<c->nw; j++)
 			c->w[j]->body.file->dumpid = 0;
+	}
+	m = min(RBUFSIZE, row->tag.file->b.nc);
+	bufread(&row->tag.file->b, 0, r, m);
+	n = 0;
+	while(n<m && r[n]!='\n')
+		n++;
+	Bprint(b, "w %.*S\n", n, r);
+	for(i=0; i<row->ncol; i++){
+		c = row->col[i];
+		m = min(RBUFSIZE, c->tag.file->b.nc);
+		bufread(&c->tag.file->b, 0, r, m);
+		n = 0;
+		while(n<m && r[n]!='\n')
+			n++;
+		Bprint(b, "c%11d %.*S\n", i, n, r);
 	}
 	for(i=0; i<row->ncol; i++){
 		c = row->col[i];
@@ -363,58 +393,74 @@ rowdump(Row *row, char *file)
 					if(w1->nopen[QWevent])
 						goto Continue2;
 				}
-			fontname = "";
-			if(t->reffont->f != font)
-				fontname = t->reffont->f->name;
+			fontfmt = "%s";
+			fontnamelo = "";
+			fontnamehi = nil;
+			if(t->reffont->f != font){
+				fontnamelo = t->reffont->f->lodpi->name;
+				if(t->reffont->f->hidpi != nil){
+					fontfmt = "%s,%s";
+					fontnamehi = t->reffont->f->hidpi->name;
+				}
+			}
+			fontname = smprint(fontfmt, fontnamelo, fontnamehi);
 			if(t->file->nname)
 				a = runetobyte(t->file->name, t->file->nname);
 			else
 				a = emalloc(1);
 			if(t->file->dumpid){
 				dumped = FALSE;
-				Bprint(b, "x%11d %11d %11d %11d %11d %s\n", i, t->file->dumpid,
+				Bprint(b, "x%11d %11d %11d %11d %11.7f %s\n", i, t->file->dumpid,
 					w->body.q0, w->body.q1,
-					100*(w->r.min.y-c->r.min.y)/Dy(c->r),
+					100.0*(w->r.min.y-c->r.min.y)/Dy(c->r),
 					fontname);
 			}else if(w->dumpstr){
 				dumped = FALSE;
-				Bprint(b, "e%11d %11d %11d %11d %11d %s\n", i, t->file->dumpid,
+				Bprint(b, "e%11d %11d %11d %11d %11.7f %s\n", i, t->file->dumpid,
 					0, 0,
-					100*(w->r.min.y-c->r.min.y)/Dy(c->r),
+					100.0*(w->r.min.y-c->r.min.y)/Dy(c->r),
 					fontname);
 			}else if((w->dirty==FALSE && access(a, 0)==0) || w->isdir){
 				dumped = FALSE;
 				t->file->dumpid = w->id;
-				Bprint(b, "f%11d %11d %11d %11d %11d %s\n", i, w->id,
+				Bprint(b, "f%11d %11d %11d %11d %11.7f %s\n", i, w->id,
 					w->body.q0, w->body.q1,
-					100*(w->r.min.y-c->r.min.y)/Dy(c->r),
+					100.0*(w->r.min.y-c->r.min.y)/Dy(c->r),
 					fontname);
 			}else{
 				dumped = TRUE;
 				t->file->dumpid = w->id;
-				Bprint(b, "F%11d %11d %11d %11d %11d %11d %s\n", i, j,
+				Bprint(b, "F%11d %11d %11d %11d %11.7f %11d %s\n", i, j,
 					w->body.q0, w->body.q1,
-					100*(w->r.min.y-c->r.min.y)/Dy(c->r),
-					w->body.file->nc, fontname);
+					100.0*(w->r.min.y-c->r.min.y)/Dy(c->r),
+					w->body.file->b.nc, fontname);
 			}
+			free(fontname);
 			free(a);
 			winctlprint(w, buf, 0);
 			Bwrite(b, buf, strlen(buf));
-			m = min(RBUFSIZE, w->tag.file->nc);
-			bufread(w->tag.file, 0, r, m);
+			m = min(RBUFSIZE, w->tag.file->b.nc);
+			bufread(&w->tag.file->b, 0, r, m);
 			n = 0;
-			while(n<m && r[n]!='\n')
-				n++;
-			r[n++] = '\n';
-			Bprint(b, "%.*S", n, r);
+			while(n<m) {
+				start = n;
+				while(n<m && r[n]!='\n')
+					n++;
+				Bprint(b, "%.*S", n-start, r+start);
+				if(n<m) {
+					Bputc(b, 0xff); // \n in tag becomes 0xff byte (invalid UTF)
+					n++;
+				}
+			}
+			Bprint(b, "\n");
 			if(dumped){
 				q0 = 0;
-				q1 = t->file->nc;
+				q1 = t->file->b.nc;
 				while(q0 < q1){
 					n = q1 - q0;
 					if(n > BUFSIZE/UTFmax)
 						n = BUFSIZE/UTFmax;
-					bufread(t->file, q0, r, n);
+					bufread(&t->file->b, q0, r, n);
 					Bprint(b, "%.*S", n, r);
 					q0 += n;
 				}
@@ -484,10 +530,12 @@ rowloadfonts(char *file)
 int
 rowload(Row *row, char *file, int initing)
 {
-	int i, j, line, percent, y, nr, nfontr, n, ns, ndumped, dumpid, x, fd;
+	int i, j, line, y, nr, nfontr, n, ns, ndumped, dumpid, x, fd, done;
+	double percent;
 	Biobuf *b, *bout;
 	char *buf, *l, *t, *fontname;
-	Rune *r, rune, *fontr;
+	Rune *r, *fontr;
+	int rune;
 	Column *c, *c1, *c2;
 	uint q0, q1;
 	Rectangle r1, r2;
@@ -535,10 +583,10 @@ rowload(Row *row, char *file, int initing)
 	if(j<=0 || j>10)
 		goto Rescue2;
 	for(i=0; i<j; i++){
-		percent = atoi(l+i*12);
+		percent = atof(l+i*12);
 		if(percent<0 || percent>=100)
 			goto Rescue2;
-		x = row->r.min.x+percent*Dx(row->r)/100;
+		x = row->r.min.x+percent*Dx(row->r)/100+0.5;
 		if(i < row->ncol){
 			if(i == 0)
 				continue;
@@ -546,22 +594,63 @@ rowload(Row *row, char *file, int initing)
 			c2 = row->col[i];
 			r1 = c1->r;
 			r2 = c2->r;
-			r1.max.x = x;
-			r2.min.x = x+Border;
+			if(x<Border)
+				x = Border;
+			r1.max.x = x-Border;
+			r2.min.x = x;
 			if(Dx(r1) < 50 || Dx(r2) < 50)
 				continue;
 			draw(screen, Rpt(r1.min, r2.max), display->white, nil, ZP);
 			colresize(c1, r1);
 			colresize(c2, r2);
-			r2.min.x = x;
-			r2.max.x = x+Border;
+			r2.min.x = x-Border;
+			r2.max.x = x;
 			draw(screen, r2, display->black, nil, ZP);
 		}
 		if(i >= row->ncol)
 			rowadd(row, nil, x);
 	}
-	for(;;){
+	done = 0;
+	while(!done){
 		l = rdline(b, &line);
+		if(l == nil)
+			break;
+		switch(l[0]){
+		case 'c':
+			l[Blinelen(b)-1] = 0;
+			i = atoi(l+1+0*12);
+			r = bytetorune(l+1*12, &nr);
+			ns = -1;
+			for(n=0; n<nr; n++){
+				if(r[n] == '/')
+					ns = n;
+				if(r[n] == ' ')
+					break;
+			}
+			textdelete(&row->col[i]->tag, 0, row->col[i]->tag.file->b.nc, TRUE);
+			textinsert(&row->col[i]->tag, 0, r+n+1, nr-(n+1), TRUE);
+			free(r);
+			break;
+		case 'w':
+			l[Blinelen(b)-1] = 0;
+			r = bytetorune(l+2, &nr);
+			ns = -1;
+			for(n=0; n<nr; n++){
+				if(r[n] == '/')
+					ns = n;
+				if(r[n] == ' ')
+					break;
+			}
+			textdelete(&row->tag, 0, row->tag.file->b.nc, TRUE);
+			textinsert(&row->tag, 0, r, nr, TRUE);
+			free(r);
+			break;
+		default:
+			done = 1;
+			break;
+		}
+	}
+	for(;;){
 		if(l == nil)
 			break;
 		dumpid = 0;
@@ -594,7 +683,7 @@ rowload(Row *row, char *file, int initing)
 			memmove(t, l, Blinelen(b));
 			run(nil, t, r, nr, TRUE, nil, nil, FALSE);
 			/* r is freed in run() */
-			continue;
+			goto Nextline;
 		case 'f':
 			if(Blinelen(b) < 1+5*12+1)
 				goto Rescue2;
@@ -626,13 +715,13 @@ rowload(Row *row, char *file, int initing)
 		j = atoi(l+1+1*12);
 		q0 = atoi(l+1+2*12);
 		q1 = atoi(l+1+3*12);
-		percent = atoi(l+1+4*12);
+		percent = atof(l+1+4*12);
 		if(i<0 || i>10)
 			goto Rescue2;
 		if(i > row->ncol)
 			i = row->ncol;
 		c = row->col[i];
-		y = c->r.min.y+(percent*Dy(c->r))/100;
+		y = c->r.min.y+(percent*Dy(c->r))/100+0.5;
 		if(y<c->r.min.y || y>=c->r.max.y)
 			y = -1;
 		if(dumpid == 0)
@@ -640,12 +729,16 @@ rowload(Row *row, char *file, int initing)
 		else
 			w = coladd(c, nil, lookid(dumpid, TRUE), y);
 		if(w == nil)
-			continue;
+			goto Nextline;
 		w->dumpid = j;
 		l = rdline(b, &line);
 		if(l == nil)
 			goto Rescue2;
 		l[Blinelen(b)-1] = 0;
+		/* convert 0xff in multiline tag back to \n */
+		for(i = 0; l[i] != 0; i++)
+			if((uchar)l[i] == 0xff)
+				l[i] = '\n';
 		r = bytetorune(l+5*12, &nr);
 		ns = -1;
 		for(n=0; n<nr; n++){
@@ -660,11 +753,11 @@ rowload(Row *row, char *file, int initing)
 			if(r[n] == '|')
 				break;
 		wincleartag(w);
-		textinsert(&w->tag, w->tag.file->nc, r+n+1, nr-(n+1), TRUE);
+		textinsert(&w->tag, w->tag.file->b.nc, r+n+1, nr-(n+1), TRUE);
 		if(ndumped >= 0){
 			/* simplest thing is to put it in a file and load that */
 			sprint(buf, "/tmp/d%d.%.4sacme", getpid(), getuser());
-			fd = create(buf, OWRITE|ORCLOSE, 0600);
+			fd = create(buf, OWRITE, 0600);
 			if(fd < 0){
 				free(r);
 				warning(nil, "can't create temp file: %r\n");
@@ -676,11 +769,12 @@ rowload(Row *row, char *file, int initing)
 				rune = Bgetrune(b);
 				if(rune == '\n')
 					line++;
-				if(rune == (Rune)Beof){
+				if(rune == Beof){
 					free(r);
 					Bterm(bout);
 					free(bout);
 					close(fd);
+					remove(buf);
 					goto Rescue2;
 				}
 				Bputrune(bout, rune);
@@ -688,6 +782,7 @@ rowload(Row *row, char *file, int initing)
 			Bterm(bout);
 			free(bout);
 			textload(&w->body, 0, buf, 1);
+			remove(buf);
 			close(fd);
 			w->body.file->mod = TRUE;
 			for(n=0; n<w->body.file->ntext; n++)
@@ -700,10 +795,13 @@ rowload(Row *row, char *file, int initing)
 			free(fontr);
 		}
 		free(r);
-		if(q0>w->body.file->nc || q1>w->body.file->nc || q0>q1)
+		if(q0>w->body.file->b.nc || q1>w->body.file->b.nc || q0>q1)
 			q0 = q1 = 0;
 		textshow(&w->body, q0, q1, 1);
-		w->maxlines = min(w->body.nlines, max(w->maxlines, w->body.maxlines));
+		w->maxlines = min(w->body.fr.nlines, max(w->maxlines, w->body.fr.maxlines));
+		xfidlog(w, "new");
+Nextline:
+		l = rdline(b, &line);
 	}
 	Bterm(b);
 	fbuffree(buf);

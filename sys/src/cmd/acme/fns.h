@@ -1,28 +1,36 @@
+/*
 #pragma	varargck	argpos	warning	2
+#pragma	varargck	argpos	warningew	2
+*/
 
 void	warning(Mntdir*, char*, ...);
+void	warningew(Window*, Mntdir*, char*, ...);
 
 #define	fbufalloc()	emalloc(BUFSIZE)
 #define	fbuffree(x)	free(x)
 
-void	plumblook(Plumbmsg*m);
+void	plumblook(Plumbmsg *m);
 void	plumbshow(Plumbmsg*m);
-void	putsnarf(void);
-void	getsnarf(void);
+void	acmeputsnarf(void);
+void	acmegetsnarf(void);
 int	tempfile(void);
 void	scrlresize(void);
 Font*	getfont(int, int, char*);
 char*	getarg(Text*, int, int, Rune**, int*);
 char*	getbytearg(Text*, int, int, char**);
 void	new(Text*, Text*, Text*, int, int, Rune*, int);
+void	newcol(Text*, Text*, Text*, int, int, Rune*, int);
 void	undo(Text*, Text*, Text*, int, int, Rune*, int);
-char*	getname(Text*, Text*, Rune*, int, int);
+void	del(Text*, Text*, Text*, int, int, Rune*, int);
+void	delcol(Text*, Text*, Text*, int, int, Rune*, int);
 void	scrsleep(uint);
 void	savemouse(Window*);
 int	restoremouse(Window*);
 void	clearmouse(void);
 void	allwindows(void(*)(Window*, void*), void*);
-uint loadfile(int, uint, int*, int(*)(void*, uint, Rune*, int), void*);
+uint seqof(Window*, int);
+
+uint loadfile(int, uint, int*, int(*)(void*, uint, Rune*, int), void*, DigestState*);
 void	movetodel(Window*);
 
 Window*	errorwin(Mntdir*, int);
@@ -52,12 +60,16 @@ void	cut(Text*, Text*, Text*, int, int, Rune*, int);
 void	paste(Text*, Text*, Text*, int, int, Rune*, int);
 void	get(Text*, Text*, Text*, int, int, Rune*, int);
 void	put(Text*, Text*, Text*, int, int, Rune*, int);
+void	putall(Text*, Text*, Text*, int, int, Rune*, int);
 void	putfile(File*, int, int, Rune*, int);
 void	fontx(Text*, Text*, Text*, int, int, Rune*, int);
+#undef isalnum
+#define isalnum acmeisalnum
 int	isalnum(Rune);
 void	execute(Text*, uint, uint, int, Text*);
-int	search(Text*, Rune*, uint);
-void	look3(Text*, uint, uint, int);
+void	executerunestr(Text*, Rune*, int);
+int	search(Text*, Rune*, uint, int);
+void	look3(Text*, uint, uint, int, int);
 void	editcmd(Text*, Rune*, uint);
 uint	min(uint, uint);
 uint	max(uint, uint);
@@ -67,8 +79,8 @@ char*	runetobyte(Rune*, int);
 Rune*	bytetorune(char*, int*);
 void	fsysinit(void);
 Mntdir*	fsysmount(Rune*, int, Rune**, int);
-void		fsysincid(Mntdir*);
 void		fsysdelid(Mntdir*);
+void		fsysincid(Mntdir*);
 Xfid*		respond(Xfid*, Fcall*, char*);
 int		rxcompile(Rune*);
 int		rgetc(void*, uint);
@@ -78,16 +90,34 @@ int		isregexc(int);
 void *emalloc(uint);
 void *erealloc(void*, uint);
 char	*estrdup(char*);
-Range		address(Mntdir*, Text*, Range, Range, void*, uint, uint, int (*)(void*, uint),  int*, uint*);
+Range		address(uint, Text*, Range, Range, void*, uint, uint, int (*)(void*, uint),  int*, uint*, int);
 int		rxexecute(Text*, Rune*, uint, uint, Rangeset*);
 int		rxbexecute(Text*, uint, Rangeset*);
 Window*	makenewwindow(Text *t);
-int	expand(Text*, uint, uint, Expand*);
+int	expand(Text*, uint, uint, Expand*, int);
 Rune*	skipbl(Rune*, int, int*);
 Rune*	findbl(Rune*, int, int*);
 char*	edittext(Window*, int, Rune*, int);
 void		flushwarnings(void);
+void		startplumbing(void);
+long	nlcount(Text*, long, long, long*);
+long	nlcounttopos(Text*, long, long, long);
+Rune*	parsetag(Window*, int, int*);
+
+Runestr	runestr(Rune*, uint);
+Range range(int, int);
 
 #define	runemalloc(a)		(Rune*)emalloc((a)*sizeof(Rune))
 #define	runerealloc(a, b)	(Rune*)erealloc((a), (b)*sizeof(Rune))
 #define	runemove(a, b, c)	memmove((a), (b), (c)*sizeof(Rune))
+
+int	ismtpt(char*);
+
+/* style management — per-window named palette (feature2) */
+void	winclearstyle(Window*);
+void	winframesync(Window*);
+void	winparsestyle(Window*, char*, int, int, Range);
+void	xfidstyleflush(Window*, char*, int, int, Range);
+char*	winstyleprint(Window*);
+void	winstyleinsert(Window*, uint, uint);
+void	winstyledelete(Window*, uint, uint);

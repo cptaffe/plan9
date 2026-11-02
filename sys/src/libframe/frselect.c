@@ -1,7 +1,6 @@
 #include <u.h>
 #include <libc.h>
 #include <draw.h>
-#include <thread.h>
 #include <mouse.h>
 #include <frame.h>
 
@@ -23,8 +22,8 @@ frselect(Frame *f, Mousectl *mc)	/* when called, button 1 is down */
 	Point mp, pt0, pt1, qt;
 	int reg, b, scrled;
 
-	mp = mc->xy;
-	b = mc->buttons;
+	mp = mc->Mouse.xy;
+	b = mc->Mouse.buttons;
 
 	f->modified = 0;
 	frdrawsel(f, frptofchar(f, f->p0), f->p0, f->p1, 0);
@@ -99,8 +98,8 @@ frselect(Frame *f, Mousectl *mc)	/* when called, button 1 is down */
 		flushimage(f->display, 1);
 		if(!scrled)
 			readmouse(mc);
-		mp = mc->xy;
-	}while(mc->buttons == b);
+		mp = mc->Mouse.xy;
+	}while(mc->Mouse.buttons == b);
 }
 
 void

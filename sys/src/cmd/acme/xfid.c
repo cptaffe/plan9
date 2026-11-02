@@ -8,6 +8,7 @@
 #include <frame.h>
 #include <fcall.h>
 #include <plumb.h>
+#include <libsec.h>
 #include "dat.h"
 #include "fns.h"
 
@@ -22,6 +23,28 @@ char	Ebadaddr[]	= "bad address syntax";
 char	Eaddr[]		= "address out of range";
 char	Einuse[]		= "already in use";
 char	Ebadevent[]	= "bad event syntax";
+
+/*
+ * seqok reports whether x's seq guard, taken from w->wantseq when the
+ * file was opened, still matches the window.  A fid without a guard
+ * always passes.
+ */
+static int
+seqok(Xfid *x, Window *w)
+{
+	return x->f->seq < 0 || x->f->seq == w->seq;
+}
+
+/*
+ * seqadvance moves x's guard past an edit x itself just made, so a
+ * further guarded write on the same fid continues the compare-and-swap.
+ */
+static void
+seqadvance(Xfid *x, Window *w)
+{
+	if(x->f->seq >= 0)
+		x->f->seq = w->seq;
+}
 extern char Eperm[];
 
 static
@@ -32,10 +55,10 @@ clampaddr(Window *w)
 		w->addr.q0 = 0;
 	if(w->addr.q1 < 0)
 		w->addr.q1 = 0;
-	if(w->addr.q0 > w->body.file->nc)
-		w->addr.q0 = w->body.file->nc;
-	if(w->addr.q1 > w->body.file->nc)
-		w->addr.q1 = w->body.file->nc;
+	if(w->addr.q0 > w->body.file->b.nc)
+		w->addr.q0 = w->body.file->b.nc;
+	if(w->addr.q1 > w->body.file->b.nc)
+		w->addr.q1 = w->body.file->b.nc;
 }
 
 void
@@ -47,7 +70,7 @@ xfidctl(void *arg)
 	threadsetname("xfidctlthread");
 	x = arg;
 	for(;;){
-		f = recvp(x->c);
+		f = (void(*)(Xfid*))recvp(x->c);
 		(*f)(x);
 		flushimage(display, 1);
 		sendp(cxfidfree, x);
@@ -63,26 +86,32 @@ xfidflush(Xfid *x)
 	Column *c;
 	Xfid *wx;
 
+	xfidlogflush(x);
+
 	/* search windows for matching tag */
-	qlock(&row);
+	qlock(&row.lk);
 	for(j=0; j<row.ncol; j++){
 		c = row.col[j];
 		for(i=0; i<c->nw; i++){
+			Fid *ef;
 			w = c->w[i];
 			winlock(w, 'E');
-			wx = w->eventx;
-			if(wx!=nil && wx->tag==x->oldtag){
-				w->eventx = nil;
-				wx->flushed = TRUE;
-				sendp(wx->c, nil);
-				winunlock(w);
-				goto out;
+			xfidwinlogflush(x, w);
+			for(ef = w->eventhead; ef != nil; ef = ef->eventnext){
+				wx = ef->eventx;
+				if(wx != nil && wx->fcall.tag == x->fcall.oldtag){
+					ef->eventx = nil;
+					wx->flushed = TRUE;
+					sendp(wx->c, nil);
+					winunlock(w);
+					goto out;
+				}
 			}
 			winunlock(w);
 		}
 	}
 out:
-	qunlock(&row);
+	qunlock(&row.lk);
 	respond(x, &fc, nil);
 }
 
@@ -98,19 +127,37 @@ xfidopen(Xfid *x)
 
 	w = x->f->w;
 	t = &w->body;
+	q = FILE(x->f->qid);
+	x->f->seq = -1;
 	if(w){
 		winlock(w, 'E');
-		q = FILE(x->f->qid);
 		switch(q){
+		case QWbody:
+		case QWdata:
+		case QWxdata:
+		case QWstyle:
+		case QWlog:
+			/* The guard moves onto this fid; see wantseq in dat.h. */
+			x->f->seq = w->wantseq;
+			w->wantseq = -1;
+			break;
+		}
+		switch(q){
+		case QWseq:
+			if(w->nopen[q]++ == 0)
+				w->wantseq = -1;
+			break;
 		case QWaddr:
 			if(w->nopen[q]++ == 0){
-				w->addr = (Range){0,0};
-				w->limit = (Range){-1,-1};
+				w->addr = range(0, 0);
+				w->limit = range(-1,-1);
 			}
 			break;
 		case QWdata:
 		case QWxdata:
 			w->nopen[q]++;
+			break;
+		case QWctl:
 			break;
 		case QWevent:
 			if(w->nopen[q]++ == 0){
@@ -118,6 +165,48 @@ xfidopen(Xfid *x)
 					w->filemenu = FALSE;
 					winsettag(w);
 				}
+			}
+			x->f->eventx = nil;	/* clear any stale pointer from Fid reuse */
+			/*
+			 * Insert this fid at the head of the event pipeline.
+			 * Start it from where the previous head's read pointer
+			 * was, so events the previous head had been given but
+			 * not yet read now flow through us first.
+			 * Freeze the previous head's permission at its current
+			 * evread; it will only advance further via our write-backs.
+			 */
+			if(w->eventhead != nil){
+				x->f->evhead  = w->eventhead->evread;
+				x->f->evread  = w->eventhead->evread;
+				x->f->evlimit = w->evring.tail;
+				w->eventhead->evlimit = w->eventhead->evread;
+			} else {
+				x->f->evhead  = w->evring.tail;
+				x->f->evread  = w->evring.tail;
+				x->f->evlimit = w->evring.tail;
+			}
+			x->f->eventnext = w->eventhead;
+			w->eventhead = x->f;
+			break;
+		case QWlog:
+			xfidwinlogopen(x, w);
+			break;
+		case QWstyle:
+			/*
+			 * Snapshot addr at open time; it is consumed at clunk.
+			 * Fail immediately if this fid's seq guard doesn't match,
+			 * same as data rejecting a mismatched write.
+			 */
+			if((x->fcall.mode & 3) == OWRITE ||
+			   (x->fcall.mode & 3) == ORDWR){
+				if(!seqok(x, w)){
+					winunlock(w);
+					respond(x, &fc, "seq mismatch");
+					return;
+				}
+				x->f->styleopen    = 1;
+				x->f->stylehasaddr = w->hasaddr;
+				x->f->styleaddr    = w->addr;
 			}
 			break;
 		case QWrdsel:
@@ -149,7 +238,7 @@ xfidopen(Xfid *x)
 				n = q1 - q0;
 				if(n > BUFSIZE/UTFmax)
 					n = BUFSIZE/UTFmax;
-				bufread(t->file, q0, r, n);
+				bufread(&t->file->b, q0, r, n);
 				m = snprint(s, BUFSIZE+1, "%.*S", n, r);
 				if(write(w->rdselfd, s, m) != m){
 					warning(nil, "can't write temp file for pipe command %r\n");
@@ -165,7 +254,7 @@ xfidopen(Xfid *x)
 			seq++;
 			filemark(t->file);
 			cut(t, t, nil, FALSE, TRUE, nil, 0);
-			w->wrselrange = (Range){t->q1, t->q1};
+			w->wrselrange = range(t->q1, t->q1);
 			w->nomark = TRUE;
 			break;
 		case QWeditout:
@@ -174,10 +263,28 @@ xfidopen(Xfid *x)
 				respond(x, &fc, Eperm);
 				return;
 			}
-			w->wrselrange = (Range){t->q1, t->q1};
+			if(!canqlock(&w->editoutlk)){
+				winunlock(w);
+				respond(x, &fc, Einuse);
+				return;
+			}
+			w->wrselrange = range(t->q1, t->q1);
 			break;
 		}
 		winunlock(w);
+	}
+	else{
+		switch(q){
+		case Qlog:
+			xfidlogopen(x);
+			break;
+		case Qeditout:
+			if(!canqlock(&editoutlk)){
+				respond(x, &fc, Einuse);
+				return;
+			}
+			break;
+		}
 	}
 	fc.qid = x->f->qid;
 	fc.iounit = messagesize-IOHDRSZ;
@@ -195,6 +302,7 @@ xfidclose(Xfid *x)
 
 	w = x->f->w;
 	x->f->busy = FALSE;
+	x->f->w = nil;
 	if(x->f->open == FALSE){
 		if(w != nil)
 			winclose(w);
@@ -202,10 +310,10 @@ xfidclose(Xfid *x)
 		return;
 	}
 
+	q = FILE(x->f->qid);
 	x->f->open = FALSE;
 	if(w){
 		winlock(w, 'E');
-		q = FILE(x->f->qid);
 		switch(q){
 		case QWctl:
 			if(w->ctlfid!=~0 && w->ctlfid==x->f->fid){
@@ -218,20 +326,77 @@ xfidclose(Xfid *x)
 			w->nomark = FALSE;
 			/* fall through */
 		case QWaddr:
-		case QWevent:	/* BUG: do we need to shut down Xfid? */
+		case QWseq:
+			--w->nopen[q];
+			break;
+		case QWevent:
+		{
+			Fid *fp, *fn;
+			/*
+			 * Splice this fid out of the event pipeline.
+			 * Pass-through: give the next reader permission to
+			 * read everything up to our evlimit (events we had
+			 * been given but may not have forwarded yet).
+			 * If we were the head, make eventnext the new head
+			 * so it receives future events from winevent.
+			 */
+			fn = x->f->eventnext;
+			if(w->eventhead == x->f){
+				w->eventhead = fn;
+			} else {
+				for(fp = w->eventhead; fp != nil; fp = fp->eventnext)
+					if(fp->eventnext == x->f){
+						fp->eventnext = fn;
+						break;
+					}
+			}
+			if(fn != nil){
+				/* forward all permission we held */
+				fn->evlimit = x->f->evlimit;
+				if(fn->eventx != nil && fn->evread < fn->evlimit){
+					Xfid *wx = fn->eventx;
+					fn->eventx = nil;
+					sendp(wx->c, nil);
+				}
+			}
+			x->f->eventnext = nil;
+
+			/* Wake this fid's own blocked reader, if any. */
+			if(x->f->eventx != nil){
+				Xfid *wx = x->f->eventx;
+				x->f->eventx = nil;
+				sendp(wx->c, nil);
+			}
+
 			if(--w->nopen[q] == 0){
-				if(q == QWdata || q == QWxdata)
-					w->nomark = FALSE;
-				if(q==QWevent && !w->isdir && w->col!=nil){
+				if(!w->isdir && w->col!=nil){
 					w->filemenu = TRUE;
 					winsettag(w);
 				}
-				if(q == QWevent){
-					free(w->dumpstr);
-					free(w->dumpdir);
-					w->dumpstr = nil;
-					w->dumpdir = nil;
-				}
+				free(w->dumpstr);
+				free(w->dumpdir);
+				w->dumpstr = nil;
+				w->dumpdir = nil;
+			}
+			break;
+		}
+		case QWlog:
+			xfidwinlogclose(x, w);
+			break;
+		case QWstyle:
+			if(x->f->styleopen){
+				/* Runs computed for an older body are dropped. */
+				if(seqok(x, w))
+					xfidstyleflush(w, x->f->stylebuf, x->f->nstylebuf,
+					               x->f->stylehasaddr, x->f->styleaddr);
+				if(x->f->stylehasaddr)
+					w->hasaddr = 0;
+				free(x->f->stylebuf);
+				x->f->stylebuf     = nil;
+				x->f->nstylebuf    = 0;
+				x->f->mstylebuf    = 0;
+				x->f->styleopen    = 0;
+				x->f->stylehasaddr = 0;
 			}
 			break;
 		case QWrdsel:
@@ -242,13 +407,23 @@ xfidclose(Xfid *x)
 			w->nomark = FALSE;
 			t = &w->body;
 			/* before: only did this if !w->noscroll, but that didn't seem right in practice */
-			textshow(t, min(w->wrselrange.q0, t->file->nc),
-				min(w->wrselrange.q1, t->file->nc), 1);
+			textshow(t, min(w->wrselrange.q0, t->file->b.nc),
+				min(w->wrselrange.q1, t->file->b.nc), 1);
 			textscrdraw(t);
+			break;
+		case QWeditout:
+			qunlock(&w->editoutlk);
 			break;
 		}
 		winunlock(w);
 		winclose(w);
+	}
+	else{
+		switch(q){
+		case Qeditout:
+			qunlock(&editoutlk);
+			break;
+		}
 	}
 	respond(x, &fc, nil);
 }
@@ -274,6 +449,9 @@ xfidread(Xfid *x)
 		case Qindex:
 			xfidindexread(x);
 			return;
+		case Qlog:
+			xfidlogread(x);
+			return;
 		default:
 			warning(nil, "unknown qid %d\n", q);
 			break;
@@ -287,8 +465,12 @@ xfidread(Xfid *x)
 		respond(x, &fc, Edel);
 		return;
 	}
-	off = x->offset;
+	off = x->fcall.offset;
 	switch(q){
+	case QWseq:
+		sprint(buf, "%d\n", w->seq);
+		goto Readbuf;
+
 	case QWaddr:
 		textcommit(&w->body, TRUE);
 		clampaddr(w);
@@ -296,7 +478,11 @@ xfidread(Xfid *x)
 		goto Readbuf;
 
 	case QWbody:
-		xfidutfread(x, &w->body, w->body.file->nc, QWbody);
+		if(!seqok(x, w)){
+			respond(x, &fc, "seq mismatch");
+			break;
+		}
+		xfidutfread(x, &w->body, w->body.file->b.nc, QWbody);
 		break;
 
 	case QWctl:
@@ -309,9 +495,9 @@ xfidread(Xfid *x)
 		n = strlen(b);
 		if(off > n)
 			off = n;
-		if(off+x->count > n)
-			x->count = n-off;
-		fc.count = x->count;
+		if(off+x->fcall.count > n)
+			x->fcall.count = n-off;
+		fc.count = x->fcall.count;
 		fc.data = b+off;
 		respond(x, &fc, nil);
 		if(b != buf)
@@ -322,19 +508,54 @@ xfidread(Xfid *x)
 		xfideventread(x, w);
 		break;
 
+	case QWlog:
+		xfidwinlogread(x, w);
+		break;
+
+	case QWstyle:
+	{
+		if(!seqok(x, w)){
+			respond(x, &fc, "seq mismatch");
+			break;
+		}
+		/* Return current body styles as "idx start end\n" text. */
+		char *b;
+		uint n;
+		b = winstyleprint(w);
+		n = strlen(b);
+		off = x->fcall.offset;
+		if(off > n)
+			off = n;
+		if(off + x->fcall.count > n)
+			x->fcall.count = n - off;
+		fc.count = x->fcall.count;
+		fc.data  = b + off;
+		respond(x, &fc, nil);
+		free(b);
+		break;
+	}
+
 	case QWdata:
+		if(!seqok(x, w)){
+			respond(x, &fc, "seq mismatch");
+			break;
+		}
 		/* BUG: what should happen if q1 > q0? */
-		if(w->addr.q0 > w->body.file->nc){
+		if(w->addr.q0 > w->body.file->b.nc){
 			respond(x, &fc, Eaddr);
 			break;
 		}
-		w->addr.q0 += xfidruneread(x, &w->body, w->addr.q0, w->body.file->nc);
+		w->addr.q0 += xfidruneread(x, &w->body, w->addr.q0, w->body.file->b.nc);
 		w->addr.q1 = w->addr.q0;
 		break;
 
 	case QWxdata:
+		if(!seqok(x, w)){
+			respond(x, &fc, "seq mismatch");
+			break;
+		}
 		/* BUG: what should happen if q1 > q0? */
-		if(w->addr.q0 > w->body.file->nc){
+		if(w->addr.q0 > w->body.file->b.nc){
 			respond(x, &fc, Eaddr);
 			break;
 		}
@@ -342,12 +563,12 @@ xfidread(Xfid *x)
 		break;
 
 	case QWtag:
-		xfidutfread(x, &w->tag, w->tag.file->nc, QWtag);
+		xfidutfread(x, &w->tag, w->tag.file->b.nc, QWtag);
 		break;
 
 	case QWrdsel:
 		seek(w->rdselfd, off, 0);
-		n = x->count;
+		n = x->fcall.count;
 		if(n > BUFSIZE)
 			n = BUFSIZE;
 		b = fbufalloc();
@@ -369,6 +590,14 @@ xfidread(Xfid *x)
 	winunlock(w);
 }
 
+static int
+shouldscroll(Text *t, uint q0, int qid)
+{
+	if(qid == Qcons)
+		return TRUE;
+	return t->org <= q0 && q0 <= t->org+t->fr.nchars;
+}
+
 static Rune*
 fullrunewrite(Xfid *x, int *inr)
 {
@@ -376,24 +605,24 @@ fullrunewrite(Xfid *x, int *inr)
 	Rune *r;
 
 	q = x->f->nrpart;
-	cnt = x->count;
+	cnt = x->fcall.count;
 	if(q > 0){
-		memmove(x->data+q, x->data, cnt);	/* there's room; see fsysproc */
-		memmove(x->data, x->f->rpart, q);
+		memmove(x->fcall.data+q, x->fcall.data, cnt);	/* there's room; see fsysproc */
+		memmove(x->fcall.data, x->f->rpart, q);
 		cnt += q;
 		x->f->nrpart = 0;
 	}
 	r = runemalloc(cnt);
-	cvttorunes(x->data, cnt-UTFmax, r, &nb, &nr, nil);
+	cvttorunes(x->fcall.data, cnt-UTFmax, r, &nb, &nr, nil);
 	/* approach end of buffer */
-	while(fullrune(x->data+nb, cnt-nb)){
+	while(fullrune(x->fcall.data+nb, cnt-nb)){
 		c = nb;
-		nb += chartorune(&r[nr], x->data+c);
+		nb += chartorune(&r[nr], x->fcall.data+c);
 		if(r[nr])
 			nr++;
 	}
 	if(nb < cnt){
-		memmove(x->f->rpart, x->data+nb, cnt-nb);
+		memmove(x->f->rpart, x->fcall.data+nb, cnt-nb);
 		x->f->nrpart = cnt-nb;
 	}
 	*inr = nr;
@@ -425,7 +654,7 @@ xfidwrite(Xfid *x)
 			return;
 		}
 	}
-	x->data[x->count] = 0;
+	x->fcall.data[x->fcall.count] = 0;
 	switch(qid){
 	case Qcons:
 		w = errorwin(x->f->mntdir, 'X');
@@ -433,17 +662,17 @@ xfidwrite(Xfid *x)
 		goto BodyTag;
 
 	case Qlabel:
-		fc.count = x->count;
+		fc.count = x->fcall.count;
 		respond(x, &fc, nil);
 		break;
 
 	case QWaddr:
-		x->data[x->count] = 0;
-		r = bytetorune(x->data, &nr);
+		x->fcall.data[x->fcall.count] = 0;
+		r = bytetorune(x->fcall.data, &nr);
 		t = &w->body;
 		wincommit(w, t);
 		eval = TRUE;
-		a = address(x->f->mntdir, t, w->limit, w->addr, r, 0, nr, rgetc, &eval, (uint*)&nb);
+		a = address(FALSE, t, w->limit, w->addr, r, 0, nr, rgetc, &eval, (uint*)&nb, FALSE);
 		free(r);
 		if(nb < nr){
 			respond(x, &fc, Ebadaddr);
@@ -454,7 +683,8 @@ xfidwrite(Xfid *x)
 			break;
 		}
 		w->addr = a;
-		fc.count = x->count;
+		w->hasaddr = 1;
+		fc.count = x->fcall.count;
 		respond(x, &fc, nil);
 		break;
 
@@ -470,7 +700,7 @@ xfidwrite(Xfid *x)
 			respond(x, &fc, err);
 			break;
 		}
-		fc.count = x->count;
+		fc.count = x->fcall.count;
 		respond(x, &fc, nil);
 		break;
 
@@ -488,16 +718,34 @@ xfidwrite(Xfid *x)
 		xfidctlwrite(x, w);
 		break;
 
+	case QWseq:
+	{
+		char tmp[32];
+		int n = x->fcall.count;
+		if(n >= (int)sizeof tmp)
+			n = sizeof tmp - 1;
+		memmove(tmp, x->fcall.data, n);
+		tmp[n] = '\0';
+		w->wantseq = atoi(tmp);
+		fc.count = x->fcall.count;
+		respond(x, &fc, nil);
+		break;
+	}
+
 	case QWdata:
+		if(!seqok(x, w)){
+			respond(x, &fc, "seq mismatch");
+			break;
+		}
 		a = w->addr;
 		t = &w->body;
 		wincommit(w, t);
-		if(a.q0>t->file->nc || a.q1>t->file->nc){
+		if(a.q0>t->file->b.nc || a.q1>t->file->b.nc){
 			respond(x, &fc, Eaddr);
 			break;
 		}
-		r = runemalloc(x->count);
-		cvttorunes(x->data, x->count, r, &nb, &nr, nil);
+		r = runemalloc(x->fcall.count);
+		cvttorunes(x->fcall.data, x->fcall.count, r, &nb, &nr, nil);
 		if(w->nomark == FALSE){
 			seq++;
 			filemark(t->file);
@@ -515,14 +763,15 @@ xfidwrite(Xfid *x)
 		if(tq1 >= q0)
 			tq1 += nr;
 		textsetselect(t, tq0, tq1);
-		if(!t->w->noscroll)
-			textshow(t, q0, q0+nr, 0);
+		if(shouldscroll(t, q0, qid))
+			textshow(t, q0+nr, q0+nr, 0);
 		textscrdraw(t);
 		winsettag(w);
 		free(r);
 		w->addr.q0 += nr;
 		w->addr.q1 = w->addr.q0;
-		fc.count = x->count;
+		seqadvance(x, w);
+		fc.count = x->fcall.count;
 		respond(x, &fc, nil);
 		break;
 
@@ -530,20 +779,52 @@ xfidwrite(Xfid *x)
 		xfideventwrite(x, w);
 		break;
 
+	case QWlog:
+		respond(x, &fc, Eperm);
+		break;
+
+	case QWstyle:
+	{
+		/*
+		 * Accumulate write data in the Fid's stylebuf.  Parsing and
+		 * winframesync are deferred to xfidclose so the whole Apply
+		 * (open → N writes → close) is one atomic update.
+		 */
+		Fid *f = x->f;
+		int  n = x->fcall.count;
+		if(!seqok(x, w)){
+			respond(x, &fc, "seq mismatch");
+			break;
+		}
+		if(f->nstylebuf + n > f->mstylebuf){
+			f->mstylebuf = f->nstylebuf + n + 4096;
+			f->stylebuf  = erealloc(f->stylebuf, f->mstylebuf);
+		}
+		memmove(f->stylebuf + f->nstylebuf, x->fcall.data, n);
+		f->nstylebuf += n;
+		fc.count = x->fcall.count;
+		respond(x, &fc, nil);
+		break;
+	}
+
 	case QWtag:
 		t = &w->tag;
 		goto BodyTag;
 
 	BodyTag:
+		if(qid == QWbody && !seqok(x, w)){
+			respond(x, &fc, "seq mismatch");
+			break;
+		}
 		r = fullrunewrite(x, &nr);
 		if(nr > 0){
 			wincommit(w, t);
 			if(qid == QWwrsel){
 				q0 = w->wrselrange.q1;
-				if(q0 > t->file->nc)
-					q0 = t->file->nc;
+				if(q0 > t->file->b.nc)
+					q0 = t->file->b.nc;
 			}else
-				q0 = t->file->nc;
+				q0 = t->file->b.nc;
 			if(qid == QWtag)
 				textinsert(t, q0, r, nr, TRUE);
 			else{
@@ -553,16 +834,18 @@ xfidwrite(Xfid *x)
 				}
 				q0 = textbsinsert(t, q0, r, nr, TRUE, &nr);
 				textsetselect(t, t->q0, t->q1);	/* insert could leave it somewhere else */
-				if(qid!=QWwrsel && !t->w->noscroll)
+				if(qid!=QWwrsel && shouldscroll(t, q0, qid))
 					textshow(t, q0+nr, q0+nr, 1);
 				textscrdraw(t);
 			}
 			winsettag(w);
 			if(qid == QWwrsel)
 				w->wrselrange.q1 += nr;
+			if(qid == QWbody)
+				seqadvance(x, w);
 			free(r);
 		}
-		fc.count = x->count;
+		fc.count = x->fcall.count;
 		respond(x, &fc, nil);
 		break;
 
@@ -586,20 +869,20 @@ xfidctlwrite(Xfid *x, Window *w)
 	Text *t;
 
 	err = nil;
-	e = x->data+x->count;
+	e = x->fcall.data+x->fcall.count;
 	scrdraw = FALSE;
 	settag = FALSE;
 	isfbuf = TRUE;
-	if(x->count < RBUFSIZE)
+	if(x->fcall.count < RBUFSIZE)
 		r = fbufalloc();
 	else{
 		isfbuf = FALSE;
-		r = emalloc(x->count*UTFmax+1);
+		r = emalloc(x->fcall.count*UTFmax+1);
 	}
-	x->data[x->count] = 0;
+	x->fcall.data[x->fcall.count] = 0;
 	textcommit(&w->tag, TRUE);
-	for(n=0; n<x->count; n+=m){
-		p = x->data+n;
+	for(n=0; n<x->fcall.count; n+=m){
+		p = x->fcall.data+n;
 		if(strncmp(p, "lock", 4) == 0){	/* make window exclusive use */
 			qlock(&w->ctllock);
 			w->ctlfid = x->f->fid;
@@ -648,7 +931,7 @@ xfidctlwrite(Xfid *x, Window *w)
 				break;
 			}
 			for(i=0; i<nr; i++)
-				if(r[i] <= ' '){
+				if(r[i] < ' '){
 					err = "bad character in file name";
 					goto out;
 				}
@@ -656,6 +939,24 @@ out:
 			seq++;
 			filemark(w->body.file);
 			winsetname(w, r, nr);
+			m += (q+1) - pp;
+		}else
+		if(strncmp(p, "font ", 5) == 0){		/* execute font command */
+			pp = p+5;
+			m = 5;
+			q = memchr(pp, '\n', e-pp);
+			if(q==nil || q==pp){
+				err = Ebadctl;
+				break;
+			}
+			*q = 0;
+			nulls = FALSE;
+			cvttorunes(pp, q-pp, r, &nb, &nr, &nulls);
+			if(nulls){
+				err = "nulls in font string";
+				break;
+			}
+			fontx(&w->body, nil, nil, FALSE, XXX, r, nr);
 			m += (q+1) - pp;
 		}else
 		if(strncmp(p, "dump ", 5) == 0){	/* set dump string */
@@ -747,25 +1048,29 @@ out:
 		}else
 		if(strncmp(p, "nomenu", 6) == 0){	/* turn off automatic menu */
 			w->filemenu = FALSE;
+			settag = TRUE;
 			m = 6;
 		}else
 		if(strncmp(p, "menu", 4) == 0){	/* enable automatic menu */
 			w->filemenu = TRUE;
+			settag = TRUE;
 			m = 4;
-		}else
-		if(strncmp(p, "noscroll", 8) == 0){	/* turn off automatic scrolling */
-			w->noscroll = TRUE;
-			m = 8;
 		}else
 		if(strncmp(p, "cleartag", 8) == 0){	/* wipe tag right of bar */
 			wincleartag(w);
 			settag = TRUE;
 			m = 8;
 		}else
-		if(strncmp(p, "scroll", 6) == 0){	/* turn on automatic scrolling (writes to body only) */
-			w->noscroll = FALSE;
+		if(strncmp(p, "veil", 4) == 0){	/* stop displaying keyboard input */
+			w->noecho = TRUE;
+			settag = TRUE;
+			m = 4;
+		}else
+		if(strncmp(p, "unveil", 6) == 0){	/* display keyboard input */
+			w->noecho = FALSE;
 			m = 6;
-		}else{
+		}else
+		{
 			err = Ebadctl;
 			break;
 		}
@@ -787,6 +1092,25 @@ out:
 		textscrdraw(&w->body);
 }
 
+static void
+evring_gc(Window *w)
+{
+	vlong minhead;
+	Fid *f;
+	int n;
+
+	minhead = w->evring.tail;
+	for(f = w->eventhead; f != nil; f = f->eventnext)
+		if(f->evhead < minhead)
+			minhead = f->evhead;
+	n = (int)(minhead - w->evring.base);
+	if(n <= 0)
+		return;
+	memmove(w->evring.buf, w->evring.buf + n,
+		(int)(w->evring.tail - minhead));
+	w->evring.base = minhead;
+}
+
 void
 xfideventwrite(Xfid *x, Window *w)
 {
@@ -797,18 +1121,19 @@ xfideventwrite(Xfid *x, Window *w)
 	int isfbuf;
 	Text *t;
 	int c;
-	uint q0, q1;
+	uint q0, q1, sz;
+	Fid *fn;
 
 	err = nil;
 	isfbuf = TRUE;
-	if(x->count < RBUFSIZE)
+	if(x->fcall.count < RBUFSIZE)
 		r = fbufalloc();
 	else{
 		isfbuf = FALSE;
-		r = emalloc(x->count*UTFmax+1);
+		r = emalloc(x->fcall.count*UTFmax+1);
 	}
-	for(n=0; n<x->count; n+=m){
-		p = x->data+n;
+	for(n=0; n<x->fcall.count; n+=m){
+		p = x->fcall.data+n;
 		w->owner = *p++;	/* disgusting */
 		c = *p++;
 		while(*p == ' ')
@@ -827,32 +1152,59 @@ xfideventwrite(Xfid *x, Window *w)
 			p++;
 		if(*p++ != '\n')
 			goto Rescue;
-		m = p-(x->data+n);
-		if('a'<=c && c<='z')
-			t = &w->tag;
-		else if('A'<=c && c<='Z')
-			t = &w->body;
-		else
-			goto Rescue;
-		if(q0>t->file->nc || q1>t->file->nc || q0>q1)
-			goto Rescue;
+		m = p-(x->fcall.data+n);
 
-		qlock(&row);	/* just like mousethread */
-		switch(c){
-		case 'x':
-		case 'X':
-			execute(t, q0, q1, TRUE, nil);
-			break;
-		case 'l':
-		case 'L':
-			look3(t, q0, q1, TRUE);
-			break;
-		default:
-			qunlock(&row);
-			goto Rescue;
+		/*
+		 * Acknowledge the in-flight event at evhead.
+		 * Read its size from the ring, advance evhead past it,
+		 * then either forward to the next reader in the chain
+		 * or execute at the terminus (no next reader).
+		 */
+		if(x->f->evhead >= w->evring.tail)
+			goto Rescue;	/* nothing in flight — shouldn't happen */
+		memmove(&sz, w->evring.buf + (x->f->evhead - w->evring.base), 4);
+		x->f->evhead += 4 + sz;
+
+		fn = x->f->eventnext;
+		if(fn != nil){
+			/* Forward: give the next reader permission to read. */
+			fn->evlimit += 4 + sz;
+			if(fn->eventx != nil && fn->evread < fn->evlimit){
+				Xfid *wx = fn->eventx;
+				fn->eventx = nil;
+				sendp(wx->c, nil);
+			}
+		} else {
+			/* Terminus: execute as acme's built-in handler would. */
+			if('a'<=c && c<='z')
+				t = &w->tag;
+			else if('A'<=c && c<='Z')
+				t = &w->body;
+			else
+				goto Rescue;
+			if(q0>t->file->b.nc || q1>t->file->b.nc || q0>q1)
+				goto Rescue;
+			qlock(&row.lk);
+			switch(c){
+			case 'x':
+			case 'X':
+				execute(t, q0, q1, TRUE, nil);
+				break;
+			case 'l':
+			case 'L':
+				look3(t, q0, q1, TRUE, FALSE);
+				break;
+			case 'r':
+			case 'R':
+				look3(t, q0, q1, TRUE, TRUE);
+				break;
+			default:
+				qunlock(&row.lk);
+				goto Rescue;
+			}
+			qunlock(&row.lk);
 		}
-		qunlock(&row);
-
+		evring_gc(w);
 	}
 
     Out:
@@ -883,7 +1235,7 @@ xfidutfread(Xfid *x, Text *t, uint q1, int qid)
 
 	w = t->w;
 	wincommit(w, t);
-	off = x->offset;
+	off = x->fcall.offset;
 	r = fbufalloc();
 	b = fbufalloc();
 	b1 = fbufalloc();
@@ -897,7 +1249,7 @@ xfidutfread(Xfid *x, Text *t, uint q1, int qid)
 		q = 0;
 	}
 	w->utflastqid = qid;
-	while(q<q1 && n<x->count){
+	while(q<q1 && n<x->fcall.count){
 		/*
 		 * Updating here avoids partial rune problem: we're always on a
 		 * char boundary. The cost is we will usually do one more read
@@ -908,20 +1260,20 @@ xfidutfread(Xfid *x, Text *t, uint q1, int qid)
 		nr = q1-q;
 		if(nr > BUFSIZE/UTFmax)
 			nr = BUFSIZE/UTFmax;
-		bufread(t->file, q, r, nr);
+		bufread(&t->file->b, q, r, nr);
 		nb = snprint(b, BUFSIZE+1, "%.*S", nr, r);
 		if(boff >= off){
 			m = nb;
-			if(boff+m > off+x->count)
-				m = off+x->count - boff;
+			if(boff+m > off+x->fcall.count)
+				m = off+x->fcall.count - boff;
 			memmove(b1+n, b, m);
 			n += m;
 		}else if(boff+nb > off){
 			if(n != 0)
 				error("bad count in utfrune");
 			m = nb - (off-boff);
-			if(m > x->count)
-				m = x->count;
+			if(m > x->fcall.count)
+				m = x->fcall.count;
 			memmove(b1, b+(off-boff), m);
 			n += m;
 		}
@@ -954,15 +1306,15 @@ xfidruneread(Xfid *x, Text *t, uint q0, uint q1)
 	n = 0;
 	q = q0;
 	boff = 0;
-	while(q<q1 && n<x->count){
+	while(q<q1 && n<x->fcall.count){
 		nr = q1-q;
 		if(nr > BUFSIZE/UTFmax)
 			nr = BUFSIZE/UTFmax;
-		bufread(t->file, q, r, nr);
+		bufread(&t->file->b, q, r, nr);
 		nb = snprint(b, BUFSIZE+1, "%.*S", nr, r);
 		m = nb;
-		if(boff+m > x->count){
-			i = x->count - boff;
+		if(boff+m > x->fcall.count){
+			i = x->fcall.count - boff;
 			/* copy whole runes only */
 			m = 0;
 			nr = 0;
@@ -994,34 +1346,33 @@ void
 xfideventread(Xfid *x, Window *w)
 {
 	Fcall fc;
-	char *b;
-	int i, n;
+	Fid *f;
+	uint sz;
+	int i;
 
+	f = x->f;
 	i = 0;
 	x->flushed = FALSE;
-	while(w->nevents == 0){
+	while(f->evread >= f->evlimit){
 		if(i){
 			if(!x->flushed)
 				respond(x, &fc, "window shut down");
 			return;
 		}
-		w->eventx = x;
+		f->eventx = x;
 		winunlock(w);
 		recvp(x->c);
 		winlock(w, 'F');
 		i++;
 	}
 
-	n = w->nevents;
-	if(n > x->count)
-		n = x->count;
-	fc.count = n;
-	fc.data = w->events;
+	/* Deliver exactly one event: skip the 4-byte size prefix. */
+	memmove(&sz, w->evring.buf + (f->evread - w->evring.base), 4);
+	fc.count = sz;
+	fc.data  = w->evring.buf + (f->evread - w->evring.base) + 4;
 	respond(x, &fc, nil);
-	b = w->events;
-	w->events = estrdup(w->events+n);
-	free(b);
-	w->nevents -= n;
+	f->evread += 4 + sz;
+	/* evhead stays put until write-back; the event is now "in flight". */
 }
 
 void
@@ -1034,13 +1385,13 @@ xfidindexread(Xfid *x)
 	Rune *r;
 	Column *c;
 
-	qlock(&row);
+	qlock(&row.lk);
 	nmax = 0;
 	for(j=0; j<row.ncol; j++){
 		c = row.col[j];
 		for(i=0; i<c->nw; i++){
 			w = c->w[i];
-			nmax += Ctlsize + w->tag.file->nc*UTFmax + 1;
+			nmax += Ctlsize + w->tag.file->b.nc*UTFmax + 1;
 		}
 	}
 	nmax++;
@@ -1060,17 +1411,17 @@ xfidindexread(Xfid *x)
 				continue;
 			winctlprint(w, b+n, 0);
 			n += Ctlsize;
-			m = min(RBUFSIZE, w->tag.file->nc);
-			bufread(w->tag.file, 0, r, m);
+			m = min(RBUFSIZE, w->tag.file->b.nc);
+			bufread(&w->tag.file->b, 0, r, m);
 			m = n + snprint(b+n, nmax-n-1, "%.*S", m, r);
 			while(n<m && b[n]!='\n')
 				n++;
 			b[n++] = '\n';
 		}
 	}
-	qunlock(&row);
-	off = x->offset;
-	cnt = x->count;
+	qunlock(&row.lk);
+	off = x->fcall.offset;
+	cnt = x->fcall.count;
 	if(off > n)
 		off = n;
 	if(off+cnt > n)

@@ -8,6 +8,7 @@
 #include <frame.h>
 #include <fcall.h>
 #include <plumb.h>
+#include <libsec.h>
 #include "dat.h"
 #include "edit.h"
 #include "fns.h"
@@ -27,7 +28,7 @@ int	append(File*, Cmd*, long);
 int	pdisplay(File*);
 void	pfilename(File*);
 void	looper(File*, Cmd*, int);
-void	filelooper(Cmd*, int);
+void	filelooper(Text*, Cmd*, int);
 void	linelooper(File*, Cmd*);
 Address	lineaddr(long, Address, int);
 int	filematch(File*, String*);
@@ -73,7 +74,7 @@ cmdexec(Text *t, Cmd *cp)
 		w = t->w;
 	if(w==nil && (cp->addr==0 || cp->addr->type!='"') &&
 	    !utfrune("bBnqUXY!", cp->cmdc) &&
-	    !(cp->cmdc=='D' && cp->text))
+	    !(cp->cmdc=='D' && cp->u.text))
 		editerror("no current window");
 	i = cmdlookup(cp->cmdc);	/* will be -1 for '{' */
 	f = nil;
@@ -110,8 +111,8 @@ cmdexec(Text *t, Cmd *cp)
 		mkaddr(&dot, f);
 		if(cp->addr != nil)
 			dot = cmdaddress(cp->addr, dot, 0);
-		for(cp = cp->cmd; cp; cp = cp->next){
-			if(dot.r.q1 > t->file->nc)
+		for(cp = cp->u.cmd; cp; cp = cp->next){
+			if(dot.r.q1 > t->file->b.nc)
 				editerror("dot extends past end of buffer during { command");
 			t->q0 = dot.r.q0;
 			t->q1 = dot.r.q1;
@@ -172,11 +173,12 @@ a_cmd(Text *t, Cmd *cp)
 }
 
 int
-b_cmd(Text*, Cmd *cp)
+b_cmd(Text *t, Cmd *cp)
 {
 	File *f;
 
-	f = tofile(cp->text);
+	USED(t);
+	f = tofile(cp->u.text);
 	if(nest == 0)
 		pfilename(f);
 	curtext = f->curtext;
@@ -189,7 +191,7 @@ B_cmd(Text *t, Cmd *cp)
 	Rune *list, *r, *s;
 	int nr;
 
-	list = filelist(t, cp->text->r, cp->text->n);
+	list = filelist(t, cp->u.text->r, cp->u.text->n);
 	if(list == nil)
 		editerror(Enoname);
 	r = list;
@@ -211,15 +213,16 @@ B_cmd(Text *t, Cmd *cp)
 int
 c_cmd(Text *t, Cmd *cp)
 {
-	elogreplace(t->file, addr.r.q0, addr.r.q1, cp->text->r, cp->text->n);
+	elogreplace(t->file, addr.r.q0, addr.r.q1, cp->u.text->r, cp->u.text->n);
 	t->q0 = addr.r.q0;
-	t->q1 = addr.r.q0;
+	t->q1 = addr.r.q1;
 	return TRUE;
 }
 
 int
-d_cmd(Text *t, Cmd*)
+d_cmd(Text *t, Cmd *cp)
 {
+	USED(cp);
 	if(addr.r.q1 > addr.r.q0)
 		elogdelete(t->file, addr.r.q0, addr.r.q1);
 	t->q0 = addr.r.q0;
@@ -243,7 +246,7 @@ D_cmd(Text *t, Cmd *cp)
 	Runestr dir, rs;
 	char buf[128];
 
-	list = filelist(t, cp->text->r, cp->text->n);
+	list = filelist(t, cp->u.text->r, cp->u.text->n);
 	if(list == nil){
 		D1(t);
 		return TRUE;
@@ -265,7 +268,7 @@ D_cmd(Text *t, Cmd *cp)
 			runemove(n, dir.r, dir.nr);
 			n[dir.nr] = '/';
 			runemove(n+dir.nr+1, r, nn);
-			rs = cleanrname((Runestr){n, dir.nr+1+nn});
+			rs = cleanrname(runestr(n, dir.nr+1+nn));
 		}
 		w = lookfile(rs.r, rs.nr);
 		if(w == nil){
@@ -307,10 +310,10 @@ e_cmd(Text *t, Cmd *cp)
 		if(winclean(t->w, TRUE)==FALSE)
 			editerror("");	/* winclean generated message already */
 		q0 = 0;
-		q1 = f->nc;
+		q1 = f->b.nc;
 	}
-	allreplaced = (q0==0 && q1==f->nc);
-	name = cmdname(f, cp->text, cp->cmdc=='e');
+	allreplaced = (q0==0 && q1==f->b.nc);
+	name = cmdname(f, cp->u.text, cp->cmdc=='e');
 	if(name == nil)
 		editerror(Enoname);
 	i = runestrlen(name);
@@ -334,7 +337,7 @@ e_cmd(Text *t, Cmd *cp)
 	}
 	elogdelete(f, q0, q1);
 	nulls = 0;
-	loadfile(fd, q1, &nulls, readloader, f);
+	loadfile(fd, q1, &nulls, readloader, f, nil);
 	free(s);
 	close(fd);
 	if(nulls)
@@ -344,6 +347,7 @@ e_cmd(Text *t, Cmd *cp)
 	return TRUE;
 }
 
+static Rune Lempty[] = { 0 };
 int
 f_cmd(Text *t, Cmd *cp)
 {
@@ -351,12 +355,12 @@ f_cmd(Text *t, Cmd *cp)
 	String *str;
 	String empty;
 
-	if(cp->text == nil){
+	if(cp->u.text == nil){
 		empty.n = 0;
-		empty.r = L"";
+		empty.r = Lempty;
 		str = &empty;
 	}else
-		str = cp->text;
+		str = cp->u.text;
 	name = cmdname(t->file, str, TRUE);
 	free(name);
 	pfilename(t->file);
@@ -375,7 +379,7 @@ g_cmd(Text *t, Cmd *cp)
 	if(rxexecute(t, nil, addr.r.q0, addr.r.q1, &sel) ^ cp->cmdc=='v'){
 		t->q0 = addr.r.q0;
 		t->q1 = addr.r.q1;
-		return cmdexec(t, cp->cmd);
+		return cmdexec(t, cp->u.cmd);
 	}
 	return TRUE;
 }
@@ -398,7 +402,7 @@ copy(File *f, Address addr2)
 		ni = addr.r.q1-p;
 		if(ni > RBUFSIZE)
 			ni = RBUFSIZE;
-		bufread(f, p, buf, ni);
+		bufread(&f->b, p, buf, ni);
 		eloginsert(addr2.f, addr2.r.q1, buf, ni);
 	}
 	fbuffree(buf);
@@ -414,7 +418,7 @@ move(File *f, Address addr2)
 		copy(f, addr2);
 		elogdelete(f, addr.r.q0, addr.r.q1);
 	}else if(addr.r.q0==addr2.r.q0 && addr.r.q1==addr2.r.q1){
-		;	/* move to self; no-op */
+		; /* move to self; no-op */
 	}else
 		editerror("move overlaps itself");
 }
@@ -425,7 +429,7 @@ m_cmd(Text *t, Cmd *cp)
 	Address dot, addr2;
 
 	mkaddr(&dot, t->file);
-	addr2 = cmdaddress(cp->mtaddr, dot, 0);
+	addr2 = cmdaddress(cp->u.mtaddr, dot, 0);
 	if(cp->cmdc == 'm')
 		move(t->file, addr2);
 	else
@@ -434,8 +438,9 @@ m_cmd(Text *t, Cmd *cp)
 }
 
 int
-p_cmd(Text *t, Cmd*)
+p_cmd(Text *t, Cmd *cp)
 {
+	USED(cp);
 	return pdisplay(t->file);
 }
 
@@ -477,18 +482,18 @@ s_cmd(Text *t, Cmd *cp)
 	buf = allocstring(0);
 	for(m=0; m<nrp; m++){
 		buf->n = 0;
-		buf->r[0] = L'\0';
+		buf->r[0] = '\0';
 		sel = rp[m];
-		for(i = 0; i<cp->text->n; i++)
-			if((c = cp->text->r[i])=='\\' && i<cp->text->n-1){
-				c = cp->text->r[++i];
+		for(i = 0; i<cp->u.text->n; i++)
+			if((c = cp->u.text->r[i])=='\\' && i<cp->u.text->n-1){
+				c = cp->u.text->r[++i];
 				if('1'<=c && c<='9') {
 					j = c-'0';
 					if(sel.r[j].q1-sel.r[j].q0>RBUFSIZE){
 						err = "replacement string too long";
 						goto Err;
 					}
-					bufread(t->file, sel.r[j].q0, rbuf, sel.r[j].q1-sel.r[j].q0);
+					bufread(&t->file->b, sel.r[j].q0, rbuf, sel.r[j].q1-sel.r[j].q0);
 					for(k=0; k<sel.r[j].q1-sel.r[j].q0; k++)
 						Straddc(buf, rbuf[k]);
 				}else
@@ -500,7 +505,7 @@ s_cmd(Text *t, Cmd *cp)
 					err = "right hand side too long in substitution";
 					goto Err;
 				}
-				bufread(t->file, sel.r[0].q0, rbuf, sel.r[0].q1-sel.r[0].q0);
+				bufread(&t->file->b, sel.r[0].q0, rbuf, sel.r[0].q1-sel.r[0].q0);
 				for(k=0; k<sel.r[0].q1-sel.r[0].q0; k++)
 					Straddc(buf, rbuf[k]);
 			}
@@ -540,7 +545,7 @@ u_cmd(Text *t, Cmd *cp)
 		flag = FALSE;
 	}
 	oseq = -1;
-	while(n-->0 && t->file->seq!=0 && t->file->seq!=oseq){
+	while(n-->0 && t->file->seq!=oseq){
 		oseq = t->file->seq;
 		undo(t, nil, nil, flag, 0, nil, 0);
 	}
@@ -556,7 +561,7 @@ w_cmd(Text *t, Cmd *cp)
 	f = t->file;
 	if(f->seq == seq)
 		editerror("can't write file with pending modifications");
-	r = cmdname(f, cp->text, FALSE);
+	r = cmdname(f, cp->u.text, FALSE);
 	if(r == nil)
 		editerror("no name specified for 'w' command");
 	putfile(f, addr.r.q0, addr.r.q1, r, runestrlen(r));
@@ -575,9 +580,11 @@ x_cmd(Text *t, Cmd *cp)
 }
 
 int
-X_cmd(Text*, Cmd *cp)
+X_cmd(Text *t, Cmd *cp)
 {
-	filelooper(cp, cp->cmdc=='X');
+	USED(t);
+
+	filelooper(t, cp, cp->cmdc=='X');
 	return TRUE;
 }
 
@@ -588,6 +595,7 @@ runpipe(Text *t, int cmd, Rune *cr, int ncr, int state)
 	int n;
 	Runestr dir;
 	Window *w;
+	QLock *q;
 
 	r = skipbl(cr, ncr, &n);
 	if(n == 0)
@@ -615,14 +623,31 @@ runpipe(Text *t, int cmd, Rune *cr, int ncr, int state)
 	}
 	editing = state;
 	if(t!=nil && t->w!=nil)
-		incref(t->w);	/* run will decref */
+		incref(&t->w->ref);	/* run will decref */
 	run(w, runetobyte(s, n), dir.r, dir.nr, TRUE, nil, nil, TRUE);
 	free(s);
 	if(t!=nil && t->w!=nil)
 		winunlock(t->w);
-	qunlock(&row);
+	qunlock(&row.lk);
 	recvul(cedit);
-	qlock(&row);
+	/*
+	 * The editoutlk exists only so that we can tell when
+	 * the editout file has been closed.  It can get closed *after*
+	 * the process exits because, since the process cannot be
+	 * connected directly to editout (no 9P kernel support),
+	 * the process is actually connected to a pipe to another
+	 * process (arranged via 9pserve) that reads from the pipe
+	 * and then writes the data in the pipe to editout using
+	 * 9P transactions.  This process might still have a couple
+	 * writes left to copy after the original process has exited.
+	 */
+	if(w)
+		q = &w->editoutlk;
+	else
+		q = &editoutlk;
+	qlock(q);	/* wait for file to close */
+	qunlock(q);
+	qlock(&row.lk);
 	editing = Inactive;
 	if(t!=nil && t->w!=nil)
 		winlock(t->w, 'M');
@@ -631,46 +656,67 @@ runpipe(Text *t, int cmd, Rune *cr, int ncr, int state)
 int
 pipe_cmd(Text *t, Cmd *cp)
 {
-	runpipe(t, cp->cmdc, cp->text->r, cp->text->n, Inserting);
+	runpipe(t, cp->cmdc, cp->u.text->r, cp->u.text->n, Inserting);
 	return TRUE;
 }
 
 long
-nlcount(Text *t, long q0, long q1)
+nlcount(Text *t, long q0, long q1, long *pnr)
 {
-	long nl;
+	long nl, start;
 	Rune *buf;
 	int i, nbuf;
 
 	buf = fbufalloc();
 	nbuf = 0;
 	i = nl = 0;
+	start = q0;
 	while(q0 < q1){
 		if(i == nbuf){
 			nbuf = q1-q0;
 			if(nbuf > RBUFSIZE)
 				nbuf = RBUFSIZE;
-			bufread(t->file, q0, buf, nbuf);
+			bufread(&t->file->b, q0, buf, nbuf);
 			i = 0;
 		}
-		if(buf[i++] == '\n')
+		if(buf[i++] == '\n') {
+			start = q0+1;
 			nl++;
+		}
 		q0++;
 	}
 	fbuffree(buf);
+	if(pnr != nil)
+		*pnr = q0 - start;
 	return nl;
 }
 
+enum {
+	PosnLine = 0,
+	PosnChars = 1,
+	PosnLineChars = 2,
+};
+
 void
-printposn(Text *t, int charsonly)
+printposn(Text *t, int mode)
 {
-	long l1, l2;
+	long l1, l2, r1, r2;
 
 	if (t != nil && t->file != nil && t->file->name != nil)
 		warning(nil, "%.*S:", t->file->nname, t->file->name);
-	if(!charsonly){
-		l1 = 1+nlcount(t, 0, addr.r.q0);
-		l2 = l1+nlcount(t, addr.r.q0, addr.r.q1);
+
+	switch(mode) {
+	case PosnChars:
+		warning(nil, "#%d", addr.r.q0);
+		if(addr.r.q1 != addr.r.q0)
+			warning(nil, ",#%d", addr.r.q1);
+		warning(nil, "\n");
+		return;
+
+	default:
+	case PosnLine:
+		l1 = 1+nlcount(t, 0, addr.r.q0, nil);
+		l2 = l1+nlcount(t, addr.r.q0, addr.r.q1, nil);
 		/* check if addr ends with '\n' */
 		if(addr.r.q1>0 && addr.r.q1>addr.r.q0 && textreadc(t, addr.r.q1-1)=='\n')
 			--l2;
@@ -679,32 +725,43 @@ printposn(Text *t, int charsonly)
 			warning(nil, ",%lud", l2);
 		warning(nil, "\n");
 		return;
+
+	case PosnLineChars:
+		l1 = 1+nlcount(t, 0, addr.r.q0, &r1);
+		l2 = l1+nlcount(t, addr.r.q0, addr.r.q1, &r2);
+		if(l2 == l1)
+			r2 += r1;
+		warning(nil, "%lud+#%d", l1, r1);
+		if(l2 != l1)
+			warning(nil, ",%lud+#%d", l2, r2);
+		warning(nil, "\n");
+		return;
 	}
-	warning(nil, "#%d", addr.r.q0);
-	if(addr.r.q1 != addr.r.q0)
-		warning(nil, ",#%d", addr.r.q1);
-	warning(nil, "\n");
 }
 
 int
 eq_cmd(Text *t, Cmd *cp)
 {
-	int charsonly;
+	int mode;
 
-	switch(cp->text->n){
+	switch(cp->u.text->n){
 	case 0:
-		charsonly = FALSE;
+		mode = PosnLine;
 		break;
 	case 1:
-		if(cp->text->r[0] == '#'){
-			charsonly = TRUE;
+		if(cp->u.text->r[0] == '#'){
+			mode = PosnChars;
+			break;
+		}
+		if(cp->u.text->r[0] == '+'){
+			mode = PosnLineChars;
 			break;
 		}
 	default:
-		SET(charsonly);
+		SET(mode);
 		editerror("newline expected");
 	}
-	printposn(t, charsonly);
+	printposn(t, mode);
 	return TRUE;
 }
 
@@ -733,8 +790,8 @@ nl_cmd(Text *t, Cmd *cp)
 int
 append(File *f, Cmd *cp, long p)
 {
-	if(cp->text->n > 0)
-		eloginsert(f, p, cp->text->r, cp->text->n);
+	if(cp->u.text->n > 0)
+		eloginsert(f, p, cp->u.text->r, cp->u.text->n);
 	f->curtext->q0 = p;
 	f->curtext->q1 = p;
 	return TRUE;
@@ -749,15 +806,15 @@ pdisplay(File *f)
 
 	p1 = addr.r.q0;
 	p2 = addr.r.q1;
-	if(p2 > f->nc)
-		p2 = f->nc;
+	if(p2 > f->b.nc)
+		p2 = f->b.nc;
 	buf = fbufalloc();
 	while(p1 < p2){
 		np = p2-p1;
 		if(np>RBUFSIZE-1)
 			np = RBUFSIZE-1;
-		bufread(f, p1, buf, np);
-		buf[np] = L'\0';
+		bufread(&f->b, p1, buf, np);
+		buf[np] = '\0';
 		warning(nil, "%S", buf);
 		p1 += np;
 	}
@@ -831,7 +888,7 @@ looper(File *f, Cmd *cp, int xy)
 		rp = erealloc(rp, nrp*sizeof(Range));
 		rp[nrp-1] = tr;
 	}
-	loopcmd(f, cp->cmd, rp, nrp);
+	loopcmd(f, cp->u.cmd, rp, nrp);
 	free(rp);
 	--nest;
 }
@@ -872,7 +929,7 @@ linelooper(File *f, Cmd *cp)
 			}
 		break;
 	}
-	loopcmd(f, cp->cmd, rp, nrp);
+	loopcmd(f, cp->u.cmd, rp, nrp);
 	free(rp);
 	--nest;
 }
@@ -894,14 +951,14 @@ alllooper(Window *w, void *v)
 
 	lp = v;
 	cp = lp->cp;
-//	if(w->isscratch || w->isdir)
-//		return;
+/*	if(w->isscratch || w->isdir) */
+/*		return; */
 	t = &w->body;
 	/* only use this window if it's the current window for the file */
 	if(t->file->curtext != t)
 		return;
-//	if(w->nopen[QWevent] > 0)
-//		return;
+/*	if(w->nopen[QWevent] > 0) */
+/*		return; */
 	/* no auto-execute on files without names */
 	if(cp->re==nil && t->file->nname==0)
 		return;
@@ -915,15 +972,16 @@ void
 alllocker(Window *w, void *v)
 {
 	if(v)
-		incref(w);
+		incref(&w->ref);
 	else
 		winclose(w);
 }
 
 void
-filelooper(Cmd *cp, int XY)
+filelooper(Text *t, Cmd *cp, int XY)
 {
 	int i;
+	Text *targ;
 
 	if(Glooping++)
 		editerror("can't nest %c command", "YX"[XY]);
@@ -944,8 +1002,26 @@ filelooper(Cmd *cp, int XY)
 	 */
 	allwindows(alllocker, (void*)1);
 	globalincref = 1;
-	for(i=0; i<loopstruct.nw; i++)
-		cmdexec(&loopstruct.w[i]->body, cp->cmd);
+	
+	/*
+	 * Unlock the window running the X command.
+	 * We'll need to lock and unlock each target window in turn.
+	 */
+	if(t && t->w)
+		winunlock(t->w);
+	
+	for(i=0; i<loopstruct.nw; i++) {
+		targ = &loopstruct.w[i]->body;
+		if(targ && targ->w)
+			winlock(targ->w, cp->cmdc);
+		cmdexec(targ, cp->u.cmd);
+		if(targ && targ->w)
+			winunlock(targ->w);
+	}
+
+	if(t && t->w)
+		winlock(t->w, cp->cmdc);
+
 	allwindows(alllocker, (void*)0);
 	globalincref = 0;
 	free(loopstruct.w);
@@ -964,7 +1040,7 @@ nextmatch(File *f, String *r, long p, int sign)
 		if(!rxexecute(f->curtext, nil, p, 0x7FFFFFFFL, &sel))
 			editerror("no match for regexp");
 		if(sel.r[0].q0==sel.r[0].q1 && sel.r[0].q0==p){
-			if(++p>f->nc)
+			if(++p>f->b.nc)
 				p = 0;
 			if(!rxexecute(f->curtext, nil, p, 0x7FFFFFFFL, &sel))
 				editerror("address");
@@ -974,7 +1050,7 @@ nextmatch(File *f, String *r, long p, int sign)
 			editerror("no match for regexp");
 		if(sel.r[0].q0==sel.r[0].q1 && sel.r[0].q1==p){
 			if(--p<0)
-				p = f->nc;
+				p = f->b.nc;
 			if(!rxbexecute(f->curtext, p, &sel))
 				editerror("address");
 		}
@@ -1003,12 +1079,12 @@ cmdaddress(Addr *ap, Address a, int sign)
 			break;
 
 		case '$':
-			a.r.q0 = a.r.q1 = f->nc;
+			a.r.q0 = a.r.q1 = f->b.nc;
 			break;
 
 		case '\'':
 editerror("can't handle '");
-//			a.r = f->mark;
+/*			a.r = f->mark; */
 			break;
 
 		case '?':
@@ -1017,23 +1093,23 @@ editerror("can't handle '");
 				sign = -1;
 			/* fall through */
 		case '/':
-			nextmatch(f, ap->re, sign>=0? a.r.q1 : a.r.q0, sign);
+			nextmatch(f, ap->u.re, sign>=0? a.r.q1 : a.r.q0, sign);
 			a.r = sel.r[0];
 			break;
 
 		case '"':
-			f = matchfile(ap->re);
+			f = matchfile(ap->u.re);
 			mkaddr(&a, f);
 			break;
 
 		case '*':
-			a.r.q0 = 0, a.r.q1 = f->nc;
+			a.r.q0 = 0, a.r.q1 = f->b.nc;
 			return a;
 
 		case ',':
 		case ';':
-			if(ap->left)
-				a1 = cmdaddress(ap->left, a, 0);
+			if(ap->u.left)
+				a1 = cmdaddress(ap->u.left, a, 0);
 			else
 				a1.f = a.f, a1.r.q0 = a1.r.q1 = 0;
 			if(ap->type == ';'){
@@ -1045,7 +1121,7 @@ editerror("can't handle '");
 			if(ap->next)
 				a2 = cmdaddress(ap->next, a, 0);
 			else
-				a2.f = a.f, a2.r.q0 = a2.r.q1 = f->nc;
+				a2.f = a.f, a2.r.q0 = a2.r.q1 = f->b.nc;
 			if(a1.f != a2.f)
 				editerror("addresses in different files");
 			a.f = a1.f, a.r.q0 = a1.r.q0, a.r.q1 = a2.r.q1;
@@ -1089,8 +1165,8 @@ alltofile(Window *w, void *v)
 	/* only use this window if it's the current window for the file */
 	if(t->file->curtext != t)
 		return;
-//	if(w->nopen[QWevent] > 0)
-//		return;
+/*	if(w->nopen[QWevent] > 0) */
+/*		return; */
 	if(runeeq(tp->r->r, tp->r->n, t->file->name, t->file->nname))
 		tp->f = t->file;
 }
@@ -1123,8 +1199,8 @@ allmatchfile(Window *w, void *v)
 	/* only use this window if it's the current window for the file */
 	if(t->file->curtext != t)
 		return;
-//	if(w->nopen[QWevent] > 0)
-//		return;
+/*	if(w->nopen[QWevent] > 0) */
+/*		return; */
 	if(filematch(w->body.file, tp->r)){
 		if(tp->f != nil)
 			editerror("too many files match \"%S\"", tp->r->r);
@@ -1180,7 +1256,7 @@ charaddr(long l, Address addr, int sign)
 		addr.r.q1 = addr.r.q0 -= l;
 	else if(sign > 0)
 		addr.r.q0 = addr.r.q1 += l;
-	if(addr.r.q0<0 || addr.r.q1>addr.f->nc)
+	if(addr.r.q0<0 || addr.r.q1>addr.f->b.nc)
 		editerror("address out of range");
 	return addr;
 }
@@ -1212,14 +1288,14 @@ lineaddr(long l, Address addr, int sign)
 				n = textreadc(f->curtext, p++)=='\n';
 			}
 			while(n < l){
-				if(p >= f->nc)
+				if(p >= f->b.nc)
 					editerror("address out of range");
 				if(textreadc(f->curtext, p++) == '\n')
 					n++;
 			}
 			a.r.q0 = p;
 		}
-		while(p < f->nc && textreadc(f->curtext, p++)!='\n')
+		while(p < f->b.nc && textreadc(f->curtext, p++)!='\n')
 			;
 		a.r.q1 = p;
 	}else{

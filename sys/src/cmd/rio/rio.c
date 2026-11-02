@@ -192,10 +192,11 @@ threadmain(int argc, char *argv[])
 	keyboardctl = initkeyboard(nil);
 	if(keyboardctl == nil)
 		error("can't find keyboard");
+	wallpaper(screen->r);
 	wscreen = allocscreen(screen, background, 0);
 	if(wscreen == nil)
 		error("can't allocate screen");
-	draw(view, viewr, background, nil, ZP);
+	draw(view, viewr, background, nil, viewr.min);
 	flushimage(display, 1);
 
 	exitchan = chancreate(sizeof(int), 0);
@@ -612,10 +613,11 @@ resized(void)
 	freescrtemps();
 	view = screen;
 	freescreen(wscreen);
+	wallpaper(screen->r);
 	wscreen = allocscreen(screen, background, 0);
 	if(wscreen == nil)
 		error("can't re-allocate screen");
-	draw(view, view->r, background, nil, ZP);
+	draw(view, view->r, background, nil, view->r.min);
 	o = subpt(viewr.max, viewr.min);
 	n = subpt(view->clipr.max, view->clipr.min);
 	for(i=0; i<nwindow; i++){
@@ -692,7 +694,7 @@ button2menu(Window *w)
 {
 	if(w->deleted)
 		return;
-	incref(w);
+	incref(&w->Ref);
 	if(w->scrolling)
 		menu2str[Scroll] = "noscroll";
 	else

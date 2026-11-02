@@ -18,6 +18,8 @@ void*	deletekey(Intmap*, ulong);
 /*
  * Fid and Request structures.
  */
+#define	Anon(T)	union { T; T T; }
+
 typedef struct Fid		Fid;
 typedef struct Req		Req;
 typedef struct Fidpool	Fidpool;
@@ -111,13 +113,13 @@ void		dirread9p(Req*, Dirgen*, void*);
  * File trees.
  */
 struct File {
-	Ref;
-	Dir;
+	Anon(Ref);
+	Anon(Dir);
 	File *parent;
 	void *aux;
 
 /* below is implementation-specific; don't use */
-	RWLock;
+	RWLock RWLock;		/* p9web: named, for a compiler without Plan 9's conversion */
 	Filelist *filelist;
 	Tree *tree;
 	int nchild;
@@ -177,6 +179,7 @@ struct Srv {
 	void		(*destroyfid)(Fid*);
 	void		(*destroyreq)(Req*);
 	void		(*end)(Srv*);
+	void		(*start)(Srv*);	/* 9front's */
 	void*	aux;
 
 	void		(*attach)(Req*);
@@ -212,6 +215,12 @@ struct Srv {
 	QLock	wlock;
 
 	char*	addr;
+
+	/* 9front's: a handler can release the loop while it waits */
+	QLock	slock;
+	Ref	sref;		/* srvwork procs */
+	Ref	rref;		/* requests in flight */
+	int	spid;		/* pid of srv() caller */
 };
 
 void		srv(Srv*);
@@ -222,6 +231,8 @@ void		_listensrv(Srv*, char*);
 int 		postfd(char*, int);
 int		chatty9p;
 void		respond(Req*, char*);
+void		srvrelease(Srv*);
+void		srvacquire(Srv*);
 void		responderror(Req*);
 void		threadpostmountsrv(Srv*, char*, char*, int);
 void		threadlistensrv(Srv *s, char *addr);

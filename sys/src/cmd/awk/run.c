@@ -730,10 +730,18 @@ Cell *indirect(Node **a, int n)	/* $( a[0] ) */
 	return(x);
 }
 
-Cell *substr(Node **a, int nnn)		/* substr(a[0], a[1], a[2]) */
+static char *nextposn(char *s)	/* the rune after s; a byte, if s is not UTF */
+{
+	int j;
+
+	j = mblen(s, MB_LEN_MAX);
+	return s + (j <= 0 ? 1 : j);
+}
+
+Cell *substr(Node **a, int nnn)		/* substr(a[0], a[1], a[2]): in runes */
 {
 	int k, m, n;
-	char *s;
+	char *s, *p;
 	int temp;
 	Cell *x, *y, *z = 0;
 
@@ -742,7 +750,7 @@ Cell *substr(Node **a, int nnn)		/* substr(a[0], a[1], a[2]) */
 	if (a[2] != 0)
 		z = execute(a[2]);
 	s = getsval(x);
-	k = strlen(s) + 1;
+	k = countposn(s, strlen(s)) + 1;
 	if (k <= 1) {
 		tempfree(x);
 		tempfree(y);
@@ -770,10 +778,14 @@ Cell *substr(Node **a, int nnn)		/* substr(a[0], a[1], a[2]) */
 		n = k - m;
 	   dprintf( ("substr: m=%d, n=%d, s=%s\n", m, n, s) );
 	y = gettemp();
-	temp = s[n+m-1];	/* with thanks to John Linderman */
-	s[n+m-1] = '\0';
-	setsval(y, s + m - 1);
-	s[n+m-1] = temp;
+	while (*s && --m)
+		s = nextposn(s);
+	for (p = s; *p && n--; p = nextposn(p))
+		;
+	temp = *p;	/* with thanks to John Linderman */
+	*p = '\0';
+	setsval(y, s);
+	*p = temp;
 	tempfree(x);
 	return(y);
 }
@@ -794,7 +806,7 @@ Cell *sindex(Node **a, int nnn)		/* index(a[0], a[1]) */
 		for (q=p1, p2=s2; *p2 != '\0' && *q == *p2; q++, p2++)
 			;
 		if (*p2 == '\0') {
-			v = (Awkfloat) (p1 - s1 + 1);	/* origin 1 */
+			v = (Awkfloat) countposn(s1, p1-s1) + 1;	/* origin 1 */
 			break;
 		}
 	}
@@ -1481,8 +1493,10 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 	case FLENGTH:
 		if (isarr(x))
 			u = ((Array *) x->sval)->nelem;	/* GROT.  should be function*/
-		else
-			u = strlen(getsval(x));
+		else {
+			p = getsval(x);
+			u = (Awkfloat) countposn(p, strlen(p));
+		}
 		break;
 	case FLOG:
 		u = errcheck(log(getfval(x)), "log"); break;

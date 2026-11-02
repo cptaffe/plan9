@@ -8,6 +8,7 @@
 #include <frame.h>
 #include <fcall.h>
 #include <plumb.h>
+#include <libsec.h>
 #include "dat.h"
 #include "edit.h"
 #include "fns.h"
@@ -49,7 +50,7 @@ struct cmdtab cmdtab[]={
 	'q',	0,	0,	0,	0,	aNo,	0,	0,	q_cmd,
 	'!',	0,	0,	0,	0,	aNo,	0,	linex,	plan9_cmd,
  */
-	0,	0,	0,	0,	0,	0,	0,	0,
+	0,	0,	0,	0,	0,	0,	0,	0
 };
 
 Cmd	*parsecmd(int);
@@ -59,7 +60,7 @@ void	freecmd(void);
 void	okdelim(int);
 
 Rune	*cmdstartp;
-Rune	*cmdendp;
+Rune *cmdendp;
 Rune	*cmdp;
 Channel	*editerrc;
 
@@ -75,14 +76,13 @@ int	editing = Inactive;
 String*	newstring(int);
 
 void
-editthread(void*)
+editthread(void *v)
 {
 	Cmd *cmdp;
 
+	USED(v);
 	threadsetname("editthread");
 	while((cmdp=parsecmd(0)) != 0){
-//		ocurfile = curfile;
-//		loaded = curfile && !curfile->unread;
 		if(cmdexec(curtext, cmdp) == 0)
 			break;
 		freecmd();
@@ -91,26 +91,29 @@ editthread(void*)
 }
 
 void
-allelogterm(Window *w, void*)
+allelogterm(Window *w, void *x)
 {
+	USED(x);
 	elogterm(w->body.file);
 }
 
 void
-alleditinit(Window *w, void*)
+alleditinit(Window *w, void *x)
 {
+	USED(x);
 	textcommit(&w->tag, TRUE);
 	textcommit(&w->body, TRUE);
 	w->body.file->editclean = FALSE;
 }
 
 void
-allupdate(Window *w, void*)
+allupdate(Window *w, void *x)
 {
 	Text *t;
 	int i;
 	File *f;
 
+	USED(x);
 	t = &w->body;
 	f = t->file;
 	if(f->curtext != t)	/* do curtext only */
@@ -162,7 +165,7 @@ editcmd(Text *ct, Rune *r, uint n)
 		free(cmdstartp);
 	cmdstartp = runemalloc(n+2);
 	runemove(cmdstartp, r, n);
-	if(r[n] != '\n')
+	if(r[n-1] != '\n')
 		cmdstartp[n++] = '\n';
 	cmdstartp[n] = '\0';
 	cmdendp = cmdstartp+n;
@@ -174,6 +177,7 @@ editcmd(Text *ct, Rune *r, uint n)
 	resetxec();
 	if(editerrc == nil){
 		editerrc = chancreate(sizeof(char*), 0);
+		chansetname(editerrc, "editerrc");
 		lastpat = allocstring(0);
 	}
 	threadcreate(editthread, nil, STACK);
@@ -192,7 +196,7 @@ editcmd(Text *ct, Rune *r, uint n)
 int
 getch(void)
 {
-	if(*cmdp == *cmdendp)
+	if(cmdp == cmdendp)
 		return -1;
 	return *cmdp++;
 }
@@ -200,7 +204,7 @@ getch(void)
 int
 nextc(void)
 {
-	if(*cmdp == *cmdendp)
+	if(cmdp == cmdendp)
 		return -1;
 	return *cmdp;
 }
@@ -250,13 +254,13 @@ cmdskipbl(void)
 void
 growlist(List *l)
 {
-	if(l->listptr==0 || l->nalloc==0){
+	if(l->u.listptr==0 || l->nalloc==0){
 		l->nalloc = INCR;
-		l->listptr = emalloc(INCR*sizeof(void*));
+		l->u.listptr = emalloc(INCR*sizeof(void*));
 		l->nused = 0;
 	}else if(l->nused == l->nalloc){
-		l->listptr = erealloc(l->listptr, (l->nalloc+INCR)*sizeof(void*));
-		memset(l->ptr+l->nalloc, 0, INCR*sizeof(void*));
+		l->u.listptr = erealloc(l->u.listptr, (l->nalloc+INCR)*sizeof(void*));
+		memset(l->u.ptr+l->nalloc, 0, INCR*sizeof(void*));
 		l->nalloc += INCR;
 	}
 }
@@ -267,7 +271,7 @@ growlist(List *l)
 void
 dellist(List *l, int i)
 {
-	memmove(&l->ptr[i], &l->ptr[i+1], (l->nused-(i+1))*sizeof(void*));
+	memmove(&l->u.ptr[i], &l->u.ptr[i+1], (l->nused-(i+1))*sizeof(void*));
 	l->nused--;
 }
 
@@ -278,15 +282,15 @@ void
 inslist(List *l, int i, void *v)
 {
 	growlist(l);
-	memmove(&l->ptr[i+1], &l->ptr[i], (l->nused-i)*sizeof(void*));
-	l->ptr[i] = v;
+	memmove(&l->u.ptr[i+1], &l->u.ptr[i], (l->nused-i)*sizeof(void*));
+	l->u.ptr[i] = v;
 	l->nused++;
 }
 
 void
 listfree(List *l)
 {
-	free(l->listptr);
+	free(l->u.listptr);
 	free(l);
 }
 
@@ -345,12 +349,12 @@ freecmd(void)
 	int i;
 
 	while(cmdlist.nused > 0)
-		free(cmdlist.ucharptr[--cmdlist.nused]);
+		free(cmdlist.u.ucharptr[--cmdlist.nused]);
 	while(addrlist.nused > 0)
-		free(addrlist.ucharptr[--addrlist.nused]);
+		free(addrlist.u.ucharptr[--addrlist.nused]);
 	while(stringlist.nused>0){
 		i = --stringlist.nused;
-		freestring(stringlist.stringptr[i]);
+		freestring(stringlist.u.stringptr[i]);
 	}
 }
 
@@ -471,7 +475,7 @@ parsecmd(int nest)
 	Cmd *cp, *ncp;
 	Cmd cmd;
 
-	cmd.next = cmd.cmd = 0;
+	cmd.next = cmd.u.cmd = 0;
 	cmd.re = 0;
 	cmd.flag = cmd.num = 0;
 	cmd.addr = compoundaddr();
@@ -504,8 +508,8 @@ parsecmd(int nest)
 				okdelim(c);
 				cmd.re = getregexp(c);
 				if(ct->cmdc == 's'){
-					cmd.text = newstring(0);
-					getrhs(cmd.text, c, 's');
+					cmd.u.text = newstring(0);
+					getrhs(cmd.u.text, c, 's');
 					if(nextc() == c){
 						getch();
 						if(nextc() == 'g')
@@ -515,19 +519,19 @@ parsecmd(int nest)
 				}
 			}
 		}
-		if(ct->addr && (cmd.mtaddr=simpleaddr())==0)
+		if(ct->addr && (cmd.u.mtaddr=simpleaddr())==0)
 			editerror("bad address");
 		if(ct->defcmd){
 			if(cmdskipbl() == '\n'){
 				getch();
-				cmd.cmd = newcmd();
-				cmd.cmd->cmdc = ct->defcmd;
-			}else if((cmd.cmd = parsecmd(nest))==0)
+				cmd.u.cmd = newcmd();
+				cmd.u.cmd->cmdc = ct->defcmd;
+			}else if((cmd.u.cmd = parsecmd(nest))==0)
 				error("defcmd");
 		}else if(ct->text)
-			cmd.text = collecttext();
+			cmd.u.text = collecttext();
 		else if(ct->token)
-			cmd.text = collecttoken(ct->token);
+			cmd.u.text = collecttoken(ct->token);
 		else
 			atnl();
 	}else
@@ -541,7 +545,7 @@ parsecmd(int nest)
 				if(cp)
 					cp->next = ncp;
 				else
-					cmd.cmd = ncp;
+					cmd.u.cmd = ncp;
 			}while(cp = ncp);
 			break;
 		case '}':
@@ -600,8 +604,9 @@ simpleaddr(void)
 	Addr addr;
 	Addr *ap, *nap;
 
+	addr.num = 0;
 	addr.next = 0;
-	addr.left = 0;
+	addr.u.left = 0;
 	switch(cmdskipbl()){
 	case '#':
 		addr.type = getch();
@@ -613,7 +618,7 @@ simpleaddr(void)
 		addr.type='l';
 		break;
 	case '/': case '?': case '"':
-		addr.re = getregexp(addr.type = getch());
+		addr.u.re = getregexp(addr.type = getch());
 		break;
 	case '.':
 	case '$':
@@ -630,9 +635,11 @@ simpleaddr(void)
 		case '.':
 		case '$':
 		case '\'':
-			if(addr.type!='"')
+			if(addr.type=='"')
+				break;
+			/* fall through */
 		case '"':
-				editerror("bad address syntax");
+			editerror("bad address syntax");
 			break;
 		case 'l':
 		case '#':
@@ -666,12 +673,12 @@ compoundaddr(void)
 	Addr addr;
 	Addr *ap, *next;
 
-	addr.left = simpleaddr();
+	addr.u.left = simpleaddr();
 	if((addr.type = cmdskipbl())!=',' && addr.type!=';')
-		return addr.left;
+		return addr.u.left;
 	getch();
 	next = addr.next = compoundaddr();
-	if(next && (next->type==',' || next->type==';') && next->left==0)
+	if(next && (next->type==',' || next->type==';') && next->u.left==0)
 		editerror("bad address syntax");
 	ap = newaddr();
 	*ap = addr;

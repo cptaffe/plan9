@@ -72,7 +72,7 @@ xfidallocthread(void*)
 			}
 			if(x->flushtag != -1)
 				error("flushtag in allocate");
-			incref(x);
+			incref(&x->Ref);
 			sendp(cxfidalloc, x);
 			break;
 		case Free:
@@ -111,7 +111,7 @@ xfidctl(void *arg)
 	for(;;){
 		f = recvp(x->c);
 		(*f)(x);
-		if(decref(x) == 0)
+		if(decref(&x->Ref) == 0)
 			sendp(cxfidfree, x);
 	}
 }
@@ -126,7 +126,7 @@ xfidflush(Xfid *x)
 		if(xf->flushtag == x->oldtag){
 			xf->flushtag = -1;
 			xf->flushing = TRUE;
-			incref(xf);	/* to hold data structures up at tail of synchronization */
+			incref(&xf->Ref);	/* to hold data structures up at tail of synchronization */
 			if(xf->ref == 1)
 				error("ref 1 in flush");
 			if(canqlock(&xf->active)){
@@ -137,7 +137,7 @@ xfidflush(Xfid *x)
 				qunlock(&xf->active);
 			}
 			xf->flushing = FALSE;
-			if(decref(xf) == 0)
+			if(decref(&xf->Ref) == 0)
 				sendp(cxfidfree, xf);
 			break;
 		}
@@ -213,7 +213,7 @@ xfidattach(Xfid *x)
 		return;
 	}
 	if(!newlymade)	/* counteract dec() in winshell() */
-		incref(w);
+		incref(&w->Ref);
 	qunlock(&all);
 	filsysrespond(x->fs, x, &t, nil);
 }

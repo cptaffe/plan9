@@ -178,3 +178,57 @@ iconinit(void)
 	background = allocimage(display, Rect(0,0,1,1), RGB24, 1, 0x777777FF);
 	red = allocimage(display, Rect(0,0,1,1), RGB24, 1, 0xDD0000FF);
 }
+
+/*
+ * p9web: /lib/wallpaper, an image(6) file of depth 8 (k8), scaled to cover the screen r and cut
+ * to it, is the background. Without it rio keeps its grey.
+ */
+void
+wallpaper(Rectangle r)
+{
+	static uchar *data;
+	static int w, h, tried;
+	char hdr[5*12+1];
+	uchar *buf, *p;
+	Image *b;
+	int fd, x, y, W, H, sx, sy, ox, oy;
+	double s;
+
+	if(!tried){
+		tried = 1;
+		if((fd = open("/lib/wallpaper", OREAD)) >= 0){
+			if(readn(fd, hdr, 5*12) == 5*12 && strncmp(hdr+9, "k8", 2) == 0){
+				w = atoi(hdr+3*12);
+				h = atoi(hdr+4*12);
+				if((data = malloc(w*h)) != nil && readn(fd, data, w*h) != w*h){
+					free(data);
+					data = nil;
+				}
+			}
+			close(fd);
+		}
+	}
+	W = Dx(r);
+	H = Dy(r);
+	if(data == nil || (buf = malloc(W*H)) == nil)
+		return;
+	s = (double)W/w;
+	if((double)H/h > s)
+		s = (double)H/h;
+	ox = (w - W/s)/2;
+	oy = (h - H/s)/2;
+	p = buf;
+	for(y = 0; y < H; y++){
+		sy = oy + y/s;
+		for(x = 0; x < W; x++){
+			sx = ox + x/s;
+			*p++ = data[sy*w + sx];
+		}
+	}
+	if((b = allocimage(display, r, GREY8, 0, DBlack)) != nil){
+		loadimage(b, r, buf, W*H);
+		freeimage(background);
+		background = b;
+	}
+	free(buf);
+}

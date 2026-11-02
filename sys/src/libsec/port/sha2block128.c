@@ -65,7 +65,7 @@ _sha2block128(uchar *p, ulong len, u64int *s)
 		for(wp = w; wp < &w[16]; wp++, p += 8)
 			wp[0] = ((vlong)p[0])<<56 | ((vlong)p[1])<<48 |
 				((vlong)p[2])<<40 | ((vlong)p[3])<<32 |
-				p[4] << 24 | p[5] << 16 | p[6] << 8 | p[7];
+				(u32int)p[4] << 24 | p[5] << 16 | p[6] << 8 | p[7];
 		for(; wp < &w[80]; wp++) {
 			u64int s0, s1;
 

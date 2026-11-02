@@ -8,6 +8,7 @@
 #include <frame.h>
 #include <fcall.h>
 #include <plumb.h>
+#include <libsec.h>
 #include "dat.h"
 #include "fns.h"
 
@@ -36,12 +37,13 @@ timercancel(Timer *t)
 
 static
 void
-timerproc(void*)
+timerproc(void *v)
 {
 	int i, nt, na, dt, del;
 	Timer **t, *x;
 	uint old, new;
 
+	USED(v);
 	threadsetname("timerproc");
 	rfork(RFFDG);
 	t = nil;
@@ -49,7 +51,7 @@ timerproc(void*)
 	nt = 0;
 	old = msec();
 	for(;;){
-		sleep(1);	/* will sleep minimum incr */
+		sleep(10);	/* longer sleeps here delay recv on ctimer, but 10ms should not be noticeable */
 		new = msec();
 		dt = new-old;
 		old = new;
@@ -97,6 +99,7 @@ void
 timerinit(void)
 {
 	ctimer = chancreate(sizeof(Timer*), 100);
+	chansetname(ctimer, "ctimer");
 	proccreate(timerproc, nil, STACK);
 }
 
@@ -111,6 +114,7 @@ timerstart(int dt)
 	else{
 		t = emalloc(sizeof(Timer));
 		t->c = chancreate(sizeof(int), 0);
+		chansetname(t->c, "tc%p", t->c);
 	}
 	t->next = nil;
 	t->dt = dt;

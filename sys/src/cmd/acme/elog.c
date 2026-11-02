@@ -8,6 +8,7 @@
 #include <frame.h>
 #include <fcall.h>
 #include <plumb.h>
+#include <libsec.h>
 #include "dat.h"
 #include "fns.h"
 #include "edit.h"
@@ -36,7 +37,7 @@ struct Buflog
 
 enum
 {
-	Buflogsize = sizeof(Buflog)/sizeof(Rune),
+	Buflogsize = sizeof(Buflog)/sizeof(Rune)
 };
 
 /*
@@ -46,7 +47,7 @@ enum
 enum
 {
 	Minstring = 16,		/* distance beneath which we merge changes */
-	Maxstring = RBUFSIZE,	/* maximum length of change we will merge into one */
+	Maxstring = RBUFSIZE	/* maximum length of change we will merge into one */
 };
 
 void
@@ -137,7 +138,7 @@ elogreplace(File *f, int q0, int q1, Rune *r, int nr)
 	if(f->elog.type==Replace && f->elog.nr+gap+nr<Maxstring){
 		if(gap < Minstring){
 			if(gap > 0){
-				bufread(f, f->elog.q0+f->elog.nd, f->elog.r+f->elog.nr, gap);
+				bufread(&f->b, f->elog.q0+f->elog.nd, f->elog.r+f->elog.nr, gap);
 				f->elog.nr += gap;
 			}
 			f->elog.nd += gap + q1-q0;
@@ -341,10 +342,10 @@ elogapply(File *f)
 	 * Bad addresses will cause bufload to crash, so double check.
 	 * If changes were out of order, we expect problems so don't complain further.
 	 */
-	if(t->q0 > f->nc || t->q1 > f->nc || t->q0 > t->q1){
+	if(t->q0 > f->b.nc || t->q1 > f->b.nc || t->q0 > t->q1){
 		if(!warned)
-			warning(nil, "elogapply: can't happen %d %d %d\n", t->q0, t->q1, f->nc);
-		t->q1 = min(t->q1, f->nc);
+			warning(nil, "elogapply: can't happen %d %d %d\n", t->q0, t->q1, f->b.nc);
+		t->q1 = min(t->q1, f->b.nc);
 		t->q0 = min(t->q0, t->q1);
 	}
 

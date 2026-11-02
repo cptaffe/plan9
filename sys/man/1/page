@@ -203,8 +203,14 @@ removes an image from the working set.
 To go to a specific page, one can type its number followed by enter.
 Typing left arrow, backspace, or minus displays the previous page.
 Typing right arrow, space, or enter displays the next page.
-The up and down arrow pan up and down one half screen height,
+The up and down arrow, page up and page down, and the mouse wheel
+pan up and down one half screen height,
 changing pages when panning off the top or bottom of the page.
+Typing
+.B f
+fits the image to the width of the window, and
+.B h
+to its height.
 .PP
 .I Page
 calls

@@ -30,9 +30,13 @@ main(int argc, char **argv)
 	Proc *p;
 
 	rfork(RFREND);
+#ifdef __wasm__
+	_threadfirstproc();
+#else
 	mainp = &p;
 	if(setjmp(_mainjmp))
 		_schedinit(p);
+#endif
 
 //_threaddebuglevel = (DBGSCHED|DBGCHAN|DBGREND)^~0;
 	_systhreadinit();
@@ -105,6 +109,7 @@ _times(long *t)
 	return r;
 }
 
+#ifndef __wasm__
 static void
 efork(Execargs *e)
 {
@@ -149,6 +154,8 @@ _schedfork(Proc *p)
 	}
 }
 
+#endif
+
 void
 _schedexit(Proc *p)
 {
@@ -168,7 +175,11 @@ _schedexit(Proc *p)
 
 	utfecpy(ex, ex+sizeof ex, p->exitstr);
 	free(p);
+#ifdef __wasm__
+	_threadschedend(ex);
+#else
 	_exits(ex);
+#endif
 }
 
 void
@@ -203,6 +214,7 @@ _schedexecwait(void)
 	threadexits("procexec");
 }
 
+#ifndef __wasm__
 static Proc **procp;
 
 void
@@ -222,3 +234,4 @@ _threadsetproc(Proc *p)
 {
 	*procp = p;
 }
+#endif
