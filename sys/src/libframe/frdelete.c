@@ -1,7 +1,6 @@
 #include <u.h>
 #include <libc.h>
 #include <draw.h>
-#include <thread.h>
 #include <mouse.h>
 #include <frame.h>
 
@@ -10,7 +9,7 @@ frdelete(Frame *f, ulong p0, ulong p1)
 {
 	Point pt0, pt1, ppt0;
 	Frbox *b;
-	int n0, n1, n;
+	int n0, n1, n, w0;
 	ulong cn1;
 	Rectangle r;
 	int nn0;
@@ -53,6 +52,7 @@ frdelete(Frame *f, ulong p0, ulong p1)
 		r.max = pt0;
 		r.max.y += f->font->height;
 		if(b->nrune > 0){
+			w0 = b->wid;
 			if(n != b->nrune){
 				_frsplitbox(f, n1, n);
 				b = &f->box[n1];
@@ -60,6 +60,13 @@ frdelete(Frame *f, ulong p0, ulong p1)
 			r.max.x += b->wid;
 			draw(f->b, r, f->b, nil, pt1);
 			cn1 += b->nrune;
+
+			/* blank remainder of line */
+			r.min.x = r.max.x;
+			r.max.x += w0 - b->wid;
+			if(r.max.x > f->r.max.x)
+				r.max.x = f->r.max.x;
+			draw(f->b, r, f->cols[BACK], nil, r.min);
 		}else{
 			r.max.x += _frnewwid0(f, pt0, b);
 			if(r.max.x > f->r.max.x)
@@ -105,6 +112,7 @@ frdelete(Frame *f, ulong p0, ulong p1)
 		ppt0.x -= f->box[nn0].wid;
 	}
 	_frclean(f, ppt0, nn0, n0<f->nbox-1? n0+1 : n0);
+	frstyledelete(f, p0, p1);	/* keep style RLE in sync with box array */
 	if(f->p1 > p1)
 		f->p1 -= p1-p0;
 	else if(f->p1 > p0)
