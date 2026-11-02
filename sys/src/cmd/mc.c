@@ -259,8 +259,16 @@ getwidth(void)
 	int n, fd;
 	char buf[128], *f[10], *p;
 
-	if(access("/dev/acme", OREAD) >= 0){
-		if((fd = open("/dev/acme/ctl", OREAD)) < 0)
+	/* a win that Acme did not start has no /dev/acme: its window is $winid's */
+	p = nil;
+	if(access("/dev/acme", OREAD) >= 0)
+		p = "/dev/acme/ctl";
+	else if((p = getenv("winid")) != nil){
+		snprint(buf, sizeof buf, "/mnt/acme/%s/ctl", p);
+		p = buf;
+	}
+	if(p != nil){
+		if((fd = open(p, OREAD)) < 0)
 			return;
 		n = read(fd, buf, sizeof buf-1);
 		close(fd);
