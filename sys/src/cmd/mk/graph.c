@@ -8,6 +8,7 @@ static void trace(char *, Arc *);
 static void cyclechk(Node *);
 static void ambiguous(Node *);
 static void attribute(Node *);
+static int checks;	/* graphs built, so that each walk of one visits a node once */
 
 Node *
 graph(char *target)
@@ -15,6 +16,7 @@ graph(char *target)
 	Node *node;
 	char *cnt;
 
+	checks++;
 	cnt = rulecnt();
 	node = applyrules(target, cnt);
 	free(cnt);
@@ -170,6 +172,8 @@ newnode(char *name)
 	node->prereqs = 0;
 	node->flags = node->time? PROBABLE : 0;
 	node->next = 0;
+	node->pass = node->cleared = 0;
+	node->cycled = node->checked = node->attributed = 0;
 	return(node);
 }
 
@@ -212,11 +216,14 @@ cyclechk(Node *n)
 		fprint(2, "mk: cycle in graph detected at target %s\n", n->name);
 		Exit();
 	}
+	if(n->cycled == checks)
+		return;
 	n->flags |= CYCLE;
 	for(a = n->prereqs; a; a = a->next)
 		if(a->n)
 			cyclechk(a->n);
 	n->flags &= ~CYCLE;
+	n->cycled = checks;
 }
 
 static void
@@ -227,6 +234,9 @@ ambiguous(Node *n)
 	Arc *la;
 	int bad = 0;
 
+	if(n->checked == checks)
+		return;
+	n->checked = checks;
 	la = 0;
 	for(a = n->prereqs; a; a = a->next){
 		if(a->n)
@@ -264,6 +274,9 @@ attribute(Node *n)
 {
 	register Arc *a;
 
+	if(n->attributed == checks)
+		return;
+	n->attributed = checks;
 	for(a = n->prereqs; a; a = a->next){
 		if(a->r->attr&VIR)
 			n->flags |= VIRTUAL;

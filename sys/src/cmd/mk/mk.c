@@ -1,6 +1,8 @@
 #include	"mk.h"
 
 int runerrs;
+static int pass;	/* passes of work, so that one looks at a node's prerequisites once */
+static int cleared;	/* targets begun, so that clrmade resets each node once for each */
 
 void
 mk(char *target)
@@ -16,8 +18,10 @@ mk(char *target)
 		dumpn("new target\n", node);
 		Bflush(&bout);
 	}
+	cleared++;
 	clrmade(node);
 	while(node->flags&NOTMADE){
+		pass++;
 		if(work(node, (Node *)0, (Arc *)0))
 			did = 1;	/* found something to do */
 		else {
@@ -43,6 +47,9 @@ clrmade(Node *n)
 {
 	Arc *a;
 
+	if(n->cleared == cleared)
+		return;
+	n->cleared = cleared;
 	n->flags &= ~(CANPRETEND|PRETENDING);
 	if(strchr(n->name, '(') ==0 || n->time)
 		n->flags |= CANPRETEND;
@@ -104,6 +111,9 @@ work(Node *node, Node *p, Arc *parc)
 			MADESET(node, MADE);
 		return(did);
 	}
+	if(node->pass == pass)
+		return(did);
+	node->pass = pass;
 	/*
 		now see if we are out of date or what
 	*/
