@@ -164,7 +164,7 @@ wscroll(Window *w, int but)
 			if(but == 1)
 				p0 = wbacknl(w, w->org, (my-s.min.y)/w->font->height);
 			else
-				p0 = w->org+frcharofpt(w, Pt(s.max.x, my));
+				p0 = w->org+frcharofpt(&w->Frame, Pt(s.max.x, my));
 			if(oldp0 != p0)
 				wsetorigin(w, p0, TRUE);
 			oldp0 = p0;

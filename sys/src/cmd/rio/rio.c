@@ -692,7 +692,7 @@ button2menu(Window *w)
 {
 	if(w->deleted)
 		return;
-	incref(w);
+	incref(&w->Ref);
 	if(w->scrolling)
 		menu2str[Scroll] = "noscroll";
 	else

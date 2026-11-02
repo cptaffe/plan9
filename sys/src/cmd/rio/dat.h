@@ -1,3 +1,9 @@
+/*
+ * clang: Plan 9's unnamed member of a named type: T's fields in the struct, and a member T for
+ * the conversions that Plan 9's compiler makes itself.
+ */
+#define	Anon(T)	union { T; T T; }
+
 enum
 {
 	Qdir,			/* /dev for this window */
@@ -106,7 +112,7 @@ struct Stringpair	/* rune and nrune or byte and nbyte */
 
 struct Mousestate
 {
-	Mouse;
+	Anon(Mouse);
 	ulong	counter;	/* serial no. of mouse event */
 };
 
@@ -123,9 +129,9 @@ struct Mouseinfo
 
 struct Window
 {
-	Ref;
+	Anon(Ref);
 	QLock;
-	Frame;
+	Anon(Frame);
 	Image		*i;
 	Mousectl		mc;
 	Mouseinfo	mouse;
@@ -137,7 +143,7 @@ struct Window
 	Channel		*wctlread;		/* chan(Consreadmesg) */
 	uint			nr;			/* number of runes in window */
 	uint			maxr;		/* number of runes allocated in r */
-	Rune			*r;
+	Rune			*rs;		/* r, which Plan 9's compiler lets hide Frame's */
 	uint			nraw;
 	Rune			*raw;
 	uint			org;
@@ -244,10 +250,10 @@ struct Fid
 
 struct Xfid
 {
-		Ref;
+		Anon(Ref);
 		Xfid		*next;
 		Xfid		*free;
-		Fcall;
+		Anon(Fcall);
 		Channel	*c;	/* chan(void(*)(Xfid*)) */
 		Fid		*f;
 		uchar	*buf;
