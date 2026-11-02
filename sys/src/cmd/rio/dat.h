@@ -4,6 +4,13 @@
  */
 #define	Anon(T)	union { T; T T; }
 
+/* The sizes scale with the display (scalesize), as the border gengetwindow leaves. */
+#define	Selborder	scalesize(display, 4)	/* border of selected window */
+#define	Scrollwid	scalesize(display, 12)	/* width of scroll bar */
+#define	Scrollgap	scalesize(display, 4)	/* gap right of scroll bar */
+#undef	Borderwidth
+#define	Borderwidth	Selborder
+
 enum
 {
 	Qdir,			/* /dev for this window */
@@ -53,10 +60,7 @@ typedef	struct	Xfid Xfid;
 
 enum
 {
-	Selborder		= 4,		/* border of selected window */
 	Unselborder	= 1,		/* border of unselected window */
-	Scrollwid 		= 12,		/* width of scroll bar */
-	Scrollgap 		= 4,		/* gap right of scroll bar */
 	BIG			= 3,		/* factor by which window dimension can exceed screen */
 	TRUE		= 1,
 	FALSE		= 0,
