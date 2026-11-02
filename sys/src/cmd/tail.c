@@ -2,6 +2,9 @@
 #include	<libc.h>
 #include	<ctype.h>
 #include	<bio.h>
+#ifdef PLAN9PORT
+#define trunc tailtrunc /* not math.h's */
+#endif
 
 /*
  * tail command, posix plus v10 option -r.

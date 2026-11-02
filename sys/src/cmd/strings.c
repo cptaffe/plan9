@@ -1,6 +1,10 @@
 #include	<u.h>
 #include 	<libc.h>
 #include	<bio.h>
+#ifdef PLAN9PORT
+#undef isprint /* not ctype.h's */
+#define isprint risprint
+#endif
 
 Biobuf	*fin;
 Biobuf	fout;

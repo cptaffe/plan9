@@ -3,6 +3,10 @@
 #include <libc.h>
 #include <bio.h>
 #include <ctype.h>
+#ifdef PLAN9PORT
+#define j1 joinj1 /* not math.h's */
+#define j2 joinj2
+#endif
 
 enum {
 	F1,
@@ -29,7 +33,7 @@ int	olistf[NIN*NFLD]; /* from these files */
 int	no;		/* number of entries in olist */
 char *sepstr	= " ";
 int	discard;	/* count of truncated lines */
-Rune	null[Bsize]	= L"";
+Rune	null[Bsize];
 Biobuf binbuf, boutbuf;
 Biobuf *bin, *bout;
 
