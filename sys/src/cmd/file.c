@@ -158,6 +158,9 @@ int	isp9font(void);
 int	isrtf(void);
 int	ismsdos(void);
 int	iself(void);
+int	isoggvorbis(void);
+int	isoggopus(void);
+int	ismp4(void);
 int	istring(void);
 int	isoffstr(void);
 int	iff(void);
@@ -195,6 +198,9 @@ int	(*call[])(void) =
 	isrtf,		/* rich text format */
 	ismsdos,	/* msdos exe (virus file attachement) */
 	isface,		/* ascii face file */
+	ismp4,		/* mp4 and m4a (9front's) */
+	isoggvorbis,	/* 9front's */
+	isoggopus,
 
 	/* last resorts */
 	ismung,		/* entropy compressed/encrypted */
@@ -534,13 +540,13 @@ Filemagic long0tab[] = {
 	/* "pXc2 */
 	0x32630070,	0xFFFF00FF,	"pac4 audio file\n",	OCTET,
 	0xBA010000,	0xFFFFFFFF,	"mpeg system stream\n",	OCTET,
-	0x43614c66,	0xFFFFFFFF,	"FLAC audio file\n",	OCTET,
+	0x43614c66,	0xFFFFFFFF,	"FLAC audio file\n",	"audio/flac\n",
 	0x30800CC0,	0xFFFFFFFF,	"inferno .dis executable\n", OCTET,
 	0x04034B50,	0xFFFFFFFF,	"zip archive\n", "application/zip",
 	070707,		0xFFFF,		"cpio archive\n", OCTET,
 	0x2F7,		0xFFFF,		"tex dvi\n", "application/dvi",
 	0xfaff,		0xfeff,		"mp3 audio\n",	"audio/mpeg",
-	0xf0ff,		0xf6ff,		"aac audio\n",	"audio/mpeg",
+	0xf0ff,		0xf6ff,		"aac audio\n",	"audio/aac",
 	0xfeff0000,	0xffffffff,	"utf-32be\n",	"text/plain charset=utf-32be",
 	0xfffe,		0xffffffff,	"utf-32le\n",	"text/plain charset=utf-32le",
 	0xfeff,		0xffff,		"utf-16be\n",	"text/plain charset=utf-16be",
@@ -1512,5 +1518,46 @@ isface(void)
 		print("application/x-face\n");
 	else
 		print("face image depth %d\n", ldepth);
+	return 1;
+}
+
+/* 9front's */
+int
+ismp4(void)
+{
+	if(nbuf <= 12)
+		return 0;
+	if(memcmp(&buf[4], "ftyp", 4) != 0)
+		return 0;
+	if(memcmp(&buf[8], "isom", 4) == 0 || memcmp(&buf[8], "mp4", 3) == 0){
+		print("%s\n", mime ? "video/mp4" : "mp4 video");
+		return 1;
+	}
+	if(memcmp(&buf[8], "M4A ", 4) == 0){
+		print("%s\n", mime ? "audio/m4a" : "m4a audio");
+		return 1;
+	}
+	return 0;
+}
+
+int
+isoggvorbis(void)
+{
+	if(memcmp(&buf[0], "OggS", 4) != 0)
+		return 0;
+	if(memcmp(&buf[29], "vorbis", 6) != 0)
+		return 0;
+	print("%s\n", mime ? "audio/ogg;codecs=vorbis" : "Ogg Vorbis I profile");
+	return 1;
+}
+
+int
+isoggopus(void)
+{
+	if(memcmp(&buf[0], "OggS", 4) != 0)
+		return 0;
+	if(memcmp(&buf[28], "OpusHead", 8) != 0)
+		return 0;
+	print("%s\n", mime ? "audio/ogg;codecs=opus" : "Ogg Opus profile");
 	return 1;
 }
