@@ -61,6 +61,7 @@ enum
 	Displaybufsize	= 8000,
 	ICOSSCALE	= 1024,
 	Borderwidth =	4,
+	DefaultDPI	= 133,	/* over this, sizes in pixels scale: scalesize */
 };
 
 enum
@@ -200,6 +201,9 @@ struct Display
 	Image		*windows;
 	Image		*screenimage;
 	int		_isnewdisplay;
+	int		dpi;		/* of the screen: 100 if the device does not say */
+	Font		*firstfont;	/* the fonts to scale when dpi changes */
+	Font		*lastfont;
 };
 
 struct Image
@@ -299,6 +303,7 @@ struct Cachesubf
 struct Font
 {
 	char		*name;
+	char		*namespec;	/* as given to openfont: x, or x,y for lodpi and hidpi */
 	Display		*display;
 	short		height;	/* max height of image, interline spacing */
 	short		ascent;	/* top of image to baseline */
@@ -312,6 +317,13 @@ struct Font
 	Cachesubf	*subf;
 	Cachefont	**sub;	/* as read from file */
 	Image		*cacheimage;
+
+	/* the display's list of fonts, and the font at each dpi: this one is whichever is in use */
+	int		ondisplaylist;
+	Font		*next;
+	Font		*prev;
+	Font		*lodpi;
+	Font		*hidpi;
 };
 
 #define	Dx(r)	((r).max.x-(r).min.x)
@@ -341,6 +353,9 @@ extern Display*	initdisplay(char*, char*, void(*)(Display*, char*));
 extern int	loadimage(Image*, Rectangle, uchar*, int);
 extern int	cloadimage(Image*, Rectangle, uchar*, int);
 extern int	getwindow(Display*, int);
+extern int	scalesize(Display*, int);
+extern void	loadhidpi(Font*);
+extern void	swapfont(Font*, Font**, Font**);
 extern int	gengetwindow(Display*, char*, Image**, Screen**, int);
 extern Image* readimage(Display*, int, int);
 extern Image* creadimage(Display*, int, int);
