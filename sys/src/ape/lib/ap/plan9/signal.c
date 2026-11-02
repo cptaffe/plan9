@@ -71,7 +71,7 @@ sigsetjmp(sigjmp_buf buf, int savemask)
  * BUG: improper handling of process signal mask
  */
 int
-sigaction(int sig, struct sigaction *act, struct sigaction *oact)
+sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
 {
 	if(sig <= 0 || sig > MAXSIG || sig == SIGKILL){
 		errno = EINVAL;

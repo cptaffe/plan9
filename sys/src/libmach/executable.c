@@ -16,8 +16,8 @@ typedef struct {
 			Exec;		/* a.out.h */
 			uvlong hdr[1];
 		};
-		Ehdr;			/* elf.h */
-		E64hdr;
+		Ehdr ehdr;		/* elf.h */
+		E64hdr e64hdr;
 		struct mipsexec;	/* bootexec.h */
 		struct mips4kexec;	/* bootexec.h */
 		struct sparcexec;	/* bootexec.h */
@@ -618,7 +618,7 @@ elf64dotout(int fd, Fhdr *fp, ExecHdr *hp)
 	int i, it, id, is, phsz;
 	uvlong uvl;
 
-	ep = &hp->e;
+	ep = &hp->e.e64hdr;
 	if(ep->ident[DATA] == ELFDATA2LSB) {
 		swab = leswab;
 		swal = leswal;
@@ -735,7 +735,7 @@ elf32dotout(int fd, Fhdr *fp, ExecHdr *hp)
 	int i, it, id, is, phsz;
 
 	/* bitswap the header according to the DATA format */
-	ep = &hp->e;
+	ep = &hp->e.ehdr;
 	if(ep->ident[DATA] == ELFDATA2LSB) {
 		swab = leswab;
 		swal = leswal;
@@ -884,7 +884,7 @@ elfdotout(int fd, Fhdr *fp, ExecHdr *hp)
 	Ehdr *ep;
 
 	/* bitswap the header according to the DATA format */
-	ep = &hp->e;
+	ep = &hp->e.ehdr;
 	if(ep->ident[CLASS] == ELFCLASS32)
 		return elf32dotout(fd, fp, hp);
 	else if(ep->ident[CLASS] == ELFCLASS64)

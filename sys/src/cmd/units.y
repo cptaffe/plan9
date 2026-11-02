@@ -3,9 +3,6 @@
 #include <libc.h>
 #include <bio.h>
 
-#ifdef PLAN9PORT
-#define div unitsdiv /* not stdlib.h's */
-#endif
 
 enum
 {

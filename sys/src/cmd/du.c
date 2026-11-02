@@ -3,11 +3,7 @@
  */
 #include <u.h>
 #include <libc.h>
-#ifdef PLAN9PORT
-#include <libString.h>
-#else
 #include <String.h>
-#endif
 
 extern	vlong	du(char*, Dir*);
 extern	void	err(char*);

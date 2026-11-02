@@ -38,7 +38,7 @@ int	TROFF	= 1;	/* assume we started in troff... */
 jmp_buf sjbuf;
 Offset	ipl[NSO];
 
-static	FILE	*ifile;
+static	FILE	*ifile	= stdin;
 static	FILE	*ifl[NSO];	/* open input file pointers */
 char	cfname[NSO+1][NS] = {  "stdin" };	/* file name stack */
 int	cfline[NSO];		/* input line count stack */
@@ -54,8 +54,6 @@ main(int argc, char *argv[])
 	Tchar i;
 	char buf[100];
 
-	ifile = stdin;		/* not constant, on wasi-libc */
-	ptid = stdout;
 	buf[0] = '\0';		/* make sure it's empty (silly 3b2) */
 	progname = argv[0];
 	if ((p = strrchr(progname, '/')) == NULL)
@@ -275,7 +273,7 @@ void init2(void)
 
 void cvtime(void)
 {
-	time_t tt;
+	long tt;
 	struct tm *ltime;
 
 	time(&tt);
