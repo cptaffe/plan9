@@ -1,0 +1,10 @@
+</$objtype/mkfile
+<../config
+
+OFILES=aacdec.$O
+
+# libfdkaac is C++, and not in this tree: build.sh fetches, builds and links it
+
+TARG=aacdec
+
+</sys/src/cmd/mkone
