@@ -167,6 +167,9 @@ cachedpage(Document *doc, int angle, int page)
 			ra = page-1;
 	}
 	lastpage = page;
+#ifdef __wasm__
+	ra = -1;	/* no read-ahead: it needs a proc that shares this memory (RFMEM) */
+#endif
 	if(ra >= 0){
 		rabusy = 1;
 		switch(rfork(RFPROC|RFMEM|RFNOWAIT)){

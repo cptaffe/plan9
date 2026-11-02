@@ -55,6 +55,8 @@ enum {
 	Left = 1,
 	Middle = 2,
 	Right = 4,
+	Wheelup = 8,
+	Wheeldown = 16,
 
 	RMenu = 3,
 };
@@ -124,6 +126,31 @@ menugen(int n)
 	else
 		menustr[0] = ' ';
 	return menustr;
+}
+
+/*
+ * scale the image by delta to fit: fit window, and the f and h keys.
+ */
+static void
+fitto(double delta)
+{
+	Rectangle r;
+	Image *tmp;
+
+	r = Rect(0, 0, (int)((double)Dx(im->r)*delta), (int)((double)Dy(im->r)*delta));
+	esetcursor(&reading);
+	tmp = xallocimage(display, r, im->chan, 0, DBlack);
+	if(tmp == nil) {
+		fprint(2, "out of memory during fit: %r\n");
+		wexits("memory");
+	}
+	resample(im, tmp);
+	im = tmp;
+	delayfreeimage(tmp);
+	esetcursor(nil);
+	ul = screen->r.min;
+	redraw(screen);
+	flushimage(display, 1);
 }
 
 void
@@ -339,6 +366,7 @@ viewer(Document *dd)
 				break;
 			} else if(e.kbdc != '\n')
 				nxt = 0;
+		Key:
 			switch(e.kbdc) {
 			case 'r':	/* reverse page order */
 				if(doc->fwdonly)
@@ -404,6 +432,12 @@ viewer(Document *dd)
 					break;
 				}
 				goto Gotonext;
+			case 'f':	/* fit width */
+				fitto((double)Dx(screen->r)/(double)Dx(im->r));
+				break;
+			case 'h':	/* fit height */
+				fitto((double)Dy(screen->r)/(double)Dy(im->r));
+				break;
 			case Kright:
 			case ' ':
 			Gotonext:
@@ -418,6 +452,7 @@ viewer(Document *dd)
 			 * upper left corner is currently visible, we need to go back a page.
 			 */
 			case Kup:
+			case Kpgup:
 				if(screen->r.min.y <= ul.y && ul.y < screen->r.max.y){
 					if(page > 0 && !doc->fwdonly){
 						--page;
@@ -439,8 +474,11 @@ viewer(Document *dd)
 			 * The lower y coordinate is at ul.y + Dy(im->r).
 			 */
 			case Kdown:
+			case Kpgdown:
 				i = ul.y + Dy(im->r);
 				if(screen->r.min.y <= i && i <= screen->r.max.y){
+					if(page+1 >= doc->npage && !doc->fwdonly)
+						break;	/* panning stops at the end; only next leaves */
 					ul.y = screen->r.min.y;
 					goto Gotonext;
 				} else {
@@ -462,6 +500,10 @@ viewer(Document *dd)
 
 		case Emouse:
 			m = e.mouse;
+			if(m.buttons == Wheelup || m.buttons == Wheeldown){
+				e.kbdc = m.buttons == Wheelup ? Kup : Kdown;
+				goto Key;
+			}
 			switch(m.buttons){
 			case Left:
 				oxy = m.xy;
@@ -560,26 +602,11 @@ viewer(Document *dd)
 				case Fit:	/* fit */
 					{
 						double delta;
-						Rectangle r;
 
 						delta = (double)Dx(screen->r)/(double)Dx(im->r);
 						if((double)Dy(im->r)*delta > Dy(screen->r))
 							delta = (double)Dy(screen->r)/(double)Dy(im->r);
-
-						r = Rect(0, 0, (int)((double)Dx(im->r)*delta), (int)((double)Dy(im->r)*delta));
-						esetcursor(&reading);
-						tmp = xallocimage(display, r, im->chan, 0, DBlack);
-						if(tmp == nil) {
-							fprint(2, "out of memory during fit: %r\n");
-							wexits("memory");
-						}
-						resample(im, tmp);
-						im = tmp;
-						delayfreeimage(tmp);
-						esetcursor(nil);
-						ul = screen->r.min;
-						redraw(screen);
-						flushimage(display, 1);
+						fitto(delta);
 						break;
 					}
 				case Rot:	/* rotate 90 */

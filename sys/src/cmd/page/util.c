@@ -110,7 +110,7 @@ stdinpipe(uchar *ibuf, int in)
 		wexits("pipe");
 	}
 
-	switch(rfork(RFMEM|RFPROC|RFFDG)){
+	switch(rfork(RFPROC|RFFDG)){	/* p9web: a copy of the memory has what it writes */
 	case -1:
 		fprint(2, "fork fails: %r\n");
 		wexits("fork");
