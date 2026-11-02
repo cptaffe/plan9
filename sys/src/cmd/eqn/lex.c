@@ -176,7 +176,7 @@ cstr(char *s, int quote, int maxs)
 void define(int type)
 {
 	char *p1, *p2;
-	extern int ftune(char *, char *);
+	extern void ftune(char *, char *);
 
 	getstr(token, SSIZE);	/* get name */
 	if (type != DEFINE) {

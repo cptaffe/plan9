@@ -16,7 +16,7 @@ void	inlineeq(void);
 void	init(void);
 void	init_tbl(void);
 
-void
+int
 main(int argc, char *argv[])
 {
 	char *p, buf[20];
