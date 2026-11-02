@@ -19,7 +19,11 @@ typedef unsigned long size_t;
 #endif
 #ifndef _WCHAR_T
 #define _WCHAR_T
+#ifdef __WCHAR_TYPE__
+typedef __WCHAR_TYPE__ wchar_t;	/* a compiler that says: L"..." is of its type */
+#else
 typedef unsigned short wchar_t;
+#endif
 #endif
 
 #endif /* __STDDEF_H */

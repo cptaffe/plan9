@@ -3,10 +3,6 @@
 #include <libc.h>
 #include <bio.h>
 #include <ctype.h>
-#ifdef PLAN9PORT
-#define j1 joinj1 /* not math.h's */
-#define j2 joinj2
-#endif
 
 enum {
 	F1,

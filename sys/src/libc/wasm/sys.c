@@ -112,8 +112,10 @@ exec(char *f, char *argv[])
 	if(b == nil)
 		return -1;
 	p = b;
-	for(i = 0; argv[i] != nil; i++)
-		p = strecpy(p, b+n+1, argv[i])+1;
+	for(i = 0; argv[i] != nil; i++){
+		strcpy(p, argv[i]);
+		p += strlen(p)+1;
+	}
 	p9exec(f, strlen(f), b, n, nil, 0);
 	free(b);
 	return -1;

@@ -34,7 +34,7 @@ extern void setdefaults(void);
 extern void getdata(void);
 extern	int	unlink(char *);
 
-void
+int
 main(int argc, char *argv[])
 {
 	extern void onintr(int), fpecatch(int);

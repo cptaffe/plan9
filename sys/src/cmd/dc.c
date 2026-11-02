@@ -2,11 +2,6 @@
 #include <libc.h>
 #include <bio.h>
 
-#ifdef PLAN9PORT
-/* not stdlib.h's div or math.h's log2 */
-#define div dcdiv
-#define log2 dclog2
-#endif
 
 typedef	void*	pointer;
 #pragma	varargck	type	"lx"	pointer

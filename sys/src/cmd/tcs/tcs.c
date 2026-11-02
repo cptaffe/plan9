@@ -40,7 +40,7 @@ void intable(int, long *, struct convert *);
 void unicode_in(int, long *, struct convert *);
 void unicode_out(Rune *, int, long *);
 
-int
+void
 main(int argc, char **argv)
 {
 	char *from = "utf";
@@ -112,7 +112,6 @@ main(int argc, char **argv)
 		EPR "%s: %ld input bytes, %ld runes, %ld output bytes (%ld errors)\n", argv0,
 			ninput, nrunes, noutput, nerrors);
 	EXIT(((nerrors && squawk)? 1:0), ((nerrors && squawk)? "conversion error":0));
-	return(0);	/* shut up compiler */
 }
 
 void

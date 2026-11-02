@@ -10,7 +10,7 @@ typedef unsigned long	uintptr;
 typedef unsigned long	usize;
 typedef	uint		Rune;
 typedef union FPdbleword FPdbleword;
-typedef long		jmp_buf[2];
+typedef long		jmp_buf[4];	/* __wasm_longjmp keeps its argument in the last two */
 #define	JMPBUFSP	0
 #define	JMPBUFPC	1
 #define	JMPBUFDPC	0

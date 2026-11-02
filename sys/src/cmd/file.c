@@ -2,9 +2,7 @@
 #include <libc.h>
 #include <bio.h>
 #include <ctype.h>
-#ifndef PLAN9PORT
 #include <mach.h>
-#endif
 
 /*
  * file - determine type of file
@@ -640,9 +638,6 @@ longoff(void)
 int
 isexec(void)
 {
-#ifdef PLAN9PORT
-	return 0;	/* no Plan 9 libmach */
-#else
 	Fhdr f;
 
 	seek(fd, 0, 0);		/* reposition to start of file */
@@ -651,7 +646,6 @@ isexec(void)
 		return 1;
 	}
 	return 0;
-#endif
 }
 
 
@@ -1009,9 +1003,6 @@ ismbox(void)
 int
 iscint(void)
 {
-#ifdef PLAN9PORT
-	return 0;	/* no Plan 9 libmach */
-#else
 	int type;
 	char *name;
 	Biobuf b;
@@ -1027,7 +1018,6 @@ iscint(void)
 	else
 		print("%s intermediate\n", name);
 	return 1;
-#endif
 }
 
 int
