@@ -1,7 +1,7 @@
 #include <u.h>
 #include <libc.h>
 
-#define	U32(x)	(((((((x)[0]<<8)|(x)[1])<<8)|(x)[2])<<8)|(x)[3])
+#define	U32(x)	(((u32int)(x)[0]<<24)|((x)[1]<<16)|((x)[2]<<8)|(x)[3])	/* unsigned: its top bit is no sign */
 
 vlong
 nsec(void)
