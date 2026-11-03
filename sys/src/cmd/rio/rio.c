@@ -118,7 +118,7 @@ usage(void)
 void
 threadmain(int argc, char *argv[])
 {
-	char *initstr, *kbdin, *s;
+	char *initstr, *kbdin, *s, *t;
 	static void *arg[1];
 	char buf[256];
 	Image *i;
@@ -169,11 +169,15 @@ threadmain(int argc, char *argv[])
 	if(maxtab == 0)
 		maxtab = 4;
 	free(s);
-	/* check font before barging ahead */
-	if(access(fontname, 0) < 0){
+	/* check font before barging ahead: a name x,y is x at low dpi and y at high (openfont) */
+	s = strdup(fontname);
+	if(s != nil && (t = strchr(s, ',')) != nil)
+		*t = '\0';
+	if(access(s, 0) < 0){
 		fprint(2, "rio: can't access %s: %r\n", fontname);
 		exits("font open");
 	}
+	free(s);
 	putenv("font", fontname);
 
 	snarffd = open("/dev/snarf", OREAD|OCEXEC);

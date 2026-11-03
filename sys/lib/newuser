@@ -7,63 +7,75 @@ if(test -f $home/lib/profile){
 	exit no
 }
 cd $home
-x='$'
-mkdir bin bin/rc bin/mips bin/386 bin/power bin/arm bin/amd64
-mkdir lib tmp
-chmod +t tmp
+mkdir -p bin/rc bin/$cputype
+mkdir -p lib tmp
 bind -c $home/tmp /tmp
 
-mail -c
-auth/cron -c
-
-cat > lib/profile <<!
-bind -a $x^home/bin/rc /bin
-bind -a $x^home/bin/$x^cputype /bin
-bind -c $x^home/tmp /tmp
-font = /lib/font/bit/pelm/euro.9.font
-switch($x^service){
+cat > lib/profile <<'!'
+bind -a $home/bin/rc /bin
+bind -a $home/bin/$cputype /bin
+bind -c $home/tmp /tmp
+font = /lib/font/bit/Iosevka/12a/font,/lib/font/bit/Iosevka/24a/font
+switch($service){
 case terminal
-	plumber
-	startupasfs
-	echo -n accelerated > '#m/mousectl'
-	echo -n 'res 3' > '#m/mousectl'
+	# sound is shared: mixfs binds over /dev/audio, so a second play mixes with the first
+	if(test -e /dev/audio && ! grep -s '^mix ' /dev/volume >/dev/null){
+		audio/mixfs &
+		mix=$apid
+		while(test -e /proc/$mix/status && ! grep -s '^mix ' /dev/volume >/dev/null)
+			sleep 0.1
+	}
+	# plan9port's plumber stays in the foreground on p9web: libthread's first proc holds its memory
+	plumber &
+	while(! test -e /srv/plumb)
+		sleep 0.1
+	mount /srv/plumb /mnt/plumb
+	dropped &
 	prompt=('term% ' '	')
-	fn term%{ $x^* }
-	exec rio
-case cpu
-	if (test -e /mnt/term/mnt/wsys) {
-		# rio already running
-		wsys = /mnt/term^`{cat /mnt/term/env/wsys}
-		bind -a /mnt/term/mnt/wsys /dev
-		echo -n $x^sysname > /dev/label
-	}
-	bind /mnt/term/dev/cons /dev/cons
-	bind /mnt/term/dev/consctl /dev/consctl
-	bind -a /mnt/term/dev /dev
-	prompt=('cpu% ' '	')
-	fn cpu%{ $x^* }
-	startupasfs
-	news
-	if (! test -e /mnt/term/mnt/wsys) {
-		# cpu call from drawterm
-		font=/lib/font/bit/pelm/latin1.8.font
-		plumber
-		auth/factotum
-		exec rio
-	}
-case con
-	prompt=('cpu% ' '	')
-	startupasfs
-	news
+	fn term%{ $* }
+	exec rio -i riostart
 }
 !
-cat > lib/plumbing <<!
-# to update: cp /usr/$user/lib/plumbing /mnt/plumb/rules
+if(! test -e lib/plumbing)
+	cat > lib/plumbing <<!
+# to update: cat $home/lib/plumbing | 9p write plumb/rules
 
 editor = acme
 
 include basic
 
+!
+if(! test -e README)
+	cat > README <<'!'
+This is Acme, the Plan 9 text editor, in a window of rio, the Plan 9 window
+system, in your browser. Each program runs here, on p9web, a Plan 9 kernel in
+WebAssembly: no server runs your commands. Files you keep in this directory stay
+in this browser.
+
+The mouse:
+	left button (B1)	select text
+	middle button (B2)	run the text as a command
+	right button (B3)	open a file, or look for the text
+On a Mac, Option-click is B2 and Command-click is B3.
+
+On the background, button 3 is rio's menu: choose New, then sweep the new
+window with button 3 (on a Mac, Command-drag). Drag a window's border with
+button 1 to resize it, or button 3 to move it.
+
+To run a command, type it anywhere, then click it with B2. Try ls /bin or
+echo hello. The window on the right is win: rc, the Plan 9 shell, in an Acme
+window. Type a command at its end and press Return; Ctrl-C interrupts it.
+man acme shows Acme's manual page.
+
+B2 on New makes a window, and B2 on Put saves a file. B3 on a file name, such
+as README, opens it, and B3 on a page name, such as acme(4), shows
+that manual page: the plumber sends them to Acme.
+
+Drop a file or a directory on the page to open it here, as B3 on its name
+would: text in Acme, a PDF or an image in page, and an MP3, M4A, Ogg, FLAC or WAV plays
+(the browser lets sound start after a click on the page; delete the window to
+stop it). It is kept in the directory drop here.
+To save a file to your computer, run download file.
 !
 
 . lib/profile

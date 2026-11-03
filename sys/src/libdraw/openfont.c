@@ -70,26 +70,15 @@ swapfont(Font *targ, Font **oldp, Font **newp)
 	*newp = old;
 }
 
-/* hidpiname is the font at twice the dpi: y of a name x,y; /mnt/font/Name/2*Size/font; else none */
+/* hidpiname is the font at twice the dpi: y of a name x,y; else none */
 static char*
 hidpiname(Font *f)
 {
-	char *p, *q;
-	int size;
+	char *p;
 
 	p = strchr(f->namespec, ',');
 	if(p != nil)
 		return strdup(p+1);
-	if(strncmp(f->name, "/mnt/font/", 10) == 0){
-		p = strchr(f->name+10, '/');
-		if(p == nil || *++p < '0' || *p > '9')
-			return nil;
-		q = p;
-		size = 0;
-		while('0' <= *q && *q <= '9')
-			size = size*10 + *q++ - '0';
-		return smprint("%.*s%d%s", utfnlen(f->name, p-f->name), f->name, size*2, q);
-	}
 	return nil;
 }
 
