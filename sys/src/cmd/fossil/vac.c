@@ -1,4 +1,5 @@
 #include "stdinc.h"
+#include "dat.h"			/* for BytesPerEntry */
 
 typedef struct MetaChunk MetaChunk;
 
@@ -116,6 +117,15 @@ mbInit(MetaBlock *mb, uchar *p, int n, int ne)
 	mb->botch = 0;
 }
 
+static int
+allzero(uchar *p, int n)
+{
+	while(n-- > 0)
+		if(*p++ != 0)
+			return 0;
+	return 1;
+}
+
 int
 mbUnpack(MetaBlock *mb, uchar *p, int n)
 {
@@ -133,6 +143,20 @@ mbUnpack(MetaBlock *mb, uchar *p, int n)
 	}
 
 	magic = U32GET(p);
+	if(magic == 0 && allzero(p, n)){
+		/*
+		 * A block of zeros is an empty meta block: a crash can leave
+		 * a meta file's size (in its entry) on disk without the block
+		 * fileMetaAlloc added, or the pointer to it.  An entry's
+		 * dependency on those is not recorded.
+		 */
+		mb->maxindex = n/BytesPerEntry;
+		mb->nindex = 0;
+		mb->free = 0;
+		mb->size = MetaHeaderSize + mb->maxindex*MetaIndexSize;
+		mb->botch = 0;
+		return 1;
+	}
 	if(magic != MetaMagic && magic != MetaMagic-1)
 		goto Err;
 	mb->size = U16GET(p+4);

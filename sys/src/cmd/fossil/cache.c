@@ -209,7 +209,8 @@ bwatchSetBlockSize(c->size);
 	c->flush.l = &c->lk;
 	c->flushwait.l = &c->lk;
 	c->heapwait.l = &c->lk;
-	c->sync = periodicAlloc(cacheSync, c, 30*1000);
+	/* each second, not 30: a page's disk goes with the page, with no fshalt */
+	c->sync = periodicAlloc(cacheSync, c, 1000);
 
 	if(mode == OReadWrite){
 		c->ref += 2;
@@ -1998,9 +1999,10 @@ cacheFlushBlock(Cache *c)
 {
 	Block *b;
 	BAddr *p;
-	int lockfail, nfail;
+	int lockfail, nfail, nrequeue;
 
 	nfail = 0;
+	nrequeue = 0;
 	for(;;){
 		if(c->br == c->be){
 			if(c->bw == 0 || c->bw == c->be)
@@ -2042,6 +2044,15 @@ cacheFlushBlock(Cache *c)
 		/* Requeue block. */
 		if(c->bw < c->be)
 			c->baddr[c->bw++] = *p;
+
+		/*
+		 * A block that waits for another to be written waits for
+		 * the diskThread: let it run.  (With threads that are not
+		 * preempted, as on wasm, this loop would keep it from ever
+		 * running.)
+		 */
+		if(++nrequeue % 100 == 0)
+			sleep(0);
 	}
 }
 
@@ -2113,7 +2124,7 @@ cacheFlush(Cache *c, int wait)
 }
 
 /*
- * Kick the flushThread every 30 seconds.
+ * Kick the flushThread every second.
  */
 static void
 cacheSync(void *v)

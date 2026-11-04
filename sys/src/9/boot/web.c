@@ -3,7 +3,8 @@
  * #s/boot, as boot.c's connectroot does for a server it reached, and made the first process's
  * descriptors (the host's console keeps output and errors apart). What is left is boot's: the
  * user and the system's name from plan9.ini, the name space, then $init or /$cputype/init -t.
- * The file server of /usr keeps a user's directory from here on, as a disk's newuser would.
+ * The file server of /usr is fossil, on the page's disk (#S): /rc/bin/usrfs starts it, as a
+ * disk's boot starts its file server, and /lib/namespace mounts it.
  */
 #include <u.h>
 #include <libc.h>
@@ -46,29 +47,26 @@ bindenvsrv(void)
 }
 
 static void
-mkdir(char *dir)
+usrfs(char *cputype)
 {
-	int fd;
+	int pid;
+	Waitmsg *w;
 
-	if(access(dir, AEXIST) == 0)
+	if(access("#S/sdW0/data", AEXIST) < 0 || access("/rc/bin/usrfs", AEXIST) < 0)
+		return;	/* no disk, or a root with no file server for it */
+	switch(pid = fork()){
+	case -1:
+		fprint(2, "boot: fork: %r\n");
 		return;
-	fd = create(dir, OREAD, DMDIR|0775);
-	if(fd < 0)
-		fprint(2, "boot: %s: %r\n", dir);
-	else
-		close(fd);
-}
-
-static void
-newuser(char *user)
-{
-	char *s;
-
-	mkdir("#O/usr");
-	s = smprint("#O/usr/%s", user);
-	mkdir(s);
-	mkdir(smprint("%s/tmp", s));
-	putenv("HOME", smprint("/usr/%s", user));	/* plan9port's name for $home */
+	case 0:
+		execl(smprint("/%s/bin/rc", cputype), "rc", "/rc/bin/usrfs", nil);
+		fatal("exec rc");
+	}
+	while((w = wait()) != nil && w->pid != pid)
+		free(w);
+	if(w != nil && w->msg[0])
+		fprint(2, "boot: usrfs: %s\n", w->msg);
+	free(w);
 }
 
 static void
@@ -136,7 +134,8 @@ main(int, char**)
 		fatal("open #s/boot");
 	nsinit(fd);
 	close(fd);
+	usrfs(cputype);
 	if(user != nil)
-		newuser(user);
+		putenv("HOME", smprint("/usr/%s", user));	/* plan9port's name for $home */
 	execinit(cputype);
 }

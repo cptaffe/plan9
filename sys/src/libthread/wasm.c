@@ -19,6 +19,7 @@ F("fiber_setdata") extern void fibersetdata(void*);
 F("fiber_block") extern void fiberblock(void);
 F("fiber_wake") extern void fiberwake(int);
 F("fiber_exit") extern void fiberexit(void);
+F("fiber_exits") extern void fiberexits(char*, int);
 F("spawn9") extern int spawn9(char*, int, char*, int, int);
 
 enum
@@ -164,8 +165,6 @@ _schedexec(Execargs *e)
 	return pid;
 }
 
-static int parked;	/* the first fiber's: its proc ended with others running */
-static char parkmsg[ERRMAX];
 static int firstsched = -1;
 
 void
@@ -174,26 +173,14 @@ _threadfirstproc(void)
 	firstsched = fiberself();
 }
 
-/* _threadschedend ends proc p, whose threads are gone. The first process holds the memory, so
- * its proc waits for the others; the last of them to end ends it. */
+/* _threadschedend ends proc p, whose threads are gone. The first proc ends as Plan 9's does,
+ * with its message, and the others go on: the memory is theirs till the last of them ends. (Its
+ * exits would end them all: threadexitsall's, here.) */
 void
 _threadschedend(char *msg)
 {
-	int none;
-
-	lock(&_threadpq.lock);
-	none = _threadpq.head == nil;
-	unlock(&_threadpq.lock);
-	if(fiberself() == firstsched){
-		if(none)
-			_exits(msg);
-		utfecpy(parkmsg, parkmsg+sizeof parkmsg, msg);
-		parked = 1;
-		fiberblock();
-		_exits(parkmsg);
-	}
-	if(none && parked)
-		fiberwake(firstsched);
+	if(fiberself() == firstsched)
+		fiberexits(msg, strlen(msg));
 	fiberexit();
 }
 

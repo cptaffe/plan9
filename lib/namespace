@@ -13,8 +13,8 @@ bind -a #m /dev
 bind -a #i /dev
 bind -a #A /dev
 
-# the file server of /usr
-bind -c #O/usr /usr
+# the file server of /usr: fossil, on #S (boot's usrfs)
+mount -c #s/fossil /usr
 
 # standard bin
 bind /$cputype/bin /bin
