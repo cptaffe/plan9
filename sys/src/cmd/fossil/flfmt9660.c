@@ -305,7 +305,7 @@ iso9660init(int xfd, Header *xh, char *xfile9660, int xoff9660)
 	ascii();
 
 	v = (Voldesc*)root;
-	if(memcmp(v->magic, "\x01CD001\x01\x00", 8) != 0)
+	if(memcmp(v->magic, "\x01" "CD001\x01\x00", 8) != 0)
 		sysfatal("%s not a cd image", file9660);
 
 	startoff = iso9660start((Cdir*)v->rootdir)*Blocksize;

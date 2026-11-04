@@ -338,7 +338,7 @@ int
 validUserName(char* name)
 {
 	Rune *r;
-	static Rune invalid[] = L"#:,()";
+	static Rune invalid[] = {'#', ':', ',', '(', ')', 0};	/* L"#:,()": wchar_t is int here, Rune uint */
 
 	for(r = invalid; *r != '\0'; r++){
 		if(utfrune(name, *r))

@@ -1,0 +1,23 @@
+#!/bin/rc
+# usrfs: the file server of /usr, fossil, on #S's disk, posted at /srv/fossil (and its console
+# at /srv/fscons); boot runs it as the hostowner. fossil -f reads its configuration from the
+# disk (fossil/conf's place). A disk that has none is made fossil's first: formatted, with that
+# configuration, and the hostowner's directory in /active, which is /usr.
+rfork e
+path=(/$cputype/bin /rc/bin)
+disk='#S/sdW0/data'
+if(! test -e $disk)
+	exit nodisk
+if(! ~ `{dd -quiet 1 -bs 1024 -count 1 -iseek 127 -if $disk | sed 1q} 'fossil config'){
+	fossil/flfmt -y $disk >/dev/null || exit flfmt
+	# one write, which dd reads whole and pads to its 1kB
+	echo 'fossil config
+fsys main config *
+fsys main open -AV
+srv -p fscons
+srv fossil' | dd -quiet 1 -bs 1024 -count 1 -conv sync -of $disk -oseek 127 -trunc 0 || exit conf
+	user=`{cat /dev/user}
+	exec fossil/fossil -f $disk -c 'fsys main create /active/'$user' '$user' '$user' d775' \
+		-c 'fsys main create /active/'$user'/tmp '$user' '$user' d775'
+}
+exec fossil/fossil -f $disk
