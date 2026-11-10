@@ -22,6 +22,8 @@ OFILES=\
 	gettimeofday.$O\
 	inet_addr.$O\
 	inet_ntoa.$O\
+	inet_ntop.$O\
+	inet_pton.$O\
 	ioctl.$O\
 	listen.$O\
 	lstat.$O\

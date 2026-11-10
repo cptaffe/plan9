@@ -7,6 +7,11 @@
 
 #pragma lib "/$M/lib/ape/libbsd.a"
 
+#ifndef _SOCKLEN_T
+#define _SOCKLEN_T
+typedef int socklen_t;	/* the lengths the calls here take */
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

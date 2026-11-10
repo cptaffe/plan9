@@ -11,8 +11,11 @@ OFILES=\
 	execlp.$O\
 	fabs.$O\
 	floor.$O\
+	getpagesize.$O\
 	lock.$O\
 	main9.$O\
+	memmove.$O\
+	memset.$O\
 	multi3.$O\
 	notetramp.$O\
 	profile.$O\

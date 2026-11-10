@@ -62,6 +62,10 @@ typedef long ssize_t;
 #define	_SC_SAVED_IDS		9	/* saved suid/sgid per process */
 #define	_SC_VERSION		10	/* this version */
 #define _SC_LOGIN_NAME_MAX	11	/* max length of a login name */
+#if _POSIX_C_SOURCE >= 200112L || defined(_SUSV2_SOURCE)
+#define _SC_PAGESIZE		12	/* getpagesize's */
+#define _SC_PAGE_SIZE		_SC_PAGESIZE
+#endif
 
 /* pathconf argument */
 #define _PC_LINK_MAX		1
@@ -104,6 +108,18 @@ extern char *cuserid(char *);
 extern char *ttyname(int);
 extern int isatty(int);
 extern long sysconf(int);
+#if _POSIX_C_SOURCE >= 199309L || defined(_BSD_EXTENSION)
+extern int fsync(int);
+#endif
+#if _POSIX_C_SOURCE >= 200112L || defined(_BSD_EXTENSION)
+extern int gethostname(char *, size_t);
+#endif
+#if _POSIX_C_SOURCE >= 202405L || defined(_BSD_EXTENSION)
+extern int getentropy(void *, size_t);
+#endif
+#ifdef _BSD_EXTENSION
+extern int getpagesize(void);
+#endif
 #ifdef __TYPES_H
 extern pid_t getpid(void);
 extern pid_t getppid(void);

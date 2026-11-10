@@ -49,7 +49,7 @@ getgrent()
 	if( !(p = fgets( line, BUFSIZ, grf )) )
 		return(NULL);
 	group.gr_name = p;
-	p = grskip(p,CL); /* passwd */
+	group.gr_passwd = p = grskip(p,CL);
 	group.gr_gid = atoi(p = grskip(p,CL));
 	group.gr_mem = gr_mem;
 	p = grskip(p,CL);

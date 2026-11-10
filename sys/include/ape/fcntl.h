@@ -20,6 +20,9 @@
 #define O_DSYNC		0x1000
 #define	O_RSYNC		0x2000
 #define O_SYNC		0x4000
+#if _POSIX_C_SOURCE >= 200809L
+#define O_NOFOLLOW	0x8000	/* Plan 9 has no symbolic links: none is followed */
+#endif
 
 #define	F_DUPFD		0	/* Duplicate fildes */
 #define	F_GETFD		1	/* Get fildes flags */

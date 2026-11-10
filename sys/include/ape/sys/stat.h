@@ -7,6 +7,17 @@
 
 #pragma lib "/$M/lib/ape/libap.a"
 
+/* POSIX 2008's: as <time.h>'s */
+#if _POSIX_C_SOURCE >= 200809L
+#ifndef _TIMESPEC
+#define _TIMESPEC
+struct timespec {
+	time_t	tv_sec;
+	long	tv_nsec;
+};
+#endif
+#endif
+
 /*
  * stat structure, used by stat(2) and fstat(2)
  */
@@ -69,6 +80,9 @@ extern int mkfifo(const char *, mode_t);
 extern int stat(const char *, struct stat *);
 extern int fstat(int, struct stat *);
 extern int chmod(const char *, mode_t);
+#if _POSIX_C_SOURCE >= 200112L || defined(_BSD_EXTENSION)
+extern int fchmod(int, mode_t);
+#endif
 
 #ifdef _BSD_EXTENSION
 #pragma lib "/$M/lib/ape/libbsd.a"

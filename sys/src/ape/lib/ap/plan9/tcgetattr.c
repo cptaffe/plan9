@@ -195,7 +195,7 @@ tcflow(int, int)
 }
 
 int
-tcsendbreak(int)
+tcsendbreak(int, int)
 {
 	errno = ENOTTY;
 	return -1;

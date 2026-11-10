@@ -38,6 +38,13 @@ extern void abort(void);
 extern int atexit(void (*func)(void));
 extern void exit(int);
 extern char *getenv(const char *);
+#if _POSIX_C_SOURCE >= 200112L
+extern int setenv(const char *, const char *, int);
+extern int unsetenv(const char *);
+#endif
+#ifdef _SUSV2_SOURCE
+extern char *ptsname(int);	/* XSI: libbsd's, as <sys/pty.h> */
+#endif
 extern int system(const char *);
 extern void *bsearch(const void *, const void *, size_t, size_t, int (*)(const void *, const void *));
 extern void qsort(void *, size_t, size_t, int (*)(const void *, const void *));

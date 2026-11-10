@@ -82,6 +82,11 @@ extern int errno;
 /* from research unix */
 #define ETXTBSY		63
 
+/* POSIX's others */
+#define EWOULDBLOCK	EAGAIN
+#define EALREADY	64
+#define ECONNRESET	65
+
 #endif /* _POSIX_SOURCE */
 
 #endif /* __ERRNO */

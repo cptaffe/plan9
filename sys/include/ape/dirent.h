@@ -1,12 +1,14 @@
 #ifndef	__DIRENT_H
 #define	__DIRENT_H
 #pragma lib "/$M/lib/ape/libap.a"
+#include <sys/types.h>
 /*
  * this must be a power of 2 and a multiple of all the ones in the system
  */
 #define MAXNAMLEN 255
 
 struct	dirent {
+	ino_t	d_ino;
 	char	d_name[MAXNAMLEN + 1];
 };
 

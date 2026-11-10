@@ -16,6 +16,9 @@ char *tzname[2] = {
 };
 time_t tzoffset, tzdstoffset;
 int tzdst = 0;
+/* XSI: seconds west of GMT, and whether there is summer time */
+long timezone;
+int daylight;
 
 static int
 offset(char *env, time_t *off)
@@ -109,6 +112,7 @@ tzset(void)
 		*p++ = *env++;
 	*p = 0;
 	tzoffset = -off;
+	timezone = off;
 	/*
 	 * get the 'dst' string (if any).
 	 */
@@ -122,6 +126,7 @@ tzset(void)
 	 * default is one hour.
 	 */
 	tzdst = 1;
+	daylight = 1;
 	if (retlen = offset(env+len, &off)) {
 		tzdstoffset = -off;
 		env += retlen;
