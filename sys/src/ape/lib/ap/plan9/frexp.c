@@ -38,32 +38,51 @@ frexp(double d, int *ep)
 		x.d = (double)(1ULL<<SIG) * d;
 		*ep = -SIG;
 	}
-	*ep = ((x.ms >> SHIFT) & MASK) - BIAS;
+	*ep += ((x.ms >> SHIFT) & MASK) - BIAS;
 	x.ms &= ~(MASK << SHIFT);
 	x.ms |= BIAS << SHIFT;
 	return x.d;
 }
 
+/*
+ * d * 2^e, by multiplying by powers of two that are numbers:
+ * each step is exact, but the last, which rounds once.  A
+ * result too small to be subnormal is scaled up first, so
+ * that it is rounded only there.
+ */
 double
 ldexp(double d, int e)
 {
 	Cheat x;
+	double r;
 
-	if(d == 0)
-		return 0;
-	x.d = d;
-	e += (x.ms >> SHIFT) & MASK;
-	if(e <= 0)
-		return 0;
-	if(e >= MASK){
-		errno = ERANGE;
-		if(d < 0)
-			return -HUGE_VAL;
-		return HUGE_VAL;
+	if(d == 0 || isNaN(d) || isInf(d, 0))
+		return d;
+	if(e > 1023){
+		d *= 0x1p1023;
+		e -= 1023;
+		if(e > 1023){
+			d *= 0x1p1023;
+			e -= 1023;
+			if(e > 1023)
+				e = 1023;
+		}
+	}else if(e < -1022){
+		d *= 0x1p-1022 * 0x1p53;
+		e += 1022 - 53;
+		if(e < -1022){
+			d *= 0x1p-1022 * 0x1p53;
+			e += 1022 - 53;
+			if(e < -1022)
+				e = -1022;
+		}
 	}
-	x.ms &= ~(MASK << SHIFT);
-	x.ms |= (long)e << SHIFT;
-	return x.d;
+	x.ms = (e + BIAS + 1) << SHIFT;
+	x.ls = 0;
+	r = d * x.d;
+	if(r == 0 || isInf(r, 0))
+		errno = ERANGE;
+	return r;
 }
 
 double
@@ -89,7 +108,7 @@ modf(double d, double *ip)
 			*ip = -*ip;
 			return -f;
 		}
-		*ip = 0;
+		*ip = copysign(0, d);	/* C99: -0's integer part is -0 */
 		return d;
 	}
 	e -= BIAS;

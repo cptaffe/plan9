@@ -94,6 +94,8 @@ strerror(int n)
 		return "Domain error";
 	else if(n == ERANGE)
 		return "Range error";
+	else if(n == EILSEQ)
+		return "Illegal byte sequence";
 	else
 		return "Unknown error";
 }

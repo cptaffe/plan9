@@ -213,13 +213,14 @@ strtod(CONST char *s00, char **se)
 {
 	int bb2, bb5, bbe, bd2, bd5, bbbits, bs2, c, dsign,
 		 e, e1, esign, i, j, k, nd, nd0, nf, nz, nz0, sign;
-	CONST char *s, *s0, *s1;
+	CONST char *s, *s0, *s1, *start;
 	double aadj, aadj1, adj;
 	Dul rv, rv0;
 	long L;
 	unsigned long y, z;
 	Bigint *bb, *bb1, *bd, *bd0, *bs, *delta;
 
+	start = s00;	/* s00 is moved, below */
 	bb = bd = bs = delta = 0;
 	sign = nz0 = nz = 0;
 	rv.d = 0.;
@@ -245,6 +246,8 @@ strtod(CONST char *s00, char **se)
 			goto break2;
 		}
  break2:
+	if (_strtodx(s, se, sign, &rv.d))	/* C99's inf, nan and hex: strtodx.c */
+		return rv.d;
 	if (*s == '0') {
 		nz0 = 1;
 		while(*++s == '0') ;
@@ -396,7 +399,7 @@ strtod(CONST char *s00, char **se)
 	/* Get starting approximation = rv * 10**e1 */
 
 	if (e1 > 0) {
-		if (nd0 + e1 - 1 > DBL_MAX_10_EXP)
+		if (k + e1 - 1 > DBL_MAX_10_EXP)	/* rv's k digits, times 10**e1: not nd0, which e1 counts already */
 			goto ovfl;
 		if (i = e1 & 15)
 			rv.d *= tens[i];
@@ -729,5 +732,9 @@ strtod(CONST char *s00, char **se)
  ret:
 	if (se)
 		*se = (char *)s;
+	if (s == start)
+		sign = 0;	/* no number: ANSI's zero, not a -0 of a sign alone */
+	if (isinf(rv.d))
+		errno = ERANGE;	/* rounded up past DBL_MAX: inf by name is strtodx.c's */
 	return sign ? -rv.d : rv.d;
 	}

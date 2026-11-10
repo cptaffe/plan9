@@ -6,6 +6,7 @@
 */
 
 #include <math.h>
+#include <errno.h>
 
 #define	PIO2	1.570796326794896619231e0
 #define p0      .1357884097877375669092680e8
@@ -56,6 +57,11 @@ sinus(double arg, int quad)
 double
 cos(double arg)
 {
+	if(isNaN(arg) || isInf(arg, 0)){
+		if(isInf(arg, 0))
+			errno = EDOM;
+		return NaN();
+	}
 	if(arg < 0)
 		arg = -arg;
 	return sinus(arg, 1);
@@ -64,5 +70,10 @@ cos(double arg)
 double
 sin(double arg)
 {
+	if(isNaN(arg) || isInf(arg, 0)){
+		if(isInf(arg, 0))
+			errno = EDOM;
+		return NaN();
+	}
 	return sinus(arg, 0);
 }

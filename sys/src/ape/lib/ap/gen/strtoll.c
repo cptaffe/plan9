@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <errno.h>
@@ -48,18 +49,21 @@ strtoll(const char *nptr, char **endptr, int base)
 		base = 10;
 		if(*p == '0') {
 			base = 8;
-			if(p[1]=='x' || p[1]=='X') {
+			if((p[1]=='x' || p[1]=='X') && isxdigit((unsigned char)p[2])) {
 				p += 2;
 				base = 16;
 			}
 		}
 	} else
 	if(base==16 && *p=='0') {
-		if(p[1]=='x' || p[1]=='X')
+		if((p[1]=='x' || p[1]=='X') && isxdigit((unsigned char)p[2]))
 			p += 2;
 	} else
-	if(base<0 || 36<base)
+	if(base<0 || 36<base || base==1)
+		{
+		errno = EINVAL;
 		goto Return;
+	}
 
 	/*
 	 * Non-empty sequence of digits

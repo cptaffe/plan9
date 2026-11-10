@@ -23,7 +23,7 @@ asin(double arg)
 	}
 	if(arg > 1) {
 		errno = EDOM;
-		return 0;
+		return NaN();
 	}
 	temp = sqrt(1 - arg*arg);
 	if(arg > 0.7)
@@ -41,7 +41,7 @@ acos(double arg)
 {
 	if(arg > 1 || arg < -1) {
 		errno = EDOM;
-		return 0;
+		return NaN();
 	}
 	return pio2 - asin(arg);
 }

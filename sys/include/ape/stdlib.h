@@ -11,6 +11,9 @@
 
 typedef struct { int quot, rem; } div_t;
 typedef struct { long quot, rem; } ldiv_t;
+#if __STDC_VERSION__ >= 199901L || __cplusplus >= 201103L
+typedef struct { long long quot, rem; } lldiv_t;
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,6 +50,19 @@ extern int mbtowc(wchar_t *, const char *, size_t);
 extern int wctomb(char *, wchar_t);
 extern size_t mbstowcs(wchar_t *, const char *, size_t);
 extern size_t wcstombs(char *, const wchar_t *, size_t);
+
+#if __STDC_VERSION__ >= 199901L || __cplusplus >= 201103L
+extern long long llabs(long long);
+extern lldiv_t lldiv(long long, long long);
+extern float strtof(const char *, char **);
+extern long double strtold(const char *, char **);
+extern void _Exit(int);
+#endif
+#if __STDC_VERSION__ >= 201112L || __cplusplus >= 201103L
+extern void *aligned_alloc(size_t, size_t);
+extern int at_quick_exit(void (*)(void));
+extern void quick_exit(int);
+#endif
 
 #ifdef __cplusplus
 }

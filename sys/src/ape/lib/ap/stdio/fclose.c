@@ -11,5 +11,6 @@ int fclose(FILE *f){
 	if(!(f->flags&STRING) && close(f->fd)<0) error=EOF;
 	f->state=CLOSED;
 	f->flags=0;
+	_IO_orient[f-_IO_stream]=0;
 	return error;
 }

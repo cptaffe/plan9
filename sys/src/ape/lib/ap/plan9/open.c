@@ -20,12 +20,16 @@ open(const char *path, int flags, ...)
 	va_list va;
 
 	f = flags&O_ACCMODE;
-	if(flags&O_CREAT){
+	if((flags&(O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL)){
+		va_start(va, flags);
+		mode = va_arg(va, int);
+		va_end(va);
+		n = _CREATE(path, f|OEXCL, mode&0777);	/* fails if it is there */
+		if(n < 0)
+			_syserrno();
+	}else if(flags&O_CREAT){
 		if(access(path, 0) >= 0){
-			if(flags&O_EXCL){
-				errno = EEXIST;
-				return -1;
-			}else{
+			{
 				if((flags&O_TRUNC)&&(flags&(O_RDWR|O_WRONLY)))
 					f |= 16;
 				n = _OPEN(path, f);

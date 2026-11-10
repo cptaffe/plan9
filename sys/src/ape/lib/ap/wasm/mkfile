@@ -4,21 +4,26 @@ LIB=/$objtype/lib/ape/libap.a
 OFILES=\
 	atom.$O\
 	brk.$O\
+	cmul.$O\
 	cycles.$O\
 	execl.$O\
 	execle.$O\
 	execlp.$O\
+	fabs.$O\
+	floor.$O\
 	lock.$O\
 	main9.$O\
+	multi3.$O\
 	notetramp.$O\
 	profile.$O\
+	rint.$O\
 	setjmp.$O\
 	sqrt.$O\
 	sys9.$O\
 
 </sys/src/cmd/mksyslib
 
-CFLAGS=$CFLAGS -c -D_POSIX_SOURCE -D_PLAN9_SOURCE
+CFLAGS=$CFLAGS -c -std=gnu11 -D_POSIX_SOURCE -D_PLAN9_SOURCE
 
 # sys9.c is libc's stubs under APE's names, and they are Plan 9 C: not pcc's.
 sys9.$O:	sys9.c /sys/src/libc/wasm/sys.c

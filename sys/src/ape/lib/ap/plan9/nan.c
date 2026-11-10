@@ -52,3 +52,14 @@ isInf(double d, int sign)
 		return sign <= 0;
 	return 0;
 }
+
+/* C99: a quiet NaN (NaN's is signaling); the payload is not kept */
+double
+nan(const char *s)
+{
+	FPdbleword a;
+
+	a.hi = NANEXP | 0x80000;
+	a.lo = 0;
+	return a.x;
+}

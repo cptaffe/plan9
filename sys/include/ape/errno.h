@@ -7,6 +7,7 @@ extern int errno;
 #define EDOM	1000
 #define ERANGE	1001
 #define EPLAN9	1002
+#define EILSEQ	1003
 
 #ifdef _POSIX_SOURCE
 

@@ -1,13 +1,20 @@
-/* floating-point mod function without infinity or NaN checking */
+/* floating-point mod function; C99's infinities and NaNs first */
 #include <math.h>
+#include <errno.h>
 double
 fmod (double x, double y)
 {
 	int sign = 0, yexp;
 	double r, yfr;
 
-	if (y == 0)
-		return 0;
+	if (isNaN(x) || isNaN(y))
+		return NaN();
+	if (isInf(x, 0) || y == 0) {
+		errno = EDOM;
+		return NaN();
+	}
+	if (isInf(y, 0))
+		return x;
 	if (y < 0)
 		y = -y;
 	yfr = frexp (y, &yexp);

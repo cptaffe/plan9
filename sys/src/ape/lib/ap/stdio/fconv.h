@@ -234,3 +234,6 @@ y->wds*sizeof(long) + 2*sizeof(int))
 #define tens _tens
 #define bigtens _bigtens
 #define tinytens _tinytens
+
+/* C99's inf, nan and hex numbers, for strtod (strtodx.c) */
+extern int _strtodx(const char *, char **, int, double *);

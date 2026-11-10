@@ -10,6 +10,7 @@ ALLOFILES=\
 	atoi.$O\
 	atol.$O\
 	atoll.$O\
+	atomic.$O\
 	bsearch.$O\
 	calloc.$O\
 	clock.$O\
@@ -17,10 +18,13 @@ ALLOFILES=\
 	difftime.$O\
 	div.$O\
 	getenv.$O\
+	imax.$O\
 	isalnum.$O\
 	itoa.$O\
 	itol.$O\
 	ldiv.$O\
+	lldiv.$O\
+	mbrwc.$O\
 	mbwc.$O\
 	memccpy.$O\
 	memchr.$O\
@@ -48,6 +52,7 @@ ALLOFILES=\
 	strspn.$O\
 	strstr.$O\
 	strtod.$O\
+	strtof.$O\
 	strtok.$O\
 	strtol.$O\
 	strtoll.$O\
@@ -55,10 +60,28 @@ ALLOFILES=\
 	strtoull.$O\
 	strxfrm.$O\
 	toupper.$O\
+	uchar.$O\
+	wcscat.$O\
+	wcschr.$O\
+	wcscmp.$O\
+	wcscoll.$O\
+	wcscpy.$O\
+	wcsftime.$O\
+	wcslen.$O\
+	wcsncat.$O\
+	wcsncmp.$O\
+	wcsncpy.$O\
+	wcsrchr.$O\
+	wcsspn.$O\
+	wcsstr.$O\
+	wcsto.$O\
+	wcstok.$O\
+	wctype.$O\
+	wmem.$O\
 
 # cull things in the per-machine directories from this list
 OFILES=	`{rc ./reduce $O $objtype $ALLOFILES}
 
 </sys/src/cmd/mksyslib
 
-CFLAGS=$CFLAGS -c -D_POSIX_SOURCE
+CFLAGS=$CFLAGS -c -std=gnu11 -D_POSIX_SOURCE

@@ -24,6 +24,11 @@ tan(double arg)
 	double sign, temp, e, x, xsq;
 	int flag, i;
 
+	if(isNaN(arg) || isInf(arg, 0)){
+		if(isInf(arg, 0))
+			errno = EDOM;
+		return NaN();
+	}
 	flag = 0;
 	sign = 1;
 	if(arg < 0){

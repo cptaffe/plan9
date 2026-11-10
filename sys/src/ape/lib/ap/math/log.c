@@ -27,8 +27,14 @@ log(double arg)
 	double x, z, zsq, temp;
 	int exp;
 
-	if(arg <= 0) {
-		errno = (arg==0)? ERANGE : EDOM;
+	if(isNaN(arg) || isInf(arg, 1))
+		return arg;
+	if(arg < 0) {
+		errno = EDOM;
+		return NaN();
+	}
+	if(arg == 0) {
+		errno = ERANGE;
 		return -HUGE_VAL;
 	}
 	x = frexp(arg, &exp);
@@ -54,8 +60,14 @@ double
 log10(double arg)
 {
 
-	if(arg <= 0) {
-		errno = (arg==0)? ERANGE : EDOM;
+	if(isNaN(arg) || isInf(arg, 1))
+		return arg;
+	if(arg < 0) {
+		errno = EDOM;
+		return NaN();
+	}
+	if(arg == 0) {
+		errno = ERANGE;
 		return -HUGE_VAL;
 	}
 	return log(arg) * ln10o1;

@@ -9,6 +9,10 @@ hypot(double a, double b)
 {
 	double t;
 
+	if(isInf(a, 0) || isInf(b, 0))
+		return HUGE_VAL;	/* C99: even if the other is NaN */
+	if(isNaN(a) || isNaN(b))
+		return NaN();
 	if(a < 0)
 		a = -a;
 	if(b < 0)

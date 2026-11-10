@@ -2,6 +2,7 @@
  * pANS stdio -- freopen
  */
 #include "iolib.h"
+#include <string.h>
 /*
  * Open the named file with the given mode, using the given FILE
  * Legal modes are given below, `additional characters may follow these sequences':
@@ -11,6 +12,7 @@
  * r+ r+b rb+	open to read and write, creating if non-existant
  * w+ w+b wb+	open to read and write, truncating
  * a+ a+b ab+	open to read and write, positioned at eof, creating if non-existant.
+ * C11: an x after w makes it fail if the file is there.
  */
 FILE *freopen(const char *name, const char *mode, FILE *f){
 	int m;
@@ -33,6 +35,10 @@ FILE *freopen(const char *name, const char *mode, FILE *f){
 		f->fd=open(name, (*mode == '+'? O_RDWR: O_RDONLY));
 		break;
 	case 'w':
+		if(strchr(mode, 'x')){
+			f->fd=open(name, (strchr(mode, '+')? O_RDWR: O_WRONLY)|O_CREAT|O_EXCL, 0666);
+			break;
+		}
 		f->fd=creat(name, 0666);	/* implicitly O_WRONLY */
 		/* for O_RDWR, have to creat, close, open */
 		if(*mode == '+' && f->fd >= 0) {

@@ -22,6 +22,12 @@
 #define INT_MIN		(-INT_MAX-1)
 #define LONG_MIN	(-LONG_MAX-1)
 
+#if __STDC_VERSION__ >= 199901L || __cplusplus >= 201103L || defined(_POSIX_SOURCE)
+#define LLONG_MAX	0x7fffffffffffffffLL
+#define LLONG_MIN	(-LLONG_MAX-1)
+#define ULLONG_MAX	0xffffffffffffffffULL
+#endif
+
 #ifdef _POSIX_SOURCE
 
 #define _POSIX_AIO_LISTIO_MAX	2

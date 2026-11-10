@@ -6,12 +6,12 @@
 #define FLT_RADIX	2
 
 #define FLT_DIG		6
-#define FLT_EPSILON	1.19209290e-07
+#define FLT_EPSILON	1.19209290e-07F
 #define FLT_MANT_DIG	24
-#define FLT_MAX		3.40282347e+38
+#define FLT_MAX	3.40282347e+38F
 #define FLT_MAX_10_EXP	38
 #define FLT_MAX_EXP	128
-#define FLT_MIN		1.17549435e-38
+#define FLT_MIN	1.17549435e-38F
 #define FLT_MIN_10_EXP	-37
 #define FLT_MIN_EXP	-125
 
@@ -34,6 +34,22 @@
 #define LDBL_MAX	DBL_MAX
 #define LDBL_MAX_10_EXP	DBL_MAX_10_EXP
 
+#if __STDC_VERSION__ >= 199901L || __cplusplus >= 201103L
+#define FLT_EVAL_METHOD	0
+#define DECIMAL_DIG	17
+#endif
+#if __STDC_VERSION__ >= 201112L || __cplusplus >= 201703L
+#define FLT_DECIMAL_DIG	9
+#define DBL_DECIMAL_DIG	17
+#define LDBL_DECIMAL_DIG	DBL_DECIMAL_DIG
+#define FLT_TRUE_MIN	1.40129846e-45F
+#define DBL_TRUE_MIN	4.9406564584124654e-324
+#define LDBL_TRUE_MIN	DBL_TRUE_MIN
+#define FLT_HAS_SUBNORM	1
+#define DBL_HAS_SUBNORM	1
+#define LDBL_HAS_SUBNORM	1
+#endif
+
 typedef 	union FPdbleword FPdbleword;
 union FPdbleword
 {
@@ -47,7 +63,6 @@ union FPdbleword
 #ifdef _RESEARCH_SOURCE
 /* define stuff needed for floating conversion */
 #define IEEE_8087	1
-#define Sudden_Underflow 1
 #endif
 #ifdef _PLAN9_SOURCE
 /* FCR */
