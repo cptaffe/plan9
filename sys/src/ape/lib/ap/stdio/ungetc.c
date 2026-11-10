@@ -2,6 +2,7 @@
  * pANS stdio -- ungetc
  */
 #include "iolib.h"
+#include <string.h>
 int ungetc(int c, FILE *f){
 	if(c==EOF) return EOF;
 	switch(f->state){
@@ -18,11 +19,17 @@ int ungetc(int c, FILE *f){
 		f->rp=f->wp=f->buf+(f->bufl==0?1:f->bufl);
 		f->state=RD;
 	case RD:
-		if(f->rp==f->buf) return EOF;
+		if(f->rp==f->buf){
+			/* room after what is buffered: move it up, for c before it */
+			if(f->flags&STRING || f->wp>=f->buf+f->bufl) return EOF;
+			memmove(f->buf+1, f->buf, f->wp-f->buf);
+			f->wp++;
+			f->rp++;
+		}
 		if(f->flags&STRING)
 			f->rp--;
 		else
 			*--f->rp=c;
-		return (char)c;
+		return (unsigned char)c;
 	}
 }

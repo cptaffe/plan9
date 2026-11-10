@@ -142,6 +142,10 @@ int	vfscanf(FILE *, const char *, va_list);
 int	vprintf(const char *, va_list);
 int	vsnprintf(char *, size_t, const char *, va_list);
 int	vsprintf(char *, const char *, va_list);
+#if __STDC_VERSION__ >= 199901L || __cplusplus >= 201103L
+int	vscanf(const char *, va_list);
+int	vsscanf(const char *, const char *, va_list);
+#endif
 
 #ifdef _POSIX_SOURCE
 int	fileno(FILE *);

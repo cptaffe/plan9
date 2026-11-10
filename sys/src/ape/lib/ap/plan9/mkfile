@@ -2,6 +2,12 @@ APE=/sys/src/ape
 <$APE/config
 LIB=/$objtype/lib/ape/libap.a
 OFILES=\
+	9iounit.$O\
+	9mallocz.$O\
+	9read.$O\
+	9readn.$O\
+	9wait.$O\
+	9write.$O\
 	_buf.$O\
 	_dirconv.$O\
 	_envsetup.$O\
@@ -10,12 +16,6 @@ OFILES=\
 	_fdinfo.$O\
 	_getpw.$O\
 	_nap.$O\
-	9mallocz.$O\
-	9iounit.$O\
-	9read.$O\
-	9readn.$O\
-	9wait.$O\
-	9write.$O\
 	access.$O\
 	alarm.$O\
 	brk.$O\
@@ -24,8 +24,8 @@ OFILES=\
 	chmod.$O\
 	chown.$O\
 	close.$O\
-	convM2D.$O\
 	convD2M.$O\
+	convM2D.$O\
 	creat.$O\
 	ctermid.$O\
 	ctime.$O\
@@ -89,6 +89,7 @@ OFILES=\
 	tcgetattr.$O\
 	time.$O\
 	times.$O\
+	timespec_get.$O\
 	tmpfile.$O\
 	ttyname.$O\
 	umask.$O\
@@ -105,6 +106,6 @@ UPDATE=\
 
 </sys/src/cmd/mksyslib
 
-CFLAGS=$CFLAGS -c -D_POSIX_SOURCE -D_PLAN9_SOURCE -D_BSD_EXTENSION -D_SUSV2_SOURCE
+CFLAGS=$CFLAGS -c -std=gnu11 -D_POSIX_SOURCE -D_PLAN9_SOURCE -D_BSD_EXTENSION -D_SUSV2_SOURCE
 
 $OFILES: lib.h

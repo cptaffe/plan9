@@ -16,6 +16,13 @@ _exit(int status)
 	_finish(status, 0);
 }
 
+/* C99 */
+void
+_Exit(int status)
+{
+	_finish(status, 0);
+}
+
 void
 _finish(int status, char *term)
 {

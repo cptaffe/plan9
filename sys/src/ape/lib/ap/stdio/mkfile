@@ -2,12 +2,12 @@ APE=/sys/src/ape
 <$APE/config
 LIB=/$objtype/lib/ape/libap.a
 OFILES=\
-	_IO_getc.$O\
-	_IO_putc.$O\
 	_dtoa.$O\
 	_fconv.$O\
-	clearerr.$O\
+	_IO_getc.$O\
+	_IO_putc.$O\
 	atexit.$O\
+	clearerr.$O\
 	exit.$O\
 	fclose.$O\
 	fdopen.$O\
@@ -17,11 +17,13 @@ OFILES=\
 	fgetc.$O\
 	fgetpos.$O\
 	fgets.$O\
+	fgetwc.$O\
 	fileno.$O\
 	fopen.$O\
 	fprintf.$O\
 	fputc.$O\
 	fputs.$O\
+	fputwc.$O\
 	fread.$O\
 	freopen.$O\
 	fscanf.$O\
@@ -31,6 +33,7 @@ OFILES=\
 	ftell.$O\
 	ftello.$O\
 	ftoa.$O\
+	fwide.$O\
 	fwrite.$O\
 	getc.$O\
 	getchar.$O\
@@ -41,6 +44,7 @@ OFILES=\
 	putc.$O\
 	putchar.$O\
 	puts.$O\
+	quickexit.$O\
 	remove.$O\
 	rewind.$O\
 	scanf.$O\
@@ -55,14 +59,18 @@ OFILES=\
 	stdio.$O\
 	strerror.$O\
 	strtod.$O\
+	strtodx.$O\
 	tmpnam.$O\
 	ungetc.$O\
 	vfprintf.$O\
 	vfscanf.$O\
 	vprintf.$O\
-	vsprintf.$O\
+	vscanf.$O\
 	vsnprintf.$O\
+	vsprintf.$O\
+	wprintf.$O\
+	wscanf.$O\
 
 </sys/src/cmd/mksyslib
 
-CFLAGS=-c -D_POSIX_SOURCE -FTVw
+CFLAGS=-c -std=gnu11 -D_POSIX_SOURCE -FTVw

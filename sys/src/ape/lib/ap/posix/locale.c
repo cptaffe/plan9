@@ -21,6 +21,12 @@ static struct lconv Clocale = {
 	CHAR_MAX,	/* n_sep_by_space */
 	CHAR_MAX,	/* p_sign_posn */
 	CHAR_MAX,	/* n_sign_posn */
+	CHAR_MAX,	/* int_p_cs_precedes */
+	CHAR_MAX,	/* int_p_sep_by_space */
+	CHAR_MAX,	/* int_n_cs_precedes */
+	CHAR_MAX,	/* int_n_sep_by_space */
+	CHAR_MAX,	/* int_p_sign_posn */
+	CHAR_MAX,	/* int_n_sign_posn */
 };
 
 static char *localename[2] = {"C", ""};
@@ -38,6 +44,8 @@ setlocale(int category, const char *locale)
 		return 0;
 	if(!locale)
 		return localename[catlocale[category]];
+	if(strcmp(locale, "POSIX") == 0 || strcmp(locale, "C.UTF-8") == 0)
+		locale = "C";	/* the C locale's characters are UTF-8 */
 	for(c=0; c<ASIZE(localename); c++)
 		if(strcmp(locale, localename[c]) == 0)
 			break;

@@ -1,12 +1,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <errno.h>
 
 typedef unsigned int	uint;
 
 enum
 {
 	MAGIC		= 0xbada110c,
+	AMAGIC		= 0xa119ed,	/* aligned_alloc's: next is the bucket's data, pad the size */
 	MAX2SIZE	= 32,
 	CUTOFF		= 12,
 };
@@ -101,6 +103,10 @@ free(void *ptr)
 
 	/* Find the start of the structure */
 	bp = (Bucket*)((uint)ptr - datoff);
+	if(bp->magic == AMAGIC){
+		bp->magic = 0;
+		bp = (Bucket*)((uint)bp->next - datoff);
+	}
 
 	if(bp->magic != MAGIC)
 		abort();
@@ -123,6 +129,14 @@ realloc(void *ptr, size_t n)
 
 	/* Find the start of the structure */
 	bp = (Bucket*)((uint)ptr - datoff);
+	if(bp->magic == AMAGIC){
+		new = malloc(n);
+		if(new == nil)
+			return nil;
+		memmove(new, ptr, n < bp->pad? n: bp->pad);
+		free(ptr);
+		return new;
+	}
 
 	if(bp->magic != MAGIC)
 		abort();
@@ -140,4 +154,35 @@ realloc(void *ptr, size_t n)
 	free(ptr);
 
 	return new;
+}
+
+/*
+ * C11: malloc's are 8-aligned; one more aligned is inside one
+ * bigger, after a Bucket that says where the bigger is.
+ */
+void*
+aligned_alloc(size_t align, size_t size)
+{
+	char *p, *q;
+	Bucket *bp;
+
+	if(align == 0 || (align & (align-1)) != 0){
+		errno = EINVAL;
+		return nil;
+	}
+	if(align <= 8)
+		return malloc(size);
+	if(size > (size_t)-1 - align - datoff){
+		errno = ENOMEM;
+		return nil;
+	}
+	p = malloc(size + align + datoff);
+	if(p == nil)
+		return nil;
+	q = (char*)(((uint)p + datoff + align-1) & ~(align-1));
+	bp = (Bucket*)(q - datoff);
+	bp->magic = AMAGIC;
+	bp->next = (Bucket*)p;
+	bp->pad = size;
+	return q;
 }

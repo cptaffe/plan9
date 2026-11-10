@@ -26,6 +26,10 @@ exp(double arg)
 
 	if(arg == 0)
 		return 1;
+	if(isNaN(arg) || isInf(arg, 1))
+		return arg;
+	if(isInf(arg, -1))
+		return 0;
 	if(arg < -maxf) {
 		errno = ERANGE;
 		return 0;

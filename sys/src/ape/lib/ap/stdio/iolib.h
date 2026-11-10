@@ -47,3 +47,7 @@ int _IO_setvbuf(FILE *);
 FILE *_IO_sopenr(const char*);
 FILE *_IO_sopenw(void);
 char *_IO_sclose(FILE *);
+/* the wide streams' (C95): an orientation for each stream, and the conversions */
+extern signed char _IO_orient[FOPEN_MAX];
+int _vfprintfw(FILE *, const char *, va_list);
+int _vfscanfw(FILE *, const char *, va_list);

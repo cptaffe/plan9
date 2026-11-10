@@ -5,6 +5,7 @@ strchr(const char *s, int c)
 {
 	char c1;
 
+	c = (char)c;	/* ANSI: c is converted to char */
 	if(c == 0) {
 		while(*s++)
 			;

@@ -7,7 +7,7 @@ sqrt(double arg)
 {
 	if(arg < 0){
 		errno = EDOM;
-		return 0;
+		return NaN();
 	}
 	return __builtin_sqrt(arg);
 }

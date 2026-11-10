@@ -18,6 +18,19 @@ typedef long clock_t;
 typedef long time_t;
 #endif
 
+#if __STDC_VERSION__ >= 201112L || __cplusplus >= 201703L || defined(_POSIX_SOURCE)
+#ifndef _TIMESPEC
+#define _TIMESPEC
+struct timespec {
+	time_t	tv_sec;
+	long	tv_nsec;
+};
+#endif
+#endif
+#if __STDC_VERSION__ >= 201112L || __cplusplus >= 201703L
+#define TIME_UTC	1
+#endif
+
 struct tm {
 	int	tm_sec;
 	int	tm_min;
@@ -43,6 +56,9 @@ extern char *ctime(const time_t *);
 extern struct tm *gmtime(const time_t *);
 extern struct tm *localtime(const time_t *);
 extern size_t strftime(char *, size_t, const char *, const struct tm *);
+#if __STDC_VERSION__ >= 201112L || __cplusplus >= 201703L
+extern int timespec_get(struct timespec *, int);
+#endif
 
 #ifdef _REENTRANT_SOURCE
 extern struct tm *gmtime_r(const time_t *, struct tm *);

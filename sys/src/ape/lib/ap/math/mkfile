@@ -2,26 +2,44 @@ APE=/sys/src/ape
 <$APE/config
 LIB=/$objtype/lib/ape/libap.a
 OFILES=\
+	acosh.$O\
 	asin.$O\
 	atan.$O\
 	atan2.$O\
+	cbrt.$O\
+	complex.$O\
+	complexf.$O\
+	complexl.$O\
+	copysign.$O\
 	erf.$O\
 	exp.$O\
+	exp2.$O\
 	fabs.$O\
+	fdim.$O\
+	fenv.$O\
 	floor.$O\
+	fma.$O\
 	fmod.$O\
 	gamma.$O\
 	hypot.$O\
+	ilogb.$O\
 	j0.$O\
 	j1.$O\
 	jn.$O\
 	log.$O\
+	log1p.$O\
+	mathf.$O\
+	mathl.$O\
+	nextafter.$O\
 	pow.$O\
+	remquo.$O\
+	round.$O\
 	sin.$O\
 	sinh.$O\
 	tan.$O\
 	tanh.$O\
+	tgamma.$O\
 
 </sys/src/cmd/mksyslib
 
-CFLAGS=$CFLAGS -c -D_POSIX_SOURCE
+CFLAGS=$CFLAGS -c -std=gnu11 -D_POSIX_SOURCE

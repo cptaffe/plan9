@@ -9,16 +9,44 @@ pow(double x, double y) /* return x ^ y (exponentiation) */
 	long i;
 	int ex, ey, flip;
 
-	if(y == 0.0)
-		return 1.0;
+	int yint, yodd;
 
-	/* prevent infinite loop */
+	/* C99 Annex F's cases, which have no number to compute */
+	if(y == 0 || x == 1)
+		return 1;
 	if(isNaN(x) || isNaN(y))
 		return NaN();
-	if(isInf(x, 0))
-		return x;
-	if(isInf(y, 0))
-		return x == 0 || x == 1? x: y;
+	yint = isInf(y, 0) || y == floor(y);
+	yodd = yint && !isInf(y, 0) && fabs(y) < 0x1p53 && fmod(fabs(y), 2) == 1;
+	if(x == 0){
+		if(y < 0){
+			errno = ERANGE;
+			return yodd? copysign(HUGE_VAL, x): HUGE_VAL;
+		}
+		return yodd? x: 0;
+	}
+	if(isInf(y, 0)){
+		if(x == -1)
+			return 1;
+		if((fabs(x) < 1) == (y > 0))
+			return 0;
+		return HUGE_VAL;
+	}
+	if(isInf(x, 0)){
+		if(x > 0)
+			return y < 0? 0: HUGE_VAL;
+		if(y < 0)
+			return yodd? -0.0: 0;
+		return yodd? -HUGE_VAL: HUGE_VAL;
+	}
+	if(x < 0){
+		if(!yint){
+			errno = EDOM;
+			return NaN();
+		}
+		xy = pow(-x, y);
+		return yodd? -xy: xy;
+	}
 
 	flip = 0;
 	if(y < 0.){
@@ -74,11 +102,5 @@ pow(double x, double y) /* return x ^ y (exponentiation) */
 		xy = 1. / xy;
 		ey = -ey;
 	}
-	errno = 0;
-	x = ldexp(xy, ey);
-	if(errno && ey < 0) {
-		errno = 0;
-		x = 0.;
-	}
-	return x;
+	return ldexp(xy, ey);	/* ERANGE, if it is out of range */
 }
