@@ -18,7 +18,7 @@ typedef long clock_t;
 typedef long time_t;
 #endif
 
-#if __STDC_VERSION__ >= 201112L || __cplusplus >= 201703L || defined(_POSIX_SOURCE)
+#if __STDC_VERSION__ >= 201112L || __cplusplus >= 201703L || _POSIX_C_SOURCE >= 199309L
 #ifndef _TIMESPEC
 #define _TIMESPEC
 struct timespec {
@@ -29,6 +29,15 @@ struct timespec {
 #endif
 #if __STDC_VERSION__ >= 201112L || __cplusplus >= 201703L
 #define TIME_UTC	1
+#endif
+/* POSIX.1b's clocks: both are /dev/bintime's, Plan 9 has the one */
+#if _POSIX_C_SOURCE >= 199309L
+#ifndef _CLOCKID_T
+#define _CLOCKID_T
+typedef int clockid_t;
+#endif
+#define CLOCK_REALTIME	0
+#define CLOCK_MONOTONIC	1
 #endif
 
 struct tm {
@@ -69,6 +78,11 @@ extern char *ctime_r(const time_t *, char *);
 #ifdef _POSIX_SOURCE
 extern void tzset(void);
 #endif
+#if _POSIX_C_SOURCE >= 199309L
+extern int clock_gettime(clockid_t, struct timespec *);
+extern int clock_getres(clockid_t, struct timespec *);
+extern int nanosleep(const struct timespec *, struct timespec *);
+#endif
 
 #ifdef __cplusplus
 }
@@ -76,6 +90,10 @@ extern void tzset(void);
 
 #ifdef _POSIX_SOURCE
 extern char *tzname[2];
+#endif
+#ifdef _SUSV2_SOURCE
+extern long timezone;	/* XSI: tzset's, seconds west of GMT */
+extern int daylight;
 #endif
 
 #endif /* __TIME_H */

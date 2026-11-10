@@ -4,13 +4,15 @@ LIB=/$objtype/lib/ape/libap.a
 OFILES=\
 	getgrent.$O\
 	getpwent.$O\
+	langinfo.$O\
 	locale.$O\
 	mkfifo.$O\
 	pathconf.$O\
+	setenv.$O\
 	sigset.$O\
 	sysconf.$O\
 	tzset.$O\
 
 </sys/src/cmd/mksyslib
 
-CFLAGS=$CFLAGS -c -std=gnu11 -D_POSIX_SOURCE
+CFLAGS=$CFLAGS -c -std=gnu11 -D_POSIX_SOURCE -D_POSIX_C_SOURCE=202405L -D_BSD_EXTENSION

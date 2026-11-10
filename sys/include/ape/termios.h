@@ -11,6 +11,9 @@
 #define IXOFF	0x100
 #define IXON	0x200
 #define PARMRK	0x400
+#ifdef _SUSV2_SOURCE
+#define IXANY	0x800	/* XSI */
+#endif
 
 /* output modes: ONLCR, TAB3 are an extension to POSIX! */
 #define	OPOST	0000001
@@ -105,6 +108,15 @@
 #define TCSADRAIN 2
 #define TCSAFLUSH 3
 
+/* queue_selector for tcflush, action for tcflow */
+#define TCIFLUSH	0
+#define TCOFLUSH	1
+#define TCIOFLUSH	2
+#define TCOOFF	0
+#define TCOON	1
+#define TCIOFF	2
+#define TCION	3
+
 typedef unsigned long tcflag_t;
 typedef unsigned long speed_t;
 typedef unsigned char cc_t;
@@ -130,3 +142,4 @@ extern int tcsetpgrp(int, pid_t);
 extern int tcdrain(int);
 extern int tcflush(int, int);
 extern int tcflow(int, int);
+extern int tcsendbreak(int, int);

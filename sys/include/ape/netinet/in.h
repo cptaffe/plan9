@@ -138,6 +138,15 @@ extern unsigned long	htonl(unsigned long x);
 extern unsigned short	htons(unsigned short x);
 extern unsigned long	inet_addr(char*);
 extern char*		inet_ntoa(struct in_addr);
+
+#define INET_ADDRSTRLEN	16
+#define INET6_ADDRSTRLEN	46
+#ifndef _SOCKLEN_T
+#define _SOCKLEN_T
+typedef int socklen_t;
+#endif
+extern int		inet_pton(int, const char*, void*);
+extern const char*	inet_ntop(int, const void*, char*, socklen_t);
 extern unsigned long	nptohl(void*);
 
 #ifdef __cplusplus

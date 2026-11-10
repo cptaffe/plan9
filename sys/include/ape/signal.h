@@ -63,6 +63,19 @@ struct sigaction {
 };
 /* values for sa_flags */
 #define SA_NOCLDSTOP	1
+/*
+ * A handler runs after the note is done with (noted), so a signal
+ * is never held while its handler runs: SA_NODEFER is always so.
+ * A call a note interrupts fails with EINTR, SA_RESTART or not.
+ */
+#if _POSIX_C_SOURCE >= 200809L || defined(_SUSV2_SOURCE)
+#define SA_NODEFER	2
+#define SA_RESTART	4
+#endif
+/* XSI: there is no sigaltstack, so no other stack: a handler runs where it would */
+#ifdef _SUSV2_SOURCE
+#define SA_ONSTACK	8
+#endif
 
 /* first argument to sigprocmask */
 #define SIG_BLOCK	1

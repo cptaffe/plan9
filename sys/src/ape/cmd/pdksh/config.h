@@ -132,7 +132,7 @@
 #define clock_t long
 
 /* Define to the type of struct rlimit fields if the rlim_t type is missing */
-#define rlim_t long
+/* #undef rlim_t */	/* <sys/resource.h> has it */
 
 /* Define if time() is declared in <time.h> */
 #define TIME_DECLARED

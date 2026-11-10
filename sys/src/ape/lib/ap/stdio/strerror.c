@@ -77,7 +77,11 @@ char *sys_errlist[] = {
 
 	/* These added in 1003.1b-1993 */
 	"Operation canceled",
-	"Operation in progress"
+	"Operation in progress",
+
+	"Text file busy",		/* ETXTBSY */
+	"Operation already in progress",	/* EALREADY */
+	"Connection reset",		/* ECONNRESET */
 };
 #define	_IO_nerr	(sizeof sys_errlist/sizeof sys_errlist[0])
 int sys_nerr = _IO_nerr;

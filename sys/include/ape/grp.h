@@ -8,6 +8,7 @@
 
 struct	group {
 	char	*gr_name;
+	char	*gr_passwd;	/* XSI */
 	gid_t	gr_gid;
 	char	**gr_mem;
 };
@@ -18,6 +19,11 @@ extern "C" {
 
 extern struct group *getgrgid(gid_t);
 extern struct group *getgrnam(const char *);
+#ifdef _BSD_EXTENSION
+extern struct group *getgrent(void);
+extern void setgrent(void);
+extern void endgrent(void);
+#endif
 
 #ifdef __cplusplus
 }

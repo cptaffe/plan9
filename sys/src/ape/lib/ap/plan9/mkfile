@@ -23,6 +23,7 @@ OFILES=\
 	chdir.$O\
 	chmod.$O\
 	chown.$O\
+	clock_gettime.$O\
 	close.$O\
 	convD2M.$O\
 	convM2D.$O\
@@ -47,6 +48,7 @@ OFILES=\
 	fsync.$O\
 	ftruncate.$O\
 	getcwd.$O\
+	getentropy.$O\
 	getgid.$O\
 	getgrgid.$O\
 	getgrnam.$O\
@@ -57,6 +59,7 @@ OFILES=\
 	getppid.$O\
 	getpwnam.$O\
 	getpwuid.$O\
+	getrusage.$O\
 	getuid.$O\
 	isatty.$O\
 	kill.$O\
@@ -65,6 +68,7 @@ OFILES=\
 	malloc.$O\
 	mkdir.$O\
 	nan.$O\
+	nanosleep.$O\
 	open.$O\
 	opendir.$O\
 	pause.$O\
@@ -73,6 +77,7 @@ OFILES=\
 	qlock.$O\
 	read.$O\
 	rename.$O\
+	rlimit.$O\
 	rmdir.$O\
 	setgid.$O\
 	setpgid.$O\
@@ -106,6 +111,6 @@ UPDATE=\
 
 </sys/src/cmd/mksyslib
 
-CFLAGS=$CFLAGS -c -std=gnu11 -D_POSIX_SOURCE -D_PLAN9_SOURCE -D_BSD_EXTENSION -D_SUSV2_SOURCE
+CFLAGS=$CFLAGS -c -std=gnu11 -D_POSIX_SOURCE -D_POSIX_C_SOURCE=202405L -D_PLAN9_SOURCE -D_BSD_EXTENSION -D_SUSV2_SOURCE
 
 $OFILES: lib.h

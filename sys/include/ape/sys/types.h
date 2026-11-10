@@ -25,7 +25,18 @@ typedef long ssize_t;
 typedef long time_t;
 #endif
 
+#if _POSIX_C_SOURCE >= 199309L
+#ifndef _CLOCKID_T
+#define _CLOCKID_T
+typedef int clockid_t;
+#endif
+#endif
+
 #ifdef _BSD_EXTENSION
+typedef unsigned char	u_char;
+typedef unsigned short	u_short;
+typedef unsigned int	u_int;
+typedef unsigned long	u_long;
 #ifndef _CADDR_T
 #define _CADDR_T
 typedef char * caddr_t;
@@ -36,11 +47,13 @@ typedef char * caddr_t;
 typedef struct fd_set {
 	long fds_bits[3];
 } fd_set;
+#define FD_SETSIZE	96
 #define FD_SET(n,p)	((p)->fds_bits[(n)>>5] |= (1 << ((n) &0x1f)))
 #define FD_CLR(n,p)	((p)->fds_bits[(n)>>5] &= ~(1 << ((n) &0x1f)))
 #define FD_ISSET(n,p)	((p)->fds_bits[(n)>>5] & (1 << ((n) &0x1f)))
 #define FD_ZERO(p)	((p)->fds_bits[0] =0, (p)->fds_bits[1] =0, (p)->fds_bits[2] =0)
 #endif
+#include <sys/select.h>	/* timeval, timespec and select, as BSD's */
 #endif
 
 #endif /* __TYPES_H */

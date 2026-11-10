@@ -109,6 +109,7 @@ readdir(DIR *d)
 		dr = (struct dirent *)d->dd_buf;
 		dirs = d->dirs;
 		for(i=0; i<DBLOCKSIZE && d->dirloc < d->dirsize; i++){
+			dr[i].d_ino = dirs[d->dirloc].qid.path;	/* as stat's st_ino */
 			strncpy(dr[i].d_name, dirs[d->dirloc++].name, MAXNAMLEN);
 			dr[i].d_name[MAXNAMLEN] = 0;
 		}

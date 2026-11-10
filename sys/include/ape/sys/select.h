@@ -14,11 +14,35 @@
 typedef struct fd_set {
 	long fds_bits[3];
 } fd_set;
+#define FD_SETSIZE	96
 
 #define FD_SET(n,p)	((p)->fds_bits[(n)>>5] |= (1 << ((n) &0x1f)))
 #define FD_CLR(n,p)	((p)->fds_bits[(n)>>5] &= ~(1 << ((n) &0x1f)))
 #define FD_ISSET(n,p)	((p)->fds_bits[(n)>>5] & (1 << ((n) &0x1f)))
 #define FD_ZERO(p)	((p)->fds_bits[0] =0, (p)->fds_bits[1] =0, (p)->fds_bits[2] =0)
+#endif
+
+#ifndef __TIMEVAL__
+#define __TIMEVAL__
+struct timeval {
+	long	tv_sec;
+	long	tv_usec;
+};
+#ifdef _BSD_EXTENSION
+struct timezone {
+	int	tz_minuteswest;
+	int	tz_dsttime;
+};
+#endif
+#endif /* __TIMEVAL__ */
+
+/* POSIX: as <time.h>'s, for pselect */
+#ifndef _TIMESPEC
+#define _TIMESPEC
+struct timespec {
+	long	tv_sec;	/* time_t */
+	long	tv_nsec;
+};
 #endif
 
 #ifdef __cplusplus
