@@ -51,9 +51,21 @@ isplan9(void)
 {
 }
 
+/*
+ * asyncify saves the stack here at a fork: every frame and its locals. A
+ * program on APE (CPython's eval loop) may be deep: 1 MB, untouched until used.
+ */
+enum { Asynclen = 1<<20 };
+static char asyncb[Asynclen] __attribute__((aligned(16)));
+
 __attribute__((export_name("p9web_async_buf"))) char*
 asyncbuf(void)
 {
-	static char buf[65536] __attribute__((aligned(16)));
-	return buf;
+	return asyncb;
+}
+
+__attribute__((export_name("p9web_async_len"))) int
+asynclen(void)
+{
+	return Asynclen;
 }

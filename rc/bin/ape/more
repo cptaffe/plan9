@@ -1,0 +1,6 @@
+#!/bin/rc
+# more: Plan 9's pager, p, for a POSIX program that runs more; its flags are more's, not p's
+rfork e
+files=()
+for(a) if(! ~ $a -*) files=($files $a)
+exec /bin/p $files
