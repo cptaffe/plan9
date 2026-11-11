@@ -16,7 +16,8 @@
  *	daylight savings flag
  *
  * The routine gets the time zone from Plan 9's /env/timezone (not $TZ: the
- * zone is Plan 9's). tzset (tzset.c) is this zone, read again.
+ * zone is Plan 9's), once, and says it in tzname, timezone and daylight, as
+ * POSIX's localtime does by tzset. tzset (tzset.c) reads it again.
  *
  * asctime(tvec))
  * where tvec is produced by localtime
@@ -51,13 +52,13 @@ static	char	dmsize[12] =
 
 static	int	dysize(int);
 static	void	ct_numb(char*, int);
-static	void	readtimezone(void);
+static	void	readtimezone(int);
 static	int	rd_name(char**, char*);
 static	int	rd_long(char**, long*);
 
 #define	TZSIZE	((136*2)+10)		/* 1970-2106 */
 
-static
+typedef
 struct
 {
 	char	stname[16];
@@ -66,7 +67,13 @@ struct
 	long	stdiff;
 	long	dldiff;
 	unsigned long	dlpairs[TZSIZE];
-} tz;
+} Tz;
+static	Tz	tz;
+static	int	tzread;
+
+char	*tzname[2] = {"GMT", ""};
+long	timezone;	/* XSI: seconds west of GMT, standard time's */
+int	daylight;	/* XSI: whether there is a summer time */
 
 char*
 ctime(const time_t *t)
@@ -153,8 +160,7 @@ localtime_r(const time_t *timp, struct tm *result)
 	int dlflag;
 
 	tim = *timp;
-	if(tz.stname[0] == 0)
-		readtimezone();
+	readtimezone(0);
 	t = tim + tz.stdiff;
 	dlflag = 0;
 	for(p = tz.dlpairs; *p; p += 2)
@@ -229,45 +235,60 @@ ct_numb(char *cp, int n)
 	cp[1] = n%10 + '0';
 }
 
+/* readtimezone reads /env/timezone, if it has not or again is set; a zone it cannot read leaves the one it had, or GMT */
 static
 void
-readtimezone(void)
+readtimezone(int again)
 {
 	char buf[TZSIZE*11+30], *p;
-	int i;
+	int i, n;
+	static Tz t;
 
-	tz.dlname[0] = 0;
+	if(tzread && !again)
+		return;
+	if(!tzread)
+		strcpy(tz.stname, "GMT");
+	tzread = 1;
 	memset(buf, 0, sizeof(buf));
+	memset(&t, 0, sizeof(t));
 	i = open("/env/timezone", 0);
 	if(i < 0)
-		goto error;
-	if(read(i, buf, sizeof(buf)) >= sizeof(buf))
-		goto error;
+		goto out;
+	n = read(i, buf, sizeof(buf));
 	close(i);
+	if(n < 0 || n >= sizeof(buf))
+		goto out;
 	p = buf;
-	if(rd_name(&p, tz.stname))
-		goto error;
-	if(rd_long(&p, &tz.stdiff))
-		goto error;
-	if(rd_name(&p, tz.dlname))
-		goto error;
-	if(rd_long(&p, &tz.dldiff))
-		goto error;
+	if(rd_name(&p, t.stname))
+		goto out;
+	while(*p == ' ' || *p == '\n')
+		p++;
+	if(*p != '-' && (*p < '0' || *p > '9'))	/* rd_long takes the end for 0 */
+		goto out;
+	if(rd_long(&p, &t.stdiff))
+		goto out;
+	if(rd_name(&p, t.dlname) || rd_long(&p, &t.dldiff)){
+		/* a zone with no summer time: "GMT 0" */
+		t.dlname[0] = 0;
+		t.dldiff = t.stdiff;
+		t.dlpairs[0] = 0;
+		tz = t;
+		goto out;
+	}
 	for(i=0; i<TZSIZE; i++) {
-		if(rd_long(&p, (long *)&tz.dlpairs[i]))
-			goto error;
-		if(tz.dlpairs[i] == 0){
-			tz.hasdl = i > 0;
-			return;
+		if(rd_long(&p, (long *)&t.dlpairs[i]))
+			goto out;
+		if(t.dlpairs[i] == 0){
+			t.hasdl = i > 0;
+			tz = t;
+			goto out;
 		}
 	}
-
-error:
-	tz.stdiff = 0;
-	strcpy(tz.stname, "GMT");
-	tz.dlname[0] = 0;
-	tz.hasdl = 0;
-	tz.dlpairs[0] = 0;
+out:
+	tzname[0] = tz.stname;
+	tzname[1] = tz.dlname;
+	timezone = -tz.stdiff;
+	daylight = tz.hasdl;
 }
 
 static
@@ -280,13 +301,13 @@ rd_name(char **f, char *p)
 		if(c != ' ' && c != '\n')
 			break;
 	}
-	for(i=0; i<3; i++) {
-		if(c == ' ' || c == '\n')
-			return 1;
+	for(i=0; i<15; i++) {
+		if(c == ' ' || c == '\n' || c == 0)
+			break;
 		*p++ = c;
 		c = *(*f)++;
 	}
-	if(c != ' ' && c != '\n')
+	if(i == 0 || c != ' ' && c != '\n')
 		return 1;
 	*p = 0;
 	return 0;
@@ -327,13 +348,9 @@ rd_long(char **f, long *p)
 	return 0;
 }
 
-/* tzset's: the names, the standard time's offset west of GMT, and whether there is a summer time */
+/* tzset reads the zone again; strftime's %Z, the zone localtime uses */
 void
-_tzone(char **std, char **dl, long *west, int *daylight)
+_tzone(int again)
 {
-	readtimezone();
-	*std = tz.stname;
-	*dl = tz.dlname;
-	*west = -tz.stdiff;
-	*daylight = tz.hasdl;
+	readtimezone(again);
 }

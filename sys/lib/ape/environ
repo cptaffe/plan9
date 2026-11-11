@@ -1,7 +1,8 @@
 # What a program written for Unix looks for in its environment, as plan9port gives it: APE's
-# _envsetup puts a line's NAME=value in a program's environ (not /env) when /env has no NAME.
-# In a value, $name is Plan 9's variable, a list's elements joined by :; a line with a $name
-# that /env has not is left out. PATH is /bin: the name space's union of the commands (ape/psh
+# _envsetup puts a line's NAME=value in a program's environ when /env has no NAME. Its own /env
+# is left as it is; what it execs gets environ, these with it, as /env, as APE's exec gives.
+# In a value, $name is Plan 9's variable, a list's elements joined by :, and $$ is $; a line
+# with a $name that /env has not is left out. PATH is /bin: the name space's union of the commands (ape/psh
 # binds APE's before Plan 9's there), as APE's execvp looks in /bin.
 
 # Plan 9's own, by Unix's names
