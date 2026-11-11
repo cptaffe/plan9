@@ -1,0 +1,26 @@
+# What a program written for Unix looks for in its environment, as plan9port gives it: APE's
+# _envsetup puts a line's NAME=value in a program's environ (not /env) when /env has no NAME.
+# In a value, $name is Plan 9's variable, a list's elements joined by :; a line with a $name
+# that /env has not is left out. PATH is /bin: the name space's union of the commands (ape/psh
+# binds APE's before Plan 9's there), as APE's execvp looks in /bin.
+
+# Plan 9's own, by Unix's names
+HOME=$home
+USER=$user
+LOGNAME=$user
+PATH=/bin
+
+# what Plan 9 is: a window is no terminal, and text is UTF-8
+TERM=dumb
+NO_COLOR=1
+LANG=C.UTF-8
+SHELL=/bin/ape/sh
+PAGER=p
+
+# where a program keeps its files: $home/lib, as Go's os.UserConfigDir and UserCacheDir on Plan 9
+XDG_CONFIG_HOME=$home/lib
+XDG_CACHE_HOME=$home/lib/cache
+
+# Python: its user site in $home/lib/python3.14
+PYTHONUSERBASE=$home
+PIP_NO_COLOR=1

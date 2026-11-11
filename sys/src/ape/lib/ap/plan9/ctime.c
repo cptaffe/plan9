@@ -15,7 +15,8 @@
  *	day of the year
  *	daylight savings flag
  *
- * The routine gets the daylight savings time from the environment.
+ * The routine gets the time zone from Plan 9's /env/timezone (not $TZ: the
+ * zone is Plan 9's). tzset (tzset.c) is this zone, read again.
  *
  * asctime(tvec))
  * where tvec is produced by localtime
@@ -59,8 +60,9 @@ static	int	rd_long(char**, long*);
 static
 struct
 {
-	char	stname[4];
-	char	dlname[4];
+	char	stname[16];
+	char	dlname[16];
+	int	hasdl;	/* a summer time is named */
 	long	stdiff;
 	long	dldiff;
 	unsigned long	dlpairs[TZSIZE];
@@ -234,6 +236,7 @@ readtimezone(void)
 	char buf[TZSIZE*11+30], *p;
 	int i;
 
+	tz.dlname[0] = 0;
 	memset(buf, 0, sizeof(buf));
 	i = open("/env/timezone", 0);
 	if(i < 0)
@@ -253,13 +256,17 @@ readtimezone(void)
 	for(i=0; i<TZSIZE; i++) {
 		if(rd_long(&p, (long *)&tz.dlpairs[i]))
 			goto error;
-		if(tz.dlpairs[i] == 0)
+		if(tz.dlpairs[i] == 0){
+			tz.hasdl = i > 0;
 			return;
+		}
 	}
 
 error:
 	tz.stdiff = 0;
 	strcpy(tz.stname, "GMT");
+	tz.dlname[0] = 0;
+	tz.hasdl = 0;
 	tz.dlpairs[0] = 0;
 }
 
@@ -318,4 +325,15 @@ rd_long(char **f, long *p)
 		l = -l;
 	*p = l;
 	return 0;
+}
+
+/* tzset's: the names, the standard time's offset west of GMT, and whether there is a summer time */
+void
+_tzone(char **std, char **dl, long *west, int *daylight)
+{
+	readtimezone();
+	*std = tz.stname;
+	*dl = tz.dlname;
+	*west = -tz.stdiff;
+	*daylight = tz.hasdl;
 }

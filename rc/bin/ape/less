@@ -1,0 +1,6 @@
+#!/bin/rc
+# less: Plan 9's pager, p, for a POSIX program that runs less; its flags are less's, not p's
+rfork e
+files=()
+for(a) if(! ~ $a -*) files=($files $a)
+exec /bin/p $files

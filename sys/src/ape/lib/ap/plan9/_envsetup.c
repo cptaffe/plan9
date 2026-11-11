@@ -15,7 +15,9 @@
  * have 0 bytes in them (notably $path);
  * we change them to 1's (and execve changes back)
  *
- * Also, register the note handler.
+ * Also, give it what a Unix program looks for (unixenv:
+ * /sys/lib/ape/environ's lines),
+ * and register the note handler.
  */
 
 char **environ;
@@ -24,6 +26,8 @@ unsigned long _clock;
 
 static void fdsetup(char *, char *);
 static void sigsetup(char *, char *);
+static char *unixfile(int *);
+static int unixenv(char **, int, char **, char *);
 
 enum {
 	Envhunk=7000,
@@ -32,8 +36,8 @@ enum {
 void
 _envsetup(void)
 {
-	int dfd, fdinited, n, nd, m, i, j, f, nohandle, psize, cnt;
-	char *ps, *p;
+	int dfd, fdinited, n, nd, m, i, j, f, nohandle, psize, cnt, nux;
+	char *ps, *p, *ux;
 	char **pp;
 	char name[NAME_MAX+5];
 	Dir *d9, *d9a;
@@ -96,7 +100,8 @@ _envsetup(void)
 	free(d9a);
 	if(!fdinited)
 		_fdinit(0, 0);
-	pp = malloc((1+cnt)*sizeof(char *));
+	ux = unixfile(&nux);
+	pp = malloc((1+cnt+nux)*sizeof(char *));
 	if (pp == 0)
 		return;
 	environ = pp;
@@ -107,6 +112,10 @@ _envsetup(void)
 		if (!p)
 			break;
 		p++;
+	}
+	if(ux != 0){
+		pp += unixenv(environ, pp-environ, pp, ux);
+		free(ux);
 	}
 	*pp = 0;
 	if(!nohandle)
@@ -127,4 +136,115 @@ sigsetup(char *s, char *se)
 		if(sig <= MAXSIG)
 			_sighdlr[sig] = SIG_IGN;
 	}
+}
+
+/*
+ * What a program written for Unix looks for in its environment, as
+ * plan9port gives it: /sys/lib/ape/environ's NAME=value lines, each
+ * when the environment has no NAME. It is the program's, in environ,
+ * not /env's. In a value, $name is Plan 9's variable, a list's
+ * elements joined by :; a line with a $name not there is left out.
+ */
+enum {
+	Unixmax=16*1024,
+};
+
+static char*
+unixfile(int *nl)
+{
+	int f, n;
+	char *b, *s;
+
+	*nl = 0;
+	if((f = _OPEN("/sys/lib/ape/environ", OREAD|OCEXEC)) < 0)
+		return 0;
+	b = malloc(Unixmax+1);
+	if(b == 0){
+		_CLOSE(f);
+		return 0;
+	}
+	n = _READ(f, b, Unixmax);
+	_CLOSE(f);
+	if(n <= 0){
+		free(b);
+		return 0;
+	}
+	b[n] = 0;
+	for(s = b; *s; s++)
+		if(*s == '\n')
+			(*nl)++;
+	(*nl)++;
+	return b;
+}
+
+static char*
+look(char **env, int n, char *name, int l)
+{
+	int i;
+
+	for(i = 0; i < n; i++)
+		if(strncmp(env[i], name, l) == 0 && env[i][l] == '=')
+			return env[i]+l+1;
+	return 0;
+}
+
+static int
+isname(int c)
+{
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_';
+}
+
+/* line's value, its $names Plan 9's, or 0 if one is not there; into s, if not 0 */
+static int
+expand(char **env, int n, char *v, char *e, char *s)
+{
+	int l, k;
+	char *w, *x;
+
+	k = 0;
+	while(v < e){
+		if(*v != '$'){
+			if(s)
+				s[k] = *v;
+			k++, v++;
+			continue;
+		}
+		for(w = ++v; v < e && isname(*v); v++)
+			;
+		if((x = look(env, n, w, v-w)) == 0)
+			return -1;
+		for(; *x; x++, k++)
+			if(s)
+				s[k] = *x == 1? ':': *x;	/* a list's elements, as _envsetup has them */
+	}
+	return k;
+}
+
+static int
+unixenv(char **env, int n, char **pp, char *b)
+{
+	int k, l, m;
+	char *s, *e, *q;
+
+	k = 0;
+	for(; *b; b = e+(*e != 0)){
+		if((e = strchr(b, '\n')) == 0)
+			e = b+strlen(b);
+		while(b < e && (*b == ' ' || *b == '\t'))
+			b++;
+		if(b == e || *b == '#' || (q = memchr(b, '=', e-b)) == 0 || q == b)
+			continue;
+		l = q-b;
+		if(look(env, n+k, b, l) != 0)
+			continue;
+		if((m = expand(env, n, q+1, e, 0)) < 0)
+			continue;
+		if((s = malloc(l+1+m+1)) == 0)
+			break;
+		memcpy(s, b, l+1);
+		expand(env, n, q+1, e, s+l+1);
+		s[l+1+m] = 0;
+		pp[k++] = s;
+	}
+	return k;
 }
