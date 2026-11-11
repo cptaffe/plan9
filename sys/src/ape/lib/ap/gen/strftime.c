@@ -13,6 +13,7 @@ static char *ampm[2] = {"AM", "PM"};
 static int jan1(int);
 static char *strval(char *, char *, char **, int, int);
 static char *dval(char *, char *, int, int);
+extern void _tzone(int);	/* plan9/ctime.c's */
 
 size_t
 strftime(char *s, size_t maxsize, const char *format, const struct tm *t)
@@ -109,7 +110,7 @@ strftime(char *s, size_t maxsize, const char *format, const struct tm *t)
 				sp = dval(sp, se, t->tm_year+1900, 4);
 				break;
 			case 'Z':
-				tzset();	/* the zone localtime uses */
+				_tzone(0);	/* the zone localtime uses, read once */
 				i = t->tm_isdst? 1 : 0;
 				sp = strval(sp, se, tzname, i, 2);
 				break;

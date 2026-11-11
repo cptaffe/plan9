@@ -203,10 +203,10 @@ expand(char **env, int n, char *v, char *e, char *s)
 
 	k = 0;
 	while(v < e){
-		if(*v != '$'){
+		if(*v != '$' || v+1 < e && v[1] == '$'){	/* $$ is a $ */
 			if(s)
 				s[k] = *v;
-			k++, v++;
+			k++, v += 1 + (*v == '$');
 			continue;
 		}
 		for(w = ++v; v < e && isname(*v); v++)
@@ -223,8 +223,8 @@ expand(char **env, int n, char *v, char *e, char *s)
 static int
 unixenv(char **env, int n, char **pp, char *b)
 {
-	int k, l, m;
-	char *s, *e, *q;
+	int i, k, l, m;
+	char *s, *e, *q, *ve;
 
 	k = 0;
 	for(; *b; b = e+(*e != 0)){
@@ -235,14 +235,20 @@ unixenv(char **env, int n, char **pp, char *b)
 		if(b == e || *b == '#' || (q = memchr(b, '=', e-b)) == 0 || q == b)
 			continue;
 		l = q-b;
+		for(i = 0; i < l && isname(b[i]); i++)
+			;
+		if(i < l || b[0] >= '0' && b[0] <= '9')	/* not a name: HOME = x is not HOME */
+			continue;
 		if(look(env, n+k, b, l) != 0)
 			continue;
-		if((m = expand(env, n, q+1, e, 0)) < 0)
+		for(ve = e; ve > q+1 && (ve[-1] == ' ' || ve[-1] == '\t' || ve[-1] == '\r'); ve--)
+			;
+		if((m = expand(env, n, q+1, ve, 0)) < 0)
 			continue;
 		if((s = malloc(l+1+m+1)) == 0)
 			break;
 		memcpy(s, b, l+1);
-		expand(env, n, q+1, e, s+l+1);
+		expand(env, n, q+1, ve, s+l+1);
 		s[l+1+m] = 0;
 		pp[k++] = s;
 	}
