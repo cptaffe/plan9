@@ -30,13 +30,13 @@ extern int	bcmp(void*, void*, size_t);
 #ifndef bzero
 extern void	bzero(void*, size_t);
 #endif
-extern int	ffs(unsigned int);
+extern int	ffs(int);
 extern void	bhappy(void*);
 extern int	rresvport(int*);
 extern int	rcmd(char**, int, char*, char*, char*, int*);
-extern int	strcasecmp(char*, char*);
+extern int	strcasecmp(const char*, const char*);
 extern int 	putenv(char*);
-extern int	strncasecmp(char*, char*,int);
+extern int	strncasecmp(const char*, const char*, size_t);
 extern char	*strsep(char **, const char *);
 
 extern int	getopt(int, char**, char*);

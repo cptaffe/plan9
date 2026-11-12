@@ -3,7 +3,7 @@
 typedef unsigned char uchar;
 
 int
-strncasecmp(char *s1, char *s2, int n)
+strncasecmp(const char *s1, const char *s2, size_t n)
 {
 	int c1, c2;
 
