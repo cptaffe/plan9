@@ -8,6 +8,7 @@ OFILES=\
 	bind.$O\
 	connect.$O\
 	endhostent.$O\
+	err.$O\
 	ffs.$O\
 	getdtablesize.$O\
 	gethostbyname.$O\
@@ -44,6 +45,7 @@ OFILES=\
 	_sock_srv.$O\
 	strcasecmp.$O\
 	strncasecmp.$O\
+	strsep.$O\
 	socket.$O\
 	socketpair.$O\
 	pty.$O\
