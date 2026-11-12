@@ -20,7 +20,7 @@ time(time_t *tp)
 		_PREAD(f, b, sizeof(b), 0);
 		_CLOSE(f);
 	}
-	t = atol(b);
+	t = strtoll(b, 0, 10);	/* p9web: past 2038 */
 	if(tp)
 		*tp = t;
 	return t;

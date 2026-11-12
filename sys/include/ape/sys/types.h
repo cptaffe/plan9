@@ -22,7 +22,7 @@ typedef long ssize_t;
 
 #ifndef _TIME_T
 #define _TIME_T
-typedef long time_t;
+typedef long long time_t;	/* p9web: 64 bits, past 2038 and before 1901 */
 #endif
 
 #if _POSIX_C_SOURCE >= 199309L

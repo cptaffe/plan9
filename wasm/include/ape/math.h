@@ -193,6 +193,9 @@ extern double erfc(double);
 extern float erfcf(float);
 extern long double erfcl(long double);
 extern double lgamma(double);
+#ifdef _BSD_EXTENSION
+extern double gamma(double);	/* lgamma's old name (V7's, gamma.c) */
+#endif
 extern float lgammaf(float);
 extern long double lgammal(long double);
 extern double tgamma(double);
