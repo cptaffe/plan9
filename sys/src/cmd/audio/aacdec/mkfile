@@ -3,7 +3,7 @@
 
 OFILES=aacdec.$O
 
-# libfdkaac is C++, and not in this tree: build.sh fetches, builds and links it
+# libfdkaac is C++, and not in this tree: plan9web fetches (scripts/dl.sh), builds and links it (mk/audio)
 
 TARG=aacdec
 

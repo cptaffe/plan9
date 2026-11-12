@@ -4,7 +4,7 @@
  * names audio/aacdec but its tree has none. The input is an MP4 or M4A
  * file, or ADTS: those are read here, and each access unit goes to
  * libfdkaac, the Third-Party Modified Version of the Fraunhofer FDK AAC
- * Codec Library for Android, as Fedora ships it (fetched by build.sh, not changed).
+ * Codec Library for Android, as Fedora ships it (fetched by scripts/dl.sh, not changed).
  *
  * Not here: fragmented MP4. Not in Fedora's library: SBR and parametric
  * stereo: HE-AAC plays its core, band-limited, at the core's rate.
