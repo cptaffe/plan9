@@ -392,13 +392,15 @@ void
 mainctl(void *v)
 {
 	Window *w;
-	Event *e;
-	int delta, pendingS, pendingK;
+	Event *e, *held;
+	int delta, pendingS, pendingK, seq, try;
 	ulong hostpt, endpt;
 	char tmp[32];
 
 	w = v;
+	seq = winguard(w);
 	proccreate(wineventproc, w, STACK);
+	held = nil;
 
 	hostpt = 0;
 	endpt = 0;
@@ -412,6 +414,9 @@ mainctl(void *v)
 		if(debug)
 			fprint(2, "msg: %C %C %d %d %d %d %q\n",
 				e->c1 ? e->c1 : ' ', e->c2 ? e->c2 : ' ', e->q0, e->q1, e->flag, e->nb, e->b);
+		try = e->c2=='I' || e->c2=='D';
+		if(try)
+			seq++;
 		switch(e->c1){
 		default:
 		Unknown:
@@ -426,10 +431,8 @@ mainctl(void *v)
 			break;
 
 		case 'S':	/* output to stdout */
-			sprint(tmp, "#%lud", hostpt);
-			winsetaddr(w, tmp, 0);
-			write(w->data, e->b, e->nb);
-			pendingS += e->nr;
+			held = e;
+			try = 1;
 			break;
 
 		case 'E':	/* write to tag or body; body happens due to sendit */
@@ -568,6 +571,17 @@ mainctl(void *v)
 				goto Unknown;
 			}
 		}
+		if(held != nil && try)
+			switch(winput(w, hostpt, seq, held->b, held->nb)){
+			case 1:
+				pendingS += held->nr;
+				held = nil;
+				break;
+			case -1:
+				held = nil;
+				sendp(writechan, nil);
+				break;
+			}
 	}
 }
 
