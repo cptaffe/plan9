@@ -73,7 +73,7 @@ threadmain(int argc, char *argv[])
 	snprint(buf, sizeof buf, "%d", win->id);
 	putenv("winid", buf);
 	winname(win, tag);
-	wintagwrite(win, "Send", 4);
+	wintagwrite(win, "Send Noscroll", 5+8);
 	threadcreate(mainctl, win, STACK);
 	mountcons();
 	threadcreate(fsloop, nil, STACK);
@@ -88,6 +88,7 @@ threadmain(int argc, char *argv[])
 		j += 1+strlen(argv[i]);
 	}
 
+	ctlprint(win->ctl, "scroll");
 	winsetdump(win, dir, buf);
 }
 
@@ -111,7 +112,14 @@ command(Window *w, char *s)
 		threadexitsall(nil);
 		return 1;
 	}
-	/* p9web: plan9port's Acme scrolls by itself (autoscroll), and has no scroll or noscroll */
+	if(EQUAL(s, "scroll")){
+		ctlprint(w->ctl, "scroll\nshow");
+		return 1;
+	}
+	if(EQUAL(s, "noscroll")){
+		ctlprint(w->ctl, "noscroll");
+		return 1;
+	}
 	return 0;
 }
 

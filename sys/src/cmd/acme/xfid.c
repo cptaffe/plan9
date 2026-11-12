@@ -565,6 +565,8 @@ shouldscroll(Text *t, uint q0, int qid)
 {
 	if(qid == Qcons)
 		return TRUE;
+	if(t->w->noscroll)
+		return FALSE;
 	return t->org <= q0 && q0 <= t->org+t->fr.nchars;
 }
 
@@ -1017,10 +1019,18 @@ out:
 			settag = TRUE;
 			m = 4;
 		}else
+		if(strncmp(p, "noscroll", 8) == 0){	/* turn off automatic scrolling */
+			w->noscroll = TRUE;
+			m = 8;
+		}else
 		if(strncmp(p, "cleartag", 8) == 0){	/* wipe tag right of bar */
 			wincleartag(w);
 			settag = TRUE;
 			m = 8;
+		}else
+		if(strncmp(p, "scroll", 6) == 0){	/* turn on automatic scrolling (writes to body only) */
+			w->noscroll = FALSE;
+			m = 6;
 		}else
 		if(strncmp(p, "veil", 4) == 0){	/* stop displaying keyboard input */
 			w->noecho = TRUE;

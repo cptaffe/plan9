@@ -283,10 +283,11 @@ interactive command with no arguments; accepts no arguments.
 .B scroll
 Cancel a
 .B noscroll
-message, returning the window to the default state wherein each write
+message, returning the window to the default state wherein a write
 to the
 .B body
-file causes the window to `scroll' to display the new text.
+file that begins in or just after the text on display causes the window
+to `scroll' to display the new text.
 .TP
 .B show
 Guarantee at least some of the selected text is visible on the display.

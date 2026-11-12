@@ -3,10 +3,8 @@ Plan 9's libthread and lib9p, objtype wasm (plan9web's mk/n9). p9web's Acme is a
 plan9port's ways: the changes are for it.
 
 Changes for p9web (this branch's commit):
-	main.c	no Scroll and Noscroll, and no scroll ctl
-		message (plan9port's Acme scrolls by itself, and refuses them: its commit
-		ba31ab30); output is held until it goes in under seq (winput)
-	win.c	no noscroll ctl message; output goes in under the window's seq (winguard, winput)
+	main.c	output is held until it goes in under seq (winput)
+	win.c	output goes in under the window's seq (winguard, winput)
 
 win serves cons and consctl (lib9p) and mounts them before /dev in its namespace; rc reads and
 writes them. A note to rc's note group is an interrupt (Del, or ^C).
