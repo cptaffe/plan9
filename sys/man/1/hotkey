@@ -203,6 +203,13 @@ system rules, by program
 .TP
 .B $home/lib/hotkey/*
 user rules
+.TP
+.B /lib/hotkey/acme.emacs
+Emacs's keys for
+.IR acme ;
+copy it to
+.B $home/lib/hotkey/acme
+to use them
 .PD
 .SH SOURCE
 plan9web's
