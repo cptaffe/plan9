@@ -65,66 +65,36 @@ struct Exectab
 	int		flag2;
 };
 
-static Rune LAbort[] = { 'A', 'b', 'o', 'r', 't', 0 };
-static Rune LCut[] = { 'C', 'u', 't', 0 };
-static Rune LDel[] = { 'D', 'e', 'l', 0 };
-static Rune LDelcol[] = { 'D', 'e', 'l', 'c', 'o', 'l', 0 };
-static Rune LDelete[] = { 'D', 'e', 'l', 'e', 't', 'e', 0 };
-static Rune LDump[] = { 'D', 'u', 'm', 'p', 0 };
-static Rune LEdit[] = { 'E', 'd', 'i', 't', 0 };
-static Rune LExit[] = { 'E', 'x', 'i', 't', 0 };
-static Rune LFont[] = { 'F', 'o', 'n', 't', 0 };
-static Rune LGet[] = { 'G', 'e', 't', 0 };
-static Rune LID[] = { 'I', 'D', 0 };
-static Rune LIncl[] = { 'I', 'n', 'c', 'l', 0 };
-static Rune LIndent[] = { 'I', 'n', 'd', 'e', 'n', 't', 0 };
-static Rune LKill[] = { 'K', 'i', 'l', 'l', 0 };
-static Rune LLoad[] = { 'L', 'o', 'a', 'd', 0 };
-static Rune LLocal[] = { 'L', 'o', 'c', 'a', 'l', 0 };
-static Rune LLook[] = { 'L', 'o', 'o', 'k', 0 };
-static Rune LNew[] = { 'N', 'e', 'w', 0 };
-static Rune LNewcol[] = { 'N', 'e', 'w', 'c', 'o', 'l', 0 };
-static Rune LPaste[] = { 'P', 'a', 's', 't', 'e', 0 };
-static Rune LPut[] = { 'P', 'u', 't', 0 };
-static Rune LPutall[] = { 'P', 'u', 't', 'a', 'l', 'l', 0 };
-static Rune LRedo[] = { 'R', 'e', 'd', 'o', 0 };
-static Rune LSend[] = { 'S', 'e', 'n', 'd', 0 };
-static Rune LSnarf[] = { 'S', 'n', 'a', 'r', 'f', 0 };
-static Rune LSort[] = { 'S', 'o', 'r', 't', 0 };
-static Rune LTab[] = { 'T', 'a', 'b', 0 };
-static Rune LUndo[] = { 'U', 'n', 'd', 'o', 0 };
-static Rune LZerox[] = { 'Z', 'e', 'r', 'o', 'x', 0 };
-
 Exectab exectab[] = {
-	{ LAbort,	doabort,	FALSE,	XXX,		XXX		},
-	{ LCut,		cut,		TRUE,	TRUE,	TRUE	},
-	{ LDel,		del,		FALSE,	FALSE,	XXX		},
-	{ LDelcol,	delcol,	FALSE,	XXX,		XXX		},
-	{ LDelete,	del,		FALSE,	TRUE,	XXX		},
-	{ LDump,	dump,	FALSE,	TRUE,	XXX		},
-	{ LEdit,		edit,		FALSE,	XXX,		XXX		},
-	{ LExit,		xexit,		FALSE,	XXX,		XXX		},
-	{ LFont,		fontx,	FALSE,	XXX,		XXX		},
-	{ LGet,		get,		FALSE,	TRUE,	XXX		},
-	{ LID,		id,		FALSE,	XXX,		XXX		},
-	{ LIncl,		incl,		FALSE,	XXX,		XXX		},
-	{ LIndent,	indent,	FALSE,	XXX,		XXX		},
-	{ LKill,		xkill,		FALSE,	XXX,		XXX		},
-	{ LLoad,		dump,	FALSE,	FALSE,	XXX		},
-	{ LLocal,		local,	FALSE,	XXX,		XXX		},
-	{ LLook,		look,		FALSE,	XXX,		XXX		},
-	{ LNew,		new,		FALSE,	XXX,		XXX		},
-	{ LNewcol,	newcol,	FALSE,	XXX,		XXX		},
-	{ LPaste,		paste,	TRUE,	TRUE,	XXX		},
-	{ LPut,		put,		FALSE,	XXX,		XXX		},
-	{ LPutall,		putall,	FALSE,	XXX,		XXX		},
-	{ LRedo,		undo,	FALSE,	FALSE,	XXX		},
-	{ LSend,		sendx,	TRUE,	XXX,		XXX		},
-	{ LSnarf,		cut,		FALSE,	TRUE,	FALSE	},
-	{ LSort,		sort,		FALSE,	XXX,		XXX		},
-	{ LTab,		tab,		FALSE,	XXX,		XXX		},
-	{ LUndo,		undo,	FALSE,	TRUE,	XXX		},
-	{ LZerox,	zeroxx,	FALSE,	XXX,		XXX		},
+	{ L"Abort",	doabort,	FALSE,	XXX,		XXX		},
+	{ L"Cut",		cut,		TRUE,	TRUE,	TRUE	},
+	{ L"Del",		del,		FALSE,	FALSE,	XXX		},
+	{ L"Delcol",	delcol,	FALSE,	XXX,		XXX		},
+	{ L"Delete",	del,		FALSE,	TRUE,	XXX		},
+	{ L"Dump",	dump,	FALSE,	TRUE,	XXX		},
+	{ L"Edit",		edit,		FALSE,	XXX,		XXX		},
+	{ L"Exit",		xexit,		FALSE,	XXX,		XXX		},
+	{ L"Font",		fontx,	FALSE,	XXX,		XXX		},
+	{ L"Get",		get,		FALSE,	TRUE,	XXX		},
+	{ L"ID",		id,		FALSE,	XXX,		XXX		},
+	{ L"Incl",		incl,		FALSE,	XXX,		XXX		},
+	{ L"Indent",	indent,	FALSE,	XXX,		XXX		},
+	{ L"Kill",		xkill,		FALSE,	XXX,		XXX		},
+	{ L"Load",		dump,	FALSE,	FALSE,	XXX		},
+	{ L"Local",		local,	FALSE,	XXX,		XXX		},
+	{ L"Look",		look,		FALSE,	XXX,		XXX		},
+	{ L"New",		new,		FALSE,	XXX,		XXX		},
+	{ L"Newcol",	newcol,	FALSE,	XXX,		XXX		},
+	{ L"Paste",		paste,	TRUE,	TRUE,	XXX		},
+	{ L"Put",		put,		FALSE,	XXX,		XXX		},
+	{ L"Putall",		putall,	FALSE,	XXX,		XXX		},
+	{ L"Redo",		undo,	FALSE,	FALSE,	XXX		},
+	{ L"Send",		sendx,	TRUE,	XXX,		XXX		},
+	{ L"Snarf",		cut,		FALSE,	TRUE,	FALSE	},
+	{ L"Sort",		sort,		FALSE,	XXX,		XXX		},
+	{ L"Tab",		tab,		FALSE,	XXX,		XXX		},
+	{ L"Undo",		undo,	FALSE,	TRUE,	XXX		},
+	{ L"Zerox",	zeroxx,	FALSE,	XXX,		XXX		},
 	{ nil, 			nil,		0,		0,		0		},
 };
 
@@ -1084,8 +1054,6 @@ look(Text *et, Text *t, Text *argt, int, int, Rune *arg, int narg)
 	}
 }
 
-static Rune Lnl[] = { '\n', 0 };
-
 void
 sendx(Text *et, Text *t, Text*, int, int, Rune*, int)
 {
@@ -1097,7 +1065,7 @@ sendx(Text *et, Text *t, Text*, int, int, Rune*, int)
 	textsetselect(t, t->file->b.nc, t->file->b.nc);
 	paste(t, t, nil, TRUE, TRUE, nil, 0);
 	if(textreadc(t, t->file->b.nc-1) != '\n'){
-		textinsert(t, t->file->b.nc, Lnl, 1, TRUE);
+		textinsert(t, t->file->b.nc, L"\n", 1, TRUE);
 		textsetselect(t, t->file->b.nc, t->file->b.nc);
 	}
 	t->iq1 = t->q1;
@@ -1206,9 +1174,6 @@ xkill(Text*, Text*, Text *argt, int, int, Rune *arg, int narg)
 	}
 }
 
-static Rune Lfix[] = { 'f', 'i', 'x', 0 };
-static Rune Lvar[] = { 'v', 'a', 'r', 0 };
-
 void
 fontx(Text *et, Text *t, Text *argt, int, int, Rune *arg, int narg)
 {
@@ -1232,7 +1197,7 @@ fontx(Text *et, Text *t, Text *argt, int, int, Rune *arg, int narg)
 			break;
 		r = runemalloc(narg-na+1);
 		runemove(r, arg, narg-na);
-		if(runeeq(r, narg-na, Lfix, 3) || runeeq(r, narg-na, Lvar, 3)){
+		if(runeeq(r, narg-na, L"fix", 3) || runeeq(r, narg-na, L"var", 3)){
 			free(flag);
 			flag = r;
 		}else{
@@ -1244,7 +1209,7 @@ fontx(Text *et, Text *t, Text *argt, int, int, Rune *arg, int narg)
 	}
 	getarg(argt, FALSE, TRUE, &r, &na);
 	if(r)
-		if(runeeq(r, na, Lfix, 3) || runeeq(r, na, Lvar, 3)){
+		if(runeeq(r, na, L"fix", 3) || runeeq(r, na, L"var", 3)){
 			free(flag);
 			flag = r;
 		}else{
@@ -1254,7 +1219,7 @@ fontx(Text *et, Text *t, Text *argt, int, int, Rune *arg, int narg)
 		}
 	fix = 1;
 	if(flag)
-		fix = runeeq(flag, runestrlen(flag), Lfix, 3);
+		fix = runeeq(flag, runestrlen(flag), L"fix", 3);
 	else if(file == nil){
 		newfont = rfget(FALSE, FALSE, FALSE, nil);
 		if(newfont)
@@ -1322,10 +1287,6 @@ incl(Text *et, Text*, Text *argt, int, int, Rune *arg, int narg)
 	}
 }
 
-static Rune LON[] = { 'O', 'N', 0 };
-static Rune LOFF[] = { 'O', 'F', 'F', 0 };
-static Rune Lon[] = { 'o', 'n', 0 };
-
 enum {
 	IGlobal = -2,
 	IError = -1,
@@ -1338,17 +1299,17 @@ indentval(Rune *s, int n)
 {
 	if(n < 2)
 		return IError;
-	if(runestrncmp(s, LON, n) == 0){
+	if(runestrncmp(s, L"ON", n) == 0){
 		globalautoindent = TRUE;
 		warning(nil, "Indent ON\n");
 		return IGlobal;
 	}
-	if(runestrncmp(s, LOFF, n) == 0){
+	if(runestrncmp(s, L"OFF", n) == 0){
 		globalautoindent = FALSE;
 		warning(nil, "Indent OFF\n");
 		return IGlobal;
 	}
-	return runestrncmp(s, Lon, n) == 0;
+	return runestrncmp(s, L"on", n) == 0;
 }
 
 static void

@@ -15,7 +15,6 @@
 
 Image	*tagcols[NCOL];
 Image	*textcols[NCOL];
-static Rune Ldot[] = { '.', 0 };
 
 enum{
 	TABDIR = 3	/* width of tabs in directory windows */
@@ -141,8 +140,6 @@ textcolumnate(Text *t, Dirlist **dlp, int ndl)
 	int i, j, w, colw, mint, maxt, ncol, nrow;
 	Dirlist *dl;
 	uint q1;
-	static Rune Lnl[] = { '\n', 0 };
-	static Rune Ltab[] = { '\t', 0 };
 
 	if(t->file->ntext > 1)
 		return;
@@ -177,17 +174,17 @@ textcolumnate(Text *t, Dirlist **dlp, int ndl)
 				break;
 			w = dl->wid;
 			if(maxt-w%maxt < mint){
-				fileinsert(t->file, q1, Ltab, 1);
+				fileinsert(t->file, q1, L"\t", 1);
 				q1++;
 				w += mint;
 			}
 			do{
-				fileinsert(t->file, q1, Ltab, 1);
+				fileinsert(t->file, q1, L"\t", 1);
 				q1++;
 				w += maxt-(w%maxt);
 			}while(w < colw);
 		}
-		fileinsert(t->file, q1, Lnl, 1);
+		fileinsert(t->file, q1, L"\n", 1);
 		q1++;
 	}
 }
@@ -673,7 +670,7 @@ textcomplete(Text *t)
 		}
 		if(dir.nr == 0){
 			dir.nr = 1;
-			dir.r = runestrdup(Ldot);
+			dir.r = runestrdup(L".");
 		}
 		runemove(tmp, dir.r, dir.nr);
 		tmp[dir.nr] = '/';

@@ -433,10 +433,9 @@ search(Text *ct, Rune *r, uint n, int reverse)
 int
 isfilec(Rune r)
 {
-	static Rune Lx[] = { '.', '-', '+', '/', ':', '@', 0 };
 	if(isalnum(r))
 		return TRUE;
-	if(runestrchr(Lx, r))
+	if(runestrchr(L".-+/:@", r))
 		return TRUE;
 	return FALSE;
 }
@@ -461,7 +460,6 @@ includefile(Rune *dir, Rune *file, int nfile)
 	int m, n;
 	char *a;
 	Rune *r;
-	static Rune Lslash[] = { '/', 0 };
 
 	m = runestrlen(dir);
 	a = emalloc((m+1+nfile)*UTFmax+1);
@@ -472,7 +470,7 @@ includefile(Rune *dir, Rune *file, int nfile)
 		return (Runestr){nil, 0};
 	r = runemalloc(m+1+nfile);
 	runemove(r, dir, m);
-	runemove(r+m, Lslash, 1);
+	runemove(r+m, L"/", 1);
 	runemove(r+m+1, file, nfile);
 	free(file);
 	return cleanrname((Runestr){r, m+1+nfile});
@@ -485,12 +483,6 @@ includename(Text *t, Rune *r, int n)
 {
 	Window *w;
 	char buf[128];
-	Rune Lsysinclude[] = { '/', 's', 'y', 's', '/', 'i', 'n', 'c', 'l', 'u', 'd', 'e', 0 };
-	Rune Lusrinclude[] = { '/', 'u', 's', 'r', '/', 'i', 'n', 'c', 'l', 'u', 'd', 'e', 0 };
-	Rune Lusrlocalinclude[] = { '/', 'u', 's', 'r', '/', 'l', 'o', 'c', 'a', 'l',
-			'/', 'i', 'n', 'c', 'l', 'u', 'd', 'e', 0 };
-	Rune Lusrlocalplan9include[] = { '/', 'u', 's', 'r', '/', 'l', 'o', 'c', 'a', 'l',
-			'/', 'p', 'l', 'a', 'n', '9', '/', 'i', 'n', 'c', 'l', 'u', 'd', 'e', 0 };
 	Runestr file;
 	int i;
 
@@ -512,13 +504,13 @@ includename(Text *t, Rune *r, int n)
 		file = includefile(w->incl[i], r, n);
 
 	if(file.r == nil)
-		file = includefile(Lsysinclude, r, n);
+		file = includefile(L"/sys/include", r, n);
 	if(file.r == nil)
-		file = includefile(Lusrlocalplan9include, r, n);
+		file = includefile(L"/usr/local/plan9/include", r, n);
 	if(file.r == nil)
-		file = includefile(Lusrlocalinclude, r, n);
+		file = includefile(L"/usr/local/include", r, n);
 	if(file.r == nil)
-		file = includefile(Lusrinclude, r, n);
+		file = includefile(L"/usr/include", r, n);
 	if(file.r==nil && objdir!=nil)
 		file = includefile(objdir, r, n);
 	if(file.r == nil)
@@ -588,14 +580,12 @@ expandfile(Text *t, uint q0, uint q1, Expand *e, int reverse)
 	Rune *r, c;
 	Window *w;
 	Runestr rs;
-	Rune Lhttpcss[] = {'h', 't', 't', 'p', ':', '/', '/', 0};
-	Rune Lhttpscss[] = {'h', 't', 't', 'p', 's', ':', '/', '/', 0};
 
 	amax = q1;
 	if(q1 == q0){
 		colon = -1;
 		while(q1<t->file->b.nc && isfilec(c=textreadc(t, q1))){
-			if(c == ':' && !texthas(t, q1-4, Lhttpcss) && !texthas(t, q1-5, Lhttpscss)){
+			if(c == ':' && !texthas(t, q1-4, L"http://") && !texthas(t, q1-5, L"https://")){
 				colon = q1;
 				break;
 			}
@@ -603,7 +593,7 @@ expandfile(Text *t, uint q0, uint q1, Expand *e, int reverse)
 		}
 		while(q0>0 && (isfilec(c=textreadc(t, q0-1)) || isaddrc(c) || isregexc(c))){
 			q0--;
-			if(colon<0 && c==':' && !texthas(t, q0-4, Lhttpcss) && !texthas(t, q0-5, Lhttpscss))
+			if(colon<0 && c==':' && !texthas(t, q0-4, L"http://") && !texthas(t, q0-5, L"https://"))
 				colon = q0;
 		}
 		/*
@@ -642,7 +632,7 @@ expandfile(Text *t, uint q0, uint q1, Expand *e, int reverse)
 	bufread(&t->file->b, q0, r, n);
 	r[n] = 0;
 	/* is it a URL? look for http:// and https:// prefix */
-	if(runestrncmp(r, Lhttpcss, 7) == 0 || runestrncmp(r, Lhttpscss, 8) == 0){
+	if(runestrncmp(r, L"http://", 7) == 0 || runestrncmp(r, L"https://", 8) == 0){
 		/* Avoid capturing end-of-sentence punctuation. */
 		if(r[n-1] == '.') {
 			e->q1--;

@@ -12,17 +12,6 @@
 #include "dat.h"
 #include "fns.h"
 
-static Rune Lheader[] = {
-	'N', 'e', 'w', ' ',
-	'C', 'u', 't', ' ',
-	'P', 'a', 's', 't', 'e', ' ',
-	'S', 'n', 'a', 'r', 'f', ' ',
-	'S', 'o', 'r', 't', ' ',
-	'Z', 'e', 'r', 'o', 'x', ' ',
-	'D', 'e', 'l', 'c', 'o', 'l', ' ',
-	0
-};
-
 void
 colinit(Column *c, Rectangle r)
 {
@@ -43,7 +32,7 @@ colinit(Column *c, Rectangle r)
 	r1.min.y = r1.max.y;
 	r1.max.y += Border;
 	draw(screen, r1, display->black, nil, ZP);
-	textinsert(t, 0, Lheader, 38, TRUE);
+	textinsert(t, 0, L"New Cut Paste Snarf Sort Zerox Delcol ", 38, TRUE);
 	textsetselect(t, t->file->b.nc, t->file->b.nc);
 	draw(screen, t->scrollr, colbutton, nil, colbutton->r.min);
 	c->safe = TRUE;

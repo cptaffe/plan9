@@ -71,14 +71,13 @@ errorwin1(Rune *dir, int ndir, Rune **incl, int nincl)
 	Window *w;
 	Rune *r;
 	int i, n;
-	static Rune Lpluserrors[] = { '+', 'E', 'r', 'r', 'o', 'r', 's', 0 };
 
 	r = runemalloc(ndir+8);
 	if(n = ndir){	/* assign = */
 		runemove(r, dir, ndir);
 		r[n++] = L'/';
 	}
-	runemove(r+n, Lpluserrors, 7);
+	runemove(r+n, L"+Errors", 7);
 	n += 7;
 	w = lookfile(r, n);
 	if(w == nil){

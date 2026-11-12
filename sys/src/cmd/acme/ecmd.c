@@ -345,7 +345,6 @@ e_cmd(Text *t, Cmd *cp)
 	return TRUE;
 }
 
-static Rune Lempty[] = { 0 };
 int
 f_cmd(Text *t, Cmd *cp)
 {
@@ -355,7 +354,7 @@ f_cmd(Text *t, Cmd *cp)
 
 	if(cp->u.text == nil){
 		empty.n = 0;
-		empty.r = Lempty;
+		empty.r = L"";
 		str = &empty;
 	}else
 		str = cp->u.text;

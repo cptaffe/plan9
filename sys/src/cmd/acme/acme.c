@@ -392,41 +392,6 @@ acmeerrorinit(void)
 	proccreate(acmeerrorproc, nil, STACK);
 }
 
-/*
-void
-plumbproc(void *v)
-{
-	Plumbmsg *m;
-
-	USED(v);
-	threadsetname("plumbproc");
-	for(;;){
-		m = threadplumbrecv(plumbeditfd);
-		if(m == nil)
-			threadexits(nil);
-		sendp(cplumb, m);
-	}
-}
-*/
-
-/* TODO: share these with exec.c */
-static Rune LDel[] = { 'D', 'e', 'l', 0 };
-static Rune LDelcol[] = { 'D', 'e', 'l', 'c', 'o', 'l', 0 };
-static Rune LLook[] = { 'L', 'o', 'o', 'k', 0 };
-static Rune LNew[] = { 'N', 'e', 'w', 0 };
-static Rune LNewcol[] = { 'N', 'e', 'w', 'c', 'o', 'l', 0 };
-static Rune LPut[] = { 'P', 'u', 't', 0 };
-static Rune LPutall[] = { 'P', 'u', 't', 'a', 'l', 'l', 0 };
-
-/* Custom commands */
-static Rune LSpell[] = { 'S', 'p', 'e', 'l', 'l', 0 };
-static Rune Lwin[] = { 'w', 'i', 'n', 0 };
-static Rune LLdef[] = { 'L', 'd', 'e', 'f', 0 };
-static Rune LLrefs[] = { 'L', 'r', 'e', 'f', 's', 0 };
-static Rune LV[] = { 'V', 0 };
-static Rune LSearch[] = { 'S', 'e', 'a', 'r', 'c', 'h', 0};
-static Rune LHighlight[] = { 'H', 'i', 'g', 'h', 'l', 'i', 'g', 'h', 't', 0 };
-
 typedef struct Keytab Keytab;
 struct Keytab
 {
