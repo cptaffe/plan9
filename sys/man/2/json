@@ -1,0 +1,314 @@
+.TH JSON 2
+.SH NAME
+jsondec, jsondecmem, jsondecfree, jsontoken, jsonmore, jsonskip, jsonraw, jsondecode, jsonenc, jsonbegin, jsonend, jsonkey, jsonstring, jsonstringn, jsonnumber, jsonint, jsonbool, jsonnull, jsonrawval, jsonquote \- JSON, as Go has it
+.SH SYNOPSIS
+.ta \w'Jsondec* 'u
+.B #include <u.h>
+.br
+.B #include <libc.h>
+.br
+.B #include <bio.h>
+.br
+.B #include <json.h>
+.PP
+.B
+Jsondec*	jsondec(Biobuf *b)
+.PP
+.B
+Jsondec*	jsondecmem(char *s, long n)
+.PP
+.B
+void	jsondecfree(Jsondec *d)
+.PP
+.B
+int	jsontoken(Jsondec *d, Jsontok *t)
+.PP
+.B
+int	jsonmore(Jsondec *d)
+.PP
+.B
+int	jsonskip(Jsondec *d)
+.PP
+.B
+int	jsonraw(Jsondec *d, Jsonraw *r)
+.PP
+.B
+int	jsondecode(Jsondec *d, Jsonfield *f, void *v)
+.PP
+.B
+void	jsonenc(Jsonenc *e, Fmt *f)
+.PP
+.B
+int	jsonbegin(Jsonenc *e, int c)
+.PP
+.B
+int	jsonend(Jsonenc *e)
+.PP
+.B
+int	jsonkey(Jsonenc *e, char *k)
+.PP
+.B
+int	jsonstring(Jsonenc *e, char *s)
+.PP
+.B
+int	jsonstringn(Jsonenc *e, char *s, long n)
+.PP
+.B
+int	jsonnumber(Jsonenc *e, char *text)
+.PP
+.B
+int	jsonint(Jsonenc *e, vlong v)
+.PP
+.B
+int	jsonbool(Jsonenc *e, int b)
+.PP
+.B
+int	jsonnull(Jsonenc *e)
+.PP
+.B
+int	jsonrawval(Jsonenc *e, char *s, long n)
+.PP
+.B
+int	jsonquote(Fmt *f, char *s, long n)
+.SH DESCRIPTION
+These routines read and write JSON (RFC 8259) the way Go's
+.B encoding/json
+package does: a decoder gives a stream's tokens, or decodes an object into a struct by a table
+of its fields, or gives a value's text as it came; an encoder writes values to a
+.IR Fmt
+(see
+.IR fmtinstall (2)),
+with the commas and colons between them.
+A number is its text, in both directions: what it means is for the program to say.
+.SS Decoding
+.I Jsondec
+decodes what the Biobuf
+.I b
+reads;
+.I jsondecmem
+decodes the
+.I n
+bytes at
+.IR s .
+The input may hold any number of values, one after another, with white space between them.
+.I Jsondecfree
+frees a decoder.
+.PP
+.I Jsontoken
+reads the next token into
+.IR t ,
+as Go's
+.B Decoder.Token
+does: the commas and colons are the decoder's, and do not come out.
+.I T->type
+is
+.BR '{' ,
+.BR '}' ,
+.BR '[' ,
+.BR ']' ,
+.BR JSONnull ,
+.BR JSONbool
+.RI ( t->b
+is its value),
+.BR JSONnumber ,
+or
+.BR JSONstring .
+For a number,
+.I t->s
+is its text; for a string, its decoded bytes, which may hold a NUL
+.RB ( \eu0000 ),
+and
+.I t->n
+is their length.
+Both stay until the next call.
+An object's keys come as strings.
+.I Jsontoken
+returns 1, or 0 at the end of the input between values, or \-1 on an error.
+.PP
+.I Jsonmore
+is whether the array or object being read has another element (Go's
+.BR Decoder.More ).
+.I Jsonskip
+reads the next value and drops it.
+.I Jsonraw
+reads the next value and gives its text, byte for byte as it came, in
+.IR r ,
+as Go's
+.BR json.RawMessage :
+.I r->s
+is malloc'd, and NUL-terminated, and
+.I r->n
+is its length.
+.PP
+.I Jsondecode
+reads an object into the struct at
+.IR v ,
+by the table
+.IR f ,
+whose last entry has a nil
+.IR name .
+An entry gives a key's
+.IR name ,
+the
+.I kind
+of its member, and the member's offset
+.RI ( off ,
+from
+.BR offsetof ).
+The kinds are
+.B Jstring
+(a
+.B char*
+to the decoded string),
+.B Jint
+.RB ( vlong ),
+.B Jfloat
+.RB ( double ),
+.B Jnumber
+(a
+.B char*
+to the number's text),
+.B Jbool
+.RB ( int ),
+.B Jraw
+(a
+.BR Jsonraw ),
+.B Jobject
+(a struct, by the table
+.IR sub ),
+and
+.BR Jfunc ,
+for which
+.I fn
+is called with the decoder and the member's address to read the value itself:
+an array, say, with
+.I jsontoken
+and
+.IR jsonmore .
+Strings are malloc'd.
+As in Go, a key that no entry names is skipped, and
+.B null
+leaves a member as it was; unlike Go, a key matches only a name that is the same.
+An object that is
+.B null
+leaves all of
+.I v
+as it was.
+.PP
+Escapes in strings are decoded as 9front's
+.IR json (2)
+decodes them; a
+.B \eu
+escape of a surrogate pair is one rune, and a surrogate alone is U+FFFD, as in Go.
+The first error stays: every call after it fails with it.
+.SS Encoding
+.I Jsonenc
+starts the encoder
+.I e
+on
+.IR f ,
+which
+.IR fmtstrinit ,
+.I fmtfdinit
+or a
+.I %
+verb's own
+.I Fmt
+has made ready.
+.I Jsonbegin
+opens an object
+.RB ( '{' )
+or an array
+.RB ( '[' );
+.I jsonend
+closes what was opened last.
+In an object,
+.I jsonkey
+comes before each value.
+.IR Jsonstring ,
+.IR jsonstringn ,
+.IR jsonnumber
+(a number's text, as it is),
+.IR jsonint ,
+.IR jsonbool ,
+.I jsonnull
+and
+.I jsonrawval
+(a value's text, as it is: a
+.IR Jsonraw 's,
+given back)
+write values.
+Values written one after another outside of any container are on lines of their own, as Go's
+.B Encoder
+writes them.
+.I Jsonquote
+writes the
+.I n
+bytes at
+.I s
+to
+.I f
+as a JSON string, with 9front's escapes; a byte that is not UTF-8 becomes
+.BR \eufffd .
+.SH EXAMPLE
+Read the
+.B type
+and
+.B usage
+of an event of Anthropic's Messages API, and write a request.
+.IP
+.EX
+typedef struct Ev Ev;
+struct Ev {
+	char *type;
+	vlong out;
+};
+Jsonfield usage[] = {
+	{"output_tokens", Jint, offsetof(Ev, out)},
+	{nil},
+};
+Jsonfield ev[] = {
+	{"type", Jstring, offsetof(Ev, type)},
+	{"usage", Jobject, 0, usage},
+	{nil},
+};
+.EE
+.IP
+.EX
+d = jsondecmem(data, strlen(data));
+if(jsondecode(d, ev, &e) < 0)
+	sysfatal("event: %r");
+jsondecfree(d);
+
+fmtstrinit(&f);
+jsonenc(&j, &f);
+jsonbegin(&j, '{');
+jsonkey(&j, "model");
+jsonstring(&j, "claude-opus-5-5");
+jsonkey(&j, "max_tokens");
+jsonint(&j, 32000);
+jsonend(&j);
+body = fmtstrflush(&f);
+.EE
+.SH SOURCE
+.B /sys/src/libjson
+.SH SEE ALSO
+.IR bio (2),
+.IR fmtinstall (2),
+.br
+Go's
+.B encoding/json
+package.
+.SH DIAGNOSTICS
+The routines that return
+.B int
+return \-1 on an error, and set the error string; a decoder's error says the offset in
+the input where it was found.
+An encoder's
+.I err
+is set once one of its writes has failed, and every write after fails.
+.SH BUGS
+Numbers are not checked when they are encoded, nor is a raw value.
+Unlike 9front's
+.IR json (2),
+there is no tree of values: a program reads into its own structs.
