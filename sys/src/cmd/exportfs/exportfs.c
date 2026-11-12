@@ -8,6 +8,9 @@
 #include <libsec.h>
 #define Extern
 #include "exportfs.h"
+#ifdef __wasm__
+#include <thread.h>	/* p9web: the slaves are libthread's procs (exportsrv.c) */
+#endif
 
 #define QIDPATH	((1LL<<48)-1)
 vlong newqid = 0;
@@ -82,7 +85,11 @@ noteconn(int fd)
 }
 
 void
+#ifdef __wasm__
+threadmain(int argc, char **argv)
+#else
 main(int argc, char **argv)
+#endif
 {
 	char buf[ERRMAX], ebuf[ERRMAX], initial[4], *ini, *srvfdfile;
 	char *dbfile, *srv, *na, *nsfile, *keyspec;

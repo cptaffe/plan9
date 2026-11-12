@@ -4,6 +4,47 @@
 #include <fcall.h>
 #define Extern	extern
 #include "exportfs.h"
+#ifdef __wasm__
+#include <thread.h>
+
+/*
+ * p9web: a process that shares memory is a fiber of libthread's here, which proccreate makes:
+ * rfork(RFPROC|RFMEM) has no stack of its own to return on. A slave's note handler is its own
+ * proc's (threadnotify), where notify's would be every proc's, for they share memory.
+ */
+static int
+slavenote(void*, char *cause)
+{
+	if(strncmp(cause, "sys:", 4) == 0 && !strstr(cause, "pipe")) {
+		fprint(2, "exportsrv: note: %s\n", cause);
+		exits("noted");
+	}
+	return strncmp(cause, "kill", 4) != 0;
+}
+
+static void
+slaveproc(void *a)
+{
+	Proc *m;
+
+	m = a;
+	threadnotify(slavenote, 1);
+	m->pid = getpid();
+	blockingslave(m);
+	threadexits(nil);
+}
+
+static int
+slavecreate(Proc *m)
+{
+	m->pid = 0;
+	if(proccreate(slaveproc, m, 32*1024) < 0)
+		return -1;
+	while(m->pid == 0)
+		yield();
+	return m->pid;
+}
+#endif
 
 extern char *netdir, *local, *remote;
 
@@ -509,7 +550,11 @@ slave(Fsrpc *f)
 			return;
 
 		m = emallocz(sizeof(Proc));
+#ifdef __wasm__
+		pid = slavecreate(m);	/* the parent's, never 0 */
+#else
 		pid = rfork(RFPROC|RFMEM|RFNOWAIT);
+#endif
 		switch(pid) {
 		case -1:
 			reply(&f->work, &rhdr, Enoprocs);
@@ -542,7 +587,9 @@ blockingslave(Proc *m)
 	Fsrpc *p;
 	Fcall rhdr;
 
-	notify(flushaction);
+#ifndef __wasm__
+	notify(flushaction);	/* p9web: slaveproc's threadnotify */
+#endif
 
 	for(;;) {
 		p = rendezvous(m, nil);
@@ -596,7 +643,12 @@ openmount(int sfd)
 	if(pipe(p) < 0)
 		return -1;
 
+	/* p9web: no RFMEM, for the child only execs (and RFMEM is libthread's here) */
+#ifdef __wasm__
+	switch(rfork(RFPROC|RFNOWAIT|RFNAMEG|RFFDG|RFREND)){
+#else
 	switch(rfork(RFPROC|RFMEM|RFNOWAIT|RFNAMEG|RFFDG|RFREND)){
+#endif
 	case -1:
 		close(p[0]);
 		close(p[1]);
