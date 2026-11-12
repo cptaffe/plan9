@@ -38,7 +38,7 @@ case terminal
 !
 if(! test -e lib/plumbing)
 	cat > lib/plumbing <<!
-# to update: cat $home/lib/plumbing | 9p write plumb/rules
+# to update: cp /usr/$user/lib/plumbing /mnt/plumb/rules
 
 editor = acme
 
