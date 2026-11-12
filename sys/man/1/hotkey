@@ -78,6 +78,14 @@ command in braces that runs to the end of the line.
 Lines starting with
 .B #
 are comments.
+A line
+.BI include " file"
+reads the rules in
+.IR file ,
+or in
+.BI /lib/hotkey/ file
+if its name does not start with
+.BR / .
 A key is a character;
 .BI cmd- c\f1,
 for the Mac's Command key with
@@ -108,7 +116,16 @@ or one of
 .BR tab ,
 and
 .BR up .
-No rule's keys may duplicate or begin another rule's.
+A rule replaces any earlier rule that clashes with it:
+.B ctl-x ctl-s
+replaces an earlier
+.BR "ctl-x ctl-s" ,
+.BR ctl-x ,
+or
+.BR "ctl-x ctl-s q" .
+So a rule after an
+.B include
+can change a key the included file binds.
 .PP
 Commands run in
 .IR hotkey 's
@@ -207,9 +224,10 @@ user rules
 .B /lib/hotkey/acme.emacs
 Emacs's keys for
 .IR acme ;
-copy it to
+.B include acme.emacs
+in
 .B $home/lib/hotkey/acme
-to use them
+uses them
 .PD
 .SH SOURCE
 plan9web's

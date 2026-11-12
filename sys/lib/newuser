@@ -43,7 +43,7 @@ include basic
 !
 if(! test -e lib/hotkey/acme){
 	mkdir -p lib/hotkey
-	cp /lib/hotkey/acme.emacs lib/hotkey/acme
+	echo include acme.emacs >lib/hotkey/acme
 }
 if(! test -e README)
 	cat > README <<'!'
