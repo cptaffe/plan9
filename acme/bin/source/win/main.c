@@ -150,6 +150,7 @@ utfncpy(char *to, char *from, int n)
 /* sendinput and fsloop run in the same proc (can't interrupt each other). */
 static Req *q;
 static Req **eq;
+static int eofsent;
 static int
 __sendinput(Window *w, ulong q0, ulong q1)
 {
@@ -212,7 +213,8 @@ __sendinput(Window *w, ulong q0, ulong q1)
 		goto Partial;
 	}
 	n = utfnlen(r->ofcall.data, nb);
-	if(nb==strlen(s) && eofchar)
+	eofsent = nb==strlen(s) && eofchar;
+	if(eofsent)
 		n++;
 	r->ofcall.count = nb;
 	q = r->aux;
@@ -231,7 +233,15 @@ _sendinput(Window *w, ulong q0, ulong *q1)
 	char buf[32];
 	int n;
 
+	eofsent = 0;
 	n = __sendinput(w, q0, *q1);
+	if(n && eofsent && !eraseinput){
+		sprint(buf, "#%lud,#%lud", q0+n-1, q0+n);
+		winsetaddr(w, buf, 0);
+		write(w->data, buf, 0);
+		*q1 -= 1;
+		return n-1;
+	}
 	if(!n || !eraseinput)
 		return n;
 	/* erase q0 to q0+n */
