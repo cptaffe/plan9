@@ -64,7 +64,8 @@ button 1 to resize it, or button 3 to move it.
 
 To run a command, type it anywhere, then click it with B2. Try ls /bin or
 echo hello. The window on the right is win: rc, the Plan 9 shell, in an Acme
-window. Type a command at its end and press Return; Ctrl-C interrupts it.
+window. Type a command at its end and press Return; Del interrupts it
+(on a Mac, Fn-Delete).
 man acme shows Acme's manual page.
 
 B2 on New makes a window, and B2 on Put saves a file. B3 on a file name, such
