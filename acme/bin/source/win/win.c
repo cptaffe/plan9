@@ -32,6 +32,57 @@ winsetdump(Window *w, char *dir, char *cmd)
 		ctlprint(w->ctl, "dump %s\n", cmd);
 }
 
+static void
+winlogproc(void *v)
+{
+	Window *w;
+	char buf[512];
+
+	w = v;
+	while(read(w->log, buf, sizeof buf) > 0)
+		;
+}
+
+int
+winguard(Window *w)
+{
+	char buf[64];
+	int n;
+
+	sprint(buf, "/mnt/acme/%d/log", w->id);
+	w->log = open(buf, OREAD|OCEXEC);
+	w->seq = winopenfile(w, "seq");
+	if(w->log < 0)
+		error("can't open window file log: %r");
+	proccreate(winlogproc, w, STACK);
+	n = read(w->seq, buf, sizeof buf-1);
+	if(n < 0)
+		error("reading seq: %r");
+	buf[n] = 0;
+	return atoi(buf);
+}
+
+int
+winput(Window *w, uint q, int seq, char *s, int n)
+{
+	char buf[32];
+	int fd;
+
+	sprint(buf, "#%ud", q);
+	if(!winsetaddr(w, buf, 1))
+		return 0;
+	fprint(w->seq, "%d", seq);
+	fd = winopenfile(w, "data");
+	n = write(fd, s, n);
+	close(fd);
+	if(n >= 0)
+		return 1;
+	rerrstr(buf, sizeof buf);
+	if(strcmp(buf, "seq mismatch") == 0)
+		return 0;
+	return -1;
+}
+
 void
 wineventproc(void *v)
 {

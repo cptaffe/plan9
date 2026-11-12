@@ -40,6 +40,8 @@ struct Window
 	int		addr;
 	int		data;
 	int		body;
+	int		seq;
+	int		log;
 
 	/* event input */
 	char		buf[512];
@@ -66,6 +68,8 @@ extern	int		winselect(Window*, char*, int);
 extern	int		winsetaddr(Window*, char*, int);
 extern	void		windormant(Window*);
 extern	void		winsetdump(Window*, char*, char*);
+extern	int		winguard(Window*);
+extern	int		winput(Window*, uint, int, char*, int);
 
 extern	void		ctlprint(int, char*, ...);
 extern	void*	emalloc(uint);
