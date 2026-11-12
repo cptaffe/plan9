@@ -12,7 +12,7 @@
 
 #define	F(name)	__attribute__((import_module("p9web"), import_name(name)))
 
-F("fiber_new") extern int fibernew(void (*)(void*), void*, void*, int, void*, int, int);
+F("fiber_new") extern int fibernew(void (*)(void*), void*, void*, int, void*, int, int);	/* the last: a new proc's rfork flags, or 0 */
 F("fiber_self") extern int fiberself(void);
 F("fiber_getdata") extern void* fibergetdata(void);
 F("fiber_setdata") extern void fibersetdata(void*);
@@ -37,11 +37,11 @@ fibermain(void (*fn)(void*), void *arg)
 }
 
 static int
-newfiber(void (*fn)(void*), void *arg, uchar *stk, uint n, uchar *abuf, int own)
+newfiber(void (*fn)(void*), void *arg, uchar *stk, uint n, uchar *abuf, int flag)
 {
 	int r;
 
-	if((r = fibernew(fn, arg, stk, n, abuf, Abuf, own)) < 0)
+	if((r = fibernew(fn, arg, stk, n, abuf, Abuf, flag)) < 0)
 		sysfatal("fiber_new: error %d", -r);
 	return r;
 }
@@ -127,16 +127,16 @@ schedstart(void *v)
 	Proc *p;
 
 	p = v;
-	if(p->rforkflag)
-		rfork(p->rforkflag);
 	_schedinit(p);
 }
 
-/* _schedfork starts proc p: a kernel process in this memory, and a fiber for its scheduler. */
+/* _schedfork starts proc p: a kernel process in this memory, made by the rfork that makes it
+ * (procrfork's flags too: what RFFDG copies is this proc's now, not when p first runs), and a
+ * fiber for its scheduler. */
 int
 _schedfork(Proc *p)
 {
-	newfiber(schedstart, p, _threadmalloc(Minstack, 0), Minstack, _threadmalloc(Abuf, 0), 1);
+	newfiber(schedstart, p, _threadmalloc(Minstack, 0), Minstack, _threadmalloc(Abuf, 0), RFPROC|RFMEM|RFNOWAIT|p->rforkflag);
 	return 0;
 }
 

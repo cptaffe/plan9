@@ -25,11 +25,7 @@ case terminal
 		while(test -e /proc/$mix/status && ! grep -s '^mix ' /dev/volume >/dev/null)
 			sleep 0.1
 	}
-	# plan9port's plumber stays in the foreground on p9web: libthread's first proc holds its memory
-	plumber &
-	while(! test -e /srv/plumb)
-		sleep 0.1
-	mount /srv/plumb /mnt/plumb
+	plumber
 	dropped &
 	prompt=('% ' '	')
 	fn %{ $* }
