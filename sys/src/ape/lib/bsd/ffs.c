@@ -8,8 +8,9 @@
  */
 
 int
-ffs(unsigned int mask)
+ffs(int m)
 {
+	unsigned int mask = m;
 	int i;
 
 	if (!mask)

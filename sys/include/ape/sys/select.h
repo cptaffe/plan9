@@ -44,7 +44,7 @@ struct timezone {
 #ifndef _TIMESPEC
 #define _TIMESPEC
 struct timespec {
-	long	tv_sec;	/* time_t */
+	time_t	tv_sec;
 	long	tv_nsec;
 };
 #endif
