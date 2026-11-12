@@ -733,9 +733,9 @@ morerules(uchar *text, int done)
 		 * occur on write rather than close. A heuristic will do: blank line ends rule.
 		 */
 		endofrule = nil;
-		for(s=text; *s!='\0'; s++)
-			if(*s=='\n' && *++s=='\n')
-				endofrule = s+1;
+		for(s=text; *s!='\0'; s++)	/* p9web: *++s stepped over a final NUL, and on past the text */
+			if(s[0]=='\n' && s[1]=='\n')
+				endofrule = s+2;
 		if(endofrule == nil)
 			return text;
 		input->end = endofrule;
