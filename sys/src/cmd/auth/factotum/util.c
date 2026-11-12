@@ -325,7 +325,7 @@ mkkeyinfo(Keyinfo *k, Fsstate *fss, Attr *attr)
 int
 findkey(Key **ret, Keyinfo *ki, char *fmt, ...)
 {
-	int i, s, nmatch;
+	int i, s, nmatch, refused;
 	char buf[1024], *p, *who;
 	va_list arg;
 	Attr *a, *attr0, *attr1, *attr2, *attr3, **l;
@@ -365,6 +365,7 @@ findkey(Key **ret, Keyinfo *ki, char *fmt, ...)
 	}
 
 	nmatch = 0;
+	refused = 0;
 	for(i=0; i<ring->nkey; i++){
 		k = ring->key[i];
 		if(_strfindattr(k->attr, "disabled") && !ki->usedisabled)
@@ -381,6 +382,7 @@ findkey(Key **ret, Keyinfo *ki, char *fmt, ...)
 					_freeattr(attr1);
 					return RpcConfirm;
 				case 0:
+					refused = 1;
 					continue;
 				case 1:
 					break;
@@ -399,7 +401,14 @@ findkey(Key **ret, Keyinfo *ki, char *fmt, ...)
 	_freeattr(attr2);
 	_freeattr(attr3);
 	s = RpcFailure;
-	if(askforkeys && who==nil && (hasqueries(attr0) || hasqueries(attr1))){
+	/*
+	 * p9web: a key the user refused fails the rpc. Asking for a key instead gave fgui a needkey
+	 * with nothing in it (a key matched, so no keyinfo), which it answered at once, and the rpc
+	 * found the refused key again: around and around.
+	 */
+	if(refused)
+		werrstr("confirmation refused");
+	else if(askforkeys && who==nil && (hasqueries(attr0) || hasqueries(attr1))){
 		if(nmatch == 0){
 			attr0 = _copyattr(attr0);
 			for(l=&attr0; *l; l=&(*l)->next)

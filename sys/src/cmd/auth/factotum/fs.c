@@ -467,6 +467,7 @@ keylist(int i, char *a, uint n, Fsstate *fss)
 	ki.attr = nil;
 	ki.skip = i;
 	ki.usedisabled = 1;
+	ki.noconf = 1;	/* p9web: listing a key is no use of it; a confirm key stopped the list */
 	if(findkey(&k, &ki, "") != RpcOk)
 		return 0;
 

@@ -7,7 +7,11 @@
 static void
 rforker(void (*fn)(void*), void *arg, int flag)
 {
-	switch(rfork(RFPROC|RFMEM|RFNOWAIT|flag)){
+	/*
+	 * p9web: no RFMEM. A process that shares memory is a fiber of libthread's here, and the
+	 * server's process needs nothing of its parent's after the fork: the parent mounts and goes.
+	 */
+	switch(rfork(RFPROC|RFNOWAIT|flag)){
 	case -1:
 		sysfatal("rfork: %r");
 	default:

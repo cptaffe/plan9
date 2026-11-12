@@ -13,6 +13,11 @@ bind -a #m /dev
 bind -a #i /dev
 bind -a #A /dev
 
+# authentication
+mount -a /srv/factotum /mnt
+# the web: #W, p9web's webfs in the kernel (Plan 9's termrc runs webfs(4))
+bind '#W' /mnt/web
+
 # the file server of /usr: fossil, on #S (boot's usrfs)
 mount -c #s/fossil /usr
 

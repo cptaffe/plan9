@@ -37,6 +37,20 @@ fn aesput{
 	auth/aescbc -i -e > $1 < `{basename $1} <[3] _password
 }
 
+# keysget and keysput: p9web's keys partition, which boot loads into factotum in secstore's
+# place, and only the hostowner reads: its text, up to the zeros that fill the rest.
+keys='#S/sdW0/keys'
+fn keysget{
+	tr -d '\000' <$keys >$1
+}
+
+fn keysput{
+	if(! dd -if $1 -of $keys -trunc 0 >[2]/dev/null)
+		status=write
+	if not
+		dd -if /dev/zero -of $keys -bs 1 -count 1 -seek `{wc -c <$1} -trunc 0 >[2]/dev/null
+}
+
 fn editedfiles{
 	if(~ $get aesget){
 		for(i in $files)
@@ -59,6 +73,10 @@ while(~ $1 -*){
 		name = aescbc
 		get = aesget
 		put = aesput
+	case -k
+		name = keys
+		get = keysget
+		put = keysput
 	case -f
 		flush = yes
 	case -e
@@ -66,7 +84,7 @@ while(~ $1 -*){
 	case -l
 		load = yes
 	case *
-		echo >[2=1] 'usage: ipso [-a -f -e -l] [-s] [file ...]'
+		echo >[2=1] 'usage: ipso [-a -k -f -e -l] [-s] [file ...]'
 		exit usage
 	}
 	shift
@@ -99,16 +117,20 @@ if ( ~ $edit yes ) echo '
 	Warning: The editor will display the secret contents of
 	your '$name' files in the clear.
 '
-# get password and remember it
-{
-	echo rawon
-	echo -n $name password: >/dev/cons
-	read > _password
-	echo > /dev/cons
-}</dev/cons > /dev/consctl
+# get password and remember it (the keys partition has none: its file's mode keeps it)
+if(! ~ $get keysget){
+	{
+		echo rawon
+		echo -n $name password: >/dev/cons
+		read > _password
+		echo > /dev/cons
+	}</dev/cons > /dev/consctl
+}
 
 # get list of files
-if(~ $#* 0){
+if(~ $get keysget)
+	files = factotum
+if not if(~ $#* 0){
 	if(! auth/secstore -G . -i < _password > _listing){
 		echo 'secstore read failed - bad password?'
 		sleep 2
