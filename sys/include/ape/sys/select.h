@@ -24,8 +24,12 @@ typedef struct fd_set {
 
 #ifndef __TIMEVAL__
 #define __TIMEVAL__
+#ifndef _TIME_T
+#define _TIME_T
+typedef long long time_t;
+#endif
 struct timeval {
-	long	tv_sec;
+	time_t	tv_sec;	/* p9web: POSIX's, 64 bits */
 	long	tv_usec;
 };
 #ifdef _BSD_EXTENSION

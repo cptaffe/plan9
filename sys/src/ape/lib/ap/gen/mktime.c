@@ -2,9 +2,8 @@
 
 /*
  * BUG: Doesn't do leap years in full glory,
- * or calendar changes. In 2038 the sign bit
- * will be needed in time_t, but we say it
- * can't be represented.
+ * or calendar changes. p9web: time_t is 64 bits,
+ * and a time before 1970 is a negative one.
  */
 static int
 dysize(int y)
@@ -92,15 +91,13 @@ mktime(struct tm *t)
 	t->tm_yday = t->tm_mday-1;
 	for(i=0; i<t->tm_mon; i++)
 		t->tm_yday += dmsize(i, t->tm_year);
-	a += t->tm_yday*86400L;
+	a += t->tm_yday*86400LL;
 	if(t->tm_year < 70){
 		for(i=t->tm_year; i<70; i++)
-			if((a -= dysize(i)*86400L) < 0)
-				return -1;
+			a -= dysize(i)*86400LL;
 	}else if(t->tm_year > 70){
 		for(i=70; i<t->tm_year; i++)
-			if((a += dysize(i)*86400L) < 0)
-				return -1;
+			a += dysize(i)*86400LL;
 	}
 	/*
 	 * Now a is number of seconds past Jan 1 1970.

@@ -155,7 +155,7 @@ struct tm*
 localtime_r(const time_t *timp, struct tm *result)
 {
 	struct tm *ct;
-	unsigned long t, tim;
+	time_t t, tim;	/* p9web: time_t's, not unsigned long's: gmtime_r reads a time_t */
 	unsigned long *p;
 	int dlflag;
 
@@ -164,13 +164,13 @@ localtime_r(const time_t *timp, struct tm *result)
 	t = tim + tz.stdiff;
 	dlflag = 0;
 	for(p = tz.dlpairs; *p; p += 2)
-		if(t >= p[0])
-		if(t < p[1]) {
+		if(t >= (time_t)p[0])
+		if(t < (time_t)p[1]) {
 			t = tim + tz.dldiff;
 			dlflag++;
 			break;
 		}
-	ct = gmtime_r((time_t *)&t, result);
+	ct = gmtime_r(&t, result);
 	ct->tm_isdst = dlflag;
 	return ct;
 }
