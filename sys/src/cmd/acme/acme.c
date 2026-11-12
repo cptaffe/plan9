@@ -62,6 +62,7 @@ threadmain(int argc, char *argv[])
 {
 	int i;
 	char *p, *loadfile;
+	char buf[256];
 	Column *c;
 	int ncol;
 	Display *d;
@@ -143,13 +144,11 @@ threadmain(int argc, char *argv[])
 		rowloadfonts(loadfile);
 	putenv("font", fontnames[0]);
 	snarffd = open("/dev/snarf", OREAD|OCEXEC);
-/*
 	if(cputype){
 		sprint(buf, "/acme/bin/%s", cputype);
 		bind(buf, "/bin", MBEFORE);
 	}
 	bind("/acme/bin", "/bin", MBEFORE);
-*/
 	getwd(wdir, sizeof wdir);
 
 /*
