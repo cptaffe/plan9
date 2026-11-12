@@ -221,6 +221,11 @@ system rules, by program
 .B $home/lib/hotkey/*
 user rules
 .TP
+.B /lib/hotkey/rio
+the Mac's Command keys as control keys:
+Command-C, V, X and Z become control-C, V, X and Z,
+and Command-Shift-Z becomes control-R
+.TP
 .B /lib/hotkey/acme.emacs
 Emacs's keys for
 .IR acme ;

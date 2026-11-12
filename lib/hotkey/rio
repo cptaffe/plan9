@@ -1,0 +1,5 @@
+cmd-c	{echo ctl-c >/mnt/hotkey/send}
+cmd-v	{echo ctl-v >/mnt/hotkey/send}
+cmd-x	{echo ctl-x >/mnt/hotkey/send}
+cmd-z	{echo ctl-z >/mnt/hotkey/send}
+cmd-Z	{echo ctl-r >/mnt/hotkey/send}

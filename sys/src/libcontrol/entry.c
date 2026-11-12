@@ -305,7 +305,6 @@ entrykey(Entry *e, Rune r)
 		e->ntext = 0;
 		break;
 	case 0x16:	/* control V: paste (append snarf buffer) */
-	case Kcmd+'v':
 		s = _ctlgetsnarf();
 		if(s != nil){
 			n = runestrlen(s);

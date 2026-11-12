@@ -634,6 +634,21 @@ wkeyctl(Window *w, Rune r)
 		waddraw(w, &r, 1);
 		return;
 	}
+	switch(r){
+	case 0x03:
+		wsnarf(w);
+		return;
+	case 0x18:
+		wsnarf(w);
+		wcut(w);
+		wscrdraw(w);
+		return;
+	case 0x16:
+		getsnarf();
+		wpaste(w);
+		wscrdraw(w);
+		return;
+	}
 	if(r==0x1B || (w->holding && r==0x7F)){	/* toggle hold */
 		if(w->holding)
 			--w->holding;
