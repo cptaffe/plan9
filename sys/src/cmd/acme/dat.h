@@ -618,7 +618,6 @@ int fsyspid;
 char *cputype;
 char *objtype;
 char *home;
-char *acmeshell;
 char *fontnames[2];
 Image *tagcols[NCOL];
 Image *textcols[NCOL];

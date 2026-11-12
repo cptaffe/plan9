@@ -395,7 +395,6 @@ mainctl(void *v)
 	Event *e, *held;
 	int delta, pendingS, pendingK, seq, try;
 	ulong hostpt, endpt;
-	char tmp[32];
 
 	w = v;
 	seq = winguard(w);
@@ -493,14 +492,8 @@ mainctl(void *v)
 					endpt = e->q1;
 				if(e->q0 < hostpt)
 					hostpt += delta;
-				/* p9web: ^C too, as plan9port's win: its Acme erases with Delete (0x7F) */
-				if(e->nr>0 && (e->r[e->nr-1]==0x7F || e->r[e->nr-1]==0x03)){
+				if(e->nr>0 && e->r[e->nr-1]==0x7F){
 					write(notepg, "interrupt", 9);
-					/* p9web: the typed ^C out of the body, as plan9port's win takes it */
-					sprint(tmp, "#%d,#%d", e->q1-1, e->q1);
-					winsetaddr(w, tmp, 0);
-					write(w->data, tmp, 0);
-					endpt--;
 					hostpt = endpt;
 					break;
 				}
@@ -648,7 +641,7 @@ startcmd(char *argv[], int *notepg)
 	e->argv = argv;
 	cpid = chancreate(sizeof(ulong), 0);
 	e->cpid = cpid;
-	sprint(buf, "/mnt/acme/%d", win->id);	/* p9web: Acme's files are at /mnt/acme */
+	sprint(buf, "/mnt/wsys/%d", win->id);
 	bind(buf, "/dev/acme", MREPL);
 	proccreate(execproc, e, EXECSTACK);
 	do

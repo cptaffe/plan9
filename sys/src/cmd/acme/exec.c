@@ -1580,7 +1580,6 @@ runproc(void *argvp)
 	/*static void *parg[2]; */
 	char *rcarg[4];
 	void **argv;
-	char *shell;
 
 	threadsetname("runproc");
 
@@ -1664,6 +1663,13 @@ runproc(void *argvp)
 			c->md = nil;
 			threadexits("mount");
 		}
+		bind("/mnt/acme", "/mnt/wsys", MREPL);
+		if(bind("/mnt/acme", "/dev", MBEFORE) < 0){
+			fprint(2, "child: can't bind /dev: %r\n");
+			fsysdelid(c->md);
+			c->md = nil;
+			threadexits("bind");
+		}
 		if(winid>0 && (pipechar=='|' || pipechar=='>')){
 			sprint(buf, "/mnt/acme/%d/rdsel", winid);
 			sfd[0] = open(buf, OREAD);
@@ -1695,8 +1701,6 @@ runproc(void *argvp)
 
 	if(argaddr)
 		putenv("acmeaddr", argaddr);
-	if(acmeshell != nil)
-		goto Hard;
 	if(strlen(t) > sizeof buf-10)	/* may need to print into stack */
 		goto Hard;
 	inarg = FALSE;
@@ -1706,7 +1710,7 @@ runproc(void *argvp)
 			continue;
 		if(r < ' ')
 			goto Hard;
-		if(utfrune("#;&|^$=`'{}()<>[]*?^~`/", r))
+		if(utfrune("#;&|^$=`'{}()<>[]*?^~`", r))
 			goto Hard;
 		inarg = TRUE;
 	}
@@ -1789,10 +1793,7 @@ Hard:
 	dir = nil;
 	if(rdir != nil)
 		dir = runetobyte(rdir, ndir);
-	shell = acmeshell;
-	if(shell == nil)
-		shell = "rc";
-	rcarg[0] = shell;
+	rcarg[0] = "rc";
 	rcarg[1] = "-c";
 	rcarg[2] = t;
 	rcarg[3] = nil;
@@ -1807,7 +1808,7 @@ Hard:
 			sendul(cpid, ret);
 		threadexits(nil);
 	}
-	warning(nil, "exec %s: %r\n", shell);
+	warning(nil, "exec rc: %r\n");
 
    Fail:
 	/* threadexec hasn't happened, so send a zero */
