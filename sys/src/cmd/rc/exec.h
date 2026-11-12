@@ -51,7 +51,6 @@ struct thread{
 	int eof;			/* is cmdfd at eof? */
 	int iflag;			/* interactive? */
 	int line, col;
-	int nl;
 	int pid;			/* process for Xpipewait to wait for */
 	char status[NSTATUS];		/* status for Xpipewait */
 	tree *treenodes;		/* tree nodes created by this process */
@@ -64,7 +63,8 @@ typedef struct source source;
 struct source{
 	code *code;
 	char *file;
-	int iflag;
+	int own;
+	range from;
 	int n;
 	struct{
 		int pc;

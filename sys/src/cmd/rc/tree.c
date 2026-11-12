@@ -82,8 +82,6 @@ tree3(int type, tree *c0, tree *c1, tree *c2)
 	span(t, c0);
 	span(t, c1);
 	span(t, c2);
-	if(t->src.line && (type=='$' || type==SUB || type==COUNT || type=='"'))
-		t->src.col -= type=='$' || type==SUB? 1: 2;
 	return t;
 }
 

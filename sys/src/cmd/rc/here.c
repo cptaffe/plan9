@@ -24,6 +24,7 @@ tree*
 heredoc(tree *tag)
 {
 	struct here *h = new(struct here);
+	tree *t;
 
 	if(tag->type != WORD)
 		yyerror("Bad here tag");
@@ -37,7 +38,9 @@ heredoc(tree *tag)
 	hexnum(&tmp[9], getpid());
 	hexnum(&tmp[14], ser++);
 	h->name = strdup(tmp);
-	return token(tmp, WORD);
+	t = token(tmp, WORD);
+	t->src = tag->src;
+	return t;
 }
 
 /*

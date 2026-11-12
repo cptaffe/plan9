@@ -1,4 +1,4 @@
-%term FOR IN WHILE IF NOT TWIDDLE BANG SUBSHELL SWITCH FN
+%term FOR IN WHILE IF NOT TWIDDLE BANG SUBSHELL SWITCH FN ELSE BREAK CONTINUE RETURN
 %term WORD REDIR DUP PIPE SUB
 %term SIMPLE ARGLIST WORDS BRACE PAREN PCMD PIPEFD /* not used in syntax */
 /* operator priorities -- lowest first */
@@ -17,9 +17,9 @@
 	struct tree *tree;
 };
 %type<tree> line paren brace body cmdsa cmdsan assign epilog redir
-%type<tree> cmd simple first word comword keyword words
-%type<tree> NOT FOR IN WHILE IF TWIDDLE BANG SUBSHELL SWITCH FN
-%type<tree> WORD REDIR DUP PIPE
+%type<tree> cmd simple first word comword keyword words iftail
+%type<tree> NOT FOR IN WHILE IF TWIDDLE BANG SUBSHELL SWITCH FN ELSE BREAK CONTINUE RETURN
+%type<tree> WORD REDIR DUP PIPE '$' '"' COUNT
 %%
 rc:				{ return 1;}
 |	line '\n'		{return !compile($1);}
@@ -40,7 +40,7 @@ redir:	REDIR word		{$$=mung1($1, $1->rtype==HERE?heredoc($2):$2);}
 |	DUP
 cmd:				{$$=0;}
 |	brace epilog		{$$=epimung($1, $2);}
-|	IF paren {skipnl();} cmd
+|	IF paren {skipnl();} iftail
 				{$$=mung2($1, $2, $4);}
 |	IF NOT {skipnl();} cmd	{$$=mung1($2, $4);}
 |	FOR '(' word IN words ')' {skipnl();} cmd
@@ -70,6 +70,11 @@ cmd:				{$$=0;}
 |	SUBSHELL cmd		{$$=mung1($1, $2);}
 |	FN words brace		{$$=tree2(FN, $2, $3);}
 |	FN words		{$$=tree1(FN, $2);}
+|	BREAK
+|	CONTINUE
+|	RETURN words		{$$=mung1($1, $2);}
+iftail:	cmd
+|	brace ELSE {skipnl();} cmd	{$$=mung2($2, $1, $4);}
 simple:	first
 |	simple word		{$$=tree2(ARGLIST, $1, $2);}
 |	simple redir		{$$=tree2(ARGLIST, $1, $2);}
@@ -78,15 +83,15 @@ first:	comword
 word:	keyword			{lastword=1; $1->type=WORD;}
 |	comword
 |	word '^' word		{$$=tree2('^', $1, $3);}
-comword: '$' word		{$$=tree1('$', $2);}
-|	'$' word SUB words ')'	{$$=tree2(SUB, $2, $4);}
-|	'"' word		{$$=tree1('"', $2);}
-|	COUNT word		{$$=tree1(COUNT, $2);}
+comword: '$' word		{$$=mung1($1, $2);}
+|	'$' word SUB words ')'	{$$=mung2($1, $2, $4); $$->type=SUB;}
+|	'"' word		{$$=mung1($1, $2);}
+|	COUNT word		{$$=mung1($1, $2);}
 |	WORD
 |	'`' brace		{$$=tree2('`', (struct tree*)0, $2);}
 |	'`' word brace		{$$=tree2('`', $2, $3);}
 |	'(' words ')'		{$$=tree1(PAREN, $2);}
 |	REDIR brace		{$$=mung1($1, $2); $$->type=PIPEFD;}
-keyword: FOR|IN|WHILE|IF|NOT|TWIDDLE|BANG|SUBSHELL|SWITCH|FN
+keyword: FOR|IN|WHILE|IF|NOT|TWIDDLE|BANG|SUBSHELL|SWITCH|FN|ELSE|BREAK|CONTINUE|RETURN
 words:				{$$=(struct tree*)0;}
 |	words word		{$$=tree2(WORDS, $1, $2);}

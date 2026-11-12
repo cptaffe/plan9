@@ -49,6 +49,14 @@ pcmd(io *f, tree *t)
 	break;
 	case NOT:	pfmt(f, "if not %t", c0);
 	break;
+	case ELSE:	pfmt(f, "%t else %t", c0, c1);
+	break;
+	case BREAK:	pfmt(f, "break");
+	break;
+	case CONTINUE:	pfmt(f, "continue");
+	break;
+	case RETURN:	pfmt(f, c0? "return %t": "return", c0);
+	break;
 	case OROR:	pfmt(f, "%t || %t", c0, c1);
 	break;
 	case PCMD:

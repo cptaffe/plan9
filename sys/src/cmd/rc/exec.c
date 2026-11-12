@@ -25,9 +25,8 @@ start(code *c, int pc, var *local)
 	p->cmdfd = 0;
 	p->eof = 0;
 	p->iflag = 0;
-	p->line = 1;
+	p->line = 0;
 	p->col = 0;
-	p->nl = 0;
 	p->ret = runq;
 	runq = p;
 }
@@ -858,7 +857,7 @@ void
 Xlocal(void)
 {
 	if(count(runq->argv->words)!=1){
-		Xerror1("variable name must be singleton\n");
+		Xerror1("variable name must be singleton");
 		return;
 	}
 	deglob(runq->argv->words->word);
@@ -1014,24 +1013,22 @@ void
 hisfault(io *f)
 {
 	thread *t;
-	range *r, *e = 0;
+	range *r;
 	source *s;
 
 	for(t = runq; t; t = t->ret){
 		if((r = srcat(t->code, t->pc-1, &s)) == 0)
 			continue;
-		if(s->iflag)
-			return;
-		if(s->file[0] && (e==0 || strcmp(s->file, flag['m']? flag['m']: Rcmain)!=0)){
-			pfmt(f, "%s:", s->file);
-			e = r;
-			break;
+		if(!s->own){
+			if(s->from.line==0)
+				continue;
+			r = &s->from;
 		}
-		if(e==0)
-			e = r;
+		if(s->file)
+			pfmt(f, "%s:", s->file);
+		pfmt(f, "%d.%d,%d.%d: ", r->line, r->col, r->eline, r->ecol);
+		return;
 	}
-	if(e)
-		pfmt(f, "%d.%d,%d.%d: ", e->line, e->col, e->eline, e->ecol);
 }
 
 void
