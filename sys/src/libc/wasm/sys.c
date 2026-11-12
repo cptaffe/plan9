@@ -136,6 +136,8 @@ _exits(char *s)
 static void (*notef)(void*, char*);
 static char notebuf[ERRMAX];
 static jmp_buf notej;
+static uvlong noteureg[8];	/* the handler's ureg: there are no registers to give it, but it is never nil
+				 * (libthread takes nil for "not in a handler", and ends every proc) */
 
 int
 notify(void (*f)(void*, char*))
@@ -163,7 +165,7 @@ donote(void)
 	switch(setjmp(notej)){
 	case 0:
 		if(notef != nil)
-			(*notef)(nil, notebuf);
+			(*notef)(noteureg, notebuf);
 		return 0;
 	case 2:
 		return 1;
