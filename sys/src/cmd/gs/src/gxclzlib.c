@@ -27,7 +27,7 @@ private stream_zlib_state cl_zlibE_state;
 private stream_zlib_state cl_zlibD_state;
 
 /* Initialize the states to be copied. */
-void
+int
 gs_cl_zlib_init(gs_memory_t * mem)
 {
     s_zlib_set_defaults((stream_state *) & cl_zlibE_state);
@@ -36,6 +36,7 @@ gs_cl_zlib_init(gs_memory_t * mem)
     s_zlib_set_defaults((stream_state *) & cl_zlibD_state);
     cl_zlibD_state.no_wrapper = true;
     cl_zlibD_state.template = &s_zlibD_template;
+    return 0;
 }
 
 /* Return the prototypes for compressing/decompressing the band list. */

@@ -22,6 +22,8 @@
 #include "riscv.h"
 #elif Triscv64
 #include "riscv64.h"
+#elif Twasm
+#include "wasm.h"	/* p9web: default.wasm.h, as a cross build takes it (plan9web's mk/ports) */
 #else
 	I do not know about your architecture.
 	Update switch in arch.h with new architecture.
