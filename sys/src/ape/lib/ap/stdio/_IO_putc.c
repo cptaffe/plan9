@@ -49,8 +49,10 @@ int _IO_putc(int c, FILE *f){
 				f->state=ERR;
 				return EOF;
 			}
-			f->rp=f->buf+f->bufl;
+			/* p9web: wp into the new buffer, and rp at its end: both were the old one's */
+			f->wp=f->buf+f->bufl;
 			f->bufl+=BUFSIZ;
+			f->rp=f->buf+f->bufl;
 		}
 		*f->wp++=c;
 	}

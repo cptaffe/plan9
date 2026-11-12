@@ -42,6 +42,9 @@ extern char *getenv(const char *);
 extern int setenv(const char *, const char *, int);
 extern int unsetenv(const char *);
 #endif
+#if _POSIX_C_SOURCE >= 200809L || defined(_SUSV2_SOURCE)
+extern char *realpath(const char *, char *);
+#endif
 #ifdef _SUSV2_SOURCE
 extern char *ptsname(int);	/* XSI: libbsd's, as <sys/pty.h> */
 #endif
