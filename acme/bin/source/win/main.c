@@ -603,7 +603,6 @@ execproc(void *v)
 	struct Exec *e;
 	char *cmd, **av;
 	Channel *cpid;
-	int fd[3] = {0, 1, 2};
 
 	e = v;
 	rfork(RFCFDG|RFNOTEG);
@@ -615,11 +614,10 @@ execproc(void *v)
 	dup(1, 2);
 	cpid = e->cpid;
 	free(e);
-	/* p9web: plan9port's threadexec, with cons as 0, 1 and 2, for Plan 9's procexec */
-	threadexec(cpid, fd, av[0], av);
+	procexec(cpid, av[0], av);
 	if(lookinbin(av[0])){
 		cmd = estrstrdup("/bin/", av[0]);
-		threadexec(cpid, fd, cmd, av);
+		procexec(cpid, cmd, av);
 	}
 	error("can't exec %s: %r", av[0]);
 }
