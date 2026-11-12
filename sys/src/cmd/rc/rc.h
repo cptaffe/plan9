@@ -12,6 +12,7 @@ typedef struct list list;
 typedef struct redir redir;
 typedef struct thread thread;
 typedef struct builtin builtin;
+typedef struct range range;
 
 #define isdigit(c) ((c) >= '0' && (c) <= '9')	/* NB: unsafe macro */
 
@@ -40,6 +41,10 @@ typedef struct builtin builtin;
 #endif
 #endif
 
+struct range{
+	int	line, col, eline, ecol;
+};
+
 struct tree{
 	int	type;
 	int	rtype, fd0, fd1;	/* details of REDIR PIPE DUP tokens */
@@ -48,7 +53,9 @@ struct tree{
 	int	iskw;
 	tree	*child[3];
 	tree	*next;
+	range	src;
 };
+extern range tokr;
 tree *newtree(void);
 tree *token(char*, int), *klook(char*), *tree1(int, tree*);
 tree *tree2(int, tree*, tree*), *tree3(int, tree*, tree*, tree*);

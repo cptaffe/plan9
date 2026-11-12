@@ -25,7 +25,9 @@ start(code *c, int pc, var *local)
 	p->cmdfd = 0;
 	p->eof = 0;
 	p->iflag = 0;
-	p->lineno = 1;
+	p->line = 1;
+	p->col = 0;
+	p->nl = 0;
 	p->ret = runq;
 	runq = p;
 }
@@ -425,10 +427,10 @@ Xread(void)
 	int f;
 	switch(count(runq->argv->words)){
 	default:
-		Xerror1("< requires singleton\n");
+		Xerror1("< requires singleton");
 		return;
 	case 0:
-		Xerror1("< requires file\n");
+		Xerror1("< requires file");
 		return;
 	case 1:
 		break;
@@ -452,10 +454,10 @@ Xrdwr(void)
 
 	switch(count(runq->argv->words)){
 	default:
-		Xerror1("<> requires singleton\n");
+		Xerror1("<> requires singleton");
 		return;
 	case 0:
-		Xerror1("<> requires file\n");
+		Xerror1("<> requires file");
 		return;
 	case 1:
 		break;
@@ -537,10 +539,10 @@ Xwrite(void)
 	int f;
 	switch(count(runq->argv->words)){
 	default:
-		Xerror1("> requires singleton\n");
+		Xerror1("> requires singleton");
 		return;
 	case 0:
-		Xerror1("> requires file\n");
+		Xerror1("> requires file");
 		return;
 	case 1:
 		break;
@@ -630,6 +632,17 @@ conclist(word *lp, word *rp, word *tail)
 	return v;
 }
 
+static void
+concerr(char *s, word *lp, word *rp)
+{
+	io *f = openstr();
+
+	pfmt(f, "%s: (%v)^(%v)", s, lp, rp);
+	deglob(f->strp);
+	Xerror1((char *)f->strp);
+	closeio(f);
+}
+
 void
 Xconc(void)
 {
@@ -639,11 +652,11 @@ Xconc(void)
 	int lc = count(lp), rc = count(rp);
 	if(lc!=0 || rc!=0){
 		if(lc==0 || rc==0){
-			Xerror1("null list in concatenation");
+			concerr("null list in concatenation", lp, rp);
 			return;
 		}
 		if(lc!=1 && rc!=1 && lc!=rc){
-			Xerror1("mismatched list lengths in concatenation");
+			concerr("mismatched list lengths in concatenation", lp, rp);
 			return;
 		}
 		vp = conclist(lp, rp, vp);
@@ -1001,11 +1014,24 @@ void
 hisfault(io *f)
 {
 	thread *t;
+	range *r, *e = 0;
+	source *s;
 
-	for(t = runq; !t->cmdfile && t->ret != 0; t = t->ret)
-		;
-	if(t->cmdfile && !t->iflag)
-		pfmt(f, "%s:%d ", t->cmdfile, t->lineno);
+	for(t = runq; t; t = t->ret){
+		if((r = srcat(t->code, t->pc-1, &s)) == 0)
+			continue;
+		if(s->iflag)
+			return;
+		if(s->file[0] && (e==0 || strcmp(s->file, flag['m']? flag['m']: Rcmain)!=0)){
+			pfmt(f, "%s:", s->file);
+			e = r;
+			break;
+		}
+		if(e==0)
+			e = r;
+	}
+	if(e)
+		pfmt(f, "%d.%d,%d.%d: ", e->line, e->col, e->eline, e->ecol);
 }
 
 void

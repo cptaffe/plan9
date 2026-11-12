@@ -1,0 +1,1 @@
+cmd-s	{test -e /mnt/acme/index || mount /srv/acme /mnt/acme; ~ $#acmewin 1 && echo put >/mnt/acme/$acmewin/ctl}

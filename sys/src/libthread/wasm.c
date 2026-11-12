@@ -21,6 +21,7 @@ F("fiber_wake") extern void fiberwake(int);
 F("fiber_exit") extern void fiberexit(void);
 F("fiber_exits") extern void fiberexits(char*, int);
 F("spawn9") extern int spawn9(char*, int, char*, int, int);
+F("await") extern int p9await(int, char*, int);
 
 enum
 {
@@ -163,6 +164,32 @@ _schedexec(Execargs *e)
 		write(e->fd[1], buf, strlen(buf));
 	}
 	return pid;
+}
+
+Waitmsg*
+_threadwaitpid(int pid)
+{
+	int n, l;
+	char buf[512], *fld[5];
+	Waitmsg *w;
+
+	if((n = p9await(pid, buf, sizeof buf-1)) < 0)
+		return nil;
+	buf[n] = '\0';
+	if(tokenize(buf, fld, nelem(fld)) != nelem(fld)){
+		werrstr("couldn't parse wait message");
+		return nil;
+	}
+	l = strlen(fld[4])+1;
+	if((w = malloc(sizeof(Waitmsg)+l)) == nil)
+		return nil;
+	w->pid = atoi(fld[0]);
+	w->time[0] = atoi(fld[1]);
+	w->time[1] = atoi(fld[2]);
+	w->time[2] = atoi(fld[3]);
+	w->msg = (char*)&w[1];
+	memmove(w->msg, fld[4], l);
+	return w;
 }
 
 static int firstsched = -1;

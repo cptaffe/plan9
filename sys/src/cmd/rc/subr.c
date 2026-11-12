@@ -29,11 +29,11 @@ yyerror(char *m)
 {
 	pfmt(err, "rc: ");
 	if(runq->cmdfile && !runq->iflag)
-		pfmt(err, "%s:%d: ", runq->cmdfile, runq->lineno);
+		pfmt(err, "%s:%d.%d: ", runq->cmdfile, tokr.line, tokr.col);
 	else if(runq->cmdfile)
 		pfmt(err, "%s: ", runq->cmdfile);
 	else if(!runq->iflag)
-		pfmt(err, "line %d: ", runq->lineno);
+		pfmt(err, "%d.%d: ", tokr.line, tokr.col);
 	if(tok[0] && tok[0]!='\n')
 		pfmt(err, "token %q: ", tok);
 	pfmt(err, "%s\n", m);

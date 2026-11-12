@@ -50,7 +50,8 @@ struct thread{
 	int iflast;			/* static `if not' checking */
 	int eof;			/* is cmdfd at eof? */
 	int iflag;			/* interactive? */
-	int lineno;			/* linenumber */
+	int line, col;
+	int nl;
 	int pid;			/* process for Xpipewait to wait for */
 	char status[NSTATUS];		/* status for Xpipewait */
 	tree *treenodes;		/* tree nodes created by this process */
@@ -59,6 +60,19 @@ struct thread{
 thread *runq;
 code *codecopy(code*);
 code *codebuf;				/* compiler output */
+typedef struct source source;
+struct source{
+	code *code;
+	char *file;
+	int iflag;
+	int n;
+	struct{
+		int pc;
+		range r;
+	} *at;
+	source *next;
+};
+range *srcat(code*, int, source**);
 int ntrap;				/* number of outstanding traps */
 int trap[NSIG];				/* number of outstanding traps per type */
 struct builtin{

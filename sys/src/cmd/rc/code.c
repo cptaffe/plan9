@@ -10,6 +10,9 @@ int codep, ncode;
 #define	emitf(x) ((codep!=ncode || morecode()), codebuf[codep].f = (x), codep++)
 #define	emiti(x) ((codep!=ncode || morecode()), codebuf[codep].i = (x), codep++)
 #define	emits(x) ((codep!=ncode || morecode()), codebuf[codep].s = (x), codep++)
+#define	emitx(x) (mark(), emitf(x))
+range emitr;
+source *srcs, *csrc;
 void stuffdot(int);
 char *fnstr(tree*);
 void outcode(tree*, int);
@@ -37,22 +40,69 @@ stuffdot(int a)
 	codebuf[a].i = codep;
 }
 
+static void
+mark(void)
+{
+	source *s = csrc;
+
+	if(s->n%16==0 && (s->at = realloc(s->at, (s->n+16)*sizeof s->at[0]))==0)
+		panic("Can't realloc %d bytes in mark!", (s->n+16)*sizeof s->at[0]);
+	s->at[s->n].pc = codep;
+	s->at[s->n].r = emitr;
+	s->n++;
+}
+
+static void
+freesrc(source *s)
+{
+	efree(s->file);
+	free(s->at);
+	efree((char *)s);
+}
+
 int
 compile(tree *t)
 {
+	source *s;
+
 	ncode = 100;
 	codebuf = (code *)emalloc(ncode*sizeof codebuf[0]);
 	codep = 0;
+	s = csrc = new(source);
+	memset(s, 0, sizeof *s);
+	memset(&emitr, 0, sizeof emitr);
 	emiti(0);			/* reference count */
 	outcode(t, flag['e']?1:0);
 	if(nerror){
 		efree((char *)codebuf);
+		freesrc(s);
 		return 0;
 	}
 	readhere();
 	emitf(Xreturn);
 	emitf(0);
+	s->code = codebuf;
+	s->file = strdup(runq->cmdfile? runq->cmdfile: "");
+	s->iflag = runq->iflag;
+	s->next = srcs;
+	srcs = s;
 	return 1;
+}
+
+range*
+srcat(code *c, int pc, source **sp)
+{
+	source *s;
+	int i;
+
+	for(s = srcs; s; s = s->next)
+		if(s->code==c)
+			for(i = 0; i<s->n; i++)
+				if(s->at[i].pc==pc && s->at[i].r.line){
+					*sp = s;
+					return &s->at[i].r;
+				}
+	return 0;
 }
 
 void
@@ -79,8 +129,23 @@ fnstr(tree *t)
 	return v;
 }
 
+static void outcode1(tree*, int);
+
 void
 outcode(tree *t, int eflag)
+{
+	range s = emitr;
+
+	if(t==0)
+		return;
+	if(t->src.line)
+		emitr = t->src;
+	outcode1(t, eflag);
+	emitr = s;
+}
+
+static void
+outcode1(tree *t, int eflag)
 {
 	int p, q;
 	tree *tt;
@@ -97,22 +162,22 @@ outcode(tree *t, int eflag)
 	case '$':
 		emitf(Xmark);
 		outcode(c0, eflag);
-		emitf(Xdol);
+		emitx(Xdol);
 		break;
 	case '"':
 		emitf(Xmark);
 		outcode(c0, eflag);
-		emitf(Xqdol);
+		emitx(Xqdol);
 		break;
 	case SUB:
 		emitf(Xmark);
 		outcode(c0, eflag);
 		emitf(Xmark);
 		outcode(c1, eflag);
-		emitf(Xsub);
+		emitx(Xsub);
 		break;
 	case '&':
-		emitf(Xasync);
+		emitx(Xasync);
 		if(havefork){
 			p = emiti(0);
 			outcode(c0, eflag);
@@ -130,7 +195,7 @@ outcode(tree *t, int eflag)
 		outcode(c1, eflag);
 		emitf(Xmark);
 		outcode(c0, eflag);
-		emitf(Xconc);
+		emitx(Xconc);
 		break;
 	case '`':
  		emitf(Xmark);
@@ -145,7 +210,7 @@ outcode(tree *t, int eflag)
  			emits(ifs);
  			emitf(Xdol);
  		}
-		emitf(Xbackq);
+		emitx(Xbackq);
 		if(havefork){
 			p = emiti(0);
 			outcode(c1, 0);
@@ -176,7 +241,7 @@ outcode(tree *t, int eflag)
 	case COUNT:
 		emitf(Xmark);
 		outcode(c0, eflag);
-		emitf(Xcount);
+		emitx(Xcount);
 		break;
 	case FN:
 		emitf(Xmark);
@@ -222,12 +287,12 @@ outcode(tree *t, int eflag)
 	case SIMPLE:
 		emitf(Xmark);
 		outcode(c0, eflag);
-		emitf(Xsimple);
+		emitx(Xsimple);
 		if(eflag)
 			emitf(Xeflag);
 		break;
 	case SUBSHELL:
-		emitf(Xsubshell);
+		emitx(Xsubshell);
 		if(havefork){
 			p = emiti(0);
 			outcode(c0, eflag);
@@ -281,7 +346,7 @@ outcode(tree *t, int eflag)
 		emitf(Xmark);		/* dummy value for Xlocal */
 		emitf(Xmark);
 		outcode(c0, eflag);
-		emitf(Xlocal);
+		emitx(Xlocal);
 		p = emitf(Xfor);
 		q = emiti(0);
 		outcode(c2, eflag);
@@ -308,7 +373,7 @@ outcode(tree *t, int eflag)
 		emitf(Xpopredir);
 		break;
 	case PIPEFD:
-		emitf(Xpipefd);
+		emitx(Xpipefd);
 		emiti(t->rtype);
 		if(havefork){
 			p = emiti(0);
@@ -325,17 +390,17 @@ outcode(tree *t, int eflag)
 		emitf(Xglob);
 		switch(t->rtype){
 		case APPEND:
-			emitf(Xappend);
+			emitx(Xappend);
 			break;
 		case WRITE:
-			emitf(Xwrite);
+			emitx(Xwrite);
 			break;
 		case READ:
 		case HERE:
-			emitf(Xread);
+			emitx(Xread);
 			break;
 		case RDWR:
-			emitf(Xrdwr);
+			emitx(Xrdwr);
 			break;
 		}
 		emiti(t->fd0);
@@ -351,7 +416,7 @@ outcode(tree *t, int eflag)
 				outcode(c1, eflag);
 				emitf(Xmark);
 				outcode(c0, eflag);
-				emitf(Xlocal);		/* push var for cmd */
+				emitx(Xlocal);		/* push var for cmd */
 			}
 			outcode(t, eflag);		/* gen. code for cmd */
 			for(t = tt; t->type == '='; t = c2)
@@ -363,13 +428,13 @@ outcode(tree *t, int eflag)
 				outcode(c1, eflag);
 				emitf(Xmark);
 				outcode(c0, eflag);
-				emitf(Xassign);	/* set var permanently */
+				emitx(Xassign);	/* set var permanently */
 			}
 		}
 		t = tt;	/* so tests below will work */
 		break;
 	case PIPE:
-		emitf(Xpipe);
+		emitx(Xpipe);
 		emiti(t->fd0);
 		emiti(t->fd1);
 		if(havefork){
@@ -480,8 +545,16 @@ void
 codefree(code *cp)
 {
 	code *p;
+	source *s, **l;
+
 	if(--cp[0].i!=0)
 		return;
+	for(l = &srcs; (s = *l) != 0; l = &s->next)
+		if(s->code==cp){
+			*l = s->next;
+			freesrc(s);
+			break;
+		}
 	for(p = cp+1;p->f;p++){
 		if(p->f==Xappend || p->f==Xclose || p->f==Xread || p->f==Xwrite
 		|| p->f==Xrdwr

@@ -30,6 +30,8 @@ idchr(Rune c)
 }
 
 Rune future = EOF;
+range futr;
+range tokr;
 int doprompt = 1;
 int inquote;		/* are we processing a quoted word ('...')? */
 int incomm;		/* are we ignoring input in a comment (#...\n)? */
@@ -55,8 +57,27 @@ advance(void)
 
 	lastc = future;
 	future = EOF;
+	tokr.eline = futr.line;
+	tokr.ecol = futr.col+1;
 	return c;
 }
+static void
+rawc(Rune *c)
+{
+	char buf[UTFmax+1];
+	thread *p = runq;
+
+	rutf(p->cmdfd, buf, c);
+	if(p->nl){
+		p->line++;
+		p->col = 0;
+	}
+	p->col++;
+	p->nl = *c=='\n';
+	futr.line = p->line;
+	futr.col = p->col;
+}
+
 /*
  * read a character from the input stream
  */
@@ -65,29 +86,34 @@ Rune
 getnext(void)
 {
 	Rune c;
-	char buf[UTFmax+1];
 	static Rune peekc = EOF;
+	static range peekr;
+	range s;
 
 	if(peekc!=EOF){
 		c = peekc;
 		peekc = EOF;
+		futr = peekr;
 		return c;
 	}
 	if(runq->eof)
 		return EOF;
 	if(doprompt)
 		pprompt();
-	rutf(runq->cmdfd, buf, &c);
+	rawc(&c);
 	if(!inquote && c=='\\'){
-		rutf(runq->cmdfd, buf, &c);
+		s = futr;
+		rawc(&c);
 		if(c=='\n' && !incomm){		/* don't continue a comment */
 			doprompt = 1;
 			c=' ';
 		}
 		else{
 			peekc = c;
+			peekr = futr;
 			c='\\';
 		}
+		futr = s;
 	}
 	doprompt = doprompt || c=='\n' || c==EOF;
 	if(c==EOF)
@@ -109,7 +135,6 @@ pprompt(void)
 		else
 			promptstr="\t";
 	}
-	runq->lineno++;
 	doprompt = 0;
 }
 
@@ -190,6 +215,8 @@ yylex(void)
 	struct tree *t;
 
 	yylval.tree = 0;
+	tokr.line = futr.line;
+	tokr.col = futr.col;
 	/*
 	 * Embarrassing sneakiness: if the last token read was a quoted or
 	 * unquoted WORD then we alter the meaning of what follows.  If the
@@ -210,6 +237,9 @@ yylex(void)
 		}
 	}
 	skipwhite();
+	nextc();
+	tokr.line = futr.line;
+	tokr.col = futr.col;
 	switch(c = advance()){
 	case EOF:
 		lastdol = 0;
@@ -328,6 +358,7 @@ yylex(void)
 		}
 		*w='\0';
 		yylval.tree = t;
+		t->src = tokr;
 		if(t->type==PIPE)
 			skipnl();
 		return t->type;
