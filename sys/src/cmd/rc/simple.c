@@ -374,14 +374,11 @@ execdot(void)
 			file = strdup(zero);
 
 		fd = open(file, 0);
+		if(fd < 0 && strcmp(file, "/dev/stdin")==0)	/* for sun & ucb */
+			fd = Dup1(0);
 		free(file);
 		if(fd >= 0)
 			break;
-		if(strcmp(file, "/dev/stdin")==0){	/* for sun & ucb */
-			fd = Dup1(0);
-			if(fd>=0)
-				break;
-		}
 	}
 	if(fd<0){
 		pfmt(err, "%s: ", zero);

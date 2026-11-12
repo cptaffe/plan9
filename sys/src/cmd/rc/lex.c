@@ -391,7 +391,8 @@ yylex(void)
 	}
 	if(!wordchr(c)){
 		lastdol = 0;
-		addutf(tok, c);
+		w = addutf(tok, c);
+		*w = '\0';
 		return c;
 	}
 	for(;;){
