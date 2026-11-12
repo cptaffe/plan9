@@ -553,7 +553,7 @@ textbswidth(Text *t, Rune c)
 	int skipping;
 
 	/* there is known to be at least one character to erase */
-	if(c == 0x08 || c == Kdel)	/* ^H: erase character */
+	if(c == 0x08)	/* ^H: erase character */
 		return 1;
 	q = t->q0;
 	skipping = TRUE;
@@ -898,7 +898,6 @@ texttype(Text *t, Rune r)
 		return;
 	}
 	switch(r){
-	case Kdel:
 	case 0x08:	/* ^H: erase character */
 		if(t->q1 > t->q0){
 			if(t->ncache != 0)
@@ -935,7 +934,6 @@ texttype(Text *t, Rune r)
 			typecommit(t);
 		t->iq1 = t->q0;
 		return;
-	case Kdel:
 	case 0x08:	/* ^H: erase character */
 	case 0x15:	/* ^U: erase line */
 	case 0x17:	/* ^W: erase word */
