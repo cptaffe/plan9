@@ -31,8 +31,8 @@ case terminal
 		sleep 0.1
 	mount /srv/plumb /mnt/plumb
 	dropped &
-	prompt=('term% ' '	')
-	fn term%{ $* }
+	prompt=('% ' '	')
+	fn %{ $* }
 	exec rio -i riostart
 }
 !
