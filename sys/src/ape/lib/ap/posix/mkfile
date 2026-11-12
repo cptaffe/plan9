@@ -2,6 +2,8 @@ APE=/sys/src/ape
 <$APE/config
 LIB=/$objtype/lib/ape/libap.a
 OFILES=\
+	libgen.$O\
+	realpath.$O\
 	getgrent.$O\
 	getpwent.$O\
 	langinfo.$O\

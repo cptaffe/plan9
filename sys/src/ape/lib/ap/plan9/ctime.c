@@ -86,7 +86,7 @@ gmtime_r(const time_t *timp, struct tm *result)
 {
 	int d0, d1;
 	long hms, day;
-	unsigned long tim;
+	time_t tim;	/* p9web: signed, as the rest takes it: a time before 1970 was a huge one after */
 
 	tim = *timp;
 	/*
