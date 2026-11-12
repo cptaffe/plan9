@@ -1,0 +1,107 @@
+.TH WS 3
+.SH NAME
+ws, remoteweb \- WebSocket connections, and the site's webfs over one
+.SH SYNOPSIS
+.nf
+.B bind -a #I /net
+
+.B /net/ws/clone
+.BI /net/ws/ n /ctl
+.BI /net/ws/ n /data
+.BI /net/ws/ n /local
+.BI /net/ws/ n /remote
+.BI /net/ws/ n /status
+
+.B remoteweb
+.fi
+.SH DESCRIPTION
+On p9web,
+.B #I
+has one protocol,
+.BR ws ,
+whose connections are the browser's WebSockets.
+As with
+.IR ip (3),
+opening
+.B clone
+makes a connection,
+.IR n ,
+and gives its
+.BR ctl ;
+reading
+.B ctl
+gives
+.IR n .
+The control message
+.BI connect " host" ! path
+opens a WebSocket to
+.BI wss:// host / path\f1,
+or
+.B ws://
+for a host on this machine, and the write returns when it is open or has failed.
+.B hangup
+closes it.
+Each write to
+.B data
+is one binary message, and reads give the messages that come, a read's worth at a time;
+after the far end closes, reads return 0 bytes.
+.B status
+gives the connection's state.
+.PP
+So
+.IR dial (2)
+reaches a 9P server over a WebSocket, and
+.IR srv (4)
+posts it:
+.EX
+	srv ws!acme.connor.zip!9p web
+	mount /srv/web /mnt/web
+.EE
+.PP
+The site serves
+.IR webfs (4)
+at
+.BR /9p :
+its requests are made by the server, not the browser, so the browser's
+cross-origin rules do not stop them.
+It fetches only from the hosts it allows, at first
+.B api.anthropic.com
+and
+.BR opencode.ai ,
+and holds no keys.
+.PP
+.I Remoteweb
+mounts the site's webfs on
+.B /mnt/web
+in the caller's name space, dialing
+.BI ws! $site !9p
+and posting it as
+.B /srv/web.remote
+if no live connection is posted there.
+The page sets
+.B $site
+to its own host; with no
+.BR $site ,
+.I remoteweb
+does nothing.
+.IR Sibyl 's
+servers and
+.IR searchfs (4)
+run in a name space that it has made so.
+.SH SOURCE
+.B k/src/kernel/netws.ts
+.br
+.B k/src/web9p.ts
+.br
+.B site/worker.js
+.br
+.B rc/bin/remoteweb
+.SH SEE ALSO
+.IR ip (3),
+.IR srv (4),
+.IR webfs (4),
+.IR searchfs (4)
+.SH BUGS
+A connection that the site drops takes its mounts with it;
+.I remoteweb
+dials again only for mounts made after.

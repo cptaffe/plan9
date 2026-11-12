@@ -17,6 +17,8 @@ bind -a #A /dev
 mount -a /srv/factotum /mnt
 # the web: #W, p9web's webfs in the kernel (Plan 9's termrc runs webfs(4))
 bind '#W' /mnt/web
+# the network: #I, whose ws dials WebSockets: srv ws!host!9p name
+bind -a #I /net
 
 # the file server of /usr: fossil, on #S (boot's usrfs)
 mount -c #s/fossil /usr
