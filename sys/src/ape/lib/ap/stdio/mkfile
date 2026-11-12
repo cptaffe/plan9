@@ -36,6 +36,7 @@ OFILES=\
 	fwide.$O\
 	fwrite.$O\
 	getc.$O\
+	getdelim.$O\
 	getchar.$O\
 	gets.$O\
 	perror.$O\

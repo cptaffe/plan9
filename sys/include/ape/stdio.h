@@ -153,6 +153,11 @@ FILE*	fdopen(int, const char*);
 char	*ctermid(char *);
 #endif
 
+#if _POSIX_C_SOURCE >= 200809L
+ssize_t	getdelim(char **, size_t *, int, FILE *);
+ssize_t	getline(char **, size_t *, FILE *);
+#endif
+
 #ifdef _REENTRANT_SOURCE
 char	*tmpnam_r(char *);
 char	*ctermid_r(char *);

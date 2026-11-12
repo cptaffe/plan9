@@ -14,6 +14,9 @@ WASI("args_get") extern int argsget(char**, char*);
 
 extern void _envsetup(void);
 
+/* the program's name, as BSD's err.h (libbsd) has it */
+char *__progname;
+
 /*
  * The compiler names a program's main by its arguments: main(void) has an alias __main_void,
  * and main(argc, argv) is __main_argc_argv.  main(argc, argv, envp), which is neither ANSI's nor
@@ -36,6 +39,8 @@ _start(void)
 	buf = malloc(n);
 	argsget(argv, buf);
 	argv[argc] = 0;
+	if(argc > 0)
+		__progname = argv[0];
 	if(__main_argc_argv)
 		r = __main_argc_argv(argc, argv);
 	else if(__main_void)
