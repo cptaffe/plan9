@@ -68,12 +68,7 @@ rawc(Rune *c)
 	thread *p = runq;
 
 	rutf(p->cmdfd, buf, c);
-	if(p->nl){
-		p->line++;
-		p->col = 0;
-	}
 	p->col++;
-	p->nl = *c=='\n';
 	futr.line = p->line;
 	futr.col = p->col;
 }
@@ -135,6 +130,8 @@ pprompt(void)
 		else
 			promptstr="\t";
 	}
+	runq->line++;
+	runq->col = 0;
 	doprompt = 0;
 }
 
@@ -249,14 +246,21 @@ yylex(void)
 		lastdol = 1;
 		if(nextis('#')){
 			strcpy(tok, "$#");
-			return COUNT;
+			c = COUNT;
 		}
-		if(nextis('"')){
+		else if(nextis('"')){
 			strcpy(tok, "$\"");
-			return '"';
+			c = '"';
 		}
-		strcpy(tok, "$");
-		return '$';
+		else{
+			strcpy(tok, "$");
+			c = '$';
+		}
+		t = newtree();
+		t->type = c;
+		t->src = tokr;
+		yylval.tree = t;
+		return c;
 	case '&':
 		lastdol = 0;
 		if(nextis('&')){

@@ -46,6 +46,10 @@ kinit(void)
 	kenter(SUBSHELL, "@");
 	kenter(SWITCH, "switch");
 	kenter(FN, "fn");
+	kenter(ELSE, "else");
+	kenter(BREAK, "break");
+	kenter(CONTINUE, "continue");
+	kenter(RETURN, "return");
 }
 
 tree*

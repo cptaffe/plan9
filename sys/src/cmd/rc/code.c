@@ -13,6 +13,21 @@ int codep, ncode;
 #define	emitx(x) (mark(), emitf(x))
 range emitr;
 source *srcs, *csrc;
+
+typedef struct pop pop;
+typedef struct loop loop;
+struct pop{
+	void (*f)(void);
+	int n;
+	pop *next;
+};
+struct loop{
+	int cont, brk;
+	pop *in, *out;
+	loop *next;
+};
+pop *pops, *fnpop;
+loop *loops;
 void stuffdot(int);
 char *fnstr(tree*);
 void outcode(tree*, int);
@@ -55,9 +70,27 @@ mark(void)
 static void
 freesrc(source *s)
 {
-	efree(s->file);
+	free(s->file);
 	free(s->at);
 	efree((char *)s);
+}
+
+static void
+anchor(source *s)
+{
+	thread *t = runq->ret;
+	source *u;
+	range *r;
+
+	if(t==0 || (r = srcat(t->code, t->pc-1, &u)) == 0)
+		return;
+	if(u->own && u->file && strcmp(u->file, flag['m']? flag['m']: Rcmain)==0)
+		s->own = 1;
+	else if(u->own || u->from.line){
+		s->from = u->own? *r: u->from;
+		if(u->file)
+			s->file = strdup(u->file);
+	}
 }
 
 int
@@ -82,8 +115,12 @@ compile(tree *t)
 	emitf(Xreturn);
 	emitf(0);
 	s->code = codebuf;
-	s->file = strdup(runq->cmdfile? runq->cmdfile: "");
-	s->iflag = runq->iflag;
+	if(runq->cmdfile && !runq->iflag){
+		s->own = 1;
+		s->file = strdup(runq->cmdfile);
+	}
+	else if(!runq->iflag)
+		anchor(s);
 	s->next = srcs;
 	srcs = s;
 	return 1;
@@ -131,23 +168,109 @@ fnstr(tree *t)
 
 static void outcode1(tree*, int);
 
+static int
+unwind(pop *to)
+{
+	pop *p;
+	int i;
+
+	for(p = pops; p!=to; p = p->next){
+		if(p->f==0)
+			return 0;
+		for(i = 0; i<p->n; i++)
+			emitf(p->f);
+	}
+	return 1;
+}
+
+static void
+outpop(tree *t, int eflag, void (*f)(void), int n)
+{
+	pop u;
+
+	u.f = f;
+	u.n = n;
+	u.next = pops;
+	pops = &u;
+	outcode(t, eflag);
+	pops = u.next;
+}
+
+static int
+loopbody(tree *t, int eflag, int cont, pop *out)
+{
+	loop l;
+
+	l.cont = cont;
+	l.brk = 0;
+	l.in = pops;
+	l.out = out;
+	l.next = loops;
+	loops = &l;
+	outcode(t, eflag);
+	loops = l.next;
+	return l.brk;
+}
+
+static void
+stuffbrk(int b)
+{
+	int n;
+
+	for(; b; b = n){
+		n = codebuf[b].i;
+		codebuf[b].i = codep;
+	}
+}
+
+static int
+isif(tree *t)
+{
+	return t->type==IF && (c1==0 || c1->type!=ELSE);
+}
+
+static void
+codeerr(tree *t, char *m)
+{
+	tokr = t->src;
+	yyerror(m);
+}
+
 void
 outcode(tree *t, int eflag)
 {
 	range s = emitr;
+	pop b;
 
 	if(t==0)
 		return;
 	if(t->src.line)
 		emitr = t->src;
-	outcode1(t, eflag);
+	switch(t->type){
+	case '&':
+	case '`':
+	case SUBSHELL:
+	case PIPE:
+	case PIPEFD:
+		b.f = 0;
+		b.n = 0;
+		b.next = pops;
+		pops = &b;
+		outcode1(t, eflag);
+		pops = b.next;
+		break;
+	default:
+		outcode1(t, eflag);
+	}
 	emitr = s;
 }
 
 static void
 outcode1(tree *t, int eflag)
 {
-	int p, q;
+	int p, q, n;
+	pop u, v, *fp;
+	loop *lp;
 	tree *tt;
 	char *ifs;
 
@@ -250,7 +373,17 @@ outcode1(tree *t, int eflag)
 			emitf(Xfn);
 			p = emiti(0);
 			emits(fnstr(c1));
+			u.f = Xunlocal;
+			u.n = 1;
+			u.next = pops;
+			fp = fnpop;
+			lp = loops;
+			pops = fnpop = &u;
+			loops = 0;
 			outcode(c1, eflag);
+			pops = u.next;
+			fnpop = fp;
+			loops = lp;
 			emitf(Xunlocal);	/* get rid of $* */
 			emitf(Xreturn);
 			stuffdot(p);
@@ -262,13 +395,54 @@ outcode1(tree *t, int eflag)
 		outcode(c0, 0);
 		emitf(Xif);
 		p = emiti(0);
+		if(c1 && c1->type==ELSE){
+			outcode(c1->child[0], eflag);
+			emitf(Xwastrue);
+			emitf(Xjump);
+			q = emiti(0);
+			stuffdot(p);
+			outcode(c1->child[1], eflag);
+			stuffdot(q);
+			break;
+		}
 		outcode(c1, eflag);
 		emitf(Xwastrue);
 		stuffdot(p);
 		break;
+	case BREAK:
+		if(loops==0 || !unwind(loops->out)){
+			codeerr(t, "break outside a loop");
+			break;
+		}
+		emitf(Xjump);
+		loops->brk = emiti(loops->brk);
+		break;
+	case CONTINUE:
+		if(loops==0 || !unwind(loops->in)){
+			codeerr(t, "continue outside a loop");
+			break;
+		}
+		emitf(Xjump);
+		emiti(loops->cont);
+		break;
+	case RETURN:
+		if(c0){
+			emitf(Xmark);
+			outcode(c0, eflag);
+			emitf(Xmark);
+			emitf(Xword);
+			emits(strdup("status"));
+			emitx(Xassign);
+		}
+		if(fnpop==0 || !unwind(fnpop->next)){
+			codeerr(t, "return outside a function");
+			break;
+		}
+		emitf(Xreturn);
+		break;
 	case NOT:
 		if(!runq->iflast)
-			yyerror("`if not' does not follow `if(...)'");
+			codeerr(t, "`if not' does not follow `if(...)'");
 		emitf(Xifnot);
 		p = emiti(0);
 		outcode(c0, eflag);
@@ -322,10 +496,11 @@ outcode1(tree *t, int eflag)
 			emitf(Xsettrue);	/* empty condition == while(true) */
 		emitf(Xtrue);
 		p = emiti(0);
-		outcode(c1, eflag);
+		n = loopbody(c1, eflag, q, pops);
 		emitf(Xjump);
 		emiti(q);
 		stuffdot(p);
+		stuffbrk(n);
 		break;
 	case WORDS:
 		outcode(c1, eflag);
@@ -349,11 +524,20 @@ outcode1(tree *t, int eflag)
 		emitx(Xlocal);
 		p = emitf(Xfor);
 		q = emiti(0);
-		outcode(c2, eflag);
+		u.f = Xunlocal;
+		u.n = 1;
+		u.next = pops;
+		v.f = Xpopm;
+		v.n = 1;
+		v.next = &u;
+		pops = &v;
+		n = loopbody(c2, eflag, p, u.next);
+		pops = u.next;
 		emitf(Xjump);
 		emiti(p);
 		stuffdot(q);
 		emitf(Xunlocal);
+		stuffbrk(n);
 		break;
 	case WORD:
 		emitf(Xword);
@@ -369,7 +553,7 @@ outcode1(tree *t, int eflag)
 			emitf(Xclose);
 			emiti(t->fd0);
 		}
-		outcode(c1, eflag);
+		outpop(c1, eflag, Xpopredir, 1);
 		emitf(Xpopredir);
 		break;
 	case PIPEFD:
@@ -404,26 +588,30 @@ outcode1(tree *t, int eflag)
 			break;
 		}
 		emiti(t->fd0);
-		outcode(c1, eflag);
+		outpop(c1, eflag, Xpopredir, 1);
 		emitf(Xpopredir);
 		break;
 	case '=':
 		tt = t;
 		for(;t && t->type=='=';t = c2);
 		if(t){					/* var=value cmd */
+			n = 0;
 			for(t = tt;t->type=='=';t = c2){
+				emitr = t->src;
 				emitf(Xmark);
 				outcode(c1, eflag);
 				emitf(Xmark);
 				outcode(c0, eflag);
 				emitx(Xlocal);		/* push var for cmd */
+				n++;
 			}
-			outcode(t, eflag);		/* gen. code for cmd */
+			outpop(t, eflag, Xunlocal, n);	/* gen. code for cmd */
 			for(t = tt; t->type == '='; t = c2)
 				emitf(Xunlocal);	/* pop var */
 		}
 		else{					/* var=value */
 			for(t = tt;t;t = c2){
+				emitr = t->src;
 				emitf(Xmark);
 				outcode(c1, eflag);
 				emitf(Xmark);
@@ -454,8 +642,8 @@ outcode1(tree *t, int eflag)
 		break;
 	}
 	if(t->type!=NOT && t->type!=';')
-		runq->iflast = t->type==IF;
-	else if(c0) runq->iflast = c0->type==IF;
+		runq->iflast = isif(t);
+	else if(c0) runq->iflast = isif(c0);
 }
 /*
  * switch code looks like this:
@@ -485,10 +673,12 @@ codeswitch(tree *t, int eflag)
 	int out;		/* jump here to leave switch */
 	int nextcase;	/* patch jump address to next case */
 	tree *tt;
+	pop u;
+
 	if(c1->child[0]==nil
 	|| c1->child[0]->type!=';'
 	|| !iscase(c1->child[0]->child[0])){
-		yyerror("case missing in switch");
+		codeerr(t, "case missing in switch");
 		return;
 	}
 	emitf(Xmark);
@@ -498,6 +688,10 @@ codeswitch(tree *t, int eflag)
 	out = emitf(Xjump);
 	leave = emiti(0);
 	stuffdot(nextcase);
+	u.f = Xpopm;
+	u.n = 1;
+	u.next = pops;
+	pops = &u;
 	t = c1->child[0];
 	while(t->type==';'){
 		tt = c1;
@@ -521,6 +715,7 @@ codeswitch(tree *t, int eflag)
 		emiti(out);
 		stuffdot(nextcase);
 	}
+	pops = u.next;
 	stuffdot(leave);
 	emitf(Xpopm);
 }

@@ -101,7 +101,7 @@ The first word of a simple command cannot be a keyword unless it is
 quoted or otherwise disguised.
 The keywords are
 .EX
-	for in while if not switch fn ~ ! @
+	for in while if not else switch fn break continue return ~ ! @
 .EE
 .SS Arguments and Variables
 A number of constructions may be used where
@@ -477,6 +477,20 @@ If its condition was non-zero, the
 .I command
 is executed.
 .HP
+.BI if( list ) { list }
+.B else
+.I command
+.br
+If the condition is non-zero,
+.I rc
+runs the
+.IR command .
+The
+.B else
+must follow the closing brace on the same line, so
+.B else if
+chains.
+.HP
 .BI for( name
 .B in
 .IB arguments )
@@ -507,6 +521,27 @@ is executed.
 An empty
 .I list
 is taken to give null status.
+.HP
+.B break
+.br
+.ns
+.HP
+.B continue
+.br
+.B Break
+leaves the innermost
+.B for
+or
+.B while
+loop, and
+.B continue
+starts its next iteration.
+Either must be in the loop's own text, not in a function it defines,
+a pipeline, a background command, a subshell, or a command that
+.B eval
+or
+.B .
+runs.
 .HP
 .BI "switch(" argument "){" list }
 .br
@@ -563,6 +598,16 @@ will execute the
 The second form removes
 .IR name 's
 function definition.
+.HP
+.B return
+.RI [ status ]
+.br
+Leaves the function whose text contains it.
+With a
+.IR status ,
+it sets
+.B $status
+first.
 .HP
 .BI "fn " note { list }
 .br
