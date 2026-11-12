@@ -163,6 +163,12 @@ to a
 .B Cut
 command
 .RI ( q.v. ).
+Control-C snarfs the selected text, control-X cuts it,
+and control-V pastes the snarf buffer.
+Control-Z is
+.B Undo
+and control-R is
+.BR Redo .
 .PP
 Most text, including the names of windows, may be edited uniformly.
 The only exception is that the command names to the

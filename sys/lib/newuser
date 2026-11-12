@@ -29,7 +29,7 @@ case terminal
 	dropped &
 	prompt=('% ' '	')
 	fn %{ $* }
-	exec rio -i riostart
+	exec hotkey rio -i riostart
 }
 !
 if(! test -e lib/plumbing)
