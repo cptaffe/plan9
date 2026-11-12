@@ -178,6 +178,7 @@ void	_threadjump(Thread*);
 void	_threadpause(Proc*, Thread*);
 void	_threadschedend(char*);
 void	_threadschedself(Proc*);
+Waitmsg*	_threadwaitpid(int);
 #endif
 
 void	_freeproc(Proc*);

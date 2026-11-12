@@ -197,6 +197,9 @@ _schedexecwait(void)
 	_threaddebug(DBGEXEC, "_schedexecwait %d", t->ret);
 
 	rfork(RFCFDG);
+#ifdef __wasm__
+	w = _threadwaitpid(pid);
+#else
 	for(;;){
 		w = wait();
 		if(w == nil)
@@ -205,6 +208,7 @@ _schedexecwait(void)
 			break;
 		free(w);
 	}
+#endif
 	if(w != nil){
 		if((c = _threadwaitchan) != nil)
 			sendp(c, w);

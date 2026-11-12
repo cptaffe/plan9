@@ -1,0 +1,214 @@
+.TH HOTKEY 1
+.SH NAME
+hotkey \- run a program with its keys filtered
+.SH SYNOPSIS
+.B hotkey
+[
+.B -D
+] [
+.B -f
+.I rules
+] [
+.B -s
+.I srvname
+]
+.I cmd
+[
+.I arg ...
+]
+.SH DESCRIPTION
+.I Hotkey
+runs
+.I cmd
+in a new name space with its own
+.B /dev/cons
+and
+.BR /dev/consctl ,
+and reads the keyboard from the original
+.BR /dev/cons .
+When the keys typed match a rule, the rule's command runs and
+.I cmd
+does not see those keys.
+Other keys pass through.
+If a sequence of keys starts a rule but does not finish one,
+.I hotkey
+discards its keys.
+If
+.IR hotkey 's
+standard input is
+.BR /dev/cons ,
+.IR cmd 's
+is the filtered keyboard.
+.PP
+.I Hotkey
+affects only programs that read keys from
+.BR /dev/cons ,
+as
+.IR keyboard (2)
+does.
+Under
+.IR rio (1),
+a program in a window gets only the keys typed in that window;
+.I hotkey
+run on
+.I rio
+itself gets every key, before
+.I rio
+does.
+In cooked mode keys arrive a line at a time,
+and
+.I hotkey
+matches them as they arrive.
+.PP
+.I Hotkey
+reads the rules from
+.IR rules ,
+or else from
+.BI $home/lib/hotkey/ name
+or
+.BI /lib/hotkey/ name\f1,
+whichever exists first, where
+.I name
+is the last element of
+.IR cmd .
+With no rules file there are no rules.
+Each rule is one line: keys separated by blanks, then an
+.IR rc (1)
+command in braces that runs to the end of the line.
+Lines starting with
+.B #
+are comments.
+A key is a character;
+.BI cmd- c\f1,
+for the Mac's Command key with
+.IR c ;
+.BI ctl- c\f1,
+for Control with
+.IR c ,
+one of
+.B @a-z[\e]^_\f1;
+.B f1
+to
+.BR f12 ;
+or one of
+.BR bs ,
+.BR del ,
+.BR down ,
+.BR end ,
+.BR esc ,
+.BR home ,
+.BR ins ,
+.BR left ,
+.BR nl ,
+.BR pgdown ,
+.BR pgup ,
+.BR print ,
+.BR right ,
+.BR space ,
+.BR tab ,
+and
+.BR up .
+No rule's keys may duplicate or begin another rule's.
+.PP
+Commands run in
+.IR hotkey 's
+name space and environment, with standard input
+.BR /dev/null ,
+while
+.I hotkey
+goes on reading keys.
+.PP
+.I Hotkey
+serves these files at
+.BR /mnt/hotkey ,
+and with
+.B -s
+posts them at
+.BI /srv/ srvname\f1:
+.TF consctl
+.TP
+.B cons
+.IR cmd 's
+keyboard.
+.TP
+.B consctl
+As in
+.IR cons (3).
+.I Hotkey
+passes
+.B rawon
+and
+.B rawoff
+to the real
+.BR consctl ,
+and turns raw mode off when the file descriptor that set it closes.
+.TP
+.B rules
+The rules. Closing the file after writing replaces them.
+.I Hotkey
+checks each line as it completes; an error fails that write
+and keeps the old rules.
+.TP
+.B send
+Writing key names, separated by blanks, types those keys.
+An unknown name fails the write and types nothing.
+.PD
+.PP
+The
+.B -D
+option prints 9P messages.
+.I Hotkey
+exits when
+.I cmd
+does, with its status.
+.SH EXAMPLES
+Save the focused Acme window with Command-S, or with Control-X Control-S as in Emacs.
+.I Acmekeys
+runs
+.IR acme (1)
+under
+.I hotkey
+and sets
+.B $acmewin
+to the focused window:
+.IP
+.EX
+cmd-s	{echo put >/mnt/acme/$acmewin/ctl}
+ctl-x ctl-s	{echo put >/mnt/acme/$acmewin/ctl}
+.EE
+.PP
+Switch to another set of rules:
+.IP
+.EX
+cmd-g	{cat $home/lib/hotkey/acme.g >/mnt/hotkey/rules}
+.EE
+.PP
+Make Control-A go to the start of the line in a program that only knows Home:
+.IP
+.EX
+ctl-a	{echo home >/mnt/hotkey/send}
+.EE
+.SH FILES
+.TF /lib/hotkey/*
+.TP
+.B /lib/hotkey/*
+system rules, by program
+.TP
+.B $home/lib/hotkey/*
+user rules
+.PD
+.SH SOURCE
+plan9web's
+.B src/cmd/hotkey.c
+.SH SEE ALSO
+.IR cons (3),
+.IR keyboard (2),
+.IR rio (1),
+.IR plumber (4)
+.SH BUGS
+.I Hotkey
+matches keys typed by
+.B send
+against the rules, so a rule that sends its own keys runs forever.
+.br
+Rules cannot name keys that send nothing, such as Alt alone.

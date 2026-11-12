@@ -15,6 +15,7 @@ newtree(void)
 	t->iskw = 0;
 	t->str = 0;
 	t->child[0] = t->child[1] = t->child[2] = 0;
+	memset(&t->src, 0, sizeof t->src);
 	t->next = treenodes;
 	treenodes = t;
 	return t;
@@ -31,6 +32,24 @@ freenodes(void)
 		efree((char *)t);
 	}
 	treenodes = 0;
+}
+
+static void
+span(tree *t, tree *c)
+{
+	range *s = &t->src, *u;
+
+	if(c==0 || c->src.line==0)
+		return;
+	u = &c->src;
+	if(s->line==0 || u->line<s->line || u->line==s->line && u->col<s->col){
+		s->line = u->line;
+		s->col = u->col;
+	}
+	if(s->eline==0 || u->eline>s->eline || u->eline==s->eline && u->ecol>s->ecol){
+		s->eline = u->eline;
+		s->ecol = u->ecol;
+	}
 }
 
 tree*
@@ -60,6 +79,11 @@ tree3(int type, tree *c0, tree *c1, tree *c2)
 	t->child[0] = c0;
 	t->child[1] = c1;
 	t->child[2] = c2;
+	span(t, c0);
+	span(t, c1);
+	span(t, c2);
+	if(t->src.line && (type=='$' || type==SUB || type==COUNT || type=='"'))
+		t->src.col -= type=='$' || type==SUB? 1: 2;
 	return t;
 }
 
@@ -67,6 +91,7 @@ tree*
 mung1(tree *t, tree *c0)
 {
 	t->child[0] = c0;
+	span(t, c0);
 	return t;
 }
 
@@ -75,6 +100,9 @@ mung2(tree *t, tree *c0, tree *c1)
 {
 	t->child[0] = c0;
 	t->child[1] = c1;
+	span(t, c0);
+	if(t->type!=REDIR && t->type!=DUP)
+		span(t, c1);
 	return t;
 }
 
@@ -84,6 +112,10 @@ mung3(tree *t, tree *c0, tree *c1, tree *c2)
 	t->child[0] = c0;
 	t->child[1] = c1;
 	t->child[2] = c2;
+	span(t, c0);
+	span(t, c1);
+	if(t->type!='=')
+		span(t, c2);
 	return t;
 }
 
@@ -131,6 +163,7 @@ token(char *str, int type)
 
 	t->type = type;
 	t->str = strdup(str);
+	t->src = tokr;
 	return t;
 }
 
