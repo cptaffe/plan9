@@ -1,0 +1,114 @@
+#!/bin/rc
+# Sibyl: sibyl's sessions in Acme (doc/sibyl.md), as Mail's messages are. The window /sibyl/
+# lists those saved in $home/lib/sibyl, one a line: its number, date and directory, then its
+# first turn. Button 3 on a line opens that session, in its own window, $dir/-sibyl.n: win
+# running sibyl -i, in the session's directory, or that window again if it is open. In the
+# tag, New [dir] starts a session (in dir, else Sibyl's directory), Delete removes the sessions
+# of the lines dot holds, and Get lists them again. It is an acme client in rc, on /lib/acme.rc;
+# /acme/bin is Acme's, as Mail is, apart from sibyl(1).
+rfork e
+if(! ~ $#* 0){
+	echo usage: Sibyl >[1=2]
+	exit usage
+}
+if(~ $#PLAN9 1 && test -f $PLAN9/lib/acme.rc)
+	. $PLAN9/lib/acme.rc
+if not
+	. /lib/acme.rc
+lib=$home/lib/sibyl
+mkdir -p $lib
+here=`{pwd}
+
+# field name file: a header line of a saved session (dir, date), which ends at a blank line
+fn field { sed -n '/^$/q; s/^'$1' //p' $2 }
+
+# list: the sessions, newest first
+fn list {
+	for(n in `{ls $lib | sed 's,.*/,,' | grep '^[0-9]+$' | sort -nr}){
+		f=$lib/$n
+		date=`{field date $f}
+		dir=`{field dir $f}
+		first=`{sed -n '/^>> /{s///p; q;}' $f}
+		echo $n'	'$"date'	'$"dir'	'$"first
+	}
+}
+
+fn refresh {
+	echo -n , | winwrite addr
+	list | winwrite data
+	winctl clean
+}
+
+# open n: session n's window, shown if it is there, else made
+fn open {
+	if(! test -f $lib/$1){
+		echo Sibyl: no session $1 >[1=2]
+		return
+	}
+	w=`{awk '$6 ~ /\/-sibyl\.'$1'$/ {print $1}' /mnt/acme/index}
+	if(! ~ $#w 0){
+		echo show >/mnt/acme/$w(1)^/ctl
+		return
+	}
+	dir=`{field dir $lib/$1}
+	if(! test -d $"dir)
+		dir=$here
+	@{ cd $dir && win sibyl -i -s $1 } &
+}
+
+# new [dir]: a new session, in dir; sibyl -i numbers and saves it
+fn new {
+	dir=$here
+	if(~ $#* 1)
+		dir=$1
+	if(! test -d $dir){
+		echo Sibyl: no directory $dir >[1=2]
+		return
+	}
+	@{ cd $dir && win sibyl -i } &
+}
+
+# delete: the sessions of the lines that dot holds
+fn delete {
+	winctl 'addr=dot'
+	for(n in `{winread xdata | awk '$1 ~ /^[0-9]+$/ {print $1}'})
+		rm -f $lib/$n
+	refresh
+}
+
+# lineat q: the number of the session on the line that holds character q
+fn lineat {
+	echo -n '#'$1'+-' | winwrite addr
+	winread xdata | awk 'NR == 1 && $1 ~ /^[0-9]+$/ {print $1}'
+}
+
+fn event {
+	switch($2){
+	case x X
+		switch($9){
+		case New
+			new
+		case 'New '*
+			new `{echo $9 | sed 's/^New //'}
+		case Delete
+			delete
+		case Get
+			refresh
+		case *
+			winwriteevent $*
+		}
+	case l L
+		n=`{lineat $4}
+		if(~ $#n 1)
+			open $n
+		if not
+			winwriteevent $*
+	}
+}
+
+newwindow
+winname /sibyl/
+echo -n ' New Delete Get' | winwrite tag
+windump $here Sibyl
+refresh
+wineventloop
