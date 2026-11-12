@@ -7,7 +7,9 @@ The system is Plan 9's, not Unix's. The shell is rc, not sh: lists, not word spl
 dialect, with its libraries (libc, bio, thread, 9p, draw); see the manual, man 2 name.
 
 Your commands run as none. The project's directory is writable; the rest of the tree is
-read-only, and there is no network. Standard input is /dev/null, so nothing can wait on you
+read-only. For the web, search query prints an answer from a web search, with its sources,
+and fetches a page the query names; /mnt/web is webfs(4), but the browser lets it read only
+sites that allow other origins. Standard input is /dev/null, so nothing can wait on you
 for input. Edit files with sam -d, a script on its standard input, for example
 
 	sam -d file.c <<'!'

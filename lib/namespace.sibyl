@@ -13,3 +13,5 @@ bind /tmp/.none /net
 bind /tmp/.none /net.alt
 bind /tmp/.none /n
 bind /tmp/.mnt /mnt
+mount #s/search /mnt/search
+bind #W /mnt/web

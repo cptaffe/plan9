@@ -1,0 +1,113 @@
+.TH SEARCHFS 4
+.SH NAME
+searchfs, search \- answers from the web
+.SH SYNOPSIS
+.B searchfs
+[
+.B -D
+] [
+.B -M
+.I model
+] [
+.B -m
+.I mtpt
+] [
+.B -s
+.I srvname
+] [
+.B -u
+.I url
+]
+.PP
+.B search
+.I query ...
+.SH DESCRIPTION
+.I Searchfs
+serves one file,
+.BR search ,
+on
+.I mtpt
+.RB ( /mnt/search
+by default), and posts itself as
+.BI /srv/ srvname
+if
+.B -s
+is given.
+Open
+.B search
+for reading and writing, write a query, then read.
+The first read sends the query to Anthropic's Messages API at
+.I url
+.RB ( https://api.anthropic.com ),
+through
+.IR webfs (4),
+with the web search and web fetch tools, so the model can search the web
+and fetch the pages that it needs or that the query names.
+The read waits for the answer, then gives its text, a blank line, and the line
+.B sources:
+followed by each page the answer cites, once, as its URL, a tab and its title.
+A failed search gives its error as the read's.
+A write after an answer starts a new query.
+.PP
+The model is
+.I model
+.RB ( claude-sonnet-5-5 ).
+The key is
+.IR factotum (4)'s,
+.BR "proto=pass service=anthropic" ,
+read when the first query needs it.
+A client of
+.I searchfs
+never sees the key.
+.PP
+.I Search
+writes its arguments as one query and prints the answer.
+If
+.B /mnt/search
+has no
+.BR search ,
+it mounts
+.BR /srv/search ,
+or starts
+.BR "searchfs -s search" .
+.PP
+The
+.B -D
+option prints the 9P messages.
+.SH EXAMPLES
+.EX
+% search when was Plan 9 first released
+.EE
+.PP
+.I Sibyl
+starts
+.IR searchfs ,
+and
+.B /lib/namespace.sibyl
+mounts it in the name space of the model's commands, which have no
+.IR factotum ,
+so they can search but cannot read the key.
+.SH FILES
+.TF /lib/namespace.sibyl
+.TP
+.B /srv/search
+.I searchfs
+as
+.I sibyl
+starts it
+.TP
+.B /lib/namespace.sibyl
+mounts it on
+.B /mnt/search
+for
+.IR sibyl 's
+commands
+.SH SOURCE
+.B src/cmd/searchfs
+.br
+.B rc/bin/search
+.SH SEE ALSO
+.IR factotum (4),
+.IR webfs (4)
+.SH BUGS
+Each search is billed to the key's account, as are the tokens.
