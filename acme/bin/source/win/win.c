@@ -14,6 +14,7 @@ newwindow(void)
 	w->ctl = open("/mnt/wsys/new/ctl", ORDWR|OCEXEC);
 	if(w->ctl<0 || read(w->ctl, buf, 12)!=12)
 		error("can't open window ctl file: %r");
+	ctlprint(w->ctl, "noscroll\n");
 	w->id = atoi(buf);
 	w->event = winopenfile(w, "event");
 	w->addr = winopenfile(w, "addr");

@@ -306,6 +306,7 @@ struct Window {
   Range limit;
   uchar nopen[QMAX];
   uchar nomark;
+  uchar noscroll;
   uchar noecho;
   Range wrselrange;
   int rdselfd;
