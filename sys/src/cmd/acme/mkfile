@@ -16,9 +16,11 @@ OFILES=\
 	file.$O\
 	fsys.$O\
 	look.$O\
+	logf.$O\
 	regx.$O\
 	rows.$O\
 	scrl.$O\
+	style.$O\
 	text.$O\
 	time.$O\
 	util.$O\

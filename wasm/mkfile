@@ -1,0 +1,14 @@
+</sys/src/mkfile.proto
+
+# wasm: Plan 9's C for p9web (WebAssembly, wasm32), by clang, as 8c is the 386's. The headers
+# are named from the tree's root, =/ (clang's --sysroot): / on p9web, the plan9 tree on a host
+# (mk/defs reads CFLAGS and LDFLAGS from here, and adds --sysroot). A program is linked against
+# its libraries' archives and libc's, then made able to fork by asyncify, at the imports a
+# process's stack unwinds through (p9web.fork; a threaded program's fiber imports too).
+CC=clang
+LD=clang
+O=w
+AS=
+CFLAGS=--target=wasm32 -msimd128 -nostdinc -nostdlib -isystem =/wasm/include -isystem =/sys/include -O2 -mno-extended-const -fno-builtin -fms-extensions -Xclang -fwchar-type=int -Xclang -fno-signed-wchar -fwrapv -mllvm -wasm-enable-sjlj -mllvm -wasm-use-legacy-eh=true -Wno-everything -Werror=implicit-function-declaration
+LDFLAGS=--target=wasm32 -nostdlib -Wl,--allow-multiple-definition -Wl,--export-memory -Wl,--export=__stack_pointer -Wl,--export=__heap_base -Wl,-z,stack-size=1048576
+ASYNCIFY=wasm-opt -O2 --asyncify
