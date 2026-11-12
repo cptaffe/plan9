@@ -41,6 +41,10 @@ editor = acme
 include basic
 
 !
+if(! test -e lib/hotkey/acme){
+	mkdir -p lib/hotkey
+	cp /lib/hotkey/acme.emacs lib/hotkey/acme
+}
 if(! test -e README)
 	cat > README <<'!'
 This is Acme, the Plan 9 text editor, in a window of rio, the Plan 9 window
