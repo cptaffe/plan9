@@ -3,6 +3,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include "lib.h"
+#include "sys9.h"
 
 #define MAXFORKS	20
 #define NSYSFILE	3
@@ -18,12 +20,37 @@ struct a_fork {
 };
 static struct a_fork the_fork[MAXFORKS];
 
+/* the shell's process: rforkfn's, so that, on wasm, a program that pipes needs no fork */
+struct a_child {
+	int	myside;
+	int	hisside;
+	int	to;
+	char	*cmd;
+};
+
+static void
+child(void *v)
+{
+	struct a_child *c;
+	int i;
+
+	c = v;
+	/* myside and hisside reverse roles in child */
+	close(c->myside);
+	dup2(c->hisside, c->to);
+	for (i=NSYSFILE; i<FOPEN_MAX; i++)
+		close(i);
+	execl("/bin/ape/sh", "sh", "-c", c->cmd, NULL);
+	_exit(1);
+}
+
 FILE *
 popen(char *cmd, char *mode)
 {
 	int p[2];
 	int myside, hisside, pid;
-	int i, ind;
+	int ind;
+	struct a_child c;
 
 	for (ind = 0; ind < MAXFORKS; ind++)
 		if (the_fork[ind].pid == 0)
@@ -34,17 +61,13 @@ popen(char *cmd, char *mode)
 		return NULL;
 	myside = tst(p[WTR], p[RDR]);
 	hisside = tst(p[RDR], p[WTR]);
-	switch (pid = fork()) {
+	c.myside = myside;
+	c.hisside = hisside;
+	c.to = tst(0, 1);
+	c.cmd = cmd;
+	switch (pid = rforkfn(RFENVG|RFFDG, child, &c)) {
 	case -1:
 		return NULL;
-	case 0:
-		/* myside and hisside reverse roles in child */
-		close(myside);
-		dup2(hisside, tst(0, 1));
-		for (i=NSYSFILE; i<FOPEN_MAX; i++)
-			close(i);
-		execl("/bin/ape/sh", "sh", "-c", cmd, NULL);
-		_exit(1);
 	default:
 		the_fork[ind].pid = pid;
 		the_fork[ind].fd = myside;

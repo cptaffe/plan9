@@ -26,7 +26,6 @@ P9("dup2") extern int p9dup2(int, int);
 P9("dup") extern int p9dup1(int);
 P9("pipe") extern int p9pipe(int*);
 P9("rfork") extern int p9rfork(int);
-P9("fork") extern int p9fork(int);
 P9("exec") extern int p9exec(char*, int, char*, int, char*, int);
 P9("await") extern int p9await(int, char*, int);
 P9("errswap") extern int p9errswap(char*, uint);
@@ -85,18 +84,23 @@ seek(int f, vlong o, int t)
 	return v;
 }
 
-/* rfork with RFPROC copies this process (asyncify unwinds and rewinds the stack: D93). */
+/*
+ * rfork with RFPROC copies this process: procfork.c's, by asyncify (D93). It is weak here, so
+ * that a program that never forks has no fork import, and needs no asyncify; a program that
+ * forks loads procfork (plan9/wasm/mkfile's LDFLAGS, APE's fork).
+ */
+extern int procfork(int) __attribute__((weak));
+
 int
 rfork(int flags)
 {
-	int r;
-
 	if(!(flags & RFPROC))
 		return neg(p9rfork(flags));
-	r = p9fork(flags);
-	if(r == 0)
-		_tos->pid = getpid();
-	return neg(r);
+	if(procfork == nil){
+		werrstr("rfork: the program was not built to fork");
+		return -1;
+	}
+	return procfork(flags);
 }
 
 int

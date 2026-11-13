@@ -24,6 +24,50 @@
 extern int	_muxsid;
 extern void	_killmuxsid(void);
 
+/* the listening process: rforkfn's, so that, on wasm, a program that listens needs no fork */
+typedef struct Listener Listener;
+struct Listener {
+	Rock	*r;
+	char	*net;
+	char	*listen;
+	int	pfd;
+};
+
+static void
+listener(void *v)
+{
+	Listener *l;
+	Rock *nr;
+	int cfd, dfd;
+	char name[Ctlsize];
+
+	l = v;
+	if(_muxsid == -1) {
+		_RFORK(RFNOTEG);
+		_muxsid = getpgrp();
+	} else
+		setpgid(getpid(), _muxsid);
+	_RENDEZVOUS(2, _muxsid);
+
+	for(;;){
+		cfd = open(l->listen, O_RDWR);
+		if(cfd < 0)
+			break;
+
+		dfd = _sock_data(cfd, l->net, l->r->domain, l->r->stype, l->r->protocol, &nr);
+		if(dfd < 0)
+			break;
+
+		if(write(l->pfd, nr->ctl, strlen(nr->ctl)) < 0)
+			break;
+		if(read(l->pfd, name, sizeof(name)) <= 0)
+			break;
+
+		close(dfd);
+	}
+	exit(0);
+}
+
 /*
  * replace the fd with a pipe and start a process to
  * accept calls in.  this is all to make select work.
@@ -31,14 +75,13 @@ extern void	_killmuxsid(void);
 static int
 listenproc(Rock *r, int fd)
 {
-	Rock *nr;
+	Listener l;
 	char *net;
-	int cfd, nfd, dfd;
+	int nfd;
 	int pfd[2];
 	struct stat d;
 	char *p;
 	char listen[Ctlsize];
-	char name[Ctlsize];
 
 	switch(r->stype){
 	case SOCK_DGRAM:
@@ -70,19 +113,15 @@ listenproc(Rock *r, int fd)
 	r->dev = d.st_dev;
 
 	/* start listening process */
-	switch(fork()){
+	l.r = r;
+	l.net = net;
+	l.listen = listen;
+	l.pfd = pfd[1];
+	switch(rforkfn(RFENVG|RFFDG, listener, &l)){
 	case -1:
 		close(pfd[1]);
 		close(nfd);
 		return -1;
-	case 0:
-		if(_muxsid == -1) {
-			_RFORK(RFNOTEG);
-			_muxsid = getpgrp();
-		} else
-			setpgid(getpid(), _muxsid);
-		_RENDEZVOUS(2, _muxsid);
-		break;
 	default:
 		atexit(_killmuxsid);
 		_muxsid = _RENDEZVOUS(2, 0);
@@ -90,29 +129,6 @@ listenproc(Rock *r, int fd)
 		close(nfd);
 		return 0;
 	}
-
-/*	for(fd = 0; fd < 30; fd++)
-		if(fd != nfd && fd != pfd[1])
-			close(fd);/**/
-
-	for(;;){
-		cfd = open(listen, O_RDWR);
-		if(cfd < 0)
-			break;
-
-		dfd = _sock_data(cfd, net, r->domain, r->stype, r->protocol, &nr);
-		if(dfd < 0)
-			break;
-
-		if(write(pfd[1], nr->ctl, strlen(nr->ctl)) < 0)
-			break;
-		if(read(pfd[1], name, sizeof(name)) <= 0)
-			break;
-
-		close(dfd);
-	}
-	exit(0);
-	return 0;
 }
 
 int

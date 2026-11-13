@@ -100,6 +100,8 @@ extern	long	_READ(int, void*, long);
 extern	int	_REMOVE(const char*);
 extern	int	_RENDEZVOUS(unsigned long, unsigned long);
 extern	int	_RFORK(int);
+extern	int	_RFORKFN(int, void(*)(void*), void*);
+extern	int	_PROCFORK(int);
 extern	int	_SEGATTACH(int, char*, void*, unsigned long);
 extern	int	_SEGBRK(void*, void*);
 extern	int	_SEGDETACH(void*);
