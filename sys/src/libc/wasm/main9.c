@@ -1,6 +1,7 @@
 /*
  * What each architecture's main9.s, argv0.s, tas.s, getcallerpc.s and sbrk do, for wasm: _start
- * gets the arguments from the runtime and runs main, and the heap is the module's memory.
+ * takes the arguments from the stack, where exec puts them, and runs main, and the heap is the
+ * module's memory.
  */
 #include <u.h>
 #include <libc.h>
@@ -8,10 +9,8 @@
 
 enum { NPRIVATES = 16 };
 
-__attribute__((import_module("wasi_snapshot_preview1"), import_name("args_sizes_get"))) extern int argsizes(int*, int*);
-__attribute__((import_module("wasi_snapshot_preview1"), import_name("args_get"))) extern int argsget(char**, char*);
 extern void main(int, char**);
-extern char __heap_base[];
+extern char __heap_base[], __stack_high[];
 
 Tos *_tos;
 void *_privates;
@@ -21,24 +20,18 @@ static Tos tos;
 static void *privates[NPRIVATES];
 static char *bloc = __heap_base;
 
+/* The stack's last word points at argc, which argv and a nil follow (k/src/proc/mach.ts). */
 void
 _start(void)
 {
-	static int argc;
-	static char **argv;
-	static char *buf;
-	int n;
+	int *a;
 
 	_tos = &tos;
 	_privates = privates;
 	_nprivates = NPRIVATES;
 	tos.pid = getpid();
-	argsizes(&argc, &n);
-	argv = malloc((argc+1)*sizeof(char*));
-	buf = malloc(n);
-	argsget(argv, buf);
-	argv[argc] = nil;
-	main(argc, argv);
+	a = *(int**)(__stack_high - sizeof(int*));
+	main(a[0], (char**)(a+1));
 	exits("main");
 }
 
