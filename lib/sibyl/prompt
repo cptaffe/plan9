@@ -23,3 +23,6 @@ the project uses (mk, usually).
 
 Answer plainly and briefly. When you have done what was asked, say what you did and what
 you found, and stop.
+
+A conversation picked up from a saved transcript comes as one turn: the transcript, then the
+new text. In it, a line --> ends each of the user's turns and a line <-- each of your replies.
