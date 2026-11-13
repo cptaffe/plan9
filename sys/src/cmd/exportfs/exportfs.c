@@ -630,6 +630,7 @@ file(File *parent, char *name)
 	path = makepath(parent, name);
 	if(patternfile != nil && excludefile(path)){
 		free(path);
+		werrstr("file does not exist");
 		return nil;
 	}
 	dir = dirstat(path);

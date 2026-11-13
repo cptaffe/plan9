@@ -1,11 +1,13 @@
 # What of the user's tree sibyl's commands may read (sibylns(1)): exportfs(4)'s patterns, one
-# regular expression a line, matched against paths that start ./ (the tree's root). A path is
-# there only if every + line matches it and no - line does. $home/lib/sibyl/patterns and a
-# project's sibyl.patterns are read after this file, so each can only take away.
+# regular expression a line, matched against paths from the tree's root, such as /lib/namespace.
+# A path is there only if every + line matches it and no - line does. $home/lib/sibyl/patterns
+# and a project's sibyl.patterns are read after this file, so each can only take away.
 #
-# /srv, /mnt, /net, /n, /dev, /proc, /env and /tmp are left: /lib/namespace.sibyl puts other
-# things there. For instance, to keep a directory of secrets away,
-#	- ^\./usr/[^/]+/lib/secrets(/|$)
+# /mnt, /dev, /proc, /env and /tmp are left: /lib/namespace.sibyl puts other things there. For
+# instance, to keep a directory of secrets away,
+#	- ^/usr/[^/]+/lib/secrets(/|$)
 #
+# The user's services, network and mounted trees, which would give the commands what the user has.
+- ^/(srv|net|net\.alt|n)(/|$)
 # sibyl's own sessions, kept in $home/lib/sibyl/n: one session's text is not another's.
-- ^\./usr/[^/]+/lib/sibyl/[0-9]+$
+- ^/usr/[^/]+/lib/sibyl/[0-9]+$
