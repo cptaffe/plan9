@@ -37,6 +37,23 @@ fn winwriteevent {
 	echo $1$2$3 $4 >[1=3]
 }
 
+# windotlines: the text of the whole lines that dot touches, or of the line it is on if it is
+# empty. addr stays open on 3 while it is set and read: an open of addr with none open resets it.
+# Each end is a line of its own (#q-+), read back, as acme takes a,b-+ for more than one line.
+fn windotlines {
+	{
+		winctl 'addr=dot'
+		q=`{cat <[0=3]}
+		e=`{echo $q | awk '{print ($2 > $1 ? $2-1 : $1)}'}
+		echo -n '#'^$q(1)^'-+' | winwrite addr
+		a=`{winread addr}
+		echo -n '#'^$e^'-+' | winwrite addr
+		b=`{winread addr}
+		echo -n '#'^$a(1)^',#'^$b(2) | winwrite addr
+		winread xdata
+	} <[3]/mnt/acme/$winid/addr
+}
+
 fn windel {
 	if(~ $1 sure)
 		winctl delete

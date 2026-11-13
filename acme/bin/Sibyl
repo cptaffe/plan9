@@ -3,8 +3,9 @@
 # lists those saved in $home/lib/sibyl, one a line: its number, date and directory, then its
 # first turn. Button 3 on a line opens that session, in its own window, $dir/-sibyl.n: win
 # running sibyl -i, in the session's directory, or that window again if it is open. In the
-# tag, New [dir] starts a session (in dir, else Sibyl's directory), Delete removes the sessions
-# of the lines dot holds, and Get lists them again. It is an acme client in rc, on /lib/acme.rc;
+# tag, New [dir] starts a session (in dir, else Sibyl's directory) and lists it once it is saved,
+# Delete removes the sessions of the lines dot touches (the line it is on, if it is empty), and Get
+# lists them again. It is an acme client in rc, on /lib/acme.rc;
 # /acme/bin is Acme's, as Mail is, apart from sibyl(1).
 rfork e
 if(! ~ $#* 0){
@@ -56,6 +57,9 @@ fn open {
 	@{ cd $dir && win sibyl -i -s $1 } &
 }
 
+# newest: the number of the newest session saved
+fn newest { ls $lib | sed 's,.*/,,' | grep '^[0-9]+$' | sort -n | tail -1 }
+
 # new [dir]: a new session, in dir; sibyl -i numbers and saves it
 fn new {
 	dir=$here
@@ -65,20 +69,30 @@ fn new {
 		echo Sibyl: no directory $dir >[1=2]
 		return
 	}
+	last=`{newest}
 	@{ cd $dir && win sibyl -i } &
+	@{
+		for(i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20){
+			sleep 0.5
+			n=`{newest}
+			if(! ~ $"n $"last){
+				refresh
+				exit
+			}
+		}
+	} &
 }
 
-# delete: the sessions of the lines that dot holds
+# delete: the sessions of the lines that dot touches, or of the line it is on if it is empty
 fn delete {
-	winctl 'addr=dot'
-	for(n in `{winread xdata | awk '$1 ~ /^[0-9]+$/ {print $1}'})
+	for(n in `{windotlines | awk '$1 ~ /^[0-9]+$/ {print $1}'})
 		rm -f $lib/$n
 	refresh
 }
 
 # lineat q: the number of the session on the line that holds character q
 fn lineat {
-	echo -n '#'$1'+-' | winwrite addr
+	echo -n '#'$1'-+' | winwrite addr
 	winread xdata | awk 'NR == 1 && $1 ~ /^[0-9]+$/ {print $1}'
 }
 
