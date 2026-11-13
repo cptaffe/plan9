@@ -1,18 +1,15 @@
 /*
  * The machines' main9.s, for wasm: _start sets up the environment as _main does
- * (../plan9/_envsetup.c), and takes the arguments from the runtime.
- * As in libc/wasm/main9.c, the runtime knows a Plan 9 program by its mark, p9web_plan9.
+ * (../plan9/_envsetup.c), and takes the arguments from the stack, where exec puts them: its
+ * last word points at argc, which argv and a nil follow (k/src/proc/mach.ts).
+ * As in libc/wasm/main9.c, the kernel knows a Plan 9 program by its mark, p9web_plan9.
  */
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 
-#define	WASI(name)	__attribute__((import_module("wasi_snapshot_preview1"), import_name(name)))
-
-WASI("args_sizes_get") extern int argsizes(int*, int*);
-WASI("args_get") extern int argsget(char**, char*);
-
 extern void _envsetup(void);
+extern char __stack_high[];
 
 /* the program's name, as BSD's err.h (libbsd) has it */
 char *__progname;
@@ -30,15 +27,12 @@ _start(void)
 {
 	static int argc, r;
 	static char **argv;
-	static char *buf;
-	int n;
+	int *a;
 
 	_envsetup();
-	argsizes(&argc, &n);
-	argv = malloc((argc+1)*sizeof(char*));
-	buf = malloc(n);
-	argsget(argv, buf);
-	argv[argc] = 0;
+	a = *(int**)(__stack_high - sizeof(int*));
+	argc = a[0];
+	argv = (char**)(a+1);
 	if(argc > 0)
 		__progname = argv[0];
 	if(__main_argc_argv)

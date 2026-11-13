@@ -1,6 +1,6 @@
 /*
- * The system calls on wasm: each an import of the p9web module, which the runtime makes the
- * kernel's call (k/src/proc/wasi.ts). An import gives -errno on failure, and errstr then has
+ * The system calls on wasm: each an import of the p9web module, a trap into the kernel's half
+ * of the process (k/src/proc/syscall.ts). An import gives -errno on failure, and errstr then has
  * the kernel's text, as on any Plan 9.
  */
 #include <u.h>
@@ -20,23 +20,21 @@ P9("fstat") extern int p9fstat(int, uchar*, int);
 P9("wstat") extern int p9wstat(char*, int, uchar*, int);
 P9("fwstat") extern int p9fwstat(int, uchar*, int);
 P9("remove") extern int p9remove(char*, int);
-P9("cd") extern int p9cd(char*, int);
+P9("chdir") extern int p9chdir(char*, int);
 P9("fd2path") extern int p9fd2path(int, char*, int);
-P9("dup2") extern int p9dup2(int, int);
-P9("dup") extern int p9dup1(int);
+P9("dup") extern int p9dup(int, int);
 P9("pipe") extern int p9pipe(int*);
 P9("rfork") extern int p9rfork(int);
 P9("exec") extern int p9exec(char*, int, char*, int);
 P9("await") extern int p9await(int, char*, int);
-P9("errswap") extern int p9errswap(char*, uint);
+P9("errstr") extern int p9errstr(char*, uint);
 P9("sleep") extern int p9sleep(long);
 P9("bind") extern int p9bind(char*, int, char*, int, int);
 P9("mount") extern int p9mount(int, int, char*, int, int, char*, int);
 P9("unmount") extern int p9unmount(char*, int, char*, int);
 P9("notify") extern int p9notify(void(*)(void*, char*));
-P9("exitmsg") extern int p9exitmsg(char*, int);
+P9("exits") extern void p9exits(char*, int);
 P9("rendezvous") extern void* p9rendezvous(void*, void*);
-__attribute__((import_module("wasi_snapshot_preview1"), import_name("proc_exit"))) extern void procexit(int);
 
 /* neg is a call's result: Plan 9's -1, for an import's -errno. */
 static long
@@ -55,12 +53,12 @@ int fstat(int f, uchar *b, int n) { return neg(p9fstat(f, b, n)); }
 int wstat(char *f, uchar *b, int n) { return neg(p9wstat(f, strlen(f), b, n)) < 0 ? -1 : n; }
 int fwstat(int f, uchar *b, int n) { return neg(p9fwstat(f, b, n)) < 0 ? -1 : n; }
 int remove(char *f) { return neg(p9remove(f, strlen(f))); }
-int chdir(char *f) { return neg(p9cd(f, strlen(f))); }
+int chdir(char *f) { return neg(p9chdir(f, strlen(f))); }
 int fd2path(int f, char *b, int n) { return neg(p9fd2path(f, b, n)); }
-int dup(int o, int n) { return neg(n < 0 ? p9dup1(o) : p9dup2(o, n)); }
+int dup(int o, int n) { return neg(p9dup(o, n)); }
 int pipe(int *p) { return neg(p9pipe(p)); }
 int await(char *b, int n) { return neg(p9await(0, b, n)); }
-int errstr(char *b, uint n) { return p9errswap(b, n); }
+int errstr(char *b, uint n) { return p9errstr(b, n); }
 int sleep(long ms) { return neg(p9sleep(ms)); }
 void* rendezvous(void *t, void *v) { return p9rendezvous(t, v); }
 int bind(char *a, char *b, int f) { return neg(p9bind(a, strlen(a), b, strlen(b), f)); }
@@ -130,8 +128,7 @@ _exits(char *s)
 {
 	if(s == nil)
 		s = "";
-	p9exitmsg(s, strlen(s));
-	procexit(s[0] != 0);
+	p9exits(s, strlen(s));
 	for(;;)
 		;
 }
