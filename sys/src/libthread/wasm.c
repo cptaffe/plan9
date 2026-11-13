@@ -20,8 +20,8 @@ F("fiber_block") extern void fiberblock(void);
 F("fiber_wake") extern void fiberwake(int);
 F("fiber_exit") extern void fiberexit(void);
 F("fiber_exits") extern void fiberexits(char*, int);
-F("spawn9") extern int spawn9(char*, int, char*, int, int);
 F("await") extern int p9await(int, char*, int);
+extern int rforkfn(int, void(*)(void*), void*);
 
 enum
 {
@@ -140,30 +140,31 @@ _schedfork(Proc *p)
 	return 0;
 }
 
+/* efork is _schedexec's child, as Plan 9's: the exec, or why it failed on e->fd[1]. */
+static void
+efork(void *v)
+{
+	Execargs *e;
+	char buf[ERRMAX];
+
+	e = v;
+	close(e->fd[0]);
+	exec(e->prog, e->args);
+	rerrstr(buf, sizeof buf);
+	if(buf[0] == 0)
+		strecpy(buf, buf+sizeof buf, "exec failed");
+	write(e->fd[1], buf, strlen(buf));
+	close(e->fd[1]);
+	_exits(buf);
+}
+
 /* _schedexec starts e->prog in a process of its own, with this proc's descriptors but the
- * close-on-exec ones, of which e->fd[1] tells procexec that it worked. */
+ * close-on-exec ones, of which e->fd[1] tells procexec that it worked. Plan 9's child shares
+ * this memory (RFMEM); here it is a copy that starts at efork (rforkfn), and exec replaces it. */
 int
 _schedexec(Execargs *e)
 {
-	char *b, *q, buf[ERRMAX];
-	int i, n, pid;
-
-	n = 0;
-	for(i = 0; e->args[i] != nil; i++)
-		n += strlen(e->args[i])+1;
-	b = _threadmalloc(n+1, 0);
-	q = b;
-	for(i = 0; e->args[i] != nil; i++)
-		q = strecpy(q, b+n+1, e->args[i])+1;
-	pid = spawn9(e->prog, strlen(e->prog), b, n, RFFDG|RFNOTEG|RFREND);
-	free(b);
-	if(pid < 0){
-		rerrstr(buf, sizeof buf);
-		if(buf[0] == 0)
-			strecpy(buf, buf+sizeof buf, "exec failed");
-		write(e->fd[1], buf, strlen(buf));
-	}
-	return pid;
+	return rforkfn(RFFDG|RFNOTEG|RFREND, efork, e);
 }
 
 Waitmsg*

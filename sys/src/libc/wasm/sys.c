@@ -26,14 +26,14 @@ P9("dup2") extern int p9dup2(int, int);
 P9("dup") extern int p9dup1(int);
 P9("pipe") extern int p9pipe(int*);
 P9("rfork") extern int p9rfork(int);
-P9("exec") extern int p9exec(char*, int, char*, int, char*, int);
+P9("exec") extern int p9exec(char*, int, char*, int);
 P9("await") extern int p9await(int, char*, int);
 P9("errswap") extern int p9errswap(char*, uint);
 P9("sleep") extern int p9sleep(long);
 P9("bind") extern int p9bind(char*, int, char*, int, int);
 P9("mount") extern int p9mount(int, int, char*, int, int, char*, int);
 P9("unmount") extern int p9unmount(char*, int, char*, int);
-P9("notify") extern int p9notify(int);
+P9("notify") extern int p9notify(void(*)(void*, char*));
 P9("exitmsg") extern int p9exitmsg(char*, int);
 P9("rendezvous") extern void* p9rendezvous(void*, void*);
 __attribute__((import_module("wasi_snapshot_preview1"), import_name("proc_exit"))) extern void procexit(int);
@@ -120,7 +120,7 @@ exec(char *f, char *argv[])
 		strcpy(p, argv[i]);
 		p += strlen(p)+1;
 	}
-	p9exec(f, strlen(f), b, n, nil, 0);
+	p9exec(f, strlen(f), b, n);
 	free(b);
 	return -1;
 }
@@ -147,7 +147,7 @@ int
 notify(void (*f)(void*, char*))
 {
 	notef = f;
-	return neg(p9notify(f != nil));
+	return neg(p9notify(f));
 }
 
 int
