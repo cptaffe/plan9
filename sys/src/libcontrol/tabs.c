@@ -248,8 +248,8 @@ createtab(Controlset *cs, char *name)
 	snprint(s, sizeof s, "_%s-column", name);
 	t->tabcolumn = createcolumn(cs, s);
 	ctlprint(t->tabcolumn, "add %q %q", t->tabrow->name, t->tabstack->name);
-	t->bordercolor = _getctlimage("black");
-	t->image = _getctlimage("white");
+	t->bordercolor = _getctlimage("border");
+	t->image = _getctlimage("back");
 	t->setsize = tabsize;
 	t->activate = activatetab;
 	return (Control*)t;

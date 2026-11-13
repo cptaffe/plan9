@@ -193,9 +193,9 @@ createlabel(Controlset *cs, char *name)
 
 	l = (Label*)_createctl(cs, "label", sizeof(Label), name);
 	l->text = ctlstrdup("");
-	l->image = _getctlimage("white");
-	l->textcolor = _getctlimage("black");
-	l->bordercolor = _getctlimage("black");
+	l->image = _getctlimage("back");
+	l->textcolor = _getctlimage("text");
+	l->bordercolor = _getctlimage("border");
 	l->font = _getctlfont("font");
 	l->border = 0;
 	l->ctl = labelctl;

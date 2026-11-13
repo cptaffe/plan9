@@ -43,38 +43,6 @@ colorimage(ulong rgba)
 	return img;
 }
 
-/*
- * parsecolor — "#rrggbb" → 0xRRGGBBFF (RGBA, fully opaque).
- * Returns 1 on success, 0 if the string is not a valid hex color.
- */
-static int
-parsecolor(char *s, ulong *out)
-{
-	ulong v;
-	char *ep;
-	if(*s != '#')
-		return 0;
-	v = strtoul(s+1, &ep, 16);
-	if(ep == s+1 || ep-(s+1) != 6)
-		return 0;
-	*out = (v << 8) | 0xFF;
-	return 1;
-}
-
-/*
- * parseproperty — parse one palette property token into an entry.
- * Handles fg=#rrggbb and bg=#rrggbb; other tokens are ignored.
- */
-static void
-parseproperty(WinStyleEntry *e, char *tok)
-{
-	ulong v;
-	if(strncmp(tok, "fg=", 3) == 0 && parsecolor(tok+3, &v))
-		e->fg = v;
-	else if(strncmp(tok, "bg=", 3) == 0 && parsecolor(tok+3, &v))
-		e->bg = v;
-}
-
 /* freeentry — free owned fields of a WinStyleEntry. */
 static void
 freeentry(WinStyleEntry *e)
@@ -353,13 +321,13 @@ winstyleprint(Window *w)
 		e = &w->wpalette[i];
 		if(e->name == nil)
 			continue;
-		n = snprint(line, sizeof line, ":%s", e->name);
+		n = snprint(line, sizeof line, "%s", e->name);
 		if(e->fg != Nocolor)
 			n += snprint(line+n, sizeof line - n,
-			             " fg=#%06lux", (e->fg >> 8) & 0xFFFFFFUL);
+			             "\tfg=%06lux", (e->fg >> 8) & 0xFFFFFFUL);
 		if(e->bg != Nocolor)
 			n += snprint(line+n, sizeof line - n,
-			             " bg=#%06lux", (e->bg >> 8) & 0xFFFFFFUL);
+			             "%cbg=%06lux", e->fg != Nocolor ? ' ' : '\t', (e->bg >> 8) & 0xFFFFFFUL);
 		line[n++] = '\n';
 		while(nout + n + 1 > mout){ mout *= 2; out = erealloc(out, mout); }
 		memmove(out + nout, line, n);
@@ -392,6 +360,28 @@ struct RawRun {
 	ulong  len;
 	char  *name;  /* owned; freed after resolution */
 };
+
+static int
+themeentry(Window *w, char *name)
+{
+	Themecol *c;
+	WinStyleEntry *e;
+
+	if((c = themelook(name)) == nil)
+		return 0;
+	if(w->nwpalette == 0){
+		w->wpalette = erealloc(w->wpalette, sizeof(WinStyleEntry));
+		memset(&w->wpalette[0], 0, sizeof(WinStyleEntry));
+		w->wpalette[0].name = estrdup("base");
+		w->nwpalette = 1;
+	}
+	w->wpalette = erealloc(w->wpalette, (w->nwpalette+1)*sizeof(WinStyleEntry));
+	e = &w->wpalette[w->nwpalette++];
+	e->name = estrdup(name);
+	e->fg = c->fg ? c->fg : c->col;
+	e->bg = c->bg;
+	return w->nwpalette-1;
+}
 
 /*
  * winparsestyle — parse style file content and apply to w.
@@ -432,39 +422,21 @@ winparsestyle(Window *w, char *buf, int nbuf, int hasaddr, Range addr)
 			continue;
 		}
 
-		if(*p == ':'){
-			/* --- palette line: ":name [prop ...]" --- */
-			p++;   /* skip ':' */
-			/* parse name */
-			char *ns = p;
-			while(p < lend && *p != ' ' && *p != '\t')
-				p++;
-			if(p == ns){ p = nl ? nl+1 : e; continue; }
-			char savec = *p; *p = '\0';
-			char *palname = estrdup(ns);
-			*p = savec;
-
-			/* allocate new entry */
-			if(nnewpal >= newpalcap){
-				newpalcap = newpalcap ? newpalcap*2 : 8;
-				newpal = erealloc(newpal, newpalcap * sizeof(WinStyleEntry));
+		if(*p < '0' || *p > '9'){
+			char *l = emalloc(lend-p+1);
+			Themecol c;
+			memmove(l, p, lend-p);
+			if(themeline(l, &c) > 0){
+				if(nnewpal >= newpalcap){
+					newpalcap = newpalcap ? newpalcap*2 : 8;
+					newpal = erealloc(newpal, newpalcap * sizeof(WinStyleEntry));
+				}
+				WinStyleEntry *ne = &newpal[nnewpal++];
+				ne->name = estrdup(c.name);
+				ne->fg = c.fg ? c.fg : c.col;
+				ne->bg = c.bg;
 			}
-			WinStyleEntry *ne = &newpal[nnewpal++];
-			memset(ne, 0, sizeof *ne);
-			ne->name = palname;
-
-			/* parse property tokens to end of line */
-			while(p < lend){
-				while(p < lend && (*p == ' ' || *p == '\t'))
-					p++;
-				if(p >= lend) break;
-				char *ts = p;
-				while(p < lend && *p != ' ' && *p != '\t')
-					p++;
-				char save2 = *p; *p = '\0';
-				parseproperty(ne, ts);
-				*p = save2;
-			}
+			free(l);
 		} else {
 			/* --- run line: "start length name" --- */
 			char *ep;
@@ -570,7 +542,8 @@ winparsestyle(Window *w, char *buf, int nbuf, int hasaddr, Range addr)
 			if(hasaddr)
 				abs_start += (ulong)addr.q0;
 			int idx = findpalette(w->wpalette, w->nwpalette, rawruns[i].name);
-			if(idx < 0) idx = 0;
+			if(idx < 0)
+				idx = themeentry(w, rawruns[i].name);
 			newruns[nnewruns].start      = abs_start;
 			newruns[nnewruns].len        = rawruns[i].len;
 			newruns[nnewruns].paletteidx = idx;

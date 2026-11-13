@@ -516,11 +516,11 @@ createkeyboard(Controlset *cs, char *name)
 	Keyboard *k;
 
 	k = (Keyboard *)_createctl(cs, "keyboard", sizeof(Keyboard), name);
-	k->image = _getctlimage("white");
+	k->image = _getctlimage("back");
 	k->mask = _getctlimage("opaque");
-	k->light = _getctlimage("yellow");
-	k->bordercolor = _getctlimage("black");
-	k->textcolor = _getctlimage("black");
+	k->light = _getctlimage("high");
+	k->bordercolor = _getctlimage("border");
+	k->textcolor = _getctlimage("text");
 	k->font = _getctlfont("font");
 	k->ctlfont = _getctlfont("font");
 	k->format = ctlstrdup("%q: value 0x%x");

@@ -1025,6 +1025,34 @@ Cursor boxcursor = {
 };
 
 
+static Image*
+colimage(ulong v)
+{
+	return allocimage(display, Rect(0,0,1,1), screen->chan, 1, v);
+}
+
+static void
+themecols(Image **cols, char *name, char *sel, char *bord)
+{
+	Themecol *c;
+	ulong v;
+
+	if((c = themelook(name)) != nil){
+		if((v = c->bg ? c->bg : c->col) != 0)
+			cols[BACK] = colimage(v);
+		if(c->fg)
+			cols[TEXT] = colimage(c->fg);
+	}
+	if((c = themelook(sel)) != nil){
+		if((v = c->bg ? c->bg : c->col) != 0)
+			cols[HIGH] = colimage(v);
+		if(c->fg)
+			cols[HTEXT] = colimage(c->fg);
+	}
+	if((v = themecolor(bord, 0)) != 0)
+		cols[BORD] = colimage(v);
+}
+
 void
 iconinit(void)
 {
@@ -1045,6 +1073,8 @@ iconinit(void)
 		textcols[BORD] = allocimage(display, Rect(0,0,1,1), screen->chan, 1, DYellowgreen);
 		textcols[TEXT] = display->black;
 		textcols[HTEXT] = display->black;
+		themecols(tagcols, "tag", "tagsel", "tagborder");
+		themecols(textcols, "body", "bodysel", "bodyborder");
 	}
 
 	r = Rect(0, 0, Scrollwid, font->height+1);
@@ -1066,15 +1096,15 @@ iconinit(void)
 	draw(modbutton, r, tagcols[BACK], nil, r.min);
 	border(modbutton, r, ButtonBorder, tagcols[BORD], ZP);
 	r = insetrect(r, ButtonBorder);
-	tmp = allocimage(display, Rect(0,0,1,1), screen->chan, 1, DMedblue);
+	tmp = colimage(themecolor("modbutton", DMedblue));
 	draw(modbutton, r, tmp, nil, ZP);
 	freeimage(tmp);
 
 	r = button->r;
-	colbutton = allocimage(display, r, screen->chan, 0, DPurpleblue);
+	colbutton = allocimage(display, r, screen->chan, 0, themecolor("colbutton", DPurpleblue));
 
-	but2col = allocimage(display, r, screen->chan, 1, 0xAA0000FF);
-	but3col = allocimage(display, r, screen->chan, 1, 0x006600FF);
+	but2col = allocimage(display, r, screen->chan, 1, themecolor("but2", 0xAA0000FF));
+	but3col = allocimage(display, r, screen->chan, 1, themecolor("but3", 0x006600FF));
 }
 
 /*

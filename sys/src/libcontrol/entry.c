@@ -340,9 +340,9 @@ createentry(Controlset *cs, char *name)
 	e = (Entry*) _createctl(cs, "entry", sizeof(Entry), name);
 	e->text = ctlmalloc(sizeof(Rune));
 	e->ntext = 0;
-	e->image = _getctlimage("white");
-	e->textcolor = _getctlimage("black");
-	e->bordercolor = _getctlimage("black");
+	e->image = _getctlimage("back");
+	e->textcolor = _getctlimage("text");
+	e->bordercolor = _getctlimage("border");
 	e->font = _getctlfont("font");
 	e->format = ctlstrdup("%q: value %q");
 	e->border = 0;

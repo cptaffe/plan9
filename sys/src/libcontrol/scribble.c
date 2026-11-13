@@ -308,15 +308,15 @@ createscribble(Controlset *cs, char *name)
 	Scrib *b;
 
 	b = (Scrib*)_createctl(cs, "scribble", sizeof(Scrib), name);
-	b->image = _getctlimage("white");
-	b->color = _getctlimage("black");
-	b->bordercolor = _getctlimage("black");
+	b->image = _getctlimage("back");
+	b->color = _getctlimage("text");
+	b->bordercolor = _getctlimage("border");
 	b->align = Aupperleft;
 	b->format = ctlstrdup("%q: value 0x%x");
 	b->font = _getctlfont("font");
 	b->scrib = scribblealloc();
 	b->lastbut = 0;
-	b->bordercolor = _getctlimage("black");
+	b->bordercolor = _getctlimage("border");
 	b->border = 0;
 	b->ctl = scribctl;
 	b->mouse = scribmouse;

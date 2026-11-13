@@ -54,6 +54,7 @@ OFILES=\
 	subfont.$O\
 	subfontcache.$O\
 	subfontname.$O\
+	theme.$O\
 	unloadimage.$O\
 	window.$O\
 	writecolmap.$O\

@@ -313,10 +313,10 @@ createslider(Controlset *cs, char *name)
 	Slider *s;
 
 	s = (Slider*)_createctl(cs, "slider", sizeof(Slider), name);
-	s->image = _getctlimage("white");
-	s->textcolor = _getctlimage("black");
-	s->bordercolor = _getctlimage("black");
-	s->indicatorcolor = _getctlimage("black");
+	s->image = _getctlimage("back");
+	s->textcolor = _getctlimage("text");
+	s->bordercolor = _getctlimage("border");
+	s->indicatorcolor = _getctlimage("border");
 	s->format = ctlstrdup("%q: value %d");
 	s->border = 0;
 	s->mouse = slidermouse;
