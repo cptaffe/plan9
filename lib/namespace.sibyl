@@ -1,17 +1,13 @@
 # The namespace of sibyl's commands (sibylns(1)). sibylns's own file mounts #s/$sibyl.ro on /
 # first (exportfs's -R of the user's /, in which this file is found), includes this file, then
 # mounts the project, writable. $sibyl names the services sibylns posts, $sibyltmp the /tmp
-# (a ramfs, the session's);  /srv, /net and /n are empty, and so is /mnt but for the places sibylns may mount; the
-# devices are new: #c, #d, #p, and a copy of #e.
+# (a ramfs, the session's). /srv, /net and /n are not there (/lib/sibyl/patterns); /mnt is empty
+# but for the places sibylns may mount; the devices are new: #c, #d, #p, and a copy of #e.
 mount -c #s/$sibyltmp /tmp
 bind #c /dev
 bind #d /fd
 bind #p /proc
 bind -c #e /env
-bind /tmp/.none /srv
-bind /tmp/.none /net
-bind /tmp/.none /net.alt
-bind /tmp/.none /n
 bind /tmp/.mnt /mnt
 mount #s/search /mnt/search
 bind #W /mnt/web
