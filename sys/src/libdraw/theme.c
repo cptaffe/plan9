@@ -84,8 +84,8 @@ load(void)
 	int i;
 
 	loaded = 1;
-	b = slurp("/dev/theme");
-	if(b == nil && (home = getenv("home")) != nil){
+	b = nil;
+	if((home = getenv("home")) != nil){
 		file = smprint("%s/lib/theme", home);
 		free(home);
 		if(file != nil)
