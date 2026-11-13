@@ -2,16 +2,13 @@
 .SH NAME
 theme \- colours for rio, acme, menus and libcontrol programs
 .SH SYNOPSIS
-.B /dev/theme
-.br
 .B $home/lib/theme
 .br
 .B /lib/theme
 .SH DESCRIPTION
 A theme names colours.
 Programs read the first of
-.BR /dev/theme ,
-.BR $home/lib/theme
+.B $home/lib/theme
 and
 .B /lib/theme
 that exists, once, when they start;
