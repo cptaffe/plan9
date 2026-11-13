@@ -722,6 +722,21 @@ static struct
 	nil,	0
 };
 
+static struct
+{
+	char	*name;
+	ulong	color;
+}roletab[] = {
+	"back",		DWhite,
+	"text",		DBlack,
+	"border",		DBlack,
+	"high",		DYellow,
+	"pale",		DPaleyellow,
+	"entry",		DYellow,
+	"ok",		DGreen,
+	nil,	0
+};
+
 void
 initcontrols(void)
 {
@@ -736,6 +751,10 @@ initcontrols(void)
 	for(i=0; coltab[i].name!=nil; i++){
 		im = allocimage(display, Rect(0,0,1,1), RGB24, 1, coltab[i].color);
 		namectlimage(im, coltab[i].name);
+	}
+	for(i=0; roletab[i].name!=nil; i++){
+		im = allocimage(display, Rect(0,0,1,1), RGB24, 1, themecolor(roletab[i].name, roletab[i].color));
+		namectlimage(im, roletab[i].name);
 	}
 	namectlfont(font, "font");
 	_ctlsnarffd = open("/dev/snarf", OREAD);

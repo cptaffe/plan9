@@ -372,12 +372,12 @@ createtextbutton3(Controlset *cs, char *name)
 	t = (Textbutton3 *)_createctl(cs, "textbutton3", sizeof(Textbutton3), name);
 	t->line = ctlmalloc(sizeof(char*));
 	t->nline = 0;
-	t->image = _getctlimage("white");
-	t->light = _getctlimage("yellow");
+	t->image = _getctlimage("back");
+	t->light = _getctlimage("high");
 	t->mask = _getctlimage("opaque");
-	t->bordercolor = _getctlimage("black");
-	t->textcolor = _getctlimage("black");
-	t->pressedtextcolor = _getctlimage("black");
+	t->bordercolor = _getctlimage("border");
+	t->textcolor = _getctlimage("text");
+	t->pressedtextcolor = _getctlimage("text");
 	t->font = _getctlfont("font");
 	t->format = ctlstrdup("%q: value %d %d %d");
 	t->lastshow = -1;

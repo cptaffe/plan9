@@ -54,8 +54,8 @@ static void		stackresize(Group*, Rectangle);
 static void
 groupinit(Group *g)
 {
-	g->bordercolor = _getctlimage("black");
-	g->image = _getctlimage("white");
+	g->bordercolor = _getctlimage("border");
+	g->image = _getctlimage("back");
 	g->border = 0;
 	g->mansize = 0;
 	g->separation = 0;

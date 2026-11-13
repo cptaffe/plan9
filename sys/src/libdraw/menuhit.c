@@ -25,6 +25,16 @@ static	Image	*htext;
 
 static
 void
+theme(Image **i, char *name)
+{
+	Image *t;
+
+	if((t = themeimage(display, name)) != nil)
+		*i = t;
+}
+
+static
+void
 menucolors(void)
 {
 	/* Main tone is greenish, with negative selection */
@@ -33,8 +43,13 @@ menucolors(void)
 	bord = allocimage(display, Rect(0,0,1,1), screen->chan, 1, DMedgreen);	/* not as dark green */
 	if(back==nil || high==nil || bord==nil)
 		goto Error;
+	theme(&back, "menuback");
 	text = display->black;
 	htext = back;
+	theme(&high, "menuhigh");
+	theme(&bord, "menubord");
+	theme(&text, "menutext");
+	theme(&htext, "menuhtext");
 	return;
 
     Error:

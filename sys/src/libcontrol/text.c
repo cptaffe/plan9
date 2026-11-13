@@ -522,10 +522,10 @@ createtext(Controlset *cs, char *name)
 	t->line = ctlmalloc(sizeof(Rune*));
 	t->selected = ctlmalloc(1);
 	t->nline = 0;
-	t->image = _getctlimage("white");
-	t->textcolor = _getctlimage("black");
-	t->bordercolor = _getctlimage("black");
-	t->selectcolor = _getctlimage("yellow");
+	t->image = _getctlimage("back");
+	t->textcolor = _getctlimage("text");
+	t->bordercolor = _getctlimage("border");
+	t->selectcolor = _getctlimage("high");
 	t->selectingcolor = _getctlimage("paleyellow");
 	t->font = _getctlfont("font");
 	t->selectmode = Selsingle;

@@ -439,6 +439,18 @@ have been if the
 .B event
 file had not been open.
 .TP
+.B style
+colours the body's text, in the format of
+.IR theme (6):
+lines naming colours, then runs, each a start and length in runes and a name.
+What is written takes effect when the file is closed,
+and replaces the window's styles; but after a write to
+.BR addr ,
+it replaces only those at the address, its runs' starts are relative to it,
+and its names are added to the window's.
+A run whose name the window has not given takes the theme's colours.
+Reading gives the window's names and runs.
+.TP
 .B tag
 holds contents of the window tag.  It may be read at any byte offset.
 Text written to
@@ -456,4 +468,5 @@ except that reads stop at the end address.
 .SH SEE ALSO
 .IR rio (1),
 .IR acme (1),
-.IR cons (3).
+.IR cons (3),
+.IR theme (6).

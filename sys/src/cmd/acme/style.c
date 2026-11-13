@@ -45,38 +45,6 @@ colorimage(ulong rgba)
 	return img;
 }
 
-/*
- * parsecolor — "#rrggbb" → 0xRRGGBBFF (RGBA, fully opaque).
- * Returns 1 on success, 0 if the string is not a valid hex color.
- */
-static int
-parsecolor(char *s, ulong *out)
-{
-	ulong v;
-	char *ep;
-	if(*s != '#')
-		return 0;
-	v = strtoul(s+1, &ep, 16);
-	if(ep == s+1 || ep-(s+1) != 6)
-		return 0;
-	*out = (v << 8) | 0xFF;
-	return 1;
-}
-
-/*
- * parseproperty — parse one palette property token into an entry.
- * Handles fg=#rrggbb and bg=#rrggbb; other tokens are ignored.
- */
-static void
-parseproperty(WinStyleEntry *e, char *tok)
-{
-	ulong v;
-	if(strncmp(tok, "fg=", 3) == 0 && parsecolor(tok+3, &v))
-		e->fg = v;
-	else if(strncmp(tok, "bg=", 3) == 0 && parsecolor(tok+3, &v))
-		e->bg = v;
-}
-
 static void
 freeentry(WinStyleEntry *e)
 {
@@ -259,9 +227,9 @@ winstyleinsert(Window *w, uint q0, uint n)
 void
 winstyledelete(Window *w, uint q0, uint q1)
 {
-	WinStyleRun *out;
+	WinStyleRun *out, *r;
 	int nout, i;
-	ulong del, dq0, dq1;
+	ulong del, dq0, dq1, rs, re, cs;
 
 	if(q0 >= q1 || w->nwruns == 0)
 		return;
@@ -273,8 +241,9 @@ winstyledelete(Window *w, uint q0, uint q1)
 	nout = 0;
 
 	for(i = 0; i < w->nwruns; i++){
-		WinStyleRun *r = &w->wruns[i];
-		ulong rs = r->start, re = r->start + r->len;
+		r = &w->wruns[i];
+		rs = r->start;
+		re = r->start + r->len;
 		if(re <= dq0){
 			out[nout++] = *r;
 		}else if(rs >= dq1){
@@ -282,8 +251,6 @@ winstyledelete(Window *w, uint q0, uint q1)
 			out[nout].start -= del;
 			nout++;
 		}else{
-			ulong left_end = rs < dq0 ? dq0 : rs;
-			ulong right_start = dq1;
 			if(rs < dq0 && dq0 > rs){
 				out[nout].start = rs;
 				out[nout].len = dq0 - rs;
@@ -291,13 +258,12 @@ winstyledelete(Window *w, uint q0, uint q1)
 				nout++;
 			}
 			if(re > dq1){
-				ulong clip_s = right_start < rs ? rs : right_start;
-				out[nout].start = clip_s - del;
-				out[nout].len = re - clip_s;
+				cs = dq1 < rs ? rs : dq1;
+				out[nout].start = cs - del;
+				out[nout].len = re - cs;
 				out[nout].paletteidx = r->paletteidx;
 				nout++;
 			}
-			USED(left_end);
 		}
 	}
 	free(w->wruns);
@@ -322,13 +288,13 @@ winstyleprint(Window *w)
 		e = &w->wpalette[i];
 		if(e->name == nil)
 			continue;
-		n = snprint(line, sizeof line, ":%s", e->name);
+		n = snprint(line, sizeof line, "%s", e->name);
 		if(e->fg != Nocolor)
 			n += snprint(line+n, sizeof line - n,
-									" fg=#%06lux", (e->fg >> 8) & 0xFFFFFFUL);
+				"\tfg=%06lux", (e->fg >> 8) & 0xFFFFFFUL);
 		if(e->bg != Nocolor)
 			n += snprint(line+n, sizeof line - n,
-									" bg=#%06lux", (e->bg >> 8) & 0xFFFFFFUL);
+				"%cbg=%06lux", e->fg != Nocolor ? ' ' : '\t', (e->bg >> 8) & 0xFFFFFFUL);
 		line[n++] = '\n';
 		while(nout + n + 1 > mout){
 			mout *= 2;
@@ -357,23 +323,53 @@ winstyleprint(Window *w)
 	return out;
 }
 
-typedef struct RawRun RawRun;
-struct RawRun {
+typedef struct Rawrun Rawrun;
+struct Rawrun
+{
 	ulong	start;
 	ulong	len;
 	char	*name;
 };
 
+static int
+themeentry(Window *w, char *name)
+{
+	Themecol *c;
+	WinStyleEntry *e;
+
+	if((c = themelook(name)) == nil)
+		return 0;
+	if(w->nwpalette == 0){
+		w->wpalette = erealloc(w->wpalette, sizeof(WinStyleEntry));
+		memset(&w->wpalette[0], 0, sizeof(WinStyleEntry));
+		w->wpalette[0].name = estrdup("base");
+		w->nwpalette = 1;
+	}
+	w->wpalette = erealloc(w->wpalette, (w->nwpalette+1)*sizeof(WinStyleEntry));
+	e = &w->wpalette[w->nwpalette++];
+	e->name = estrdup(name);
+	e->fg = c->fg ? c->fg : c->col;
+	e->bg = c->bg;
+	return w->nwpalette-1;
+}
+
 void
 winparsestyle(Window *w, char *buf, int nbuf, int hasaddr, Range addr)
 {
-	char *p, *e, *nl, *lend;
-	int i, j;
-	WinStyleEntry *newpal = nil;
-	int newpalcap = 0, nnewpal = 0;
+	char *p, *e, *nl, *lend, *l, *ep, *ns, *rname, save;
+	int i, j, mpal, npal, mraw, nraw, idx, bidx, nnew, mout, nout;
+	WinStyleEntry *pal, *ne, tmp;
+	Rawrun *raw;
+	WinStyleRun *new, *out, *r, key;
+	Themecol c;
+	ulong start, len, q0, q1, rs, re, ce, cs;
 
-	RawRun *rawruns = nil;
-	int rawruncap = 0, nrawruns = 0;
+	pal = nil;
+	mpal = 0;
+	npal = 0;
+	raw = nil;
+	mraw = 0;
+	nraw = 0;
 
 	p = buf;
 	e = buf + nbuf;
@@ -388,42 +384,22 @@ winparsestyle(Window *w, char *buf, int nbuf, int hasaddr, Range addr)
 			continue;
 		}
 
-		if(*p == ':'){
-			/* --- palette line: ":name [prop ...]" --- */
-			p++;	/* skip ':' */
-			/* parse name */
-			char *ns = p;
-			while(p < lend && *p != ' ' && *p != '\t')
-				p++;
-			if(p == ns){ p = nl ? nl+1 : e; continue; }
-			char savec = *p; *p = '\0';
-			char *palname = estrdup(ns);
-			*p = savec;
-
-			/* allocate new entry */
-			if(nnewpal >= newpalcap){
-				newpalcap = newpalcap ? newpalcap*2 : 8;
-				newpal = erealloc(newpal, newpalcap * sizeof(WinStyleEntry));
+		if(*p < '0' || *p > '9'){
+			l = emalloc(lend-p+1);
+			memmove(l, p, lend-p);
+			if(themeline(l, &c) > 0){
+				if(npal >= mpal){
+					mpal = mpal ? mpal*2 : 8;
+					pal = erealloc(pal, mpal * sizeof(WinStyleEntry));
+				}
+				ne = &pal[npal++];
+				ne->name = estrdup(c.name);
+				ne->fg = c.fg ? c.fg : c.col;
+				ne->bg = c.bg;
 			}
-			WinStyleEntry *ne = &newpal[nnewpal++];
-			memset(ne, 0, sizeof *ne);
-			ne->name = palname;
-
-			/* parse property tokens to end of line */
-			while(p < lend){
-				while(p < lend && (*p == ' ' || *p == '\t'))
-					p++;
-				if(p >= lend) break;
-				char *ts = p;
-				while(p < lend && *p != ' ' && *p != '\t')
-					p++;
-				char save2 = *p; *p = '\0';
-				parseproperty(ne, ts);
-				*p = save2;
-			}
+			free(l);
 		}else{
-			char *ep;
-			ulong start = strtoul(p, &ep, 10);
+			start = strtoul(p, &ep, 10);
 			if(ep == p){
 				p = nl ? nl+1 : e;
 				continue;
@@ -431,7 +407,7 @@ winparsestyle(Window *w, char *buf, int nbuf, int hasaddr, Range addr)
 			p = ep;
 			while(p < lend && (*p == ' ' || *p == '\t'))
 				p++;
-			ulong len = strtoul(p, &ep, 10);
+			len = strtoul(p, &ep, 10);
 			if(ep == p){
 				p = nl ? nl+1 : e;
 				continue;
@@ -440,27 +416,27 @@ winparsestyle(Window *w, char *buf, int nbuf, int hasaddr, Range addr)
 			while(p < lend && (*p == ' ' || *p == '\t'))
 				p++;
 
-			char *ns = p;
+			ns = p;
 			while(p < lend && *p != ' ' && *p != '\t')
 				p++;
 			if(p == ns){
 				p = nl ? nl+1 : e;
 				continue;
 			}
-			char save3 = *p;
+			save = *p;
 			*p = '\0';
-			char *rname = estrdup(ns);
-			*p = save3;
+			rname = estrdup(ns);
+			*p = save;
 
 			if(len > 0){
-				if(nrawruns >= rawruncap){
-					rawruncap = rawruncap ? rawruncap*2 : 32;
-					rawruns = erealloc(rawruns, rawruncap * sizeof(RawRun));
+				if(nraw >= mraw){
+					mraw = mraw ? mraw*2 : 32;
+					raw = erealloc(raw, mraw * sizeof(Rawrun));
 				}
-				rawruns[nrawruns].start = start;
-				rawruns[nrawruns].len = len;
-				rawruns[nrawruns].name = rname;
-				nrawruns++;
+				raw[nraw].start = start;
+				raw[nraw].len = len;
+				raw[nraw].name = rname;
+				nraw++;
 			}else{
 				free(rname);
 			}
@@ -470,29 +446,29 @@ winparsestyle(Window *w, char *buf, int nbuf, int hasaddr, Range addr)
 
 	if(!hasaddr){
 		winclearstyle(w);
-		w->wpalette = newpal;
-		w->nwpalette = nnewpal;
-		newpal = nil;
-		nnewpal = 0;
+		w->wpalette = pal;
+		w->nwpalette = npal;
+		pal = nil;
+		npal = 0;
 	}else{
-		for(i = 0; i < nnewpal; i++){
-			int idx = findpalette(w->wpalette, w->nwpalette, newpal[i].name);
+		for(i = 0; i < npal; i++){
+			idx = findpalette(w->wpalette, w->nwpalette, pal[i].name);
 			if(idx >= 0){
 				freeentry(&w->wpalette[idx]);
-				w->wpalette[idx] = newpal[i];
+				w->wpalette[idx] = pal[i];
 			}else{
 				w->wpalette = erealloc(w->wpalette,
 					(w->nwpalette+1)*sizeof(WinStyleEntry));
-				w->wpalette[w->nwpalette++] = newpal[i];
+				w->wpalette[w->nwpalette++] = pal[i];
 			}
-			newpal[i].name = nil;
+			pal[i].name = nil;
 		}
-		free(newpal);
-		newpal = nil;
+		free(pal);
+		pal = nil;
 	}
 
 	if(w->nwpalette > 0){
-		int bidx = findpalette(w->wpalette, w->nwpalette, "base");
+		bidx = findpalette(w->wpalette, w->nwpalette, "base");
 		if(bidx < 0){
 			w->wpalette = erealloc(w->wpalette,
 				(w->nwpalette+1)*sizeof(WinStyleEntry));
@@ -504,7 +480,7 @@ winparsestyle(Window *w, char *buf, int nbuf, int hasaddr, Range addr)
 			for(j = 0; j < w->nwruns; j++)
 				w->wruns[j].paletteidx++;
 		}else if(bidx > 0){
-			WinStyleEntry tmp = w->wpalette[0];
+			tmp = w->wpalette[0];
 			w->wpalette[0] = w->wpalette[bidx];
 			w->wpalette[bidx] = tmp;
 			for(j = 0; j < w->nwruns; j++){
@@ -516,65 +492,68 @@ winparsestyle(Window *w, char *buf, int nbuf, int hasaddr, Range addr)
 		}
 	}
 
-	WinStyleRun *newruns = nil;
-	int nnewruns = 0;
-	if(nrawruns > 0){
-		newruns = emalloc(nrawruns * sizeof(WinStyleRun));
-		for(i = 0; i < nrawruns; i++){
-			ulong abs_start = rawruns[i].start;
+	new = nil;
+	nnew = 0;
+	if(nraw > 0){
+		new = emalloc(nraw * sizeof(WinStyleRun));
+		for(i = 0; i < nraw; i++){
+			start = raw[i].start;
 			if(hasaddr)
-				abs_start += (ulong)addr.q0;
-			int idx = findpalette(w->wpalette, w->nwpalette, rawruns[i].name);
-			if(idx < 0) idx = 0;
-			newruns[nnewruns].start = abs_start;
-			newruns[nnewruns].len = rawruns[i].len;
-			newruns[nnewruns].paletteidx = idx;
-			nnewruns++;
-			free(rawruns[i].name);
-			rawruns[i].name = nil;
+				start += (ulong)addr.q0;
+			idx = findpalette(w->wpalette, w->nwpalette, raw[i].name);
+			if(idx < 0)
+				idx = themeentry(w, raw[i].name);
+			new[nnew].start = start;
+			new[nnew].len = raw[i].len;
+			new[nnew].paletteidx = idx;
+			nnew++;
+			free(raw[i].name);
+			raw[i].name = nil;
 		}
 	}
-	for(i = 0; i < nrawruns; i++)
-		free(rawruns[i].name);
-	free(rawruns);
+	for(i = 0; i < nraw; i++)
+		free(raw[i].name);
+	free(raw);
 
 	if(!hasaddr){
-		w->wruns = newruns;
-		w->nwruns = nnewruns;
+		w->wruns = new;
+		w->nwruns = nnew;
 	}else{
-		ulong q0 = (ulong)addr.q0, q1 = (ulong)addr.q1;
-		int mout = w->nwruns * 2 + nnewruns + 4;
-		WinStyleRun *out = emalloc(mout * sizeof(WinStyleRun));
-		int nout = 0;
+		q0 = (ulong)addr.q0;
+		q1 = (ulong)addr.q1;
+		mout = w->nwruns * 2 + nnew + 4;
+		out = emalloc(mout * sizeof(WinStyleRun));
+		nout = 0;
 
 		for(i = 0; i < w->nwruns; i++){
-			WinStyleRun *r = &w->wruns[i];
-			ulong rs = r->start, re = r->start + r->len;
+			r = &w->wruns[i];
+			rs = r->start;
+			re = r->start + r->len;
 			if(rs < q0){
-				ulong clip_e = re < q0 ? re : q0;
-				if(clip_e > rs){
+				ce = re < q0 ? re : q0;
+				if(ce > rs){
 					out[nout].start = rs;
-					out[nout].len = clip_e - rs;
+					out[nout].len = ce - rs;
 					out[nout].paletteidx = r->paletteidx;
 					nout++;
 				}
 			}
 			if(re > q1){
-				ulong clip_s = rs > q1 ? rs : q1;
-				if(re > clip_s){
-					out[nout].start = clip_s;
-					out[nout].len = re - clip_s;
+				cs = rs > q1 ? rs : q1;
+				if(re > cs){
+					out[nout].start = cs;
+					out[nout].len = re - cs;
 					out[nout].paletteidx = r->paletteidx;
 					nout++;
 				}
 			}
 		}
-		for(i = 0; i < nnewruns; i++)
-			out[nout++] = newruns[i];
-		free(newruns);
+		for(i = 0; i < nnew; i++)
+			out[nout++] = new[i];
+		free(new);
 
 		for(i = 1; i < nout; i++){
-			WinStyleRun key = out[i];
+			key = out[i];
 			j = i - 1;
 			while(j >= 0 && out[j].start > key.start){
 				out[j+1] = out[j];

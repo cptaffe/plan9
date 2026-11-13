@@ -245,11 +245,11 @@ createbutton(Controlset *cs, char *name)
 {
 	Button *b;
 	b = (Button*)_createctl(cs, "button", sizeof(Button), name);
-	b->image = _getctlimage("white");
+	b->image = _getctlimage("back");
 	b->mask = _getctlimage("opaque");
-	b->light = _getctlimage("yellow");
-	b->pale = _getctlimage("paleyellow");
-	b->bordercolor = _getctlimage("black");
+	b->light = _getctlimage("high");
+	b->pale = _getctlimage("pale");
+	b->bordercolor = _getctlimage("border");
 	b->format = ctlstrdup("%q: value %d");
 	b->lastshow = -1;
 	b->border = 0;

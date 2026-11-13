@@ -366,6 +366,19 @@ extern Image*	namedimage(Display*, char*);
 extern int	nameimage(Image*, char*, int);
 extern Image* allocimagemix(Display*, ulong, ulong);
 
+typedef struct Themecol Themecol;
+struct Themecol
+{
+	char	*name;
+	ulong	col;
+	ulong	fg;
+	ulong	bg;
+};
+extern int	themeline(char*, Themecol*);
+extern Themecol*	themelook(char*);
+extern ulong	themecolor(char*, ulong);
+extern Image*	themeimage(Display*, char*);
+
 /*
  * Colors
  */

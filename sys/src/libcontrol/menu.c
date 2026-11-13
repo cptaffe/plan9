@@ -347,11 +347,11 @@ createmenu(Controlset *cs, char *name)
 
 	m = (Menu0*)_createctl(cs, "menu", sizeof(Menu0), name);
 	m->font = _getctlfont("font");
-	m->image = _getctlimage("white");
-	m->textcolor = _getctlimage("black");
-	m->selectcolor = _getctlimage("yellow");
-	m->selecttextcolor = _getctlimage("black");
-	m->bordercolor = _getctlimage("black");
+	m->image = _getctlimage("back");
+	m->textcolor = _getctlimage("text");
+	m->selectcolor = _getctlimage("high");
+	m->selecttextcolor = _getctlimage("text");
+	m->bordercolor = _getctlimage("border");
 	m->format = ctlstrdup("%q: value %d");
 	m->border = 0;
 	m->align = Aupperleft;

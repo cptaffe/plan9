@@ -296,7 +296,7 @@ setupconfirm(Request *r)
 	cs = newcontrolset(screen, kbdc, mousec, resizec);
 
 	createtext(cs, "msg");
-	chanprint(cs->ctl, "msg image paleyellow");
+	chanprint(cs->ctl, "msg image pale");
 	chanprint(cs->ctl, "msg border 1");
 	chanprint(cs->ctl, "msg add 'The following key is being used:'");
 	for(a = r->a; a != nil; a = a->next)
@@ -309,27 +309,27 @@ setupconfirm(Request *r)
 	b_remember = createbutton(cs, "b_remember");
 	chanprint(cs->ctl, "b_remember border 1");
 	chanprint(cs->ctl, "b_remember mask i_white");
-	chanprint(cs->ctl, "b_remember image i_white");
-	chanprint(cs->ctl, "b_remember light i_black");
+	chanprint(cs->ctl, "b_remember image back");
+	chanprint(cs->ctl, "b_remember light text");
 
 	createtext(cs, "t_remember");
-	chanprint(cs->ctl, "t_remember image white");
-	chanprint(cs->ctl, "t_remember bordercolor white");
+	chanprint(cs->ctl, "t_remember image back");
+	chanprint(cs->ctl, "t_remember bordercolor back");
 	chanprint(cs->ctl, "t_remember add 'Remember this answer for future confirmations'");
 
 	b_accept = createtextbutton(cs, "b_accept");
 	chanprint(cs->ctl, "b_accept border 1");
 	chanprint(cs->ctl, "b_accept align center");
 	chanprint(cs->ctl, "b_accept text Accept");
-	chanprint(cs->ctl, "b_accept image i_white");
-	chanprint(cs->ctl, "b_accept light i_black");
+	chanprint(cs->ctl, "b_accept image back");
+	chanprint(cs->ctl, "b_accept light text");
 
 	b_refuse = createtextbutton(cs, "b_refuse");
 	chanprint(cs->ctl, "b_refuse border 1");
 	chanprint(cs->ctl, "b_refuse align center");
 	chanprint(cs->ctl, "b_refuse text Refuse");
-	chanprint(cs->ctl, "b_refuse image i_white");
-	chanprint(cs->ctl, "b_refuse light i_black");
+	chanprint(cs->ctl, "b_refuse image back");
+	chanprint(cs->ctl, "b_refuse light text");
 
 	c = chancreate(sizeof(char*), 0);
 	controlwire(b_remember, "event", c);
@@ -562,8 +562,8 @@ setupneedkey(Request *r)
 
 	/* create controls */
 	msg = createtext(cs, "msg");
-	chanprint(cs->ctl, "msg image white");
-	chanprint(cs->ctl, "msg bordercolor white");
+	chanprint(cs->ctl, "msg image back");
+	chanprint(cs->ctl, "msg bordercolor back");
 	chanprint(cs->ctl, "msg add 'You need the following key.  Fill in the blanks'");
 	chanprint(cs->ctl, "msg add 'and click on the DONE button.'");
 
@@ -572,19 +572,19 @@ setupneedkey(Request *r)
 		snprint(cn, sizeof cn, "name_%d", i);
 		if(entry[i].a->name == nil){
 			entry[i].name = createentry(cs, cn);
-			chanprint(cs->ctl, "%s image yellow", cn);
+			chanprint(cs->ctl, "%s image entry", cn);
 			chanprint(cs->ctl, "%s border 1", cn);
 		} else {
 			entry[i].name = createtext(cs, cn);
-			chanprint(cs->ctl, "%s image white", cn);
-			chanprint(cs->ctl, "%s bordercolor white", cn);
+			chanprint(cs->ctl, "%s image back", cn);
+			chanprint(cs->ctl, "%s bordercolor back", cn);
 			chanprint(cs->ctl, "%s add '%s'", cn, a->name);
 		}
 
 		snprint(cn, sizeof cn, "val_%d", i);
 		if(a->type == AttrQuery){
 			entry[i].val = createentry(cs, cn);
-			chanprint(cs->ctl, "%s image yellow", cn);
+			chanprint(cs->ctl, "%s image entry", cn);
 			chanprint(cs->ctl, "%s border 1", cn);
 			if(a->name != nil){
 				if(strcmp(a->name, "user") == 0)
@@ -594,13 +594,13 @@ setupneedkey(Request *r)
 			}
 		} else {
 			entry[i].val = createtext(cs, cn);
-			chanprint(cs->ctl, "%s image white", cn);
+			chanprint(cs->ctl, "%s image back", cn);
 			chanprint(cs->ctl, "%s add %q", cn, a->val);
 		}
 
 		snprint(cn, sizeof cn, "eq_%d", i);
 		entry[i].eq = createtext(cs, cn);
-		chanprint(cs->ctl, "%s image white", cn);
+		chanprint(cs->ctl, "%s image back", cn);
 		chanprint(cs->ctl, "%s add ' = '", cn);
 	}
 
@@ -608,8 +608,8 @@ setupneedkey(Request *r)
 	chanprint(cs->ctl, "b_done border 1");
 	chanprint(cs->ctl, "b_done align center");
 	chanprint(cs->ctl, "b_done text DONE");
-	chanprint(cs->ctl, "b_done image green");
-	chanprint(cs->ctl, "b_done light green");
+	chanprint(cs->ctl, "b_done image ok");
+	chanprint(cs->ctl, "b_done light ok");
 
 	/* wire controls for input */
 	c = chancreate(sizeof(char*), 0);
