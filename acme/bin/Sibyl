@@ -28,7 +28,7 @@ fn list {
 		f=$lib/$n
 		date=`{field date $f}
 		dir=`{field dir $f}
-		first=`{sed -n '/^>> /{s///p; q;}' $f}
+		first=`{sed -n '1,/^$/d; /^(-->|<--)$/d; s/^>> //; /./{p; q;}' $f}
 		echo $n'	'$"date'	'$"dir'	'$"first
 	}
 }
