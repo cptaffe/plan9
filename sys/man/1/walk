@@ -1,0 +1,104 @@
+.TH WALK 1
+.SH NAME
+walk \- walk a path
+.SH SYNOPSIS
+.B walk
+[
+.B -udftx
+] [
+.B -n
+.IB mind , maxd
+] [
+.B -e
+.I statfmt
+] [
+.I name ...
+]
+.SH DESCRIPTION
+.I Walk
+prints each
+.I name
+and, for a directory, every file below it, one a line.
+With no
+.IR name ,
+it walks the current directory, and prints its files' paths without a leading
+.BR ./ .
+.PP
+The options are:
+.TF "-n mind,maxd"
+.TP
+.B -d
+Print only directories.
+.TP
+.B -f
+Print only files that are not directories.
+.TP
+.B -t
+Print only temporary files (with
+.B DMTMP
+set).
+.TP
+.B -x
+Print only files with execute permission.
+.TP
+.B -u
+Do not buffer the output.
+.TP
+.BI -n " mind,maxd"
+Print only what is at least
+.I mind
+and at most
+.I maxd
+levels below each
+.IR name ;
+either may be left out.
+.TP
+.BI -e " statfmt"
+Print, for each file, the fields of its directory entry
+.IR statfmt 's
+letters name, in that order, separated by blanks:
+.B p
+the path,
+.B n
+the name,
+.B s
+the length,
+.B m
+and
+.B a
+the modification and access times,
+.B U
+the owner,
+.B G
+the group,
+.B M
+who last modified it,
+.B x
+the mode in octal,
+.B q
+the qid,
+.B D
+and
+.B T
+the device and its type.
+The default is
+.BR p .
+.PD
+.SH EXAMPLES
+The files below the current directory, without the directories:
+.IP
+.EX
+walk -f
+.EE
+.PP
+The ten largest files below
+.BR /sys/src :
+.IP
+.EX
+walk -f -e sp /sys/src | sort -nr | sed 10q
+.EE
+.SH SOURCE
+.B /sys/src/cmd/walk.c
+.SH SEE ALSO
+.IR du (1),
+.IR ls (1)

@@ -1,0 +1,68 @@
+.TH FIND 1
+.SH NAME
+Find \- find a file by part of its name, in acme
+.SH SYNOPSIS
+.B Find
+[
+.I dir
+]
+.SH DESCRIPTION
+.I Find
+opens an
+.IR acme (1)
+window,
+.IB dir /+Find\f1,
+that lists files.
+Its first line is a query, and the lines after it are the files that match it,
+best first, as many as a hundred, changing as the query is typed.
+A file matches if the query's characters are in its name in order;
+a match counts for more at the start of a name or a word, in a run, and in the file's own name
+rather than its directories'.
+A query with no upper-case letter ignores case.
+.PP
+A newline typed at the end of the query opens the first match;
+button 3 or button 2 on a match opens that one.
+The file is opened by the plumber's
+.B edit
+port, and the window goes.
+.PP
+The files are those of
+.I dir
+and below, as
+.IR walk (1)
+gives them, without
+.BR .git ;
+or, if
+.I dir
+is in a git repository, the repository's tracked files, as
+.IR git (1)'s
+.B git/walk
+gives them.
+With no
+.IR dir ,
+.I Find
+takes the directory of the file in acme window
+.B $acmewin
+(the focused window, as
+.I acmekeys
+sets it) or
+.BR $winid ,
+or else the current directory.
+.SH EXAMPLES
+.I Acmekeys
+binds Command-P to
+.IR Find ,
+in
+.BR /lib/hotkey/acme :
+.IP
+.EX
+cmd-p	{test -e /mnt/acme/index || mount /srv/acme /mnt/acme; Find}
+.EE
+.SH SOURCE
+plan9web's
+.B src/cmd/Find.c
+.SH SEE ALSO
+.IR acme (1),
+.IR hotkey (1),
+.IR plumb (1),
+.IR walk (1)
