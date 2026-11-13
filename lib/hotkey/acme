@@ -1,2 +1,3 @@
 cmd-s	{test -e /mnt/acme/index || mount /srv/acme /mnt/acme; ~ $#acmewin 1 && echo put >/mnt/acme/$acmewin/ctl}
 cmd-a	{test -e /mnt/acme/index || mount /srv/acme /mnt/acme; ~ $#acmewin 1 && cd /mnt/acme/$acmewin && {echo -n , >addr; echo -n 'dot=addr' >ctl} <[3]addr}
+cmd-p	{test -e /mnt/acme/index || mount /srv/acme /mnt/acme; Find}
