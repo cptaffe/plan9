@@ -12,6 +12,7 @@ OFILES=\
 	execlp.$O\
 	fabs.$O\
 	floor.$O\
+	fork.$O\
 	getpagesize.$O\
 	lock.$O\
 	main9.$O\
@@ -19,7 +20,10 @@ OFILES=\
 	memset.$O\
 	multi3.$O\
 	notetramp.$O\
+	procfork9.$O\
+	rforkfn9.$O\
 	profile.$O\
+	rforkfn.$O\
 	rint.$O\
 	setjmp.$O\
 	sqrt.$O\
@@ -32,3 +36,7 @@ CFLAGS=$CFLAGS -c -std=gnu11 -D_POSIX_SOURCE -D_PLAN9_SOURCE
 # sys9.c is libc's stubs under APE's names, and they are Plan 9 C: not pcc's.
 sys9.$O:	sys9.c /sys/src/libc/wasm/sys.c
 	$CC -c -I/$objtype/include -I/sys/include sys9.c
+procfork9.$O:	procfork9.c /sys/src/libc/wasm/procfork.c
+	$CC -c -I/$objtype/include -I/sys/include procfork9.c
+rforkfn9.$O:	rforkfn9.c /sys/src/libc/wasm/rforkfn.c
+	$CC -c -I/$objtype/include -I/sys/include rforkfn9.c

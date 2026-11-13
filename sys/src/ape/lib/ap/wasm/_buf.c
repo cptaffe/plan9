@@ -46,6 +46,15 @@ static int timerid;			/* the latest request's */
 
 void _killmuxsid(void);
 static void _copyproc(int, Muxbuf*);
+
+/* A copy process's start (_RFORKFN's child): its fd, its buffer and its ack pipe */
+typedef struct Copyarg Copyarg;
+struct Copyarg {
+	int	fd;
+	Muxbuf	*b;
+	int	a[2];
+};
+static void copystart(void*);
 static int copynotehandler(void *, char *);
 
 /* assume FD_SETSIZE is 96 */
@@ -78,6 +87,7 @@ _startbuf(int fd)
 	int i, pid, a[2];
 	Fdinfo *f;
 	Muxbuf *b;
+	Copyarg c;
 
 	if(mux[0] < 0){
 		_RFORK(RFREND);
@@ -111,23 +121,11 @@ _startbuf(int fd)
 	bufid[fd] = ++nextid;
 	if(_mainpid == -1)
 		_mainpid = getpid();
-	if((pid = _RFORK(RFFDG|RFPROC|RFNOWAIT)) == 0){
-		/* copy process ... */
-		if(_muxsid == -1) {
-			_RFORK(RFNOTEG);
-			_muxsid = getpgrp();
-		} else
-			setpgid(getpid(), _muxsid);
-		_NOTIFY(copynotehandler);
-		for(i=0; i<OPEN_MAX; i++)
-			if(i!=fd && (_fdinfo[i].flags&FD_ISOPEN))
-				_CLOSE(i);
-		_CLOSE(a[1]);
-		ack[fd] = a[0];
-		rawfds(a[0]);
-		_RENDEZVOUS(0, _muxsid);
-		_copyproc(fd, b);
-	}
+	c.fd = fd;
+	c.b = b;
+	c.a[0] = a[0];
+	c.a[1] = a[1];
+	pid = _RFORKFN(RFFDG|RFNOWAIT, copystart, &c);
 
 	/* parent process continues ... */
 	_CLOSE(a[0]);
@@ -165,6 +163,30 @@ _closebuf(int fd)
 	}
 	kill(b->copypid, SIGKILL);
 	free(b);
+}
+
+/* a copy process starts here */
+static void
+copystart(void *v)
+{
+	Copyarg *c;
+	int i;
+
+	c = v;
+	if(_muxsid == -1) {
+		_RFORK(RFNOTEG);
+		_muxsid = getpgrp();
+	} else
+		setpgid(getpid(), _muxsid);
+	_NOTIFY(copynotehandler);
+	for(i=0; i<OPEN_MAX; i++)
+		if(i!=c->fd && (_fdinfo[i].flags&FD_ISOPEN))
+			_CLOSE(i);
+	_CLOSE(c->a[1]);
+	ack[c->fd] = c->a[0];
+	rawfds(c->a[0]);
+	_RENDEZVOUS(0, _muxsid);
+	_copyproc(c->fd, c->b);
 }
 
 /* child copy procs execute this until eof */
@@ -326,6 +348,23 @@ _killtimerproc(void)
 		kill(timerpid, SIGKILL);
 }
 
+/* the timer process starts here */
+static void
+timerstart(void *v)
+{
+	int i;
+
+	(void)v;
+	setpgid(getpid(), _muxsid);
+	_NOTIFY(timerhandler);
+	for(i=0; i<OPEN_MAX; i++)
+		if(_fdinfo[i].flags&FD_ISOPEN)
+			_CLOSE(i);
+	rawfds(-1);
+	_RENDEZVOUS(1, 0);	/* its handler is in place: it can take a note */
+	_timerproc();
+}
+
 /* settimer asks the timer process for a message in t ms; its request id is timerid */
 static int
 settimer(int t)
@@ -334,16 +373,7 @@ settimer(int t)
 	int i, n;
 
 	if(timerpid == -1){
-		if((timerpid = _RFORK(RFFDG|RFPROC|RFNOWAIT)) == 0){
-			setpgid(getpid(), _muxsid);
-			_NOTIFY(timerhandler);
-			for(i=0; i<OPEN_MAX; i++)
-				if(_fdinfo[i].flags&FD_ISOPEN)
-					_CLOSE(i);
-			rawfds(-1);
-			_RENDEZVOUS(1, 0);	/* its handler is in place: it can take a note */
-			_timerproc();
-		}
+		timerpid = _RFORKFN(RFFDG|RFNOWAIT, timerstart, NULL);
 		if(timerpid < 0){
 			_syserrno();
 			return -1;

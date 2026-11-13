@@ -28,6 +28,7 @@
 #define	remove		_REMOVE
 #define	rendezvous	_RENDEZVOUS
 #define	rfork		_RFORK
+#define	procfork	_PROCFORK	/* procfork9.c's */
 #define	seek		_SEEK
 #define	sleep		_SLEEP
 #define	stat		_STAT

@@ -59,6 +59,7 @@ extern int	_selbuf(int);
 extern void	_closebuf(int);
 extern int _readbuf(int, void*, int, int);
 extern void	_detachbuf(void);
+extern int	rforkfn(int, void(*)(void*), void*);	/* lib9.h's */
 extern void	_finish(int, char *);
 extern char	*_ultoa(char *, unsigned long);
 extern int	_notehandler(void *, char *);

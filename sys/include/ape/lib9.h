@@ -64,6 +64,7 @@ extern	int	bind(char*, char*, int);
 extern	int	mount(int, int, char*, int, char*);
 extern	int	unmount(char*, char*);
 extern	int	rfork(int);
+extern	int	rforkfn(int, void(*)(void*), void*);	/* p9web: rfork(RFPROC|flags) whose child runs f(a) */
 extern	int	segattach(int, char*, void*, unsigned long);
 extern	int	segbrk(void*, void*);
 extern	int	segdetach(void*);
