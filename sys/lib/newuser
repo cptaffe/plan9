@@ -15,6 +15,7 @@ cat > lib/profile <<'!'
 bind -a $home/bin/rc /bin
 bind -a $home/bin/$cputype /bin
 bind -c $home/tmp /tmp
+test -e $home/lib/pkg && pkg add -f $home/lib/pkg
 font = /lib/font/bit/Iosevka/12a/font,/lib/font/bit/Iosevka/24a/font
 switch($service){
 case terminal
@@ -40,6 +41,11 @@ editor = acme
 
 include basic
 
+!
+if(! test -e lib/pkg)
+	cat > lib/pkg <<!
+# the packages the profile adds (pkg(1)): a name, a name and a hash, or a path, a line each
+git
 !
 if(! test -e lib/hotkey/acme){
 	mkdir -p lib/hotkey

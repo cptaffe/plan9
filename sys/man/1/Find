@@ -34,7 +34,11 @@ gives them, without
 .BR .git ;
 or, if
 .I dir
-is in a git repository, the repository's tracked files, as
+is in a git repository and the
+.B git
+package is added (see
+.IR pkg (1)),
+the repository's tracked files, as
 .IR git (1)'s
 .B git/walk
 gives them.
@@ -64,5 +68,6 @@ plan9web's
 .SH SEE ALSO
 .IR acme (1),
 .IR hotkey (1),
+.IR pkg (1),
 .IR plumb (1),
 .IR walk (1)

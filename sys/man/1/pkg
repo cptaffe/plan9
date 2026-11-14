@@ -1,0 +1,174 @@
+.TH PKG 1
+.SH NAME
+pkg \- add packages to the name space
+.SH SYNOPSIS
+.B pkg add
+[
+.B -f
+.I file
+] [
+.I pkg ...
+]
+.br
+.B pkg run
+[
+.B -f
+.I file
+] [
+.I pkg ...
+] [
+.B -c
+.I cmd
+[
+.I arg ...
+]
+]
+.br
+.B pkg list
+.br
+.B pkg pin
+[
+.I file
+]
+.SH DESCRIPTION
+A package is a tree of files in the shape of the root:
+.BR bin ,
+.BR sys/lib ,
+and so on.
+It is not copied anywhere to be installed: adding it binds its directories into the name space,
+so it is there for the process that adds it and those it starts, and for no others.
+A window can have one version of a package and the next window another.
+.PP
+The system's packages are in
+.BI /pkg/ name / hash\f1,
+one tree for each version of each package.
+A tree never changes:
+.I hash
+is a hash of its files, so another version is another tree, and both stay.
+.B /pkg/index
+names each package's current tree, a line each:
+.IP
+.EX
+pkg=git hash=3f2a9c0d1e2b4a6f
+.EE
+.PP
+Each tree holds, beside its files:
+.TF namespace
+.TP
+.B namespace
+The package's binds, in the form of
+.IR namespace (6),
+with
+.B $pkg
+its tree:
+.B "bind -a $pkg/bin /bin"
+for git.
+A union is of one directory, not of the directories in it,
+so a package binds onto the directories it adds to, not their parents.
+.TP
+.B meta
+In the form of
+.IR ndb (6):
+the package's name,
+.BR pkg= ,
+and the packages it needs,
+.BR need= ,
+a pair each.
+.TP
+.B proto
+The tree's files, in the form of
+.IR proto (2).
+.PD
+.PP
+A
+.I pkg
+is one of
+.TF name@hash
+.TP
+.I name
+The tree
+.B /pkg/index
+names.
+.TP
+.IB name @ hash
+That tree of
+.BR /pkg .
+.TP
+.I path
+A tree of one's own, a path that starts with
+.BR / ,
+.BR ./ ,
+or
+.BR ../ :
+a package one has built, as it is.
+.PD
+.PP
+.I Pkg add
+adds each
+.I pkg
+to the name space, after the packages it needs, each once:
+one in the name space already is not added again.
+With
+.BI -f " file\f1,
+it adds the packages
+.I file
+names, a line each: a name; a name, a blank, and a hash; or a path.
+Lines that start with
+.B #
+are comments.
+The profile that
+.IR newuser (8)
+makes adds those of
+.BR $home/lib/pkg ,
+which starts with
+.BR git .
+.PP
+.I Pkg run
+adds the packages in a new name space, and runs
+.I cmd
+there, or else an interactive
+.IR rc (1);
+the name space it was run in is as it was.
+.PP
+.I Pkg list
+prints the packages of
+.B /pkg
+in the name space, a line each: a name and a hash.
+.PP
+.I Pkg pin
+rewrites
+.IR file ,
+by default
+.BR $home/lib/pkg ,
+with each package that is a name alone given the hash of its current tree,
+so that adding the file's packages gives those trees and no later ones.
+A copy of the file kept before is a way back.
+.SH EXAMPLES
+Try a package one has built before it is published:
+.IP
+.EX
+pkg run ./git -c git/log
+.EE
+.SH FILES
+.TF $home/lib/pkg
+.TP
+.B /pkg
+The system's packages.
+.TP
+.B $home/lib/pkg
+The packages the profile adds.
+.SH SOURCE
+plan9web's
+.B rc/bin/pkg
+and
+.BR mk/pkg ;
+the packages' own files are in its
+.BI pkg/ name\f1.
+.SH SEE ALSO
+.IR bind (1),
+.IR namespace (4),
+.IR namespace (6),
+.IR proto (2)
+.SH BUGS
+The packages are only those the site was built with, fetched as they are read;
+there is not yet a way to fetch others, or to keep them for when the site cannot be reached.
