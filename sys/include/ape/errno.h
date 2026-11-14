@@ -88,6 +88,9 @@ extern int errno;
 #define ECONNRESET	65
 #define ELOOP		66
 #define EOVERFLOW	67
+#define ENOTSUP	EOPNOTSUPP
+#define EDQUOT	68
+#define ESTALE	69
 
 #endif /* _POSIX_SOURCE */
 

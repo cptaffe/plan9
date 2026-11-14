@@ -41,6 +41,7 @@ extern char *getenv(const char *);
 #if _POSIX_C_SOURCE >= 200112L
 extern int setenv(const char *, const char *, int);
 extern int unsetenv(const char *);
+extern int posix_memalign(void **, size_t, size_t);
 #endif
 #if _POSIX_C_SOURCE >= 200809L || defined(_SUSV2_SOURCE)
 extern char *realpath(const char *, char *);

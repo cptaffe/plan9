@@ -186,3 +186,21 @@ aligned_alloc(size_t align, size_t size)
 	bp->pad = size;
 	return q;
 }
+
+int
+posix_memalign(void **pp, size_t align, size_t size)
+{
+	void *p;
+	int e;
+
+	if(align < sizeof(void*) || (align & (align-1)) != 0)
+		return EINVAL;
+	e = errno;
+	p = aligned_alloc(align, size);
+	if(p == nil){
+		errno = e;
+		return ENOMEM;
+	}
+	*pp = p;
+	return 0;
+}
