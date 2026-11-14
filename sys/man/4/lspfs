@@ -106,9 +106,10 @@ The files
 .BR impls ,
 .BR doc ,
 .BR comp ,
-.B syms
-and
+.BR syms ,
 .B fmt
+and
+.B rename
 each answer a question.
 Open one for reading and writing, write a file's full name, a colon and a
 .LR # ,
@@ -118,7 +119,9 @@ and read the answer.
 .B Syms
 and
 .B fmt
-take the file's name alone.
+take the file's name alone, and
+.B rename
+a place, a blank, and the new name.
 The answer starts where the write leaves the offset, so
 .IP
 .EX
@@ -146,6 +149,11 @@ gives the edits that lay the file out, the last in the text first, each a line o
 end in runes and its text's length in bytes, then the text: so applied in order, each leaves the
 places of those after it alone.
 It fails if the document changed while the server worked.
+.B Rename
+gives its edits in the same form, the edits of each file after a line
+.BI file " name" \f1;
+it fails if the server would create, rename or delete a file, or edits a version of a document
+that is not the one open.
 A file that no client has open is read from disk, again for each question.
 .SS Documents
 A client opens its text by
