@@ -1,0 +1,13 @@
+#!/bin/rc
+rfork e
+if(! ~ $#* 1 || ~ $#winid 0){
+	echo usage: Rename newname >[1=2]
+	exit usage
+}
+f=`{sed 1q /mnt/acme/$winid/tag | awk '{print $1}'}
+e=/tmp/lsprename.$pid
+if(! /acme/bin/lspq rename $1 >$e){
+	rm -f $e
+	exit rename
+}
+exec /acme/bin/lspshow `{basename -d $f}^/+Rename $e

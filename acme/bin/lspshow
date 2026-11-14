@@ -1,0 +1,47 @@
+#!/bin/rc
+rfork e
+. /lib/acme.rc
+if(! ~ $#* 2 4){
+	echo usage: lspshow name edit [path action] >[1=2]
+	exit usage
+}
+name=$1
+edit=$2
+at=$3
+act=$4
+t=/tmp/lspshow.$pid
+mkdir -p $t/a $t/b
+if(! echo review $edit $t >/mnt/alsp/ctl){
+	rm -rf $t $edit
+	exit review
+}
+fn event {
+	switch($2){
+	case x X
+		if(~ $9 Apply){
+			windoneevent $*
+			if(echo apply $edit >/mnt/alsp/ctl){
+				if(! ~ $#act 0 && grep -s '^command$' $edit)
+					{ echo -n $at' '$act >[1=0]; cat } <>/mnt/lsp/actcmd >[1=2]
+				windel sure
+			}
+		}
+		if not
+			winwriteevent $*
+	case l L
+		winwriteevent $*
+	}
+}
+newwindow
+winname $name
+echo -n ' Apply' | winwrite tag
+{
+	grep '^(create|rename|delete) ' $edit
+	diff -r -n -c $t/a $t/b | sed 's!'$t'/[ab]!!g'
+} | winwrite body
+winctl clean
+echo -n '#0' | winwrite addr
+winctl 'dot=addr'
+winctl show
+wineventloop
+rm -rf $t $edit

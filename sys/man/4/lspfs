@@ -107,9 +107,12 @@ The files
 .BR doc ,
 .BR comp ,
 .BR syms ,
-.B fmt
+.BR fmt ,
+.BR rename ,
+.BR act ,
+.B actdo
 and
-.B rename
+.B actcmd
 each answer a question.
 Open one for reading and writing, write a file's full name, a colon and a
 .LR # ,
@@ -119,9 +122,17 @@ and read the answer.
 .B Syms
 and
 .B fmt
-take the file's name alone, and
+take the file's name alone,
 .B rename
-a place, a blank, and the new name.
+a place, a blank, and the new name,
+.B act
+a place or a range, as
+.LR /usr/glenda/src/a.fdn:#120,#131 ,
+and
+.B actdo
+and
+.B actcmd
+the file's name, a blank, and the name of an action.
 The answer starts where the write leaves the offset, so
 .IP
 .EX
@@ -151,9 +162,43 @@ places of those after it alone.
 It fails if the document changed while the server worked.
 .B Rename
 gives its edits in the same form, the edits of each file after a line
-.BI file " name" \f1;
-it fails if the server would create, rename or delete a file, or edits a version of a document
-that is not the one open.
+.BI file " name" \f1,
+or, for a document a client has open,
+.BI file " name n version" \f1,
+its directory and the version the edits are for (see
+.BR ver ).
+Lines
+.BI create " name" \f1,
+.BI rename " old new"
+and
+.BI delete " name"
+are the server's file operations, in their place among the edits;
+edits to a file renamed before them are of the old file's text.
+It fails if the server edits a version of a document that is not the one open.
+.PP
+.B Act
+lists the server's code actions for the range, with the diagnostics that touch it, a line
+each: a name, a tab and the server's title.
+The name is the last part of the action's kind, such as
+.B quickfix
+or
+.BR extract ,
+or
+.B command
+for a bare command, with a number added to the second and later of a kind; a
+.L *
+after it marks the action the server prefers.
+Preferred actions come first, then quick fixes.
+.B Actdo
+gives the edit of an action of the last list, asking the server for it if the list has none,
+in
+.BR rename 's
+form, with a last line
+.L command
+if a command is to run after it; or runs a bare command and gives
+.BI ran " name" \f1.
+.B Actcmd
+runs the action's command, once its edit is applied.
 A file that no client has open is read from disk, again for each question.
 .SS Documents
 A client opens its text by
@@ -209,6 +254,9 @@ and the message
 the diagnostics as runs, a start and length in runes and the severity, as
 .IR astyles (4)
 takes them
+.TP
+.B ver
+the text's version, which each edit or write of the body adds one to
 .PD
 .PP
 Writing two numbers to
