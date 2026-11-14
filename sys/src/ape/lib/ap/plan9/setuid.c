@@ -3,12 +3,23 @@
 #include <errno.h>
 
 /*
- * BUG: never works
+ * BUG: only the id the process has can be set
  */
 
 int
-setuid(uid_t)
+setuid(uid_t id)
 {
+	if(id == getuid())
+		return 0;
+	errno = EPERM;
+	return -1;
+}
+
+int
+seteuid(uid_t id)
+{
+	if(id == geteuid())
+		return 0;
 	errno = EPERM;
 	return -1;
 }

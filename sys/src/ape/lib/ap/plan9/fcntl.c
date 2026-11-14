@@ -34,7 +34,7 @@ fcntl(int fd, int cmd, ...)
 			}
 			oflags = fi->oflags;
 			for(i = (arg>0)? arg : 0; i<OPEN_MAX; i++)
-				if(!(_fdinfo[i].flags&FD_ISOPEN))
+				if(!(_fdinfo[i].flags&FD_ISOPEN) && !_bufpipe(i))
 					break;
 			if(i == OPEN_MAX)
 				err = EMFILE;

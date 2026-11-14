@@ -78,6 +78,51 @@ rawfds(int keep)
 }
 
 /*
+ * _bufpipe says whether fd is one of the program's pipes, whose number dup must not take, and
+ * _bufmove gives that pipe another number, so that dup2 can take fd
+ */
+static int*
+bufref(int fd)
+{
+	int i;
+
+	if(fd < 0 || mux[0] < 0)
+		return 0;
+	if(fd == mux[0])
+		return &mux[0];
+	if(fd == mux[1])
+		return &mux[1];
+	if(fd == timernote)
+		return &timernote;
+	for(i = 0; i < OPEN_MAX; i++)
+		if(ack[i] == fd)
+			return &ack[i];
+	return 0;
+}
+
+int
+_bufpipe(int fd)
+{
+	return bufref(fd) != 0;
+}
+
+int
+_bufmove(int fd)
+{
+	int *r, n;
+
+	if((r = bufref(fd)) == 0)
+		return 0;
+	if((n = _DUP(fd, -1)) < 0){
+		_syserrno();
+		return -1;
+	}
+	*r = n;
+	_CLOSE(fd);
+	return 0;
+}
+
+/*
  * Start making fd read-buffered: make the pipe, if necessary, and fork a child to read the fd
  * and write what it reads into it. Return -1 if we can't do it.
  */

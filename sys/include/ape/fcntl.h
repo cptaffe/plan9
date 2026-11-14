@@ -35,6 +35,12 @@
 
 #define FD_CLOEXEC	1
 
+#ifndef SEEK_SET		/* also defined in stdio.h and unistd.h */
+#define	SEEK_SET	0
+#define	SEEK_CUR	1
+#define	SEEK_END	2
+#endif
+
 struct flock {
 	short	l_type;
 	short	l_whence;

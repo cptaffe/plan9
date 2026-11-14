@@ -45,10 +45,11 @@ struct	stat {
 #define S_ISCHR(m)	(((m)&S__MASK) == 0020000)
 #define S_ISBLK(m)	(((m)&S__MASK) == 0060000)
 #define S_ISFIFO(m)	(((m)&S__MASK) == 0010000)
-#define S_ISSOCK(m)	0
+#define S_ISSOCK(m)	(((m)&S__MASK) == 0140000)
 
 #define	S_ISUID	04000		/* set user id on execution */
 #define	S_ISGID	02000		/* set group id on execution */
+#define	S_ISVTX	01000		/* restricted deletion: directory */
 #define	S_IRWXU	00700		/* read, write, execute: owner */
 #define	S_IRUSR	00400		/* read permission: owner */
 #define	S_IWUSR	00200		/* write permission: owner */
@@ -70,7 +71,7 @@ struct	stat {
 #define S_IFREG 0100000
 #define S_IFIFO 0010000
 #define S_IFLNK 0120000
-#define S_IFSOCK S_IFIFO
+#define S_IFSOCK 0140000
 #endif
 
 #ifdef __cplusplus

@@ -482,6 +482,19 @@ _detachbuf(void)
 	timerpid = -1;
 }
 
+/* the buffers are a segment's: no pipe of the program's has an fd's number (wasm's have) */
+int
+_bufpipe(int)
+{
+	return 0;
+}
+
+int
+_bufmove(int)
+{
+	return 0;
+}
+
 static int
 copynotehandler(void *, char *)
 {

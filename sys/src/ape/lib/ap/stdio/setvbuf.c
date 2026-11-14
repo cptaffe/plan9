@@ -3,16 +3,16 @@
  */
 #include "iolib.h"
 int setvbuf(FILE *f, char *buf, int mode, size_t size){
-	if(f->state!=OPEN){
-		f->state=ERR;
+	if(f->state!=OPEN)
 		return -1;
-	}
 	f->state=RDWR;
 	switch(mode){
 	case _IOLBF:
 		f->flags|=LINEBUF;
 	case _IOFBF:
 		if(buf==0){
+			if(size==0)
+				size=BUFSIZ;
 			buf=malloc(size);
 			if(buf==0){
 				f->state=ERR;

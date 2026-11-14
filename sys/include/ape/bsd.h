@@ -41,7 +41,7 @@ extern char	*strsep(char **, const char *);
 extern char	*strcasestr(const char *, const char *);
 extern char	*getpass(const char *);
 
-extern int	getopt(int, char**, char*);
+extern int	getopt(int, char *const*, const char*);
 extern int	opterr;
 extern int	optind;
 extern int	optopt;
