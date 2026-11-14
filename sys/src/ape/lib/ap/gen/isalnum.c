@@ -22,3 +22,4 @@ int ispunct(int c){ return (_ctype+1)[c]&_ISpunct; }
 int isspace(int c){ return (_ctype+1)[c]&_ISspace; }
 int isupper(int c){ return (_ctype+1)[c]&_ISupper; }
 int isxdigit(int c){ return (_ctype+1)[c]&_ISxdigit; }
+int isblank(int c){ return c == ' ' || c == '\t'; }

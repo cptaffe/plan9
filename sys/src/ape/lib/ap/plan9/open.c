@@ -6,6 +6,8 @@
 #include "lib.h"
 #include <sys/stat.h>
 #include "sys9.h"
+#include "dir.h"
+#include <fcntl.h>
 
 /*
  * O_NOCTTY has no effect
@@ -60,6 +62,20 @@ open(const char *path, int flags, ...)
 			strcpy(fi->name, path);
 		if(fi->oflags&O_APPEND)
 			_SEEK(n, 0, 2);
+		if(flags&O_DIRECTORY){
+			Dir *d;
+
+			d = _dirfstat(n);
+			if(d == nil || !(d->mode & DMDIR)){
+				free(d);
+				close(n);
+				errno = ENOTDIR;
+				return -1;
+			}
+			free(d);
+		}
+		if(flags&O_CLOEXEC)
+			fcntl(n, F_SETFD, FD_CLOEXEC);
 	}
 	return n;
 }

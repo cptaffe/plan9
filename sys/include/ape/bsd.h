@@ -38,7 +38,10 @@ extern int	strcasecmp(const char*, const char*);
 extern int 	putenv(char*);
 extern int	strncasecmp(const char*, const char*, size_t);
 extern char	*strsep(char **, const char *);
+extern long long	strtonum(const char *, long long, long long, const char **);
 extern char	*strcasestr(const char *, const char *);
+extern void	*setmode(const char *);
+extern mode_t	getmode(const void *, mode_t);
 extern char	*getpass(const char *);
 
 extern int	getopt(int, char *const*, const char*);

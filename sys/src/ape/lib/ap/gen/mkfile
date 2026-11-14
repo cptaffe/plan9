@@ -17,6 +17,7 @@ ALLOFILES=\
 	ctype.$O\
 	difftime.$O\
 	div.$O\
+	fnmatch.$O\
 	getenv.$O\
 	imax.$O\
 	isalnum.$O\
@@ -36,6 +37,7 @@ ALLOFILES=\
 	qsort.$O\
 	raise.$O\
 	rand.$O\
+	reallocarray.$O\
 	strcat.$O\
 	strchr.$O\
 	strcmp.$O\

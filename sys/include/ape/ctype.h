@@ -19,6 +19,9 @@ extern int isupper(int);
 extern int isxdigit(int);
 extern int tolower(int);
 extern int toupper(int);
+#if __STDC_VERSION__ >= 199901L || _POSIX_C_SOURCE >= 200112L
+extern int isblank(int);
+#endif
 
 #ifdef __cplusplus
 }

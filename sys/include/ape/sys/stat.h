@@ -8,14 +8,12 @@
 #pragma lib "/$M/lib/ape/libap.a"
 
 /* POSIX 2008's: as <time.h>'s */
-#if _POSIX_C_SOURCE >= 200809L
 #ifndef _TIMESPEC
 #define _TIMESPEC
 struct timespec {
 	time_t	tv_sec;
 	long	tv_nsec;
 };
-#endif
 #endif
 
 /*
@@ -29,12 +27,16 @@ struct	stat {
 	uid_t 	st_uid;
 	gid_t 	st_gid;
 	off_t	st_size;
-	time_t	st_atime;
-	time_t	st_mtime;
-	time_t	st_ctime;
+	struct timespec	st_atim;
+	struct timespec	st_mtim;
+	struct timespec	st_ctim;
 	long	st_blksize;
 	long long	st_blocks;
 };
+
+#define	st_atime	st_atim.tv_sec
+#define	st_mtime	st_mtim.tv_sec
+#define	st_ctime	st_ctim.tv_sec
 
 #define	S__MASK		     0170000
 #ifdef _RESEARCH_SOURCE
@@ -72,6 +74,7 @@ struct	stat {
 #define S_IFIFO 0010000
 #define S_IFLNK 0120000
 #define S_IFSOCK 0140000
+#define S_ISTXT	S_ISVTX
 #endif
 
 #ifdef __cplusplus
@@ -82,6 +85,9 @@ extern mode_t umask(mode_t);
 extern int mkdir(const char *, mode_t);
 extern int mkfifo(const char *, mode_t);
 extern int stat(const char *, struct stat *);
+#if _POSIX_C_SOURCE >= 200809L
+extern int fstatat(int, const char *, struct stat *, int);
+#endif
 extern int fstat(int, struct stat *);
 extern int chmod(const char *, mode_t);
 #if _POSIX_C_SOURCE >= 200112L || defined(_BSD_EXTENSION)

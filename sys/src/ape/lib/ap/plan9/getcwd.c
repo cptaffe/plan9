@@ -29,7 +29,23 @@ getcwd(char *buf, size_t len)
 	if(path[0] == '\0')
 		strcpy(path, "/");
 	n = strlen(path);
-	if(len == 0 || n >= sizeof path - 1 || n+1 > len) {
+	if(n >= sizeof path - 1) {
+		errno = ENAMETOOLONG;
+		return 0;
+	}
+	if(buf == 0) {
+		if(len == 0)
+			len = n+1;
+		if(n+1 > len) {
+			errno = ERANGE;
+			return 0;
+		}
+		if((buf = malloc(len)) == 0) {
+			errno = ENOMEM;
+			return 0;
+		}
+	}
+	if(len == 0 || n+1 > len) {
 		errno = len == 0 ? EINVAL : ERANGE;
 		return 0;
 	}

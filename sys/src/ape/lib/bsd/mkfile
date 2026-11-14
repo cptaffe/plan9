@@ -10,6 +10,8 @@ OFILES=\
 	endhostent.$O\
 	err.$O\
 	ffs.$O\
+	fgetln.$O\
+	fts.$O\
 	getdtablesize.$O\
 	gethostbyname.$O\
 	gethostbyaddr.$O\
@@ -34,13 +36,16 @@ OFILES=\
 	nptohl.$O\
 	popen.$O\
 	putenv.$O\
+	pwcache.$O\
 	rcmd.$O\
 	readv.$O\
 	rresvport.$O\
 	send.$O\
 	sendto.$O\
 	setlinebuf.$O\
+	setmode.$O\
 	shutdown.$O\
+	signame.$O\
 	_sock_ingetaddr.$O\
 	_sock_ipattr.$O\
 	_sock_srv.$O\
@@ -48,6 +53,7 @@ OFILES=\
 	strcasestr.$O\
 	strncasecmp.$O\
 	strsep.$O\
+	strtonum.$O\
 	syslog.$O\
 	socket.$O\
 	socketpair.$O\

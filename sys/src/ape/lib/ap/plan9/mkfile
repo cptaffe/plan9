@@ -35,6 +35,7 @@ OFILES=\
 	dirread.$O\
 	dirstat.$O\
 	dirtostat.$O\
+	dirfd.$O\
 	dup.$O\
 	execl.$O\
 	execle.$O\
@@ -42,10 +43,12 @@ OFILES=\
 	execv.$O\
 	execve.$O\
 	execvp.$O\
+	fchdir.$O\
 	fcntl.$O\
 	fork.$O\
 	frexp.$O\
 	fstat.$O\
+	fstatat.$O\
 	fsync.$O\
 	ftruncate.$O\
 	getcwd.$O\
@@ -106,6 +109,7 @@ OFILES=\
 	tmpfile.$O\
 	ttyname.$O\
 	umask.$O\
+	vfork.$O\
 	uname.$O\
 	unlink.$O\
 	utime.$O\

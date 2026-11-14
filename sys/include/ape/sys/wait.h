@@ -2,6 +2,8 @@
 #define __WAIT_H
 #pragma lib "/$M/lib/ape/libap.a"
 
+#include <sys/types.h>
+
 /* flag bits for third argument of waitpid */
 #define WNOHANG		0x1
 #define WUNTRACED	0x2

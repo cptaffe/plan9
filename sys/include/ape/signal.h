@@ -43,6 +43,7 @@ typedef int sig_atomic_t;
 
 #ifdef _BSD_EXTENSION
 #define NSIG 24
+extern const char *const sys_signame[NSIG];
 #endif
 
 #ifdef __cplusplus
