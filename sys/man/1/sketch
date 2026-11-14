@@ -75,6 +75,13 @@ Zoom around the mouse.
 .PD
 .PP
 During a drag, Escape or another button takes back everything the drag did.
+While something moves, with button 2 or as a copy follows the mouse,
+the wheel is Sketchpad's knob: it turns what moves around the mouse, 3° a step.
+Typing
+.B s
+makes it change the size instead, and
+.B r
+makes it turn again.
 .SS Keys
 .TF space
 .TP
@@ -85,8 +92,24 @@ Make a circle center here; the next button 1 draws an arc around it.
 Start a text here.
 Type it; Backspace, control-U and control-W edit it, and newline, Escape or a click ends it.
 .TP
-.B "[ ] + -"
-Turn the text here left or right by 15°, or make it larger or smaller.
+.B r
+Turn the piece here: what lines, arcs and constraints join to it,
+or, if there are any, the things designated.
+It turns around the circle center if there is one, and else around the middle of the piece,
+as the mouse goes around that point; angles near a multiple of 15° take it.
+Typing a number turns it that many degrees, Backspace edits the number,
+and the wheel turns it a step.
+.B s
+changes to sizing.
+A click or newline keeps it; Escape or another button takes it back.
+The constraints are met after, so a turned line held horizontal goes back.
+.TP
+.B s
+Size the piece here, as
+.B r
+turns it: by the mouse's distance from the point, by a number typed, or by the wheel.
+.B r
+changes to turning.
 .TP
 .B x
 Delete what is here, and what depends on it.
