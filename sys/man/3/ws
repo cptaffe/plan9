@@ -71,30 +71,36 @@ and
 .BR /net .
 Webfs's requests are made by the server, not the browser, so the browser's
 cross-origin rules do not stop them.
-It fetches only from the hosts it allows, at first
-.B api.anthropic.com
-and
-.BR opencode.ai ,
-and holds no keys.
+It fetches from any https host, follows no redirect, and holds no keys;
+the site's
+.B /net
+dials any host by
+.BR tcp .
 The site's sign-in comes before
 .B /9p
 answers, so import needs no authentication of its own:
 .EX
-	import -A ws!$site!9p /mnt/web
+	import ws!$auth!9p / /n/$auth
+	bind -a /n/$auth/net /net
 .EE
 The page sets
-.B $site
+.B $auth
+and
+.B $fs
 to its own host.
+Once that import is made,
 .IR Sibyl 's
 servers and
 .IR searchfs (4)
-run in a name space where this has been done.
+bind its
+.B /mnt/web
+on their own.
 .SH SOURCE
 .B k/src/kernel/netws.ts
 .br
 .B k/src/web9p.ts
 .br
-.B k/src/site9p.ts
+.B k/src/exportfs.ts
 .br
 .B site/worker.js
 .SH SEE ALSO
