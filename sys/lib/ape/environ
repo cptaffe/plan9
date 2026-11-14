@@ -17,7 +17,10 @@ NO_COLOR=1
 LANG=C.UTF-8
 SHELL=/bin/ape/sh
 PAGER=p
-EDITOR=ed
+
+# an editor is the plumber's: E plumbs the file to whichever editor takes edit, and returns when
+# you Put it
+EDITOR=E
 
 # where a program keeps its files: $home/lib, as Go's os.UserConfigDir and UserCacheDir on Plan 9
 XDG_CONFIG_HOME=$home/lib
