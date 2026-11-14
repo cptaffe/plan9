@@ -88,11 +88,13 @@ Type it; Backspace, control-U and control-W edit it, and newline, Escape or a cl
 .B r
 Turn the piece here: what lines, arcs and constraints join to it,
 or, if there are any, the things designated.
-It turns around the circle center if there is one, and else around the middle of the piece,
+It turns around the circle center if there is one, else around the piece's one fixed point
+if it has one, and else around the middle of the piece,
 as the mouse goes around that point.
 A line or text here snaps to a direction within 2° of a multiple of 15°.
 Typing a number turns it that many degrees, Backspace edits the number,
-and the wheel turns it 3°.
+and erasing it gives the turn back to the mouse;
+the wheel turns it 3°, and the mouse no longer snaps after that.
 .B s
 changes to sizing.
 A click or newline keeps it, and forgets the circle center;
@@ -104,6 +106,13 @@ and fixed points stay fixed where the turn puts them.
 Size the piece here, as
 .B r
 turns it: by the mouse's distance from the point, by a number typed, or by the wheel.
+Lengths held by
+.B D
+scalars and by
+.B W
+and
+.B Y
+size with it.
 .B r
 changes to turning.
 .TP
@@ -137,6 +146,7 @@ and
 Designated things show in blue with their order;
 .B d
 on one moves it last, and on the last one forgets it.
+Undo, and Escape during a copy, keep the designations and the circle center.
 .TP
 .B k
 Show or hide the constraints that hold.
