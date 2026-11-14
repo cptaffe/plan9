@@ -68,12 +68,11 @@ gets no project at all and finds its own.
 .B func=
 the pattern a function's first line matches, for
 .IR fn (1)
-.TP
-.B put=
-what to do to a buffer after it is put:
-.L fmt
-formats it, and other words are kinds of code action to apply
 .PD
+.PP
+Other attributes are for other programs, which read the same file;
+.I lspfs
+ignores them.
 .PP
 An entry
 .B tree=
@@ -103,9 +102,10 @@ The files
 .BR refs ,
 .BR impls ,
 .BR doc ,
-.B comp
-and
+.BR comp ,
 .B syms
+and
+.B fmt
 each answer a question.
 Open one for reading and writing, write a file's full name, a colon and a
 .LR # ,
@@ -113,7 +113,9 @@ then a place in runes, as in
 .LR /usr/glenda/src/a.fdn:#120 ,
 and read the answer.
 .B Syms
-takes the file's name alone.
+and
+.B fmt
+take the file's name alone.
 The answer starts where the write leaves the offset, so
 .IP
 .EX
@@ -135,7 +137,12 @@ gives the diagnostics on the place's line and then what the server says of it;
 gives the completions, one a line;
 .B syms
 gives the file's symbols, a line each, as a place, the kind of symbol and its name, indented
-under the symbol they are in.
+under the symbol they are in;
+.B fmt
+gives the edits that lay the file out, the last in the text first, each a line of its start and
+end in runes and its text's length in bytes, then the text: so applied in order, each leaves the
+places of those after it alone.
+It fails if the document changed while the server worked.
 A file that no client has open is read from disk, again for each question.
 .SS Documents
 A client opens its text by
