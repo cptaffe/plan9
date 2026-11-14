@@ -75,13 +75,6 @@ Zoom around the mouse.
 .PD
 .PP
 During a drag, Escape or another button takes back everything the drag did.
-While something moves, with button 2 or as a copy follows the mouse,
-the wheel is Sketchpad's knob: it turns what moves around the mouse, 3° a step.
-Typing
-.B s
-makes it change the size instead, and
-.B r
-makes it turn again.
 .SS Keys
 .TF space
 .TP
