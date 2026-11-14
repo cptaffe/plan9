@@ -16,6 +16,7 @@ bind -a $home/bin/rc /bin
 bind -a $home/bin/$cputype /bin
 bind -c $home/tmp /tmp
 test -e $home/lib/pkg && pkg add -f $home/lib/pkg
+remotenet	# the site's /net, for /net/tcp
 font = /lib/font/bit/Iosevka/12a/font,/lib/font/bit/Iosevka/24a/font
 switch($service){
 case terminal
