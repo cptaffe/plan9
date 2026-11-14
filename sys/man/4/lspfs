@@ -85,8 +85,8 @@ starts a server the first time a file it serves is opened or asked about,
 and runs one process for all the projects it serves, telling it of each new root.
 A server that cannot be told of another project gets a process for each.
 A server that exits is started again, and the documents it had are opened in it again;
-one that exits three times within ten seconds of starting is not started again until the
-rules are written.
+one that exits five times within three minutes is not started again until the rules are
+written.
 Each runs in a directory of its own in
 .BR /tmp ,
 with its errors in
