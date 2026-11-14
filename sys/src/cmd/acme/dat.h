@@ -327,6 +327,7 @@ struct Window
 	char		*dumpstr;
 	char		*dumpdir;
 	int		dumpid;
+	int	resume;
 	int		utflastqid;
 	int		utflastboff;
 	int		utflastq;
@@ -404,7 +405,8 @@ void		rowresize(Row*, Rectangle);
 Text*	rowtype(Row*, Rune, Point);
 void		rowdragcol(Row*, Column*, int but);
 int		rowclean(Row*);
-void		rowdump(Row*, char*);
+int		rowdump(Row*, char*);
+void	rowsave(Row*, char*);
 int		rowload(Row*, char*, int);
 void		rowloadfonts(char*);
 
@@ -641,6 +643,8 @@ int			erroutfd;
 int			cfd;
 int			messagesize;		/* negotiated in 9P version setup */
 int			globalautoindent;
+char			*dumpfile;
+ulong		dumpseq;
 int			dodollarsigns;
 char*		mtpt;
 

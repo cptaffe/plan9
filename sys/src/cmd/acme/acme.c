@@ -45,6 +45,8 @@ char		*fontnames[2] =
 
 Command *command;
 
+void	dumpthread(void*);
+
 void	acmeerrorinit(void);
 void	readfile(Column*, char*);
 static int	shutdown(void*, char*);
@@ -100,6 +102,11 @@ threadmain(int argc, char *argv[])
 		if(fontnames[1] == nil)
 			goto Usage;
 		break;
+	case 'd':
+		dumpfile = ARGF();
+		if(dumpfile == nil)
+			goto Usage;
+		break;
 	case 'l':
 		loadfile = ARGF();
 		if(loadfile == nil)
@@ -118,7 +125,7 @@ threadmain(int argc, char *argv[])
 		break;
 	default:
 	Usage:
-		fprint(2, "usage: acme -a -c ncol -f fontname -F fixedwidthfontname -l loadfile -s stylefile\n");
+		fprint(2, "usage: acme -a -c ncol -d dumpfile -f fontname -F fixedwidthfontname -l loadfile -s stylefile\n");
 		threadexitsall("usage");
 	}ARGEND
 
@@ -253,6 +260,9 @@ threadmain(int argc, char *argv[])
 	threadcreate(waitthread, nil, STACK);
 	threadcreate(xfidallocthread, nil, STACK);
 	threadcreate(newwindowthread, nil, STACK);
+	if(dumpfile)
+		threadcreate(dumpthread, nil, STACK);
+
 	threadnotify(shutdown, 1);
 	recvul(cexit);
 	killprocs();
@@ -303,6 +313,50 @@ char *oknotes[] ={
 
 int	dumping;
 
+enum
+{
+	Dumptick = 500,
+	Dumpquiet = 2000,
+	Dumpmax = 10000,
+};
+
+void
+dumpthread(void*)
+{
+	Timer *t;
+	ulong seq;
+	int pending, quiet, age;
+
+	threadsetname("dumpthread");
+	seq = dumpseq;
+	pending = FALSE;
+	quiet = age = 0;
+	for(;;){
+		t = timerstart(Dumptick);
+		recvul(t->c);
+		timerstop(t);
+		if(seq != dumpseq){
+			seq = dumpseq;
+			quiet = 0;
+			if(!pending){
+				pending = TRUE;
+				age = 0;
+			}
+		}else
+			quiet += Dumptick;
+		if(!pending)
+			continue;
+		age += Dumptick;
+		if(quiet < Dumpquiet && age < Dumpmax)
+			continue;
+		qlock(&row.lk);
+		rowsave(&row, dumpfile);
+		qunlock(&row.lk);
+		seq = dumpseq;
+		pending = FALSE;
+	}
+}
+
 static int
 shutdown(void*, char *msg)
 {
@@ -315,7 +369,10 @@ shutdown(void*, char *msg)
 	killprocs();
 	if(!dumping && strcmp(msg, "kill")!=0 && strcmp(msg, "exit")!=0 && getpid()==mainpid){
 		dumping = TRUE;
-		rowdump(&row, nil);
+		if(dumpfile)
+			rowsave(&row, dumpfile);
+		else
+			rowdump(&row, nil);
 	}
 	for(i=0; oknotes[i]; i++)
 		if(strncmp(oknotes[i], msg, strlen(oknotes[i])) == 0)
@@ -531,6 +588,7 @@ mousethread(void *)
 			iconinit();
 			scrlresize();
 			rowresize(&row, screen->clipr);
+			dumpseq++;
 			break;
 		case MPlumb:
 			if(strcmp(pm->type, "text") == 0){
@@ -551,6 +609,8 @@ mousethread(void *)
 			 * another race; see /sys/src/libdraw/mouse.c.
 			 */
 			m = mousectl->Mouse;
+			if(m.buttons)
+				dumpseq++;
 			qlock(&row.lk);
 			t = rowwhich(&row, m.xy);
 

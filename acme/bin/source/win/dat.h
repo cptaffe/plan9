@@ -68,6 +68,7 @@ extern	void		winclean(Window*);
 extern	int		winselect(Window*, char*, int);
 extern	int		winsetaddr(Window*, char*, int);
 extern	void		windormant(Window*);
+extern	Window*	oldwindow(char*, ulong*);
 extern	void		winsetdump(Window*, char*, char*);
 extern	int		winguard(Window*);
 extern	int		winput(Window*, uint, int, char*, int);

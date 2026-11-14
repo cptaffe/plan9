@@ -1423,6 +1423,7 @@ runproc(void *argvp)
 	unsetenv("winid");
 	unsetenv("%");
 	unsetenv("samfile");
+	unsetenv("acmeresume");
 
 	t = s;
 	while(*t==' ' || *t=='\n' || *t=='\t')
@@ -1468,6 +1469,10 @@ runproc(void *argvp)
 		rfork(RFNAMEG|RFENVG|RFFDG|RFNOTEG);
 		sprint(buf, "%d", winid);
 		putenv("winid", buf);
+		if(win && win->resume){
+			win->resume = FALSE;
+			putenv("acmeresume", buf);
+		}
 
 		if(filename){
 			putenv("%", filename);
@@ -1623,10 +1628,12 @@ Hard:
 	rcarg[2] = t;
 	rcarg[3] = nil;
 	ret = threadspawnd(sfd, rcarg[0], rcarg, dir);
-	unsetenv("acmeaddr");
-	unsetenv("winid");
-	unsetenv("%");
-	unsetenv("samfile");
+	if(!newns){
+		unsetenv("acmeaddr");
+		unsetenv("winid");
+		unsetenv("%");
+		unsetenv("samfile");
+	}
 	free(dir);
 	if(ret >= 0){
 		if(cpid)
