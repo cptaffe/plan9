@@ -64,13 +64,6 @@ arg isfile	$0
 plumb to postscript
 plumb start window page -R -p 72 $file
 
-# a directory goes to the editor. The name's pattern comes first: the plumber dies if $data
-# overflows its 4096 bytes, and man -b sends a whole page.
-type is text
-data matches '[a-zA-Z¡-￿0-9_\-./@]+'
-arg isdir	$data
-plumb to edit
-
 # existing files tagged by line number:column number, twice, go to editor
 type is text
 data matches '([.a-zA-Z¡-￿0-9_/+\-]*[a-zA-Z¡-￿0-9_/+\-])':$twocolonaddr,$twocolonaddr
