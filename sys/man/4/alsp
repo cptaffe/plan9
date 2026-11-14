@@ -1,0 +1,134 @@
+.TH ALSP 4
+.SH NAME
+alsp, Def, Type, Doc, Syms, Diag, Fmt \- acme's windows in a language server
+.SH SYNOPSIS
+.B alsp
+[
+.B -D
+] [
+.B -m
+.I mtpt
+] [
+.B -s
+.I srvname
+]
+.PP
+.B Def
+.PP
+.B Type
+.PP
+.B Doc
+.PP
+.B Syms
+.PP
+.B Diag
+.PP
+.B Fmt
+.SH DESCRIPTION
+.I Alsp
+puts the text of
+.IR acme (1)'s
+windows in
+.IR lspfs (4),
+and the tokens and diagnostics
+.I lspfs
+gives back in each window's
+.IR astyles (4)
+layers.
+It posts itself as
+.BI /srv/ srvname
+.RB ( /srv/alsp )
+and mounts itself on
+.I mtpt
+.RB ( /mnt/alsp ),
+then waits for
+.B /srv/acme
+and follows its windows.
+.B Acmestart
+starts it after
+.I astyles
+and
+.IR lspfs ,
+before acme.
+.PP
+A window whose file the first
+.B file=
+of the rules in
+.B $home/lib/lsp
+or
+.B /lib/lsp
+matches is opened in
+.IR lspfs ,
+and each edit to it is sent there, as acme's log gives it.
+The edits are counted, as acme counts them, so each thing
+.I alsp
+reads or writes is at a known place in the window's history:
+the text of an insert too long for acme's log is read under the edit's
+.B seq
+guard (see
+.IR astyles (4)),
+and if the window has moved on,
+.I alsp
+reads the whole body again and sends it.
+.I Get
+sends the body again.
+Tokens go in the window's layer
+.BR lsp ,
+diagnostics in
+.BR diagnostics ,
+each written under the guard of the last edit sent, and again when it was refused for a newer one.
+.PP
+After a
+.IR Put ,
+.I alsp
+does what the rule's
+.B put=
+says:
+.L fmt
+lays the window out, by
+.IR lspfs 's
+.BR fmt ,
+as one change, so one
+.I Undo
+takes it back; the window is left dirty.
+A format of text that changed meanwhile is not applied.
+Writing
+.BI fmt " winid"
+to
+.B ctl
+does the same at once.
+.PP
+The commands work on the window they are run in, at dot:
+.I Def
+and
+.I Type
+plumb the definition of the word or of its type;
+.I Doc
+gives the diagnostics on the line, then what the server says of the word;
+.I Syms
+lists the file's symbols;
+.I Diag
+lists its diagnostics;
+and
+.I Fmt
+lays it out.
+The lists are lines that button 3 opens.
+.SH FILES
+.TF /mnt/alsp/ctl
+.TP
+.B /mnt/alsp/ctl
+.BI fmt " winid"
+.PD
+.SH SOURCE
+plan9web's
+.B src/cmd/alsp.c
+.br
+.B /acme/bin/Def
+and the others, on
+.B /acme/bin/lspq
+.SH SEE ALSO
+.IR acme (4),
+.IR astyles (4),
+.IR lspfs (4)
+.SH BUGS
+A zeroxed window is not followed; its file's first window is.

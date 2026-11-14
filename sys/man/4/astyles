@@ -39,7 +39,7 @@ and follows the windows of the acme it gives, mounted on
 .RB ( /mnt/acme ).
 It exits when acme does.
 Started just before acme, as
-.B acmekeys
+.B acmestart
 starts it, it shares the namespace acme starts in,
 so every command acme runs finds it at
 .BR /mnt/astyles .
@@ -190,7 +190,7 @@ the user's order, read in place of
 plan9web's
 .B src/cmd/astyles.c
 .br
-.B rc/bin/acmekeys
+.B rc/bin/acmestart
 .SH SEE ALSO
 .IR acme (1),
 .IR acme (4),

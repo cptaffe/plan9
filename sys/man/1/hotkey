@@ -184,7 +184,7 @@ exits when
 does, with its status.
 .SH EXAMPLES
 Save the focused Acme window with Command-S, or with Control-X Control-S as in Emacs.
-.I Acmekeys
+.I Acmestart
 runs
 .IR acme (1)
 under

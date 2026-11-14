@@ -48,12 +48,12 @@ With no
 takes the directory of the file in acme window
 .B $acmewin
 (the focused window, as
-.I acmekeys
+.I acmestart
 sets it) or
 .BR $winid ,
 or else the current directory.
 .SH EXAMPLES
-.I Acmekeys
+.I Acmestart
 binds Command-P to
 .IR Find ,
 in

@@ -1,0 +1,18 @@
+#!/bin/rc
+rfork e
+if(! ~ $#* 1 || ~ $#winid 0){
+	echo usage: lspq kind >[1=2]
+	exit usage
+}
+f=`{sed 1q /mnt/acme/$winid/tag | awk '{print $1}'}
+{
+	echo -n addr=dot >/mnt/acme/$winid/ctl
+	q=`{cat <[0=3]}
+} <[3]/mnt/acme/$winid/addr
+switch($1){
+case syms fmt
+	at=$f
+case *
+	at=$f':#'$q(1)
+}
+{ echo -n $at >[1=0]; cat } <>/mnt/lsp/$1
