@@ -1,0 +1,58 @@
+.TH FUNC 1
+.SH NAME
+func \- name the function each place is in
+.SH SYNOPSIS
+.B func
+.SH DESCRIPTION
+.I Func
+copies its standard input to its standard output, and in each line that names a place,
+.IB file : line : col :
+or
+.IB file : line :\f1,
+puts the function the place is in after the place, as
+.B git grep -p
+does: the nearest line above the place that the function pattern matches.
+The pattern is the
+.B func=
+of the first rule in
+.B $home/lib/lsp
+or
+.B /lib/lsp
+(see
+.IR lspfs (4))
+whose
+.B file=
+matches the file.
+If the pattern has a group, the function's name is what the group matches;
+otherwise it is the whole line, without its indent or a trailing
+.LR { .
+A file no rule names takes git's pattern: a line that starts with a letter,
+.L _
+or
+.LR $ .
+Lines that are not places, and places with no function above them, are copied as they are.
+.SH EXAMPLES
+Plan 9's C puts a function's name at the start of a line, so a rule for it can say
+.IP
+.EX
+lsp=clangd cmd=clangd file="\e.[ch]$" func="^([a-zA-Z_][a-zA-Z0-9_]*)\e("
+.EE
+.PP
+and then
+.IP
+.EX
+grep -n textinsert /sys/src/cmd/acme/*.c | func
+.EE
+.PP
+gives lines such as
+.IP
+.EX
+/sys/src/cmd/acme/text.c:420: textinsert: textinsert(t, q0, r, n, tofile);
+.EE
+.SH SOURCE
+plan9web's
+.B src/cmd/func.c
+.SH SEE ALSO
+.IR grep (1),
+.IR alsp (4),
+.IR lspfs (4)
