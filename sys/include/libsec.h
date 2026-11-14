@@ -457,3 +457,14 @@ void hkdf_x(uchar *salt, ulong nsalt, uchar *info, ulong ninfo, uchar *key, ulon
 
 /* timing safe memcmp() */
 int tsmemcmp(void*, void*, ulong);
+
+/* curve25519 (rfc7748): mypublic = secret·basepoint, as donna's; X25519; a key exchange on it */
+void	curve25519(uchar mypublic[32], uchar secret[32], uchar basepoint[32]);
+int	x25519(uchar out[32], uchar s[32], uchar u[32]);
+void	curve25519_dh_new(uchar x[32], uchar y[32]);
+int	curve25519_dh_finish(uchar x[32], uchar y[32], uchar z[32]);
+
+/* ed25519 (rfc8032): a is a 32-byte secret, pk its public key, sig 64 bytes */
+void	ed25519pubkey(uchar *pk, uchar *a);
+void	ed25519sign(uchar *sig, uchar *msg, ulong len, uchar *a, uchar *pk);
+int	ed25519verify(uchar *sig, uchar *msg, ulong len, uchar *pk);
