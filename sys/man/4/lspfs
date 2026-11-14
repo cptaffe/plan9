@@ -4,7 +4,7 @@ lspfs \- language servers as files
 .SH SYNOPSIS
 .B lspfs
 [
-.B -D
+.B -Di
 ] [
 .B -m
 .I mtpt
@@ -22,6 +22,11 @@ It posts itself as
 by default) and mounts itself on
 .I mtpt
 .RB ( /mnt/lsp ).
+With
+.BR -i ,
+it serves 9P on standard input and output, and posts and mounts nothing;
+.B -D
+prints the 9P messages.
 It knows nothing of an editor: a question names a file and a place in it, in runes,
 and the answer is lines of text.
 .PP

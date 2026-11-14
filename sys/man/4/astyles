@@ -4,7 +4,7 @@ astyles \- layers of color in acme's windows
 .SH SYNOPSIS
 .B astyles
 [
-.B -D
+.B -Di
 ] [
 .B -a
 .I acme
@@ -45,7 +45,9 @@ so every command acme runs finds it at
 .BR /mnt/astyles .
 The
 .B -D
-option prints the 9P messages.
+option prints the 9P messages;
+.B -i
+serves 9P on standard input and output, and posts and mounts nothing.
 .PP
 The top directory has a directory for each of acme's windows, named by the window's ID.
 Each holds:
