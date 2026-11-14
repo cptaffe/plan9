@@ -7,15 +7,15 @@
 int
 getentropy(void *buf, size_t n)
 {
-	static int f = -1;
 	char *p;
 	long r;
+	int f;
 
 	if(n > 256){
 		errno = EINVAL;
 		return -1;
 	}
-	if(f < 0 && (f = _OPEN("/dev/random", OREAD|OCEXEC)) < 0){
+	if((f = _OPEN("/dev/random", OREAD|OCEXEC)) < 0){
 		_syserrno();
 		return -1;
 	}
@@ -27,9 +27,9 @@ getentropy(void *buf, size_t n)
 			else
 				_syserrno();
 			_CLOSE(f);
-			f = -1;
 			return -1;
 		}
 	}
+	_CLOSE(f);
 	return 0;
 }

@@ -27,21 +27,14 @@ gettimeofday(struct timeval *tp, struct timezone *tzp)
 {
 	uchar b[8];
 	vlong t;
-	int opened;
-	static int fd = -1;
+	int fd, n;
 
-	opened = 0;
-	for(;;) {
-		if(fd < 0)
-			if(opened++ ||
-			    (fd = _OPEN("/dev/bintime", OREAD|OCEXEC)) < 0)
-				return 0;
-		if(_PREAD(fd, b, sizeof b, 0) == sizeof b)
-			break;		/* leave fd open for future use */
-		/* short read, perhaps try again */
-		_CLOSE(fd);
-		fd = -1;
-	}
+	if((fd = _OPEN("/dev/bintime", OREAD|OCEXEC)) < 0)
+		return 0;
+	n = _PREAD(fd, b, sizeof b, 0);
+	_CLOSE(fd);
+	if(n != sizeof b)
+		return 0;
 	be2vlong(&t, b);
 
 	tp->tv_sec = t/1000000000;
