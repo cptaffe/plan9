@@ -35,8 +35,8 @@ gives them, without
 or, if
 .I dir
 is in a git repository and the
-.B git
-package is added (see
+.B git9
+package (9front's git) is added (see
 .IR pkg (1)),
 the repository's tracked files, as
 .IR git (1)'s
