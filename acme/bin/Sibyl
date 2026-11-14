@@ -25,13 +25,28 @@ fn field { sed -n '/^$/q; s/^'$1' //p' $2 }
 
 # list: the sessions, newest first
 fn list {
-	for(n in `{ls $lib | sed 's,.*/,,' | grep '^[0-9]+$' | sort -nr}){
-		f=$lib/$n
-		date=`{field date $f}
-		dir=`{field dir $f}
-		first=`{sed -n '1,/^$/d; /^(-->|<--)$/d; s/^>> //; /./{p; q;}' $f}
-		echo $n'	'$"date'	'$"dir'	'$"first
-	}
+	n=`{ls $lib | sed 's,.*/,,' | grep '^[0-9]+$' | sort -nr}
+	if(! ~ $#n 0)
+		awk 'BEGIN {
+			for(i = 1; i < ARGC; i++){
+				f = ARGV[i]; n = f; sub(/.*\//, "", n); date = dir = first = ""; head = 1
+				if((r = (getline l < f)) < 0)
+					continue
+				for(; r > 0 && first == ""; r = (getline l < f)){
+					if(head){
+						if(l == "") head = 0
+						else if(l ~ /^date /) date = substr(l, 6)
+						else if(l ~ /^dir /) dir = substr(l, 5)
+					}
+					else if(l !~ /^(-->|<--)$/){
+						sub(/^>> /, "", l)
+						if(l ~ /./) first = l
+					}
+				}
+				close(f)
+				print n "\t" date "\t" dir "\t" first
+			}
+		}' $lib/$n
 }
 
 fn refresh {
