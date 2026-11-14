@@ -168,6 +168,10 @@ and
 Designated things show in blue with their order;
 .B d
 on one moves it last, and on the last one forgets it.
+.B d
+at nothing starts a box: sweep it with button 1.
+Swept rightward, it designates the lines, arcs, texts and lone points wholly inside it;
+leftward, those it touches.
 Undo, and Escape during a copy, keep the designations and the circle center.
 .TP
 .B e
