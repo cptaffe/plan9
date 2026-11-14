@@ -29,6 +29,7 @@ P9("exec") extern int p9exec(char*, int, char*, int);
 P9("await") extern int p9await(int, char*, int);
 P9("errstr") extern int p9errstr(char*, uint);
 P9("sleep") extern int p9sleep(long);
+P9("alarm") extern long p9alarm(ulong);
 P9("bind") extern int p9bind(char*, int, char*, int, int);
 P9("mount") extern int p9mount(int, int, char*, int, int, char*, int);
 P9("unmount") extern int p9unmount(char*, int, char*, int);
@@ -174,7 +175,8 @@ donote(void)
 	return 0;
 }
 
+long alarm(ulong ms) { return neg(p9alarm(ms)); }
+
 /* Not yet on the kernel. */
-long alarm(ulong ms) { USED(ms); return 0; }
 int fauth(int fd, char *a) { USED(fd); USED(a); werrstr("authentication not required"); return -1; }
 int fversion(int fd, int m, char *v, int n) { USED(fd); USED(m); USED(v); USED(n); werrstr("no fversion"); return -1; }
