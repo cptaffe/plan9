@@ -50,6 +50,28 @@ a ring at a point, a dot on a line or arc, a cross where two cross, a square at 
 and a small dot at nothing.
 That mark, not the mouse, is where a new point goes.
 Commands act on what it is at.
+It takes a point within 5/64 inch, and a line, an arc or a crossing within 5/32.
+.PP
+While something is drawn or moved, faint guides show:
+level and upright lines through the points the moving ones are joined to,
+and those points' lines extended,
+and the same through the designated points, the circle center, and the hot points
+.RB ( e ).
+The mark takes a guide, or where it crosses a line or another guide,
+and the message line says which.
+Letting go on a guide keeps what it says:
+on a level or upright guide, an
+.B H
+with the point it goes through; on a line extended, an
+.B L
+on that line.
+During a drag,
+.B g
+turns this gravity off or on, and
+.B <
+and
+.B >
+halve or double its reach.
 .SS Mouse
 .TF button\ 3
 .TP
@@ -148,6 +170,13 @@ Designated things show in blue with their order;
 on one moves it last, and on the last one forgets it.
 Undo, and Escape during a copy, keep the designations and the circle center.
 .TP
+.B e
+Make the point here hot, so it has guides in every drag, or not.
+Hot points show as gray squares.
+.TP
+.B "g < >"
+Gravity off or on, half or twice as far, here or during a drag.
+.TP
 .B k
 Show or hide the constraints that hold.
 .TP
@@ -167,7 +196,7 @@ Write the file.
 Exit; with changes not written, the first says so and the second exits.
 .TP
 Escape
-Forget the circle center, which shows as a blue ring, and the designations.
+Forget the circle center, which shows as a blue ring, the designations and the hot points.
 .PD
 .SS Constraints
 Each constraint shows as a circle with its letter, Sketchpad's, with arms to the points it
