@@ -169,7 +169,7 @@ fauth_proxy(int fd, AuthRpc *rpc, AuthGetkey *getkey, char *params)
 				n += m;
 			}
 			if(ret != ARok){
-				werrstr("auth_proxy rpc write: %s: %r", buf);
+				werrstr("auth_proxy rpc write: %r");
 				goto Error;
 			}
 			break;

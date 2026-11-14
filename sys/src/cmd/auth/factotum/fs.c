@@ -42,6 +42,7 @@ prototab[] =
 	&vnc,
 	&wep,
 	&wpapsk,
+	&webauthn,
 	&ed25519,
 	nil,
 };

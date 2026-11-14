@@ -83,9 +83,26 @@ Run in ``backwards'' mode, described below.
 Push an authentication protocol on its network connection.
 The supported protocols are
 .B clear
-(the default, no protocol)
+(no protocol)
 and
 .BR ssl .
+Without
+.BR -E ,
+the default is
+.BR clear ,
+unless authentication gave a secret of exactly 32 bytes, as
+.IR factotum (4)'s
+.B webauthn
+does: then it is
+.B ssl
+with
+.BR ccpoly ,
+its keys HKDF-SHA256 of the secret and the tree.
+A longer secret, as
+.BR dp9ik 's,
+keeps the old default, so an import from another Plan 9 machine's
+.IR exportfs (4)
+is as it was.
 There are plans to make
 .B tls
 available.

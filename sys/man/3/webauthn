@@ -1,0 +1,84 @@
+.TH WEBAUTHN 3
+.SH NAME
+webauthn \- the page's passkeys
+.SH SYNOPSIS
+.nf
+.B bind -a #N /dev
+
+.B /dev/webauthn
+.fi
+.SH DESCRIPTION
+On p9web,
+.B #N
+asks the browser that runs the system for a passkey's ceremony, for
+.IR factotum (4)'s
+.B webauthn
+protocol.
+A passkey belongs to the site the page came from, so it signs in only there.
+.PP
+Each open of
+.B webauthn
+takes one request, a line written to it:
+.TP
+.BI "get " "user rpid challenge credid" " ...
+Sign in to
+.I rpid
+as
+.I user
+with one of the passkeys
+.IR credid ,
+or any of the site's if none is given.
+.TP
+.BI "create " "user rpid challenge userid
+Make a passkey for
+.I user
+on
+.IR rpid ,
+under the user handle
+.IR userid ,
+which
+.IR factotum (4)
+chooses; the passkey is discoverable.
+.PP
+The binary fields are base64url, unpadded.
+The page shows a bar that says what is asked, with a button that starts the browser's ceremony,
+since the browser wants a click first.
+The write returns when the ceremony ends, or fails with
+.B canceled
+if the user does not go on.
+A read of the same open from offset 0, after a seek as for
+.IR ndb (8)'s
+.BR /net/cs ,
+then gives the answer's line.
+For
+.BR get ,
+it is
+.IP
+.I "credid authdata clientdata signature
+.PP
+and for
+.BR create ,
+.IP
+.I "credid authdata clientdata spki alg
+.PP
+where
+.I authdata
+is the authenticator's data,
+.I clientdata
+the browser's JSON,
+.I spki
+the passkey's public key, and
+.I alg
+its COSE algorithm: -7 for ES256, -8 for Ed25519.
+.PP
+.B Webauthn
+is the host owner's, mode 600.
+Under Node, the tests' host is a software authenticator.
+.SH SOURCE
+.B k/src/kernel/authn.ts
+.br
+.B k/src/main/passkey.ts
+.br
+.B k/src/main/webauthnui.ts
+.SH SEE ALSO
+.IR factotum (4)

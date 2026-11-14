@@ -16,7 +16,10 @@ bind -a $home/bin/rc /bin
 bind -a $home/bin/$cputype /bin
 bind -c $home/tmp /tmp
 test -e $home/lib/pkg && pkg add -f $home/lib/pkg
-~ $#site 1 && ! test -e /net/tcp && import -A -a ws!$site!9p /net	# the site's /net, for /net/tcp (import(4))
+test -e $home/lib/factotum && cat $home/lib/factotum >/mnt/factotum/ctl
+# $auth, the machine this page came from, serves its / to import(4): its /net, for /net/tcp, and
+# webfs, and to its accounts /adm and /mnt/keys. A passkey signs you in (factotum(4)'s webauthn):
+#	import ws!$auth!9p / /n/$auth; bind -a /n/$auth/net /net
 font = /lib/font/bit/Iosevka/12a/font,/lib/font/bit/Iosevka/24a/font
 switch($service){
 case terminal

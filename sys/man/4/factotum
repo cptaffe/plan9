@@ -139,6 +139,10 @@ the WPA-PSK challenge/response protocol used in wireless networks
 .TP
 .B wep
 WEP passwords for wireless ethernet cards.
+.TP
+.B webauthn
+a passkey's sign-in to the site that served p9web's page
+(client side only).
 .PD
 .PP
 The options are:
@@ -346,6 +350,53 @@ Starting the protocol causes
 to configure the wireless ethernet card
 .B #l/ether0
 for WEP encryption with the given password.
+.PP
+.B Webauthn
+requires a key with
+.B proto=webauthn
+and attributes
+.B dom
+and
+.BR user ;
+with an
+.B !invite
+from the site, it registers a passkey for the user instead of signing in with one:
+.PP
+.EX
+    proto=webauthn dom=acme.connor.zip user=alice !invite=...
+.EE
+.PP
+Client and site each send an X25519 public key, and the site a nonce.
+.I Factotum
+computes the passkey's challenge, the SHA-256 of both keys, the nonce, the domain and the
+user, and never takes one from the site; it writes it to
+.B /dev/webauthn
+(see
+.IR webauthn (3)),
+where the page asks the user to sign in or make a passkey, and gives the browser's answer
+to the site.
+It refuses a site whose
+.I rpid
+is not the key's
+.BR dom ,
+and one that asks to make a passkey when no invite was sent.
+The invite itself never leaves
+.IR factotum :
+the request to make a passkey says
+.BR new ,
+and the answer carries a MAC under the invite's SHA-256.
+The passkey's user handle is
+.IR factotum 's
+own, and once the site accepts the passkey, the key loses its
+.BR !invite ,
+so the next sign-in uses the passkey.
+The site's answer names the user; the secret is HKDF-SHA256 of the keys' shared secret, 32
+bytes, which
+.IR import (4)
+uses for
+.B ssl
+with
+.BR ccpoly .
 .PP
 All keys can have additional attributes that act either as comments
 or as selectors to distinguish them in the

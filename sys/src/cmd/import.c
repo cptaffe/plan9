@@ -19,11 +19,12 @@ static char *encprotos[] = {
 char		*keyspec = "";
 char		*filterp;
 char		*ealgs = "rc4_256 sha1";
-int		encproto = Encnone;
+int		encproto = -1;
 char		*aan = "/bin/aan";
 AuthInfo 	*ai;
 int		debug;
 int		doauth = 1;
+int		ealgsset;
 int		timedout;
 
 int	connect(char*, char*, int);
@@ -35,6 +36,7 @@ void	usage(void);
 int	filter(int, char *, char *);
 
 static void	mksecret(char *, uchar *);
+static void	hkdfsecret(char *, AuthInfo *, uchar *, char *, char *);
 
 /*
  * based on libthread's threadsetname, but drags in less library code.
@@ -133,6 +135,7 @@ main(int argc, char **argv)
 		ealgs = EARGF(usage());
 		if(*ealgs == 0 || strcmp(ealgs, "clear") == 0)
 			ealgs = nil;
+		ealgsset = 1;
 		break;
 	case 'k':
 		keyspec = EARGF(usage());
@@ -190,6 +193,15 @@ main(int argc, char **argv)
 	else
 		fd = connect(argv[0], argv[1], oldserver);
 
+	if(encproto < 0){
+		encproto = Encnone;
+		if(ai != nil && ai->nsecret == 32){
+			encproto = Encssl;
+			if(!ealgsset)
+				ealgs = "ccpoly";
+		}
+	}
+
 	if (!oldserver)
 		fprint(fd, "impo %s %s\n", filterp? "aan": "nofilter",
 			encprotos[encproto]);
@@ -197,11 +209,10 @@ main(int argc, char **argv)
 	if (encproto != Encnone && ealgs && ai) {
 		uchar key[16];
 		uchar digest[SHA1dlen];
-		char fromclientsecret[21];
-		char fromserversecret[21];
+		char secin[45];
+		char secout[45];
+		char *tree;
 		int i;
-
-		memmove(key+4, ai->secret, ai->nsecret);
 
 		/* exchange random numbers */
 		srand(truerand());
@@ -212,17 +223,25 @@ main(int argc, char **argv)
 		if(readn(fd, key+12, 4) != 4)
 			sysfatal("can't read key part: %r");
 
-		/* scramble into two secrets */
-		sha1(key, sizeof(key), digest, nil);
-		mksecret(fromclientsecret, digest);
-		mksecret(fromserversecret, digest+10);
+		if(ai->nsecret >= 32){
+			memmove(key+4, key+12, 4);
+			tree = backwards || notree ? "/" : argv[1];
+			hkdfsecret(secin, ai, key, "p9web import s2c", tree);
+			hkdfsecret(secout, ai, key, "p9web import c2s", tree);
+		}else{
+			/* scramble into two secrets */
+			memmove(key+4, ai->secret, ai->nsecret < 8 ? ai->nsecret : 8);
+			sha1(key, sizeof(key), digest, nil);
+			mksecret(secin, digest);
+			mksecret(secout, digest+10);
+		}
 
 		if (filterp)
 			fd = filter(fd, filterp, argv[0]);
 
 		/* set up encryption */
 		procsetname("pushssl");
-		fd = pushssl(fd, ealgs, fromclientsecret, fromserversecret, nil);
+		fd = pushssl(fd, ealgs, secin, secout, nil);
 		if(fd < 0)
 			sysfatal("can't establish ssl connection: %r");
 	}
@@ -434,4 +453,24 @@ mksecret(char *t, uchar *f)
 {
 	sprint(t, "%2.2ux%2.2ux%2.2ux%2.2ux%2.2ux%2.2ux%2.2ux%2.2ux%2.2ux%2.2ux",
 		f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8], f[9]);
+}
+
+static void
+hkdfsecret(char *t, AuthInfo *ai, uchar *salt, char *info, char *tree)
+{
+	uchar k[32];
+	char *in;
+	int n;
+
+	n = strlen(info)+1+strlen(tree);
+	in = malloc(n+1);
+	if(in == nil)
+		sysfatal("malloc: %r");
+	strcpy(in, info);
+	strcpy(in+strlen(info)+1, tree);
+	hkdf_x(salt, 8, (uchar*)in, n, ai->secret, ai->nsecret,
+		k, sizeof k, hmac_sha2_256, SHA2_256dlen);
+	free(in);
+	enc64(t, 45, k, sizeof k);
+	memset(k, 0, sizeof k);
 }

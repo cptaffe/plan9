@@ -15,6 +15,7 @@
 static Proto *negotiable[] = {
 	&p9sk1,
 	&dp9ik,
+	&webauthn,
 };
 
 struct State

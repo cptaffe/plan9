@@ -89,6 +89,22 @@ may be replaced by
 and
 .BR des_56_cbc .
 The mode may be changed at any time during the connection.
+On p9web,
+.B #D
+has only
+.B clear
+and
+.BR ccpoly ,
+chacha20-poly1305, which needs both secrets, of 32 bytes each and not the same;
+once it is on, they do not change, and an
+.B fd
+message clears them.
+A
+.B ccpoly
+record is a 2-byte big-endian length, then the ciphertext and its 16-byte tag; its nonce is
+4 zero bytes and the record's number in its direction, big-endian, counted from 0 at the
+.B fd
+message.
 .TP
 .BI secretin \ base64-secret
 The secret for decrypting and authenticating incoming messages
@@ -120,5 +136,7 @@ will give the actual space-separated list of algorithms implemented.
 .IR dial (2)
 .SH SOURCE
 .B /sys/src/9/port/devssl.c
+.br
+.B k/src/kernel/ssl.ts
 .SH BUGS
 Messages longer than 4096 bytes are truncated.
