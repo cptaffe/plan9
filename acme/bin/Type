@@ -1,0 +1,8 @@
+#!/bin/rc
+rfork e
+l=`{lspq type | sed 1q | sed 's/^([^:]*:[0-9]+:[0-9]+):.*/\1/'}
+if(~ $#l 0){
+	echo no type definition >[1=2]
+	exit none
+}
+plumb -d edit $l

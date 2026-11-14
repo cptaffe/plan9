@@ -1,0 +1,10 @@
+#!/bin/rc
+rfork e
+f=`{sed 1q /mnt/acme/$winid/tag | awk '{print $1}'}
+for(d in /mnt/lsp/docs/[0-9]*)
+	if(~ `{cat $d/name} $f){
+		cat $d/diag
+		exit
+	}
+echo $f: not open in lspfs >[1=2]
+exit none

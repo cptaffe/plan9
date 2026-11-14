@@ -193,13 +193,20 @@ a severity
 or
 .BR hint )
 and the message
+.TP
+.B marks
+the diagnostics as runs, a start and length in runes and the severity, as
+.IR astyles (4)
+takes them
 .PD
 .PP
 Writing two numbers to
-.B tokens
-or
+.BR tokens ,
 .B diag
+or
+.B marks
 and reading gives only what is between them.
+Tokens and diagnostics move with each edit until the server sends new ones.
 Removing
 .BI docs/ n
 closes the document.
@@ -212,7 +219,7 @@ and
 .IB n " tokens " "q0 q1"
 or
 .IB n " diag " "q0 q1"
-when a document's tokens or diagnostics change between
+when a document's tokens, or its diagnostics and marks, change between
 .I q0
 and
 .IR q1 .
