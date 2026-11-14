@@ -46,7 +46,7 @@ include basic
 if(! test -e lib/pkg)
 	cat > lib/pkg <<!
 # the packages the profile adds (pkg(1)): a name, a name and a hash, or a path, a line each
-git
+git9
 !
 if(! test -e lib/hotkey/acme){
 	mkdir -p lib/hotkey

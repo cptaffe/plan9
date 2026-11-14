@@ -49,7 +49,7 @@ is a hash of its files, so another version is another tree, and both stay.
 names each package's current tree, a line each:
 .IP
 .EX
-pkg=git hash=3f2a9c0d1e2b4a6f
+pkg=git9 hash=3f2a9c0d1e2b4a6f
 .EE
 .PP
 Each tree holds, beside its files:
@@ -62,7 +62,7 @@ with
 .B $pkg
 its tree:
 .B "bind -a $pkg/bin /bin"
-for git.
+for git9, 9front's git.
 A union is of one directory, not of the directories in it,
 so a package binds onto the directories it adds to, not their parents.
 .TP
@@ -121,7 +121,7 @@ The profile that
 makes adds those of
 .BR $home/lib/pkg ,
 which starts with
-.BR git .
+.BR git9 .
 .PP
 .I Pkg run
 adds the packages in a new name space, and runs
@@ -147,7 +147,7 @@ A copy of the file kept before is a way back.
 Try a package one has built before it is published:
 .IP
 .EX
-pkg run ./git -c git/log
+pkg run ./git9 -c git/log
 .EE
 .SH FILES
 .TF $home/lib/pkg
