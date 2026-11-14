@@ -1,6 +1,6 @@
 .TH ALSP 4
 .SH NAME
-alsp, Def, Type, Refs, Impls, Doc, Comp, Syms, Diag, Fmt \- acme's windows in a language server
+alsp, Def, Type, Refs, Impls, Doc, Comp, Syms, Diag, Fmt, Rename, Act \- acme's windows in a language server
 .SH SYNOPSIS
 .B alsp
 [
@@ -30,6 +30,11 @@ alsp, Def, Type, Refs, Impls, Doc, Comp, Syms, Diag, Fmt \- acme's windows in a 
 .B Diag
 .PP
 .B Fmt
+.PP
+.B Rename
+.I name
+.PP
+.B Act
 .SH DESCRIPTION
 .I Alsp
 puts the text of
@@ -104,6 +109,33 @@ to
 .B ctl
 does the same at once.
 .PP
+Writing
+.BI review " edit dir"
+to
+.B ctl
+reads an edit in
+.IR lspfs 's
+form, as
+.B rename
+gives it, from the file
+.IR edit ,
+and writes the text of each file it touches, as its window or the disk has it, under
+.IB dir /a1,
+and the text it would leave under
+.IB dir /b1,
+each at its full name.
+Writing
+.BI apply " edit"
+applies it.
+Nothing is done if any file's text changed since the edit was asked for, or a file to be made
+exists.
+Each file's edits go in its window, as one change, and a file with no window is opened in one;
+the windows are left dirty, for a
+.I Put
+to write.
+A file renamed is renamed on disk, and its window with it; a file deleted is removed from disk,
+its window left dirty; a file created is a new window, dirty and empty.
+.PP
 The commands work on the window they are run in, at dot:
 .I Def
 and
@@ -122,15 +154,33 @@ lists the completions at dot;
 lists the file's symbols;
 .I Diag
 lists its diagnostics;
-and
 .I Fmt
-lays it out.
+lays it out;
+.I Rename
+renames the word, everywhere the server knows it;
+and
+.I Act
+lists the server's actions for dot in a window
+.BR +Act ,
+each name with its title, where button 2 on a name picks it.
 The lists are lines that button 3 opens.
+.B Lspshow
+shows a rename, or an action's edit, before it applies, in a window
+.B +Rename
+or
+.B +Act
+of the file operations and a
+.IR diff (1)
+of each file;
+.I Apply
+in its tag applies it, and runs the action's command if it has one.
 .SH FILES
 .TF /mnt/alsp/ctl
 .TP
 .B /mnt/alsp/ctl
-.BI fmt " winid"
+.BI fmt " winid" \f1,
+.BI review " edit dir" \f1,
+.BI apply " edit"
 .PD
 .SH SOURCE
 plan9web's
@@ -139,6 +189,8 @@ plan9web's
 .B /acme/bin/Def
 and the others, on
 .B /acme/bin/lspq
+and
+.B /acme/bin/lspshow
 .SH SEE ALSO
 .IR acme (4),
 .IR astyles (4),

@@ -1,0 +1,51 @@
+#!/bin/rc
+rfork e
+. /lib/acme.rc
+if(~ $#winid 0){
+	echo usage: Act >[1=2]
+	exit usage
+}
+f=`{sed 1q /mnt/acme/$winid/tag | awk '{print $1}'}
+d=`{basename -d $f}
+l=/tmp/lspact.$pid
+if(! /acme/bin/lspq act >$l){
+	rm -f $l
+	exit act
+}
+if(! test -s $l){
+	echo $f: no actions >[1=2]
+	rm -f $l
+	exit none
+}
+names=`{awk -F'	' '{sub(/\*$/, "", $1); print $1}' $l}
+fn event {
+	switch($2){
+	case x X
+		if(~ $9 $names){
+			windoneevent $*
+			e=/tmp/lspact.$pid.$9
+			{ echo -n $f' '$9 >[1=0]; cat } <>/mnt/lsp/actdo >$e
+			if(grep -s '^ran ' $e){
+				cat $e >[1=2]
+				rm -f $e
+			}
+			if not if(! test -s $e){
+				echo $9: nothing to do >[1=2]
+				rm -f $e
+			}
+			if not
+				/acme/bin/lspshow $d/+Act $e $f $9 >[3=] &
+			windel sure
+		}
+		if not
+			winwriteevent $*
+	case l L
+		winwriteevent $*
+	}
+}
+newwindow
+winname $d/+Act
+awk -F'	' '{printf "%-12s %s\n", $1, $2}' $l | mc | winwrite body
+rm -f $l
+winctl clean
+wineventloop
