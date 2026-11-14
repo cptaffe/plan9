@@ -64,13 +64,16 @@ the first name found anywhere gives the root.
 A server with no
 .B root=
 gets no project at all and finds its own.
-.TP
-.B func=
-the pattern a function's first line matches, for
-.IR fn (1)
 .PD
 .PP
-Other attributes are for other programs, which read the same file;
+Other attributes are for other programs, which read the same file:
+.B func=
+is
+.IR func (1)'s
+and
+.B put=
+is
+.IR alsp (4)'s;
 .I lspfs
 ignores them.
 .PP

@@ -1,0 +1,2 @@
+#!/bin/rc
+lspq refs | func

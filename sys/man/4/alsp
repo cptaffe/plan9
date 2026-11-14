@@ -1,6 +1,6 @@
 .TH ALSP 4
 .SH NAME
-alsp, Def, Type, Doc, Syms, Diag, Fmt \- acme's windows in a language server
+alsp, Def, Type, Refs, Impls, Doc, Comp, Syms, Diag, Fmt \- acme's windows in a language server
 .SH SYNOPSIS
 .B alsp
 [
@@ -17,7 +17,13 @@ alsp, Def, Type, Doc, Syms, Diag, Fmt \- acme's windows in a language server
 .PP
 .B Type
 .PP
+.B Refs
+.PP
+.B Impls
+.PP
 .B Doc
+.PP
+.B Comp
 .PP
 .B Syms
 .PP
@@ -103,8 +109,15 @@ The commands work on the window they are run in, at dot:
 and
 .I Type
 plumb the definition of the word or of its type;
+.I Refs
+and
+.I Impls
+list the places the word is used and implemented, each with its function, by
+.IR func (1);
 .I Doc
 gives the diagnostics on the line, then what the server says of the word;
+.I Comp
+lists the completions at dot;
 .I Syms
 lists the file's symbols;
 .I Diag
