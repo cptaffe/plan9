@@ -47,6 +47,9 @@ extern char *realpath(const char *, char *);
 extern int mkstemp(char *);
 extern char *mkdtemp(char *);
 #endif
+#if _POSIX_C_SOURCE >= 202405L || defined(_BSD_EXTENSION)
+extern void *reallocarray(void *, size_t, size_t);
+#endif
 #ifdef _SUSV2_SOURCE
 extern char *ptsname(int);	/* XSI: libbsd's, as <sys/pty.h> */
 #endif

@@ -4,23 +4,31 @@ rfork e
 
 opts=()
 pats=()
+pfiles=()
 files=()
 fixed=0
+nopat=1
 argv0=$0
+nl='
+'
 fn lit {
 	echo x^$1 | sed 's/^x//; s/[.^$*+?()|\[\]\\]/\\&/g'
 }
 while(! ~ $#* 0){
 	switch($1){
-	case -e
-		pats=($pats $2)
-		shift
 	case --
 		shift
 		files=($files $*)
 		*=()
+	case -
+		files=($files /fd/0)
+		shift
 	case -*
-		for(c in `{echo x^$1 | sed 's/^x-//; s/./& /g'}){
+		cs=`{echo x^$1 | sed 's/^x-//; s/./& /g'}
+		shift
+		while(! ~ $#cs 0){
+			c=$cs(1)
+			cs=$cs(2-)
 			switch($c){
 			case [bchiLlnsv]
 				opts=($opts -$c)
@@ -30,6 +38,24 @@ while(! ~ $#* 0){
 				;
 			case F
 				fixed=1
+			case [ef]
+				if(! ~ $#cs 0){
+					a=`{echo $cs | sed 's/ //g'}
+					cs=()
+				}
+				if not if(! ~ $#* 0){
+					a=$1
+					shift
+				}
+				if not {
+					echo $argv0: -$c needs an argument >[2=1]
+					exit usage
+				}
+				nopat=0
+				if(~ $c e)
+					pats=($pats $a)
+				if not
+					pfiles=($pfiles $a)
 			case *
 				echo $argv0 -$c not supported >[2=1]
 				exit 'not supported'
@@ -37,23 +63,46 @@ while(! ~ $#* 0){
 		}
 	case *
 		files=($files $1)
-	}
-	if(! ~ $#* 0)
 		shift
+	}
 }
-if(~ $#pats 0){
+if(~ $nopat 1){
+	if(~ $#files 0){
+		echo usage: $argv0 [-bchiLlnqsvEF] [-e pattern] [-f file] [pattern] [file ...] >[2=1]
+		exit usage
+	}
 	pats=$files(1)
 	files=$files(2-)
 }
-nl='
-'
+for(p in $pfiles){
+	if(~ $fixed 1){
+		oifs=$ifs
+		ifs=$nl
+		for(q in `{cat $p})
+			pats=($pats $q)
+		ifs=$oifs
+	}
+	if not
+		opts=($opts -f $p)
+}
 for(p in $pats){
 	if(~ $fixed 1){
 		oifs=$ifs
 		ifs=$nl
-		p=`{lit $p}
+		ps=`{echo x^$p | sed 's/^x//'}
+		if(~ $#ps 0)
+			ps=''
+		for(q in $ps){
+			if(~ $q '')
+				opts=($opts -e '^')
+			if not
+				opts=($opts -e `{lit $q})
+		}
 		ifs=$oifs
 	}
-	opts=($opts -e $p)
+	if not if(~ $p '')
+		opts=($opts -e '^')
+	if not
+		opts=($opts -e $p)
 }
 exec /$cputype/bin/grep $opts $files

@@ -34,6 +34,10 @@ struct Easy {
 	char	*user;
 	char	*pass;
 	char	*encoding;
+	char	*range;
+	curl_off_t	resume;
+	size_t	ncopied;
+	const char	*sent;
 	const char	*postfields;
 	char	*copied;
 	curl_off_t	postsize;
@@ -70,6 +74,7 @@ struct Easy {
 	curl_off_t	retryafter;
 	curl_off_t	dlsize;
 	curl_off_t	dltotal;
+	int	haslen;
 	curl_off_t	ulsize;
 	double	total;
 	Hdr	*hdrs;
@@ -167,6 +172,8 @@ clearresult(Easy *e)
 	e->authavail = 0;
 	e->retryafter = 0;
 	e->dlsize = e->dltotal = e->ulsize = 0;
+	e->haslen = 0;
+	e->sent = NULL;
 	e->total = 0;
 }
 
@@ -191,6 +198,7 @@ freeopts(Easy *e)
 	free(e->user);
 	free(e->pass);
 	free(e->encoding);
+	free(e->range);
 	free(e->copied);
 }
 
@@ -255,12 +263,17 @@ curl_easy_duphandle(CURL *h)
 	d->user = sdup(e->user);
 	d->pass = sdup(e->pass);
 	d->encoding = sdup(e->encoding);
+	d->range = sdup(e->range);
+	d->copied = NULL;
 	if(e->copied){
-		d->copied = malloc(e->postsize >= 0 ? e->postsize+1 : strlen(e->copied)+1);
-		if(d->copied)
-			memcpy(d->copied, e->copied, e->postsize >= 0 ? e->postsize+1 : strlen(e->copied)+1);
-		d->postfields = d->copied;
+		if((d->copied = malloc(e->ncopied+1)) != NULL)
+			memcpy(d->copied, e->copied, e->ncopied+1);
+		if(e->postfields == e->copied)
+			d->postfields = d->copied;
 	}
+	if(e->curlu)
+		d->curlu = curl_url_dup(e->curlu);
+	d->mime = NULL;
 	d->hdrs = NULL;
 	d->nhdrs = 0;
 	d->ctype = d->effurl = d->scheme = NULL;
@@ -308,6 +321,9 @@ curl_easy_setopt(CURL *h, CURLoption opt, ...)
 	case CURLOPT_USERNAME: setstr(&e->user, p); break;
 	case CURLOPT_PASSWORD: setstr(&e->pass, p); break;
 	case CURLOPT_ACCEPT_ENCODING: setstr(&e->encoding, p); break;
+	case CURLOPT_RANGE: setstr(&e->range, p); break;
+	case CURLOPT_RESUME_FROM: e->resume = l; break;
+	case CURLOPT_RESUME_FROM_LARGE: e->resume = o; break;
 	case CURLOPT_HTTPHEADER: e->headers = p; break;
 	case CURLOPT_MIMEPOST: e->mime = p; e->post = p != NULL; if(p) e->upload = 0; break;
 	case CURLOPT_ERRORBUFFER: e->errbuf = p; break;
@@ -324,6 +340,7 @@ curl_easy_setopt(CURL *h, CURLoption opt, ...)
 				return CURLE_OUT_OF_MEMORY;
 			memcpy(e->copied, p, n);
 			e->copied[n] = 0;
+			e->ncopied = n;
 		}
 		e->postfields = e->copied;
 		e->post = 1;
@@ -425,20 +442,34 @@ base64(const char *s)
 static char*
 readfile(const char *path)
 {
-	char buf[8192], *s;
-	int fd, n, t;
+	char *buf, *q;
+	int fd, n;
+	size_t t, max;
 
 	if((fd = open(path, O_RDONLY)) < 0)
 		return NULL;
+	max = 1024;
+	if((buf = malloc(max)) == NULL){
+		close(fd);
+		return NULL;
+	}
 	t = 0;
-	while(t < sizeof buf - 1 && (n = read(fd, buf+t, sizeof buf - 1 - t)) > 0)
+	for(;;){
+		if(t+1 >= max){
+			if((q = realloc(buf, max*2)) == NULL)
+				break;
+			buf = q;
+			max *= 2;
+		}
+		if((n = read(fd, buf+t, max-1-t)) <= 0)
+			break;
 		t += n;
+	}
 	close(fd);
 	buf[t] = 0;
 	while(t > 0 && (buf[t-1] == '\n' || buf[t-1] == '\r'))
 		buf[--t] = 0;
-	s = strdup(buf);
-	return s;
+	return buf;
 }
 
 static int
@@ -464,6 +495,18 @@ gethdr(Easy *e, const char *name)
 		if(strcasecmp(e->hdrs[i].name, name) == 0)
 			return e->hdrs[i].value;
 	return NULL;
+}
+
+static int
+forbidden(const char *s, size_t n)
+{
+	static char *f[] = { "Connection", "Content-Length", "Expect", "Host", "Keep-Alive", "TE", "Trailer", "Transfer-Encoding", "Upgrade" };
+	size_t i;
+
+	for(i = 0; i < sizeof f/sizeof f[0]; i++)
+		if(strlen(f[i]) == n && strncasecmp(s, f[i], n) == 0)
+			return 1;
+	return 0;
 }
 
 static const char *fixed[] = { "body", "contenttype", "ctl", "postbody", "status", "parsed" };
@@ -523,19 +566,39 @@ giveheader(Easy *e, const char *s, size_t n)
 static long
 authof(const char *v)
 {
+	static struct { char *name; long bit; } t[] = {
+		{"basic", CURLAUTH_BASIC}, {"digest", CURLAUTH_DIGEST},
+		{"negotiate", CURLAUTH_NEGOTIATE}, {"bearer", CURLAUTH_BEARER},
+	};
+	const char *w, *e;
+	size_t i, n;
 	long a;
 
 	a = 0;
 	if(v == NULL)
 		return 0;
-	if(strcasestr(v, "basic"))
-		a |= CURLAUTH_BASIC;
-	if(strcasestr(v, "digest"))
-		a |= CURLAUTH_DIGEST;
-	if(strcasestr(v, "negotiate"))
-		a |= CURLAUTH_NEGOTIATE;
-	if(strcasestr(v, "bearer"))
-		a |= CURLAUTH_BEARER;
+	for(w = v; *w; ){
+		if(*w == '"'){
+			for(w++; *w && *w != '"'; w++)
+				if(*w == '\\' && w[1])
+					w++;
+			if(*w)
+				w++;
+			continue;
+		}
+		n = strspn(w, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.");
+		if(n == 0){
+			w++;
+			continue;
+		}
+		for(e = w+n; *e == ' ' || *e == '\t'; e++)
+			;
+		if(*e != '=')
+			for(i = 0; i < sizeof t/sizeof t[0]; i++)
+				if(strlen(t[i].name) == n && strncasecmp(w, t[i].name, n) == 0)
+					a |= t[i].bit;
+		w += n;
+	}
 	return a;
 }
 
@@ -602,9 +665,12 @@ post(Easy *e, const char *dir)
 			left -= n;
 			e->ulsize += n;
 		}
-	}else if(e->readf){
+	}else if(e->readf || e->upload || !e->postfields){
 		for(;;){
-			r = e->readf(buf, 1, sizeof buf, e->readdata);
+			if(e->readf)
+				r = e->readf(buf, 1, sizeof buf, e->readdata);
+			else
+				r = fread(buf, 1, sizeof buf, e->readdata ? (FILE*)e->readdata : stdin);
 			if(r == CURL_READFUNC_ABORT){
 				close(fd);
 				return CURLE_ABORTED_BY_CALLBACK;
@@ -716,6 +782,7 @@ perform(Easy *e)
 		method = "POST";
 	else
 		method = "GET";
+	e->sent = method;
 	if(ctl(cfd, "url %s", url) < 0 || ctl(cfd, "request %s", method) < 0){
 		seterr(e, "webfs: %s: %s", url, strerror(errno));
 		r = CURLE_URL_MALFORMAT;
@@ -749,9 +816,15 @@ perform(Easy *e)
 			goto badhdr;
 	}else if(sending && !e->upload && !haveheader(e, "Content-Type") && ctl(cfd, "headers Content-Type: application/x-www-form-urlencoded") < 0)
 		goto badhdr;
+	if(e->range && *e->range && !haveheader(e, "Range") && ctl(cfd, "headers Range: bytes=%s", e->range) < 0)
+		goto badhdr;
+	if(e->resume > 0 && !e->range && !haveheader(e, "Range") && ctl(cfd, "headers Range: bytes=%lld-", (long long)e->resume) < 0)
+		goto badhdr;
 	for(l = e->headers; l; l = l->next){
 		s = l->data;
 		if((v = strpbrk(s, ":;")) == NULL || v == s)
+			continue;
+		if(forbidden(s, v-s))
 			continue;
 		if(*v == ':'){
 			const char *w = v+1;
@@ -795,8 +868,23 @@ perform(Easy *e)
 		e->authavail = authof(gethdr(e, "WWW-Authenticate"));
 	if((v = gethdr(e, "Retry-After")) != NULL)
 		e->retryafter = strtoll(v, NULL, 10);
-	if((v = gethdr(e, "Content-Length")) != NULL)
+	if(gethdr(e, "Content-Encoding") != NULL){
+		for(i = 0; i < e->nhdrs; i++)
+			if(strcasecmp(e->hdrs[i].name, "Content-Encoding") == 0 || strcasecmp(e->hdrs[i].name, "Content-Length") == 0){
+				free(e->hdrs[i].name);
+				free(e->hdrs[i].value);
+				e->hdrs[i--] = e->hdrs[--e->nhdrs];
+			}
+	}else if((v = gethdr(e, "Content-Length")) != NULL){
 		e->dltotal = strtoll(v, NULL, 10);
+		e->haslen = 1;
+	}
+	if(e->resume > 0 && e->code == 200){
+		seterr(e, "HTTP server doesn't seem to support byte ranges. Cannot resume.");
+		free(s);
+		r = CURLE_RANGE_ERROR;
+		goto out;
+	}
 
 	n = snprintf(buf, sizeof buf, "HTTP/1.1 %ld %s\r\n", e->code, reason);
 	free(s);
@@ -894,17 +982,17 @@ curl_easy_getinfo(CURL *h, CURLINFO info, ...)
 	case CURLINFO_PRIVATE: *(char**)p = e->priv; break;
 	case CURLINFO_PRIMARY_IP: *(char**)p = ""; break;
 	case CURLINFO_REDIRECT_URL: *(char**)p = NULL; break;
-	case CURLINFO_EFFECTIVE_METHOD: *(char**)p = e->method; break;
+	case CURLINFO_EFFECTIVE_METHOD: *(char**)p = (char*)(e->sent ? e->sent : e->method); break;
 	case CURLINFO_RETRY_AFTER: *(curl_off_t*)p = e->retryafter; break;
 	case CURLINFO_SIZE_DOWNLOAD_T: *(curl_off_t*)p = e->dlsize; break;
 	case CURLINFO_SIZE_UPLOAD_T: *(curl_off_t*)p = e->ulsize; break;
-	case CURLINFO_CONTENT_LENGTH_DOWNLOAD_T: *(curl_off_t*)p = e->dltotal ? e->dltotal : -1; break;
+	case CURLINFO_CONTENT_LENGTH_DOWNLOAD_T: *(curl_off_t*)p = e->haslen ? e->dltotal : -1; break;
 	case CURLINFO_TOTAL_TIME_T: *(curl_off_t*)p = (curl_off_t)(e->total*1e6); break;
 	case CURLINFO_SPEED_DOWNLOAD_T: *(curl_off_t*)p = e->total > 0 ? (curl_off_t)(e->dlsize/e->total) : 0; break;
 	case CURLINFO_TOTAL_TIME: *(double*)p = e->total; break;
 	case CURLINFO_SIZE_DOWNLOAD: *(double*)p = (double)e->dlsize; break;
 	case CURLINFO_SIZE_UPLOAD: *(double*)p = (double)e->ulsize; break;
-	case CURLINFO_CONTENT_LENGTH_DOWNLOAD: *(double*)p = e->dltotal ? (double)e->dltotal : -1; break;
+	case CURLINFO_CONTENT_LENGTH_DOWNLOAD: *(double*)p = e->haslen ? (double)e->dltotal : -1; break;
 	case CURLINFO_SPEED_DOWNLOAD: *(double*)p = e->total > 0 ? e->dlsize/e->total : 0; break;
 	default:
 		return CURLE_UNKNOWN_OPTION;
@@ -1258,14 +1346,13 @@ curl_version(void)
 static const char *const protocols[] = { "http", "https", NULL };
 static const char *const featurenames[] = { "IPv6", "Largefile", "SSL", NULL };
 static curl_version_info_data info = {
-	CURLVERSION_NOW,
-	LIBCURL_VERSION,
-	LIBCURL_VERSION_NUM,
-	"wasm32-unknown-plan9",
-	CURL_VERSION_IPV6 | CURL_VERSION_LARGEFILE | CURL_VERSION_SSL,
-	"webfs",
-	NULL,
-	protocols,
+	.age = CURLVERSION_NOW,
+	.version = LIBCURL_VERSION,
+	.version_num = LIBCURL_VERSION_NUM,
+	.host = "wasm32-unknown-plan9",
+	.features = CURL_VERSION_IPV6 | CURL_VERSION_LARGEFILE | CURL_VERSION_SSL,
+	.ssl_version = "webfs",
+	.protocols = protocols,
 };
 
 curl_version_info_data*

@@ -19,6 +19,10 @@ extern "C" {
 #endif
 
 extern struct passwd *getpwuid(uid_t);
+#ifdef _BSD_EXTENSION
+extern char *user_from_uid(uid_t, int);
+extern int uid_from_user(const char *, uid_t *);
+#endif
 extern struct passwd *getpwnam(const char *);
 #ifdef _BSD_EXTENSION
 extern struct passwd *getpwent(void);

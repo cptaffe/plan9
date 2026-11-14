@@ -18,6 +18,10 @@ extern "C" {
 #endif
 
 extern struct group *getgrgid(gid_t);
+#ifdef _BSD_EXTENSION
+extern char *group_from_gid(gid_t, int);
+extern int gid_from_group(const char *, gid_t *);
+#endif
 extern struct group *getgrnam(const char *);
 #ifdef _BSD_EXTENSION
 extern struct group *getgrent(void);

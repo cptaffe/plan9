@@ -156,6 +156,11 @@ char	*ctermid(char *);
 #if _POSIX_C_SOURCE >= 200809L
 ssize_t	getdelim(char **, size_t *, int, FILE *);
 ssize_t	getline(char **, size_t *, FILE *);
+int	dprintf(int, const char *, ...);
+int	vdprintf(int, const char *, va_list);
+#endif
+#ifdef _BSD_EXTENSION
+char	*fgetln(FILE *, size_t *);
 #endif
 
 #ifdef _REENTRANT_SOURCE

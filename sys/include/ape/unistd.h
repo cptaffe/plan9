@@ -104,6 +104,9 @@ extern int pause(void);
 extern unsigned int sleep(unsigned int);
 #ifdef __TYPES_H
 extern pid_t fork(void);
+#ifdef _BSD_EXTENSION
+extern pid_t vfork(void);
+#endif
 #endif
 
 /* process environment */
@@ -148,6 +151,9 @@ extern pid_t setsid(void);
 
 /* files and directories */
 extern int chdir(const char *);
+#if _POSIX_C_SOURCE >= 200112L || defined(_BSD_EXTENSION)
+extern int fchdir(int);
+#endif
 extern int link(const char *, const char *);
 extern char *getcwd(char *, size_t);
 extern int unlink(const char *);
