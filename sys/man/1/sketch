@@ -1,0 +1,192 @@
+.TH SKETCH 1
+.SH NAME
+sketch \- draw with constraints, after Sutherland's Sketchpad
+.SH SYNOPSIS
+.B sketch
+.I file
+.br
+.B sketch
+.B -s
+[
+.I file
+]
+.SH DESCRIPTION
+.I Sketch
+is Ivan Sutherland's Sketchpad (1963) for a
+.IR rio (1)
+window.
+A drawing is points, lines, arcs and text, held together by constraints:
+lines that meet share a point, and constraints such as horizontal, parallel or equal length
+hold among the points.
+.I Sketch
+moves the drawing until its constraints hold.
+.PP
+The
+.I file
+is a
+.IR pic (1)
+picture, with the constraints in comments that begin
+.BR "# sk" ,
+so
+.B "pic file | troff | page"
+prints it.
+If
+.I file
+doesn't exist, the drawing starts empty, and
+.B write
+makes it.
+.PP
+With
+.BR -s ,
+.I sketch
+draws nothing: it reads a drawing from
+.I file
+or standard input, satisfies its constraints, and writes it to standard output.
+It names each constraint it could not satisfy on standard error, and exits with status
+.BR unmet .
+.SS Pointing
+A red mark follows the mouse and shows what it is at:
+a ring at a point, a dot on a line or arc, a cross where two cross, a square at a text,
+and a small dot at nothing.
+That mark, not the mouse, is where a new point goes.
+Commands act on what it is at.
+.SS Mouse
+.TF button\ 3
+.TP
+button 1
+Draw a line from the mark, using a point there if there is one; its end follows the mouse.
+Letting go on a point joins them; on a line or arc, the end stays on it.
+A click with no drag leaves a point.
+After a circle center
+.RB ( c ),
+draw an arc around it instead.
+.TP
+button 2
+Move what is under the mouse: a point, a line's or arc's points, or a text.
+Dropping a point on a point merges them, and a line on a line merges those.
+.TP
+button 3
+The menu.
+Its commands act on what the mouse was at when the button went down;
+after a command chosen there, the message line names its key.
+.TP
+wheel
+Zoom around the mouse.
+.PD
+.PP
+During a drag, Escape or another button takes back everything the drag did.
+.SS Keys
+.TF space
+.TP
+.B c
+Make a circle center here; the next button 1 draws an arc around it.
+.TP
+.B t
+Start a text here.
+Type it; Backspace, control-U and control-W edit it, and newline, Escape or a click ends it.
+.TP
+.B "[ ] + -"
+Turn the text here left or right by 15°, or make it larger or smaller.
+.TP
+.B x
+Delete what is here, and what depends on it.
+.TP
+.B h
+Make the line here horizontal or vertical, whichever is nearer.
+.TP
+.B f
+Fix what is here so the solver leaves it alone, or free it.
+Moving a thing frees it.
+.TP
+.B "p = m"
+Copy the definitions
+.BR par ,
+.B eq
+and
+.B mid
+(see Definitions): parallel or perpendicular, equal length, a midpoint.
+.TP
+.B a
+Make what is here an attacher of this drawing, or not.
+.TP
+.B d
+Designate what is here for the next copy, or not.
+.TP
+.B k
+Show or hide the constraints that hold.
+.TP
+.B space
+Solve.
+.TP
+.B u
+Undo; it keeps the last hundred changes.
+.TP
+.B .
+Center the view here.
+.TP
+.B w
+Write the file.
+.TP
+.BR q ", Delete"
+Exit; with changes not written, the first says so and the second exits.
+.TP
+Escape
+Forget a circle center.
+.PD
+.SS Constraints
+Each constraint shows as a circle with its letter, Sketchpad's, with arms to the points it
+holds:
+.B L
+three points in a line,
+.B C
+two points as far from a center,
+.B H
+horizontal or vertical,
+.B P
+parallel or perpendicular,
+.B M
+lengths in a ratio,
+.B X
+a midpoint,
+.B D
+a scalar that is a distance, and
+.B W
+and
+.B Y
+for linkages.
+A constraint that doesn't hold always shows, in red.
+.B x
+on a shown mark deletes it.
+.SS Definitions
+A definition is a drawing with attachers, in
+.B /lib/sketch
+or
+.BR $home/lib/sketch .
+Copying one puts a copy in the drawing:
+its next-to-last attacher merges with what the mark is at,
+its last follows the mouse, and a click drops it, merging it with what it lands on;
+earlier attachers merge with the things designated, in order.
+The menu lists every definition.
+.SH FILES
+.TF /lib/font/hershey/futural.jhf
+.TP
+.B /lib/sketch
+the definitions
+.TP
+.B /lib/font/hershey/futural.jhf
+the stroke font for text
+.PD
+.SH SOURCE
+plan9web's
+.B src/cmd/sketch
+.SH "SEE ALSO"
+.IR pic (1)
+.br
+Ivan E. Sutherland,
+``Sketchpad: A man-machine graphical communication system'',
+MIT, 1963; University of Cambridge Computer Laboratory Technical Report 574, 2003.
+.SH BUGS
+Text is strokes, not troff's text, so it prints in its own face.
+.br
+The thesis's instances, scalars and dimension lines, one-pass ordering,
+and constraint button are not built yet.
