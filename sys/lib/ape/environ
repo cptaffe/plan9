@@ -27,8 +27,11 @@ XDG_CONFIG_HOME=$home/lib
 XDG_CACHE_HOME=$home/lib/cache
 
 # Python: its user site in $home/lib/python3.14, where pip installs, since /sys is the
-# system's; pip's progress bar is a thread, and there is one
+# system's, and its commands in $home/bin/rc, which the profile binds on /bin, where PATH
+# looks (pip takes a --no- option's variable as the option's own value, so 0 is no warning);
+# pip's progress bar is a thread, and there is one
 PYTHONUSERBASE=$home
 PIP_USER=1
+PIP_NO_WARN_SCRIPT_LOCATION=0
 PIP_NO_COLOR=1
 PIP_PROGRESS_BAR=off

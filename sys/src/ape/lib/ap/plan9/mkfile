@@ -73,6 +73,7 @@ OFILES=\
 	malloc.$O\
 	mkdir.$O\
 	mkstemp.$O\
+	mmap.$O\
 	nan.$O\
 	nanosleep.$O\
 	open.$O\
