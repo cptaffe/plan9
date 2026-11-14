@@ -46,12 +46,13 @@ Until the user allows the folder, a walk into it fails, and the bar shows.
 .PP
 Reading
 .B ctl
-gives a line for each folder: its name, and
+gives a line for each folder: its permission,
 .BR granted ,
 .BR prompt
 or
-.BR denied .
-It takes these messages:
+.BR denied ,
+and its name.
+It takes these messages, each with at most one name, the rest of the line:
 .TP
 .B add
 The page asks the user for a folder with the browser's chooser.
@@ -60,13 +61,13 @@ A read of the same open
 .B ctl
 then gives the folder's name.
 .TP
-.BR allow " [\fIname\fP ...]"
-The page asks the user to allow the folders that have no permission.
+.BR allow " [\fIname\fP]"
+The page asks the user to allow the folder, or all the folders that have no permission.
 .TP
-.BI remove " name ..."
-The folders leave
+.BI remove " name"
+The folder leaves
 .BR #L .
-The files in them stay as they are.
+The files in it stay as they are.
 .PP
 .I Local
 runs these:
@@ -85,11 +86,14 @@ is one, if the chooser opens soon after it; otherwise the page shows a bar with 
 choose the folder.
 .PP
 .B #L
-holds a file open for writing in memory, and writes it to the folder at its last close, or
-when the system shuts down.
+holds a file open for writing in memory, and writes it to the folder half a second after the
+last write, at its last close, and when the system shuts down; a reload loses at most that
+half second.
 A read while it is open sees what the writes put there.
-The folder has no modes or owners: a directory is 775, a file 775, and both are the
-attacher's.
+If the browser cannot write it, the console says so.
+The folder has no modes or owners: a directory is 775, a file 775, and both are the host
+owner's, who alone may write, create, remove and use
+.BR ctl .
 A rename is the browser's
 .IR move ;
 to rename or remove a folder itself, use the computer's own tools.
