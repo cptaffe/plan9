@@ -6,7 +6,7 @@
 #include <libv.h>
 
 char *
-getpass(char *prompt)
+getpass(const char *prompt)
 {
 	int c;
 	char *p;

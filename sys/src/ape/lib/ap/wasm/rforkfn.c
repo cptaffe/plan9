@@ -23,6 +23,7 @@ start(void *v)
 	s = v;
 	_detachbuf();
 	_sessleader = 0;
+	_itimerms = 0;
 	(*s->f)(s->a);
 	_exit(0);
 }

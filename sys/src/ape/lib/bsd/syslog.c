@@ -91,8 +91,8 @@ vsyslog(int pri, const char *fmt, va_list ap)
 	errno = en;
 	if(n < e-buf)
 		n += vsnprintf(buf+n, e-buf-n, fmt, ap);
-	if(n > e-buf)
-		n = e-buf;
+	if(n >= e-buf)
+		n = e-buf-1;
 	if(n == 0 || buf[n-1] != '\n')
 		buf[n++] = '\n';
 	s = fd >= 0 && write(fd, buf, n) == n;

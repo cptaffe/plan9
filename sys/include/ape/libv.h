@@ -15,7 +15,7 @@ extern int	nrand(int);
 extern long	lrand(void);
 extern double	frand(void);
 
-extern char	*getpass(char *);
+extern char	*getpass(const char *);
 extern int	tty_echoon(int);
 extern int	tty_echooff(int);
 

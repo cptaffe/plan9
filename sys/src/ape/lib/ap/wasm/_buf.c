@@ -293,6 +293,27 @@ _readbuf(int fd, void *addr, int nwant, int noblock)
 	return ngot;
 }
 
+int
+_peekbuf(int fd, void *addr, int nwant, int noblock)
+{
+	Muxbuf *b;
+	int ngot, id;
+
+	b = _fdinfo[fd].buf;
+	if(b->n == 0 && !b->eof && noblock) {
+		errno = EAGAIN;
+		return -1;
+	}
+	while(b->n == 0 && !b->eof)
+		if(take(&id) == -1)
+			return -1;
+	ngot = b->n;
+	if(ngot > nwant)
+		ngot = nwant;
+	memcpy(addr, b->getnext, ngot);
+	return ngot;
+}
+
 /* the timer's request, which its note handler sets */
 static struct {
 	int	have;

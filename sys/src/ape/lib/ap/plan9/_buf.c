@@ -209,6 +209,35 @@ _copyproc(int fd, Muxbuf *b)
 	}
 }
 
+int
+_peekbuf(int fd, void *addr, int nwant, int noblock)
+{
+	Muxbuf *b;
+	int ngot;
+
+	b = _fdinfo[fd].buf;
+	if(b->eof && b->n == 0)
+		return 0;
+	if(b->n == 0 && noblock) {
+		errno = EAGAIN;
+		return -1;
+	}
+	lock(&mux->lock);
+	ngot = b->putnext - b->getnext;
+	if(ngot == 0 && !b->eof) {
+		b->datawait = 1;
+		unlock(&mux->lock);
+		_RENDEZVOUS((unsigned long)&b->datawait, 0);
+		lock(&mux->lock);
+		ngot = b->putnext - b->getnext;
+	}
+	if(ngot > nwant)
+		ngot = nwant;
+	memcpy(addr, b->getnext, ngot);
+	unlock(&mux->lock);
+	return ngot;
+}
+
 /* like read(), for a buffered fd; extra arg noblock says don't wait for data if true */
 int
 _readbuf(int fd, void *addr, int nwant, int noblock)
