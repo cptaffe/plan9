@@ -5,6 +5,10 @@
 #endif
 #pragma lib "/$M/lib/ape/libap.a"
 
+#if _POSIX_C_SOURCE >= 200112L || defined(_BSD_EXTENSION)
+#include <sys/types.h>
+#endif
+
 #define _POSIX_VERSION	199309L
 #define _POSIX_ASYNC_IO -1
 #define _POSIX_CHOWN_RESTRICTED 1
@@ -131,6 +135,9 @@ extern int setuid(uid_t);
 extern int setgid(gid_t);
 extern int getgroups(int, gid_t *);
 extern pid_t getpgrp(void);
+#if _POSIX_C_SOURCE >= 200809L || defined(_SUSV2_SOURCE)
+extern pid_t getpgid(pid_t);
+#endif
 extern int setpgid(pid_t, pid_t);
 extern pid_t setsid(void);
 #endif
@@ -159,6 +166,8 @@ extern ssize_t write(int, const void *, size_t);
 #ifdef __TYPES_H
 extern int ftruncate(int, off_t);
 extern off_t lseek(int, off_t, int);
+extern ssize_t pread(int, void *, size_t, off_t);
+extern ssize_t pwrite(int, const void *, size_t, off_t);
 #endif
 
 /* device- and class-specific functions */

@@ -37,14 +37,19 @@ extern "C" {
 #define	SOCK_RDM	4		/* reliably-delivered message */
 #define	SOCK_SEQPACKET	5		/* sequenced packet stream */
 
+#define	SHUT_RD		0
+#define	SHUT_WR		1
+#define	SHUT_RDWR	2
+
+#define	SO_REUSEADDR	0x0004
+#define	SO_KEEPALIVE	0x0008
+
 /*
  * Option flags per-socket.
  */
 #ifdef HAVE_SOCK_OPTS
 #define	SO_DEBUG	0x0001		/* turn on debugging info recording */
 #define	SO_ACCEPTCONN	0x0002		/* socket has had listen() */
-#define	SO_REUSEADDR	0x0004		/* allow local address reuse */
-#define	SO_KEEPALIVE	0x0008		/* keep connections alive */
 #define	SO_DONTROUTE	0x0010		/* just use interface addresses */
 #define	SO_BROADCAST	0x0020		/* permit sending of broadcast msgs */
 #define	SO_USELOOPBACK	0x0040		/* bypass hardware when possible */
@@ -114,6 +119,13 @@ struct	linger {
 struct sockaddr {
 	unsigned short	sa_family;	/* address family */
 	char	sa_data[108];
+};
+
+struct sockaddr_storage {
+	unsigned short	ss_family;
+	char	ss_pad[6];
+	long long	ss_align;
+	char	ss_data[112];
 };
 
 /*

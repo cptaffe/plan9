@@ -32,6 +32,8 @@ struct	stat {
 	time_t	st_atime;
 	time_t	st_mtime;
 	time_t	st_ctime;
+	long	st_blksize;
+	long long	st_blocks;
 };
 
 #define	S__MASK		     0170000
@@ -43,6 +45,7 @@ struct	stat {
 #define S_ISCHR(m)	(((m)&S__MASK) == 0020000)
 #define S_ISBLK(m)	(((m)&S__MASK) == 0060000)
 #define S_ISFIFO(m)	(((m)&S__MASK) == 0010000)
+#define S_ISSOCK(m)	0
 
 #define	S_ISUID	04000		/* set user id on execution */
 #define	S_ISGID	02000		/* set group id on execution */

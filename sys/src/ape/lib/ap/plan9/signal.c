@@ -6,6 +6,7 @@
 #include <setjmp.h>
 
 extern sigset_t	_psigblocked;
+long _itimerms;
 
 static struct {
 	char	*msg;	/* just check prefix */
@@ -98,6 +99,8 @@ _notehandler(void *u, char *msg)
 
 	if(_finishing)
 		_finish(0, 0);
+	if(_itimerms > 0 && strncmp(msg, "alarm", 5) == 0)
+		_ALARM(_itimerms);
 	for(i = 0; i<NSIGTAB; i++){
 		if(strncmp(msg, sigtab[i].msg, strlen(sigtab[i].msg)) == 0){
 			f = _sighdlr[sigtab[i].num];

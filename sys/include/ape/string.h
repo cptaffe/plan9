@@ -32,6 +32,14 @@ extern char *strtok(char *, const char *);
 extern void *memset(void *, int, size_t);
 extern char *strerror(int);
 extern size_t strlen(const char *);
+#if _POSIX_C_SOURCE >= 200809L || defined(_BSD_EXTENSION)
+extern size_t strnlen(const char *, size_t);
+#endif
+#if _POSIX_C_SOURCE >= 202405L || defined(_BSD_EXTENSION)
+extern void *memmem(const void *, size_t, const void *, size_t);
+extern size_t strlcpy(char *, const char *, size_t);
+extern size_t strlcat(char *, const char *, size_t);
+#endif
 
 #ifdef _REENTRANT_SOURCE
 extern char *strerror_r(int, const char *, int);

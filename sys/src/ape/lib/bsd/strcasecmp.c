@@ -24,5 +24,5 @@ strcasecmp(const char *s1, const char *s2)
 		if(c1 != c2)
 			return c1 - c2;
 	}
-	return -*s2;
+	return -*(uchar*)s2;
 }
