@@ -50,6 +50,7 @@ extern Fdinfo	_fdinfo[];
 
 extern int	_finishing;
 extern int	_sessleader;
+extern long	_itimerms;
 extern void	(*_sighdlr[])(int, char*, Ureg*);
 extern char	*_sigstring(int);
 extern int	_stringsig(char *);
@@ -58,6 +59,7 @@ extern int	_startbuf(int);
 extern int	_selbuf(int);
 extern void	_closebuf(int);
 extern int _readbuf(int, void*, int, int);
+extern int _peekbuf(int, void*, int, int);
 extern void	_detachbuf(void);
 extern int	rforkfn(int, void(*)(void*), void*);	/* lib9.h's */
 extern void	_finish(int, char *);

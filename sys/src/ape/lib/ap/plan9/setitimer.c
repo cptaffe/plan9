@@ -4,8 +4,6 @@
 #include <errno.h>
 #include "sys9.h"
 
-extern long _itimerms;
-
 static long
 ms(const struct timeval *t)
 {
@@ -15,6 +13,12 @@ ms(const struct timeval *t)
 	if(m == 0 && (t->tv_sec || t->tv_usec))
 		m = 1;
 	return m;
+}
+
+static int
+bad(const struct timeval *t)
+{
+	return t->tv_sec < 0 || t->tv_usec < 0 || t->tv_usec >= 1000000;
 }
 
 static void
@@ -29,7 +33,7 @@ setitimer(int which, const struct itimerval *v, struct itimerval *o)
 {
 	long left;
 
-	if(which != ITIMER_REAL){
+	if(which != ITIMER_REAL || bad(&v->it_value) || bad(&v->it_interval)){
 		errno = EINVAL;
 		return -1;
 	}

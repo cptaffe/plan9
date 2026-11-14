@@ -26,6 +26,8 @@ mount -c #s/fossil /usr
 # standard bin
 bind /$cputype/bin /bin
 bind -a /rc/bin /bin
+# a #!/bin/sh script's shell: APE's, a POSIX shell
+bind /$cputype/bin/ape/sh /bin/sh
 
 bind -c /usr/$user/tmp /tmp
 cd /usr/$user

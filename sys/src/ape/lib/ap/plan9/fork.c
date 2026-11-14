@@ -14,6 +14,7 @@ fork(void)
 	if(n == 0) {
 		_detachbuf();
 		_sessleader = 0;
+		_itimerms = 0;
 	}
 	return n;
 }

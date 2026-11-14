@@ -19,6 +19,7 @@ rforkfn(int flags, void (*f)(void*), void *a)
 	if(n == 0){
 		_detachbuf();
 		_sessleader = 0;
+		_itimerms = 0;
 		(*f)(a);
 		_exit(0);
 	}
