@@ -31,6 +31,9 @@ acme, win, awd \- interactive text windows
 .LP
 .B win
 [
+.B -r
+]
+[
 .I command
 ]
 .LP
@@ -65,21 +68,6 @@ command (q.v.),
 and subsequent
 .I file
 names are ignored.
-A window whose program has set a dump command
-(see
-.B dump
-in
-.IR acme (4)),
-as
-.I win
-does, is dumped with its text and loaded with it,
-then a line
-.BR (reloaded) ;
-the command is run again with
-.B $acmeresume
-naming that window, and
-.I win
-goes on in it, after the text, rather than in a new window.
 With
 .BR -d ,
 .I acme
@@ -87,13 +75,28 @@ keeps
 .I dumpfile
 current: it dumps there two seconds after a change,
 or ten seconds after the first of a run of changes,
+and on a hangup or delete note,
 writing
 .IB dumpfile .new
-and renaming it, which
+and renaming it;
 .B -l
-reads if
-.I dumpfile
+and
+.B Load
+read
+.IB file .new
+if
+.I file
 is gone.
+After a failed load,
+.I acme
+does not write
+.IR dumpfile ;
+after a failed write, it waits a minute before the next.
+.B Dump
+and
+.B Load
+with no argument still use
+.BR $home/acme.dump .
 Plain files display as text; directories display as columnated lists of the
 names of their components, as in
 .B "ls -p directory|mc
@@ -663,6 +666,18 @@ Executing text in a
 window with button
 2 is similar to using
 .BR Send .
+.I Win
+dumps its window with its text, by
+.B dumpbody
+(see
+.IR acme (4)),
+as
+.BR "win -r" ;
+loaded, it goes on in the window named by
+.BR $winid ,
+after the text and the line
+.BR (reloaded) ,
+rather than in a new one.
 .PP
 .I Awd
 loads the tag line of its window with the directory in which it's running, suffixed

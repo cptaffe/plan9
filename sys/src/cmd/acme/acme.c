@@ -223,6 +223,10 @@ threadmain(int argc, char *argv[])
 	#define	WPERCOL	8
 	disk = diskinit();
 	if(!loadfile || !rowload(&row, loadfile, TRUE)){
+		if(loadfile && dumpfile){
+			warning(nil, "not saving to %s: can't load %s\n", dumpfile, loadfile);
+			dumpfile = nil;
+		}
 		rowinit(&row, screen->clipr);
 		if(ncol < 0){
 			if(argc == 0)
@@ -318,6 +322,7 @@ enum
 	Dumptick = 500,
 	Dumpquiet = 2000,
 	Dumpmax = 10000,
+	Dumpfail = 60000,
 };
 
 void
@@ -325,12 +330,12 @@ dumpthread(void*)
 {
 	Timer *t;
 	ulong seq;
-	int pending, quiet, age;
+	int pending, quiet, age, wait;
 
 	threadsetname("dumpthread");
 	seq = dumpseq;
 	pending = FALSE;
-	quiet = age = 0;
+	quiet = age = wait = 0;
 	for(;;){
 		t = timerstart(Dumptick);
 		recvul(t->c);
@@ -347,13 +352,14 @@ dumpthread(void*)
 		if(!pending)
 			continue;
 		age += Dumptick;
-		if(quiet < Dumpquiet && age < Dumpmax)
+		if((quiet < Dumpquiet && age < Dumpmax) || age < wait)
 			continue;
 		qlock(&row.lk);
-		rowsave(&row, dumpfile);
+		wait = rowsave(&row, dumpfile) ? 0 : Dumpfail;
 		qunlock(&row.lk);
 		seq = dumpseq;
-		pending = FALSE;
+		pending = wait != 0;
+		age = 0;
 	}
 }
 
@@ -497,6 +503,7 @@ keyboardthread(void *)
 			break;
 		case KKey:
 		casekeyboard:
+			dumpseq++;
 			for(k=keytab; k->key; k++)
 				if(k->key == r)
 					break;

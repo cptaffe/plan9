@@ -1423,7 +1423,6 @@ runproc(void *argvp)
 	unsetenv("winid");
 	unsetenv("%");
 	unsetenv("samfile");
-	unsetenv("acmeresume");
 
 	t = s;
 	while(*t==' ' || *t=='\n' || *t=='\t')
@@ -1469,10 +1468,6 @@ runproc(void *argvp)
 		rfork(RFNAMEG|RFENVG|RFFDG|RFNOTEG);
 		sprint(buf, "%d", winid);
 		putenv("winid", buf);
-		if(win && win->resume){
-			win->resume = FALSE;
-			putenv("acmeresume", buf);
-		}
 
 		if(filename){
 			putenv("%", filename);

@@ -327,7 +327,7 @@ struct Window
 	char		*dumpstr;
 	char		*dumpdir;
 	int		dumpid;
-	int	resume;
+	int		dumpbody;
 	int		utflastqid;
 	int		utflastboff;
 	int		utflastq;
@@ -406,7 +406,7 @@ Text*	rowtype(Row*, Rune, Point);
 void		rowdragcol(Row*, Column*, int but);
 int		rowclean(Row*);
 int		rowdump(Row*, char*);
-void	rowsave(Row*, char*);
+int		rowsave(Row*, char*);
 int		rowload(Row*, char*, int);
 void		rowloadfonts(char*);
 

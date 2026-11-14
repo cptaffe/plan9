@@ -166,7 +166,8 @@ xfidlog(Window *w, char *op)
 	File *f;
 	char *name;
 
-	dumpseq++;
+	if(strcmp(op, "focus") != 0)
+		dumpseq++;
 	qlock(&eventlog.lk);
 	if(eventlog.nev >= eventlog.mev) {
 		/* Remove and free any entries that all readers have read. */

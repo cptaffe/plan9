@@ -465,6 +465,7 @@ xfidclose(Xfid *x)
 				free(w->dumpdir);
 				w->dumpstr = nil;
 				w->dumpdir = nil;
+				w->dumpbody = FALSE;
 			}
 			break;
 		}
@@ -1024,9 +1025,9 @@ out:
 			fontx(&w->body, nil, nil, FALSE, XXX, r, nr);
 			m += (q+1) - pp;
 		}else
-		if(strncmp(p, "dump ", 5) == 0){	/* set dump string */
-			pp = p+5;
-			m = 5;
+		if(strncmp(p, "dump ", 5) == 0 || strncmp(p, "dumpbody ", 9) == 0){	/* set dump string */
+			m = p[4] == 'b' ? 9 : 5;
+			pp = p+m;
 			q = memchr(pp, '\n', e-pp);
 			if(q==nil || q==pp){
 				err = Ebadctl;
@@ -1039,7 +1040,9 @@ out:
 				err = "nulls in dump string";
 				break;
 			}
+			free(w->dumpstr);
 			w->dumpstr = runetobyte(r, nr);
+			w->dumpbody = m == 9;
 			m += (q+1) - pp;
 		}else
 		if(strncmp(p, "dumpdir ", 8) == 0){	/* set dump directory */
@@ -1057,6 +1060,7 @@ out:
 				err = "nulls in dump directory string";
 				break;
 			}
+			free(w->dumpdir);
 			w->dumpdir = runetobyte(r, nr);
 			m += (q+1) - pp;
 		}else
