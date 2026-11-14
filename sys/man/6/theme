@@ -1,21 +1,21 @@
 .TH THEME 6
 .SH NAME
-theme \- colours for rio, acme, menus and libcontrol programs
+theme \- colors for rio, acme, menus and libcontrol programs
 .SH SYNOPSIS
 .B $home/lib/theme
 .br
 .B /lib/theme
 .SH DESCRIPTION
-A theme names colours.
+A theme names colors.
 Programs read the first of
 .B $home/lib/theme
 and
 .B /lib/theme
 that exists, once, when they start;
-a name the theme does not give keeps the program's own colour,
+a name the theme does not give keeps the program's own color,
 so with no theme everything looks as it always has.
 .PP
-Each line is a name, then its colours, separated by blanks:
+Each line is a name, then its colors, separated by blanks:
 .IP
 .EX
 back	ffffff
@@ -23,14 +23,14 @@ tag	fg=000000 bg=eaffff
 keyword	fg=0000aa
 .EE
 .PP
-A colour is six hexadecimal digits,
+A color is six hexadecimal digits,
 .IR rrggbb ,
 with or without a leading
 .LR # .
-A bare colour is the name's one colour;
-.BI fg= colour
+A bare color is the name's one color;
+.BI fg= color
 and
-.BI bg= colour
+.BI bg= color
 give text and background.
 A name starts with a letter; a line that starts with
 .L #
@@ -52,9 +52,9 @@ keyword	fg=aa0000
 .EE
 .PP
 A run is a line of three fields: its start and length in runes, and a name.
-A run whose name the window has not given takes the theme's colours,
+A run whose name the window has not given takes the theme's colors,
 so a program that marks text names roles and the theme chooses how they look.
-For these a bare colour is the text's.
+For these a bare color is the text's.
 .SS Names
 .TP
 .I rio
@@ -116,7 +116,21 @@ For
 .B body
 and
 .BR bodysel ,
-a bare colour is the background.
+a bare color is the background.
+.TP
+style files
+Acme's
+.B style
+files and
+.IR astyles (4)'s
+layers name roles, such as
+.BR keyword ,
+.B comment
+and
+.BR string ,
+which the theme colors.
+.B /lib/theme
+gives those the system's programs use.
 .TP
 .IR control (2)
 .BR back ,
@@ -138,6 +152,7 @@ name.
 .IR rio (1),
 .IR acme (1),
 .IR acme (4),
+.IR astyles (4),
 .IR control (2),
 .IR color (6)
 .br
