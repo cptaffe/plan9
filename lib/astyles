@@ -1,0 +1,5 @@
+# astyles(4)'s layers, top first; * places any layer not named
+highlight
+*
+lsp
+treesitter

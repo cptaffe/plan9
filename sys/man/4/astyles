@@ -1,0 +1,195 @@
+.TH ASTYLES 4
+.SH NAME
+astyles \- layers of color in acme's windows
+.SH SYNOPSIS
+.B astyles
+[
+.B -D
+] [
+.B -a
+.I acme
+] [
+.B -m
+.I mtpt
+] [
+.B -s
+.I srvname
+]
+.SH DESCRIPTION
+.I Astyles
+lets more than one program color the text of one
+.IR acme (1)
+window at once.
+Each program writes its own layer, and
+.I astyles
+stacks the layers and writes the result to the window's
+.B style
+file (see
+.IR acme (4)).
+It posts itself as
+.BI /srv/ srvname
+.RB ( /srv/astyles
+by default) and mounts itself on
+.I mtpt
+.RB ( /mnt/astyles ),
+then waits for
+.B /srv/acme
+and follows the windows of the acme it gives, mounted on
+.I acme
+.RB ( /mnt/acme ).
+It exits when acme does.
+Started just before acme, as
+.B acmekeys
+starts it, it shares the namespace acme starts in,
+so every command acme runs finds it at
+.BR /mnt/astyles .
+The
+.B -D
+option prints the 9P messages.
+.PP
+The top directory has a directory for each of acme's windows, named by the window's ID.
+Each holds:
+.TF layers/new
+.TP
+.B style
+The window's layers stacked, in the format of acme's
+.B style
+file: what
+.I astyles
+last composed.
+.TP
+.B layers/new
+Opening it makes a new layer and reading it gives the layer's number.
+.TP
+.B layers/index
+A line for each layer: its number and its name.
+.TP
+.BI layers/ n
+The directory of layer
+.IR n .
+.PD
+.PP
+A layer's directory holds:
+.TF style
+.TP
+.B name
+The layer's name, which places it in the stack; a new layer's is its number.
+Write a word to rename it.
+.TP
+.B style
+The layer's text, in the format of acme's
+.B style
+file and
+.IR theme (6):
+lines naming colors, then runs, each a start and length in runes and a name.
+A write takes effect when its program closes the file,
+and replaces the layer's colors and runs;
+but after a write to
+.BR addr ,
+it replaces only the runs at the address, its runs' starts are relative to it,
+and it adds its colors to the layer's.
+Reading gives the layer's colors and runs.
+.TP
+.B addr
+Write two numbers, the start and end in runes of the text the next write of
+.B style
+replaces.
+As acme's
+.B addr
+file does, an open with no other open resets it.
+.TP
+.B seq
+Reading gives the number of edits made to the window's body.
+Writing a number guards the next open of
+.B style
+for writing: if anyone has edited the body since, the open fails with
+.LR "seq mismatch" ;
+and
+.I astyles
+drops a write closed after an edit.
+The number is the one acme's own
+.B seq
+file for the window gives, so a program that read the body with a guard can write its runs with the same number.
+.TP
+.B ctl
+.L clear
+empties the layer;
+.L delete
+removes it.
+.PD
+.PP
+A layer lasts until a program deletes it or its window closes.
+A program looks its layer up by name in
+.B index
+and makes one with
+.B new
+if it has none.
+.SS Stacking
+Where layers' runs overlap, the higher layer's run shows.
+The first of
+.B $home/lib/astyles
+and
+.B /lib/astyles
+lists the layers' names, top first, one to a line;
+a
+.L *
+places every layer the file does not name, and a
+.L #
+starts a comment.
+Of two layers in the same place, the newer is higher.
+.I Astyles
+reads the file when it starts.
+.SS Colors
+.I Astyles
+looks a run's name up in its own layer's colors, then in the theme
+.RI ( theme (6)).
+It leaves out a run whose name is in neither, so the layers under it show through.
+Where two layers give one name different colors,
+.I astyles
+writes one under the name with its layer's number added
+.RB ( keyword.3 ),
+so each layer's runs keep their colors.
+.SS Edits
+.I Astyles
+follows each window's edits in its
+.B log
+file.
+A layer's runs move with text inserted or deleted before them,
+and a run grows to cover text typed inside it, until its program writes the layer again.
+.I Get
+reloads the body without logging its edits, so it empties every layer of the window.
+.I Astyles
+writes to acme's
+.B style
+file a moment after a change, only the text that changed,
+under acme's
+.B seq
+guard.
+.SH EXAMPLES
+Color the first word of window 3 in a layer named
+.BR mark :
+.IP
+.EX
+l=`{cat /mnt/astyles/3/layers/new}
+echo mark >/mnt/astyles/3/layers/$l/name
+echo '0 5 highlight' >/mnt/astyles/3/layers/$l/style
+.EE
+.SH FILES
+.TF $home/lib/astyles
+.TP
+.B /lib/astyles
+the order of the layers
+.TP
+.B $home/lib/astyles
+the user's order, read in place of
+.B /lib/astyles
+.PD
+.SH SOURCE
+plan9web's
+.B src/cmd/astyles.c
+.br
+.B rc/bin/acmekeys
+.SH SEE ALSO
+.IR acme (1),
+.IR acme (4),
+.IR theme (6)
