@@ -1,0 +1,248 @@
+.TH LSPFS 4
+.SH NAME
+lspfs \- language servers as files
+.SH SYNOPSIS
+.B lspfs
+[
+.B -D
+] [
+.B -m
+.I mtpt
+] [
+.B -s
+.I srvname
+]
+.SH DESCRIPTION
+.I Lspfs
+runs language servers, programs that speak the Language Server Protocol,
+and serves what they know as files.
+It posts itself as
+.BI /srv/ srvname
+.RB ( /srv/lsp
+by default) and mounts itself on
+.I mtpt
+.RB ( /mnt/lsp ).
+It knows nothing of an editor: a question names a file and a place in it, in runes,
+and the answer is lines of text.
+.PP
+Which server serves a file, and how, is given by rules, read from
+.B $home/lib/lsp
+or, if there is none,
+.BR /lib/lsp .
+They are
+.IR ndb (6)
+entries.
+An entry
+.B lsp=
+.I name
+gives a server:
+.TF func=
+.TP
+.B cmd=
+the command that runs it, by
+.IR rc (1)
+.TP
+.B file=
+a regular expression
+.RI ( regexp (6))
+for the full names of the files it serves; the first rule that matches serves a file
+.TP
+.B lang=
+the language's LSP name, the server's name if not given
+.TP
+.B root=
+the names of the files that mark a project's top directory, in order.
+For each name in turn,
+.I lspfs
+looks in the file's directory and then each above it;
+the first name found anywhere gives the root.
+A server with no
+.B root=
+gets no project at all and finds its own.
+.TP
+.B func=
+the pattern a function's first line matches, for
+.IR fn (1)
+.TP
+.B put=
+what to do to a buffer after it is put:
+.L fmt
+formats it, and other words are kinds of code action to apply
+.PD
+.PP
+An entry
+.B tree=
+.I path
+makes
+.I path
+the root of the files under it, whatever their markers say, for every server or, with
+.BI lsp= name\f1,
+for that one.
+Of two trees, the nearer wins.
+.PP
+.I Lspfs
+starts a server the first time a file it serves is opened or asked about,
+and runs one process for all the projects it serves, telling it of each new root.
+A server that cannot be told of another project gets a process for each.
+A server that exits is started again, and the documents it had are opened in it again;
+one that exits three times within ten seconds of starting is not started again until the
+rules are written.
+Each runs in a directory of its own in
+.BR /tmp ,
+with its errors in
+.BI /tmp/lsp. name .err\f1.
+.SS Questions
+The files
+.BR def ,
+.BR type ,
+.BR refs ,
+.BR impls ,
+.BR doc ,
+.B comp
+and
+.B syms
+each answer a question.
+Open one for reading and writing, write a file's full name, a colon and a
+.LR # ,
+then a place in runes, as in
+.LR /usr/glenda/src/a.fdn:#120 ,
+and read the answer.
+.B Syms
+takes the file's name alone.
+The answer starts where the write leaves the offset, so
+.IP
+.EX
+{ echo -n '/usr/glenda/src/a.fdn:#120' >[1=0]; cat } <>/mnt/lsp/def
+.EE
+.PP
+prints it.
+.BR Def ,
+.BR type ,
+.B refs
+and
+.B impls
+give places, one a line, as
+.IB file : line : col :\f1
+and the line's text;
+.B doc
+gives the diagnostics on the place's line and then what the server says of it;
+.B comp
+gives the completions, one a line;
+.B syms
+gives the file's symbols, a line each, as a place, the kind of symbol and its name, indented
+under the symbol they are in.
+A file that no client has open is read from disk, again for each question.
+.SS Documents
+A client opens its text by
+.BR docs/new :
+reading it makes a directory,
+.BI docs/ n\f1,
+and gives
+.IR n .
+Each holds:
+.TF tokens
+.TP
+.B name
+the file's full name, written once
+.TP
+.B body
+the text: what is written replaces it when the file is closed
+.TP
+.B edit
+edits, each write one of acme's per-window log entries:
+.BI "I " "q0 q1 " "0 " "n text"
+inserts the
+.I n
+runes of
+.I text
+at
+.IR q0 ,
+and
+.BI "D " "q0 q1"
+deletes
+.RI [ q0 , q1 )
+.TP
+.B tokens
+the semantic tokens, a line each: a start and length in runes and a name, such as
+.B keyword
+or
+.BR type ,
+as
+.IR astyles (4)
+takes them
+.TP
+.B diag
+the diagnostics, a line each:
+.IB file : line : col :\f1
+a severity
+.RB ( error ,
+.BR warning ,
+.B info
+or
+.BR hint )
+and the message
+.PD
+.PP
+Writing two numbers to
+.B tokens
+or
+.B diag
+and reading gives only what is between them.
+Removing
+.BI docs/ n
+closes the document.
+.SS Log
+.B Log
+gives a line for each change, as it happens:
+.IB n " new" \f1,
+.IB n " del" \f1,
+and
+.IB n " tokens " "q0 q1"
+or
+.IB n " diag " "q0 q1"
+when a document's tokens or diagnostics change between
+.I q0
+and
+.IR q1 .
+A reader rereads only that part.
+.SS Rules
+Reading
+.B rules
+gives the rules in use.
+Writing it replaces them when it is closed, as the plumber's do.
+A write with a bad entry fails, with the entry's line, and so do the writes after it; the rules
+are then left as they were.
+An entry the next line might still finish, one missing
+.B cmd=
+or
+.BR file= ,
+is checked only when the file is closed; if it is bad then, the rules are left as they were
+and the error goes to standard error.
+The servers then start again, by the new rules.
+.IP
+.EX
+cp $home/lib/lsp /mnt/lsp/rules
+.EE
+.SH FILES
+.TF $home/lib/lsp
+.TP
+.B /lib/lsp
+the rules
+.TP
+.B $home/lib/lsp
+the user's rules, read in place of
+.B /lib/lsp
+.PD
+.SH SOURCE
+plan9web's
+.B src/cmd/lspfs
+.SH SEE ALSO
+.IR astyles (4),
+.IR acme (4),
+.IR ndb (6)
+.br
+The Language Server Protocol,
+.B https://microsoft.github.io/language-server-protocol/
+.SH BUGS
+Servers run as the user, with the user's namespace; the namespace they should have is yet to come.
+Rename and code actions are yet to come.

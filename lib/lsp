@@ -1,0 +1,9 @@
+# The language servers lspfs(4) runs, one entry each; $home/lib/lsp is read in place of this
+# file. After editing yours: cp $home/lib/lsp /mnt/lsp/rules
+#
+# lsp=name cmd=command file=pattern lang=id root="markers" func=pattern put="actions"
+# tree=/path [lsp=name]	a tree whose files have /path as their root, whatever their markers say
+
+lsp=fdn cmd=fdn-lsp file="\.fdn$" lang=fdn root="project.fdn .git"
+	func="^[a-z]"
+	put="fmt"
