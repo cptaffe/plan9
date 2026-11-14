@@ -26,6 +26,11 @@ unlink(const char *path)
 		_syserrno();
 		return -1;
 	}
+	if(db1->mode&DMDIR){
+		free(db1);
+		errno = EPERM;
+		return -1;
+	}
 	fd = -1;
 	for(i=0, f = _fdinfo;i < OPEN_MAX; i++, f++) {
 		if((f->flags&FD_ISOPEN) && (db2=_dirfstat(i)) != nil) {
