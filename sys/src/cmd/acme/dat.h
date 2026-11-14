@@ -461,6 +461,7 @@ struct Fid
 	vlong	evread;	/* next position to deliver to this reader */
 	vlong	evlimit;	/* permission boundary: may read up to here */
 	Xfid	*eventx;	/* Xfid blocked waiting for events, or nil */
+	int	evfollow;	/* records still to follow the last command written back */
 	Mntdir	*mntdir;
 	int		nrpart;
 	uchar	rpart[UTFmax];

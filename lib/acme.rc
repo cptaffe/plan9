@@ -33,8 +33,14 @@ fn winname {
 
 # An event goes back on the descriptor it was read from, wineventloop's 3: this acme takes
 # a write of an event only from the reader that has it in flight (xfideventwrite's evhead).
+# Each command or look read is written back: by winwriteevent to pass it on, for acme or the
+# next reader to do, or by windoneevent when the client did it itself.
 fn winwriteevent {
 	echo $1$2$3 $4 >[1=3]
+}
+
+fn windoneevent {
+	echo $1$2$3 $4 0 0 >[1=3]
 }
 
 # windotlines: the text of the whole lines that dot touches, or of the line it is on if it is

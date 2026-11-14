@@ -40,6 +40,111 @@ seqadvance(Xfid *x, Window *w)
 		x->f->seq = w->seq;
 }
 
+static void evgive(Window*, Fid*);
+static void evring_gc(Window*);
+
+static char*
+evrec(Window *w, vlong p, uint *sz)
+{
+	char *s;
+
+	s = w->evring.buf + (p - w->evring.base);
+	memmove(sz, s, 4);
+	return s+4;
+}
+
+/*
+ * evcmd reports whether record s is a command or a look, which
+ * its reader writes back, and in nf how many records follow it.
+ */
+static int
+evcmd(char *s, int *nf)
+{
+	char *p;
+	ulong f;
+
+	*nf = 0;
+	switch(s[1]){
+	case 'x':
+	case 'X':
+	case 'l':
+	case 'L':
+	case 'r':
+	case 'R':
+		break;
+	default:
+		return 0;
+	}
+	p = s+2;
+	strtoul(p, &p, 10);
+	strtoul(p, &p, 10);
+	f = strtoul(p, nil, 10);
+	if(f & 2)
+		(*nf)++;
+	if((s[1]=='x' || s[1]=='X') && (f & 8))
+		*nf += 2;
+	return 1;
+}
+
+/*
+ * evpass gives the next reader the n bytes that f has done with.
+ */
+static void
+evpass(Window *w, Fid *f, int n)
+{
+	if(f->eventnext != nil){
+		f->eventnext->evlimit += n;
+		evgive(w, f->eventnext);
+	}
+	evring_gc(w);
+}
+
+/*
+ * evsettle takes as written back what f has read and needs no
+ * write: a record that is not a command or look, one that
+ * follows a command written back, and a dead one.
+ */
+static void
+evsettle(Window *w, Fid *f)
+{
+	char *s;
+	uint sz;
+	int n, nf;
+
+	n = 0;
+	while(f->evhead < f->evread){
+		s = evrec(w, f->evhead, &sz);
+		if(f->evfollow > 0)
+			f->evfollow--;
+		else if(s[0] != 0 && evcmd(s, &nf))
+			break;
+		f->evhead += 4 + sz;
+		n += 4 + sz;
+	}
+	if(n > 0)
+		evpass(w, f, n);
+}
+
+/*
+ * evgive passes over the dead records f would read next, those
+ * of a command a reader before it did, and wakes its reader.
+ */
+static void
+evgive(Window *w, Fid *f)
+{
+	uint sz;
+	Xfid *x;
+
+	while(f->evread < f->evlimit && evrec(w, f->evread, &sz)[0] == 0)
+		f->evread += 4 + sz;
+	evsettle(w, f);
+	if(f->eventx != nil && f->evread < f->evlimit){
+		x = f->eventx;
+		f->eventx = nil;
+		sendp(x->c, nil);
+	}
+}
+
 static
 void
 clampaddr(Window *w)
@@ -159,6 +264,7 @@ xfidopen(Xfid *x)
 				}
 			}
 			x->f->eventx = nil;	/* clear any stale pointer from Fid reuse */
+			x->f->evfollow = 0;
 			/*
 			 * Insert this fid at the head of the event pipeline.
 			 * Start it from where the previous head's read pointer
@@ -339,11 +445,7 @@ xfidclose(Xfid *x)
 			if(fn != nil){
 				/* forward all permission we held */
 				fn->evlimit = x->f->evlimit;
-				if(fn->eventx != nil && fn->evread < fn->evlimit){
-					Xfid *wx = fn->eventx;
-					fn->eventx = nil;
-					sendp(wx->c, nil);
-				}
+				evgive(w, fn);
 			}
 			x->f->eventnext = nil;
 
@@ -1088,12 +1190,14 @@ xfideventwrite(Xfid *x, Window *w)
 	Fcall fc;
 	int m, n;
 	Rune *r;
-	char *err, *p, *q;
+	char *err, *p, *q, *s;
 	int isfbuf;
 	Text *t;
-	int c;
-	uint q0, q1, sz;
-	Fid *fn;
+	int c, i, nf, nr, done;
+	uint q0, q1, sz, sz1;
+	vlong e;
+	Rune rr;
+	Fid *f, *fn;
 
 	err = nil;
 	isfbuf = TRUE;
@@ -1121,61 +1225,87 @@ xfideventwrite(Xfid *x, Window *w)
 		p = q;
 		while(*p == ' ')
 			p++;
+		done = FALSE;
+		if('0'<=*p && *p<='9'){
+			strtoul(p, &q, 10);
+			if(*q++ != ' ')
+				goto Rescue;
+			p = q;
+			nr = strtoul(p, &q, 10);
+			if(q == p)
+				goto Rescue;
+			p = q;
+			if(*p == ' ')
+				p++;
+			for(i=0; i<nr; i++){
+				if(p >= x->fcall.data+x->fcall.count)
+					goto Rescue;
+				p += chartorune(&rr, p);
+			}
+			done = TRUE;
+		}
 		if(*p++ != '\n')
 			goto Rescue;
 		m = p-(x->fcall.data+n);
 
 		/*
-		 * Acknowledge the in-flight event at evhead.
-		 * Read its size from the ring, advance evhead past it,
-		 * then either forward to the next reader in the chain
-		 * or execute at the terminus (no next reader).
+		 * A record that is not a command or look needs no write
+		 * back.  The command or look at evhead is passed on, with
+		 * the records that follow it, or done here: written back
+		 * whole, as it was read, it is dead to the readers after.
 		 */
-		if(x->f->evhead >= w->evring.tail)
-			goto Rescue;	/* nothing in flight — shouldn't happen */
-		memmove(&sz, w->evring.buf + (x->f->evhead - w->evring.base), 4);
-		x->f->evhead += 4 + sz;
-
-		fn = x->f->eventnext;
-		if(fn != nil){
-			/* Forward: give the next reader permission to read. */
-			fn->evlimit += 4 + sz;
-			if(fn->eventx != nil && fn->evread < fn->evlimit){
-				Xfid *wx = fn->eventx;
-				fn->eventx = nil;
-				sendp(wx->c, nil);
-			}
-		} else {
-			/* Terminus: execute as acme's built-in handler would. */
-			if('a'<=c && c<='z')
-				t = &w->tag;
-			else if('A'<=c && c<='Z')
-				t = &w->body;
-			else
-				goto Rescue;
-			if(q0>t->file->b.nc || q1>t->file->b.nc || q0>q1)
-				goto Rescue;
-			qlock(&row.lk);
-			switch(c){
-			case 'x':
-			case 'X':
-				execute(t, q0, q1, TRUE, nil);
-				break;
-			case 'l':
-			case 'L':
-				look3(t, q0, q1, TRUE, FALSE);
-				break;
-			case 'r':
-			case 'R':
-				look3(t, q0, q1, TRUE, TRUE);
-				break;
-			default:
-				qunlock(&row.lk);
-				goto Rescue;
-			}
-			qunlock(&row.lk);
+		switch(c){
+		case 'x':
+		case 'X':
+		case 'l':
+		case 'L':
+		case 'r':
+		case 'R':
+			break;
+		default:
+			continue;
 		}
-		evring_gc(w);
+		f = x->f;
+		if(f->evhead >= f->evread)
+			goto Rescue;
+		s = evrec(w, f->evhead, &sz);
+		evcmd(s, &nf);
+		fn = f->eventnext;
+		if(done && fn != nil){
+			e = f->evhead;
+			for(i=0; i<=nf && e<w->evring.tail; i++){
+				evrec(w, e, &sz1)[0] = 0;
+				e += 4 + sz1;
+			}
+		}
+		f->evhead += 4 + sz;
+		f->evfollow = nf;
+		evpass(w, f, 4 + sz);
+		evsettle(w, f);
+		if(fn != nil || done)
+			continue;
+		if('a'<=c && c<='z')
+			t = &w->tag;
+		else
+			t = &w->body;
+		if(q0>t->file->b.nc || q1>t->file->b.nc || q0>q1)
+			goto Rescue;
+		qlock(&row.lk);
+		switch(c){
+		case 'x':
+		case 'X':
+			execute(t, q0, q1, TRUE, nil);
+			break;
+		case 'l':
+		case 'L':
+			look3(t, q0, q1, TRUE, FALSE);
+			break;
+		case 'r':
+		case 'R':
+			look3(t, q0, q1, TRUE, TRUE);
+			break;
+		}
+		qunlock(&row.lk);
 
 	}
 
@@ -1345,6 +1475,7 @@ xfideventread(Xfid *x, Window *w)
 	respond(x, &fc, nil);
 	f->evread += 4 + sz;
 	/* evhead stays put until write-back; the event is now "in flight". */
+	evgive(w, f);
 }
 
 void

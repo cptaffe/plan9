@@ -438,6 +438,27 @@ will cause the action to be applied to the file exactly as it would
 have been if the
 .B event
 file had not been open.
+.IP
+Several programs may read a window's
+.B event
+file at once, each on a file of its own;
+the one that opened it last reads each message first.
+A reader writes back, once and in the order it read them,
+each command or look it reads
+.RB ( x ,
+.BR X ,
+.BR l ,
+.BR L ,
+.BR r ,
+or
+.BR R ):
+in the short form above to pass it on, to the next reader or, after the last, to
+.I acme
+to apply; or whole, as it was read (the flag and count may be 0 and the text empty),
+when the reader has done the action itself, so that no reader after it sees it.
+The messages that follow a command or look go with it;
+other messages need no write back.
+A message passes to the next reader once every message before it has.
 .TP
 .B style
 colours the body's text, in the format of
