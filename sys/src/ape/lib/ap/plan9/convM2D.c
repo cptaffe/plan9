@@ -2,7 +2,6 @@
 #include <string.h>
 #include "sys9.h"
 #include "dir.h"
-#define nil ((void*)0)
 
 static char nullstring[] = "";
 

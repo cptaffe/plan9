@@ -2,6 +2,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <errno.h>
+#include "lib.h"
 
 typedef unsigned int	uint;
 
@@ -31,7 +32,6 @@ struct Arena
 static Arena arena;
 
 #define datoff		((int)((Bucket*)0)->data)
-#define nil		((void*)0)
 
 extern	void	*sbrk(unsigned long);
 

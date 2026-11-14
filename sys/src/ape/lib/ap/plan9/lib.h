@@ -5,6 +5,9 @@
 
 typedef struct Ureg Ureg;
 
+#define nil		((void*)0)
+#define nelem(x)	(sizeof(x)/sizeof((x)[0]))
+
 /* mux buf for selecting (see _buf.c) */
 enum {
 	READMAX = 8192,			/* read at most this much with _READ */
