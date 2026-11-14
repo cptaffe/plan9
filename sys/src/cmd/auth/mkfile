@@ -32,6 +32,8 @@ TARG=\
 	rsa2x509\
 	rsafill\
 	rsagen\
+	ssh-agent\
+	ssh2factotum\
 	uniq\
 	warning\
 	wrkey\
