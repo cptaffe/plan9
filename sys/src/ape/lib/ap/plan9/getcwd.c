@@ -11,22 +11,28 @@
 char*
 getcwd(char *buf, size_t len)
 {
+	char path[8192];
 	int fd;
+	size_t n;
 
 	fd = _OPEN(".", OREAD);
 	if(fd < 0) {
 		errno = EACCES;
 		return 0;
 	}
-	if(_FD2PATH(fd, buf, len) < 0) {
+	if(_FD2PATH(fd, path, sizeof path) < 0) {
 		errno = EIO;
 		_CLOSE(fd);
 		return 0;
 	}
 	_CLOSE(fd);
-
-/* RSC: is this necessary? */
-	if(buf[0] == '\0')
-		strcpy(buf, "/");
+	if(path[0] == '\0')
+		strcpy(path, "/");
+	n = strlen(path);
+	if(len == 0 || n >= sizeof path - 1 || n+1 > len) {
+		errno = len == 0 ? EINVAL : ERANGE;
+		return 0;
+	}
+	memcpy(buf, path, n+1);
 	return buf;
 }

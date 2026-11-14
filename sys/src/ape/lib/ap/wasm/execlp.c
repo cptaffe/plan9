@@ -4,7 +4,7 @@
 
 extern char **_arglist(const char*, va_list);
 
-/* ../plan9/execlp.c's, by way of execvp, which has the same BUG. */
+/* ../plan9/execlp.c's, by way of execvp */
 int
 execlp(const char *name, const char *arg0, ...)
 {

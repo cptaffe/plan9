@@ -55,6 +55,9 @@ expr:	'(' expr ')' = { $$ = $2; }
 %%
 /*	expression command */
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 /* get rid of yacc debug printf's */
 #define printf
 #define ESIZE	512
@@ -67,7 +70,12 @@ int	Ac;
 int	Argi;
 
 char Mstring[1][128];
-char *malloc();
+int ematch();
+int yyerror();
+int errxx();
+int advance();
+int ecmp();
+int prt();
 extern int nbra;
 int yyparse(void);
 

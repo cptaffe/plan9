@@ -3,7 +3,7 @@
 # is left as it is; what it execs gets environ, these with it, as /env, as APE's exec gives.
 # In a value, $name is Plan 9's variable, a list's elements joined by :, and $$ is $; a line
 # with a $name that /env has not is left out. PATH is /bin: the name space's union of the commands (ape/psh
-# binds APE's before Plan 9's there), as APE's execvp looks in /bin.
+# binds APE's before Plan 9's there), which APE's execvp searches.
 
 # Plan 9's own, by Unix's names
 HOME=$home

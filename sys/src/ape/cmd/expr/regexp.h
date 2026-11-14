@@ -7,6 +7,9 @@
 #define	CKET	24
 #define	CBACK	36
 
+int advance();
+int getrnge();
+
 #define	STAR	01
 #define RNGE	03
 

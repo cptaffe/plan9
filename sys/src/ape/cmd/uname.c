@@ -30,7 +30,7 @@ prword(char *w)
 	fputs(w, stdout);
 }
 
-void
+int
 main(int argc, char **argv)
 {
 	struct utsname u;
