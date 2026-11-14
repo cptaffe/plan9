@@ -73,6 +73,7 @@
    GNU application programs can use a third alternative mode in which
    they can distinguish the relative order of options and other arguments.  */
 
+#include <string.h>
 #include "getopt.h"
 
 /* For communication from `getopt' to the caller.

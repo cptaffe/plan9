@@ -3,23 +3,57 @@
 rfork e
 
 opts=()
+pats=()
 files=()
+fixed=0
 argv0=$0
+fn lit {
+	echo x^$1 | sed 's/^x//; s/[.^$*+?()|\[\]\\]/\\&/g'
+}
 while(! ~ $#* 0){
 	switch($1){
 	case -e
-		opts=($opts $1 $2)
+		pats=($pats $2)
 		shift
-	case -[cfinsv]
-		opts=($opts $1)
-	case -q
-		opts=($opts -s)
+	case --
+		shift
+		files=($files $*)
+		*=()
 	case -*
-		echo $argv0 $1 not supported >[2=1]
-		exit 'not supported'
+		for(c in `{echo x^$1 | sed 's/^x-//; s/./& /g'}){
+			switch($c){
+			case [bchiLlnsv]
+				opts=($opts -$c)
+			case q
+				opts=($opts -s)
+			case E
+				;
+			case F
+				fixed=1
+			case *
+				echo $argv0 -$c not supported >[2=1]
+				exit 'not supported'
+			}
+		}
 	case *
 		files=($files $1)
 	}
-	shift
+	if(! ~ $#* 0)
+		shift
+}
+if(~ $#pats 0){
+	pats=$files(1)
+	files=$files(2-)
+}
+nl='
+'
+for(p in $pats){
+	if(~ $fixed 1){
+		oifs=$ifs
+		ifs=$nl
+		p=`{lit $p}
+		ifs=$oifs
+	}
+	opts=($opts -e $p)
 }
 exec /$cputype/bin/grep $opts $files
