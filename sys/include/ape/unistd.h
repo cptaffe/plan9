@@ -133,6 +133,10 @@ extern gid_t getgid(void);
 extern gid_t getegid(void);
 extern int setuid(uid_t);
 extern int setgid(gid_t);
+#if _POSIX_C_SOURCE >= 200112L || defined(_BSD_EXTENSION)
+extern int seteuid(uid_t);
+extern int setegid(gid_t);
+#endif
 extern int getgroups(int, gid_t *);
 extern pid_t getpgrp(void);
 #if _POSIX_C_SOURCE >= 200809L || defined(_SUSV2_SOURCE)

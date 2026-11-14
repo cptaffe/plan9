@@ -88,6 +88,10 @@ extern size_t mbrtowc(wchar_t *, const char *, size_t, mbstate_t *);
 extern size_t wcrtomb(char *, wchar_t, mbstate_t *);
 extern size_t mbsrtowcs(wchar_t *, const char **, size_t, mbstate_t *);
 extern size_t wcsrtombs(char *, const wchar_t **, size_t, mbstate_t *);
+#ifdef _SUSV2_SOURCE
+extern int wcwidth(wchar_t);
+extern int wcswidth(const wchar_t *, size_t);
+#endif
 
 #ifdef __cplusplus
 }

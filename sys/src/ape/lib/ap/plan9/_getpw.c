@@ -31,6 +31,28 @@ typedef struct Memo {
 static Memo *memo[MEMOMAX];
 static int nmemo = 0;
 
+/*
+ * With no /adm/users (a terminal whose file server has none), the one user is
+ * /dev/user's, number 1 as getuid has it, and its own group
+ */
+static int
+self(int *pnum, char **pname, char **plist)
+{
+	static char name[NAMEMAX];
+	char *u;
+
+	if((u = getlogin()) == NULL)
+		return 0;
+	if(*pname != NULL ? strcmp(*pname, u) != 0 : *pnum != 1)
+		return 0;
+	strncpy(name, u, NAMEMAX-1);
+	*pname = name;
+	*pnum = 1;
+	if(plist)
+		*plist = 0;
+	return 1;
+}
+
 int
 _getpw(int *pnum, char **pname, char **plist)
 {
@@ -46,7 +68,7 @@ _getpw(int *pnum, char **pname, char **plist)
 	if(au == NULL){
 		d = _dirstat(admusers);
 		if(d == nil)
-			return 0;
+			return self(pnum, pname, plist);
 		length = d->length;
 		free(d);
 		if((au = (char *)malloc(length+2)) == NULL)

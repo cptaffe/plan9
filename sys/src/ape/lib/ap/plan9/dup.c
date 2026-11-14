@@ -18,5 +18,7 @@ dup2(int oldd, int newd)
 	if(oldd == newd && _fdinfo[newd].flags&FD_ISOPEN)
 		return newd;
 	close(newd);
+	if(_bufmove(newd) < 0)
+		return -1;
 	return fcntl(oldd, F_DUPFD, newd);
 }

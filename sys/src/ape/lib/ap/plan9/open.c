@@ -24,7 +24,7 @@ open(const char *path, int flags, ...)
 		va_start(va, flags);
 		mode = va_arg(va, int);
 		va_end(va);
-		n = _CREATE(path, f|OEXCL, mode&0777);	/* fails if it is there */
+		n = _CREATE(path, f|OEXCL, mode&~_umask&0777);	/* fails if it is there */
 		if(n < 0)
 			_syserrno();
 	}else if(flags&O_CREAT){
@@ -38,7 +38,7 @@ open(const char *path, int flags, ...)
 			va_start(va, flags);
 			mode = va_arg(va, int);
 			va_end(va);
-			n = _CREATE(path, f, mode&0777);
+			n = _CREATE(path, f, mode&~_umask&0777);
 		}
 		if(n < 0)
 			_syserrno();

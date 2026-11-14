@@ -44,7 +44,7 @@ typedef struct Fdinfo{
 #define FD_BUFFEREDX	0x8
 #define FD_ISTTY	0x20
 
-#define MAXSIG SIGUSR2
+#define MAXSIG (NSIG-1)
 
 extern Fdinfo	_fdinfo[];
 
@@ -61,6 +61,8 @@ extern void	_closebuf(int);
 extern int _readbuf(int, void*, int, int);
 extern int _peekbuf(int, void*, int, int);
 extern void	_detachbuf(void);
+extern int	_bufpipe(int);
+extern int	_bufmove(int);
 extern int	rforkfn(int, void(*)(void*), void*);	/* lib9.h's */
 extern void	_finish(int, char *);
 extern char	*_ultoa(char *, unsigned long);
@@ -68,6 +70,7 @@ extern int	_notehandler(void *, char *);
 extern void	_notetramp(int, void (*)(int, char*, Ureg*), Ureg*);
 extern void	_syserrno(void);
 extern int	_getpw(int *, char **, char **);
+extern mode_t	_umask;
 extern int _isatty(int);
 extern void _fdinit(char*, char*);
 

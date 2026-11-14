@@ -69,6 +69,18 @@ execve(const char *name, const char *argv[], const char *envp[])
 		_WRITE(f, buf, ss-buf);
 		_CLOSE(f);
 	}
+	/*
+	 * To pass the umask across exec, set $_umask to it, in octal
+	 */
+	f = _CREATE("#e/_umask", OWRITE, 0666);
+	if(f >= 0){
+		ss = buf;
+		*ss++ = '0';
+		for(i = 6; i >= 0; i -= 3)
+			*ss++ = '0' + ((_umask>>i)&7);
+		_WRITE(f, buf, ss-buf);
+		_CLOSE(f);
+	}
 	if(envp){
 		strcpy(nam, "#e/");
 		for(e = (char **)envp; (ss = *e); e++) {

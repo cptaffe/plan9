@@ -3,11 +3,16 @@
 #include <errno.h>
 
 /*
- * No such concept in plan9, but supposed to be always successful
+ * The process's own: open, creat and mkdir clear its bits from a new file's mode
  */
+mode_t	_umask;
 
 mode_t
-umask(mode_t)
+umask(mode_t m)
 {
-	return 0;
+	mode_t o;
+
+	o = _umask;
+	_umask = m & 0777;
+	return o;
 }

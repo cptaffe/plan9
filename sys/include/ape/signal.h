@@ -37,9 +37,12 @@ typedef int sig_atomic_t;
 #define SIGTSTP	18	/* interactive stop */
 #define SIGTTIN	19	/* read from ctl tty by member of background */
 #define SIGTTOU	20	/* write to ctl tty by member of background */
+#define SIGWINCH	21	/* window size change */
+#define SIGTRAP	22	/* trace trap */
+#define SIGSYS	23	/* bad system call */
 
 #ifdef _BSD_EXTENSION
-#define NSIG 21
+#define NSIG 24
 #endif
 
 #ifdef __cplusplus
