@@ -31,6 +31,8 @@ _dirtostat(struct stat *s, Dir *d, Fdinfo *fi)
 		s->st_size = fi->buf->n;
 	else
 		s->st_size = d->length;
+	s->st_blksize = 8192;
+	s->st_blocks = (s->st_size+511)/512;
 	s->st_atime = d->atime;
 	s->st_mtime = d->mtime;
 	s->st_ctime = d->mtime;

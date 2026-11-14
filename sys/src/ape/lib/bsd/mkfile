@@ -13,6 +13,7 @@ OFILES=\
 	getdtablesize.$O\
 	gethostbyname.$O\
 	gethostbyaddr.$O\
+	getpass.$O\
 	gethostname.$O\
 	getopt.$O\
 	getpeername.$O\
@@ -44,8 +45,10 @@ OFILES=\
 	_sock_ipattr.$O\
 	_sock_srv.$O\
 	strcasecmp.$O\
+	strcasestr.$O\
 	strncasecmp.$O\
 	strsep.$O\
+	syslog.$O\
 	socket.$O\
 	socketpair.$O\
 	pty.$O\

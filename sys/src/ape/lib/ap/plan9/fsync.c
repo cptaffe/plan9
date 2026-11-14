@@ -1,10 +1,14 @@
+#include "lib.h"
 #include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
 
 int
-fsync(int)
+fsync(int fd)
 {
-	errno = EINVAL;
-	return -1;
+	if(fd<0 || fd>=OPEN_MAX || !(_fdinfo[fd].flags&FD_ISOPEN)){
+		errno = EBADF;
+		return -1;
+	}
+	return 0;
 }

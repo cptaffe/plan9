@@ -7,7 +7,7 @@ strncasecmp(const char *s1, const char *s2, size_t n)
 {
 	int c1, c2;
 
-	while(*s1 && n-- > 0){
+	for(; n > 0 && *s1; n--){
 		c1 = *(uchar*)s1++;
 		c2 = *(uchar*)s2++;
 
@@ -23,7 +23,7 @@ strncasecmp(const char *s1, const char *s2, size_t n)
 		if(c1 != c2)
 			return c1 - c2;
 	}
-	if(n <= 0)
+	if(n == 0)
 		return 0;
-	return -*s2;
+	return -*(uchar*)s2;
 }

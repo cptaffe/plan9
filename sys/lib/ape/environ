@@ -17,6 +17,7 @@ NO_COLOR=1
 LANG=C.UTF-8
 SHELL=/bin/ape/sh
 PAGER=p
+EDITOR=ed
 
 # where a program keeps its files: $home/lib, as Go's os.UserConfigDir and UserCacheDir on Plan 9
 XDG_CONFIG_HOME=$home/lib

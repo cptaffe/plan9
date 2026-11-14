@@ -82,6 +82,8 @@ char *sys_errlist[] = {
 	"Text file busy",		/* ETXTBSY */
 	"Operation already in progress",	/* EALREADY */
 	"Connection reset",		/* ECONNRESET */
+	"Too many levels of symbolic links",	/* ELOOP */
+	"Value too large",		/* EOVERFLOW */
 };
 #define	_IO_nerr	(sizeof sys_errlist/sizeof sys_errlist[0])
 int sys_nerr = _IO_nerr;
