@@ -12,6 +12,7 @@ bind -c #s /srv
 bind -a #m /dev
 bind -a #i /dev
 bind -a #A /dev
+bind -a #N /dev
 
 # authentication
 mount -a /srv/factotum /mnt

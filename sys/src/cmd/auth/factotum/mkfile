@@ -15,6 +15,7 @@ PROTO=\
 	rsa.$O\
 	wep.$O\
 	wpapsk.$O\
+	webauthn.$O\
 	ed25519.$O\
 
 FOFILES=\
