@@ -1,17 +1,28 @@
 #include "lib.h"
 #include <errno.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include "sys9.h"
+#include "dir.h"
 
 int
 rmdir(const char *path)
 {
-	int n;
+	Dir *d;
 
-	n = 0;
-	if(_REMOVE(path) < 0) {
+	if((d = _dirstat(path)) == nil){
 		_syserrno();
-		n = -1;
+		return -1;
 	}
-	return n;
+	if(!(d->mode&DMDIR)){
+		free(d);
+		errno = ENOTDIR;
+		return -1;
+	}
+	free(d);
+	if(_REMOVE(path) < 0){
+		_syserrno();
+		return -1;
+	}
+	return 0;
 }
