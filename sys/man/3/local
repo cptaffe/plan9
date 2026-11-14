@@ -1,0 +1,110 @@
+.TH LOCAL 3
+.SH NAME
+local \- folders of the computer the browser runs on
+.SH SYNOPSIS
+.nf
+.B bind -c #L /mnt/term
+.BI "bind -c #L" name " dir
+
+.B /mnt/term/ctl
+.BI /mnt/term/ name /...
+
+.B local
+.B local add
+.RI [ dir ]
+.B local allow
+.RI [ name ...]
+.B local remove
+.IR name ...
+.fi
+.SH DESCRIPTION
+On p9web,
+.B #L
+holds folders of the computer that runs the browser, each one that the user has chosen.
+The browser's File System Access API serves them; Chrome has it, Safari does not.
+.PP
+Each folder is a directory in
+.BR #L ,
+by the folder's name, and
+.BI #L name
+is that folder alone, to
+.I bind
+anywhere:
+.EX
+	bind -c '#Lsrc' $home/src
+.EE
+A line like that in a profile binds the folder at each start.
+.PP
+The browser keeps the folders that the user chose, and the permission to use them, across
+visits.
+After a reload, Chrome asks once again for that permission: the page shows a bar with
+.BR Allow ,
+whose prompt can say
+.IR "Allow on every visit" ,
+and then it does not ask again.
+Until the user allows the folder, a walk into it fails, and the bar shows.
+.PP
+Reading
+.B ctl
+gives a line for each folder: its name, and
+.BR granted ,
+.BR prompt
+or
+.BR denied .
+It takes these messages:
+.TP
+.B add
+The page asks the user for a folder with the browser's chooser.
+The write returns when the user has chosen one, or has not.
+A read of the same open
+.B ctl
+then gives the folder's name.
+.TP
+.BR allow " [\fIname\fP ...]"
+The page asks the user to allow the folders that have no permission.
+.TP
+.BI remove " name ..."
+The folders leave
+.BR #L .
+The files in them stay as they are.
+.PP
+.I Local
+runs these:
+with no arguments it prints
+.BR ctl ;
+.B local add
+.I dir
+binds the new folder on
+.IR dir ,
+which it makes if it must.
+.PP
+The browser chooser needs a click or a key in the page.
+The newline that runs
+.B local add
+is one, if the chooser opens soon after it; otherwise the page shows a bar with a button to
+choose the folder.
+.PP
+.B #L
+holds a file open for writing in memory, and writes it to the folder at its last close, or
+when the system shuts down.
+A read while it is open sees what the writes put there.
+The folder has no modes or owners: a directory is 775, a file 775, and both are the
+attacher's.
+A rename is the browser's
+.IR move ;
+to rename or remove a folder itself, use the computer's own tools.
+.SH SOURCE
+.B k/src/kernel/localfs.ts
+.br
+.B k/src/main/localui.ts
+.br
+.B rc/bin/local
+.SH SEE ALSO
+.IR bind (1),
+.IR namespace (4)
+.SH BUGS
+Chrome alone has the chooser.
+.B #L
+cannot write a file larger than memory.
+A file open for writing does not see what other programs on the computer change in it until
+it is next opened.
