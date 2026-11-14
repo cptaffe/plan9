@@ -1,3 +1,4 @@
 # the page's file servers: what is dropped on it, and what it saves
 mount /srv/drop /mnt/drop
 mount -c /srv/download /mnt/download
+bind -c '#L' /mnt/term
