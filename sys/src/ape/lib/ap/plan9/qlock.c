@@ -5,12 +5,12 @@
 #include <lock.h>
 #include <qlock.h>
 #include <stdlib.h>
+#include "lib.h"
 #include "sys9.h"
 
 #define rendezvous _RENDEZVOUS
 #define _rendezvousp rendezvous
 #define _tas tas
-#define nelem(x) (sizeof(x)/sizeof((x)[0]))
 
 static struct {
 	QLp	*p;

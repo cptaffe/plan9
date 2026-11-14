@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include "lib.h"
 
 typedef struct Map Map;
 struct Map
@@ -33,7 +34,7 @@ mmap(void *addr, size_t n, int prot, int flags, int fd, off_t off)
 	}
 	m = malloc(sizeof *m);
 	p = calloc(1, n);
-	if(m == NULL || p == NULL){
+	if(m == nil || p == nil){
 		free(m);
 		free(p);
 		errno = ENOMEM;
@@ -62,7 +63,7 @@ munmap(void *addr, size_t n)
 {
 	Map *m, **l;
 
-	for(l = &maps; (m = *l) != NULL; l = &m->next)
+	for(l = &maps; (m = *l) != nil; l = &m->next)
 		if(m->p == addr && m->n == n){
 			*l = m->next;
 			free(m->p);
@@ -78,7 +79,7 @@ msync(void *addr, size_t n, int flags)
 {
 	Map *m;
 
-	for(m = maps; m != NULL; m = m->next)
+	for(m = maps; m != nil; m = m->next)
 		if((char*)addr >= (char*)m->p && (char*)addr+n <= (char*)m->p+m->n)
 			return 0;
 	errno = ENOMEM;

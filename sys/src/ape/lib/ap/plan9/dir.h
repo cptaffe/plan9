@@ -75,6 +75,3 @@ long _dirreadall(int, Dir**);
 void _nulldir(Dir*);
 uint _sizeD2M(Dir*);
 
-#ifndef nil
-#define nil ((void*)0)
-#endif
