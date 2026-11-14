@@ -379,6 +379,7 @@ rowdump(Row *row, char *file)
 		c = row->col[i];
 		for(j=0; j<c->nw; j++){
 			w = c->w[j];
+			wincommit(w, &w->body);
 			wincommit(w, &w->tag);
 			t = &w->body;
 			/* windows owned by others get special treatment */
@@ -413,6 +414,12 @@ rowdump(Row *row, char *file)
 				dumped = FALSE;
 				Bprint(b, "x%11d %11d %11d %11d %11.7f %s\n", i, t->file->dumpid,
 					w->body.q0, w->body.q1,
+					100.0*(w->r.min.y-c->r.min.y)/Dy(c->r),
+					fontname);
+			}else if(w->dumpstr && !w->dumpbody){
+				dumped = FALSE;
+				Bprint(b, "e%11d %11d %11d %11d %11.7f %s\n", i, t->file->dumpid,
+					0, 0,
 					100.0*(w->r.min.y-c->r.min.y)/Dy(c->r),
 					fontname);
 			}else if(w->dumpstr){
@@ -487,22 +494,27 @@ rowdump(Row *row, char *file)
 	return ok;
 }
 
-void
+int
 rowsave(Row *row, char *file)
 {
 	char *new, *p;
 	Dir d;
+	int ok;
 
 	new = smprint("%s.new", file);
-	if(rowdump(row, new)){
+	ok = rowdump(row, new);
+	if(ok){
 		p = utfrrune(file, '/');
 		nulldir(&d);
 		d.name = p ? p+1 : file;
 		remove(file);
-		if(dirwstat(new, &d) < 0)
+		if(dirwstat(new, &d) < 0){
 			warning(nil, "can't rename %s: %r\n", new);
+			ok = FALSE;
+		}
 	}
 	free(new);
+	return ok;
 }
 
 static
@@ -528,6 +540,11 @@ rowloadfonts(char *file)
 	char *l;
 
 	b = Bopen(file, OREAD);
+	if(b == nil){
+		l = smprint("%s.new", file);
+		b = Bopen(l, OREAD);
+		free(l);
+	}
 	if(b == nil)
 		return;
 	/* current directory */
@@ -577,6 +594,8 @@ rowloadcmd(Biobuf *b, int *linep, Window *w)
 	if(l == nil)
 		return FALSE;
 	l[Blinelen(b)-1] = 0;
+	if(w != nil && *l != '\0')
+		w->dumpdir = estrdup(l);
 	if(*l == '\0'){
 		if(home == nil)
 			r = bytetorune("./", &nr);
@@ -596,8 +615,10 @@ rowloadcmd(Biobuf *b, int *linep, Window *w)
 	t = emalloc(Blinelen(b)+1);
 	memmove(t, l, Blinelen(b));
 	if(w != nil){
+		w->dumpstr = estrdup(t);
+		w->dumpstr[Blinelen(b)-1] = 0;
+		w->dumpbody = TRUE;
 		incref(&w->ref);
-		w->resume = TRUE;
 	}
 	run(w, t, r, nr, TRUE, nil, nil, FALSE);
 	/* r is freed in run() */
@@ -854,10 +875,8 @@ rowload(Row *row, char *file, int initing)
 			textload(&w->body, 0, buf, 1);
 			remove(buf);
 			close(fd);
-			if(iscmd){
+			if(iscmd)
 				rowloadmark(w);
-				q0 = q1 = w->body.file->b.nc;
-			}
 			w->body.file->mod = !iscmd;
 			for(n=0; n<w->body.file->ntext; n++)
 				w->body.file->text[n]->w->dirty = !iscmd;

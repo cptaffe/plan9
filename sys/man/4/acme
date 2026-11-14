@@ -219,19 +219,22 @@ address.
 .TP
 .BI dump " command
 Set the command string to recreate the window from a dump file.
-The body is dumped with it; a load puts the body in a new window
-and runs the command with
-.B $acmeresume
-set to that window's number.
-A program that goes on in it, as
-.I win
-does, opens
-.BI /mnt/acme/ $acmeresume
-rather than
-.BR new ,
-and removes
-.B $acmeresume
-from its environment.
+.TP
+.BI dumpbody " command
+As
+.BR dump ,
+but the body is dumped too.
+A load puts the body, its selection and a line
+.B (reloaded)
+back in a window where the dump had it,
+and runs the command in that window, with
+.B $winid
+naming it.
+Whether the command takes the window,
+as
+.B win
+.B -r
+does, is its own affair.
 .TP
 .BI dumpdir " directory
 Set the directory in which to run the command to recreate the window from a dump file.

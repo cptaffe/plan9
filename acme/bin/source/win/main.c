@@ -14,6 +14,7 @@ void	stdout2body(void*);
 int	debug;
 int	notepg;
 int	eraseinput;
+int	resume;
 int	dirty = 0;
 
 Window *win;		/* the main window */
@@ -22,7 +23,7 @@ ulong	resumept;	/* the end of the body win is resumed in */
 void
 usage(void)
 {
-	fprint(2, "usage: win [command]\n");
+	fprint(2, "usage: win [-r] [command]\n");
 	threadexitsall("usage");
 }
 
@@ -42,6 +43,9 @@ threadmain(int argc, char *argv[])
 		break;
 	case 'e':
 		eraseinput = 1;
+		break;
+	case 'r':
+		resume = 1;
 		break;
 	case 'D':
 {extern int _threaddebuglevel;
@@ -70,34 +74,34 @@ threadmain(int argc, char *argv[])
 	dir = estrdup(dir);
 	tag = estrdup(dir);
 	tag = eappend(estrdup(tag), "/-", name);
-	id = getenv("acmeresume");
-	if(id != nil){
-		remove("/env/acmeresume");
+	id = nil;
+	if(resume && (id = getenv("winid")) != nil && atoi(id) > 0)
 		win = oldwindow(id, &resumept);
-	}else
+	else{
+		resume = 0;
 		win = newwindow();
+	}
+	free(id);
 	snprint(buf, sizeof buf, "%d", win->id);
 	putenv("winid", buf);
 	winname(win, tag);
-	if(id == nil)
+	if(!resume)
 		wintagwrite(win, "Send Noscroll", 5+8);
-	free(id);
-	threadcreate(mainctl, win, STACK);
-	mountcons();
-	threadcreate(fsloop, nil, STACK);
-	startpipe();
-	startcmd(av, &notepg);
-
-	strcpy(buf, "win");
-	j = 3;
+	strcpy(buf, "win -r");
+	j = 6;
 	for(i=0; i<argc && j+1+strlen(argv[i])+1<sizeof buf; i++){
 		strcpy(buf+j, " ");
 		strcpy(buf+j+1, argv[i]);
 		j += 1+strlen(argv[i]);
 	}
 
-	ctlprint(win->ctl, "scroll");
 	winsetdump(win, dir, buf);
+	threadcreate(mainctl, win, STACK);
+	mountcons();
+	threadcreate(fsloop, nil, STACK);
+	startpipe();
+	startcmd(av, &notepg);
+	ctlprint(win->ctl, "scroll");
 }
 
 int

@@ -42,7 +42,7 @@ winsetdump(Window *w, char *dir, char *cmd)
 	if(dir != nil)
 		ctlprint(w->ctl, "dumpdir %s\n", dir);
 	if(cmd != nil)
-		ctlprint(w->ctl, "dump %s\n", cmd);
+		ctlprint(w->ctl, "dumpbody %s\n", cmd);
 }
 
 static void
