@@ -59,6 +59,7 @@ extern	int		winopenfile(Window*, char*);
 extern	void		wintagwrite(Window*, char*, int);
 extern	void		winname(Window*, char*);
 extern	void		winwriteevent(Window*, Event*);
+extern	void		windoneevent(Window*, Event*);
 extern	int		winread(Window*, uint, uint, char*);
 extern	int		windel(Window*, int);
 extern	void		wingetevent(Window*, Event*);
