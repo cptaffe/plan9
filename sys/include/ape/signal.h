@@ -40,9 +40,15 @@ typedef int sig_atomic_t;
 #define SIGWINCH	21	/* window size change */
 #define SIGTRAP	22	/* trace trap */
 #define SIGSYS	23	/* bad system call */
+#define SIGURG	24
+#define SIGIO	25
+#define SIGPROF	26
+#define SIGVTALRM	27
+#define SIGXCPU	28
+#define SIGXFSZ	29
 
 #ifdef _BSD_EXTENSION
-#define NSIG 24
+#define NSIG 30
 extern const char *const sys_signame[NSIG];
 #endif
 
