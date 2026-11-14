@@ -11,6 +11,10 @@ acme, win, awd \- interactive text windows
 .I ncol
 ]
 [
+.B -d
+.I dumpfile
+]
+[
 .B -f
 .I varfont
 ]
@@ -61,6 +65,35 @@ command (q.v.),
 and subsequent
 .I file
 names are ignored.
+A window whose program has set a dump command
+(see
+.B dump
+in
+.IR acme (4)),
+as
+.I win
+does, is dumped with its text and loaded with it,
+then a line
+.BR (reloaded) ;
+the command is run again with
+.B $acmeresume
+naming that window, and
+.I win
+goes on in it, after the text, rather than in a new window.
+With
+.BR -d ,
+.I acme
+keeps
+.I dumpfile
+current: it dumps there two seconds after a change,
+or ten seconds after the first of a run of changes,
+writing
+.IB dumpfile .new
+and renaming it, which
+.B -l
+reads if
+.I dumpfile
+is gone.
 Plain files display as text; directories display as columnated lists of the
 names of their components, as in
 .B "ls -p directory|mc

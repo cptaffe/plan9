@@ -312,10 +312,10 @@ rowclean(Row *row)
 	return clean;
 }
 
-void
+int
 rowdump(Row *row, char *file)
 {
-	int i, j, fd, m, n, start, dumped;
+	int i, j, fd, m, n, start, dumped, ok;
 	uint q0, q1;
 	Biobuf *b;
 	char *buf, *a, *fontname, *fontfmt, *fontnamelo, *fontnamehi;
@@ -325,7 +325,8 @@ rowdump(Row *row, char *file)
 	Text *t;
 
 	if(row->ncol == 0)
-		return;
+		return FALSE;
+	ok = FALSE;
 	buf = fbufalloc();
 	if(file == nil){
 		if(home == nil){
@@ -415,11 +416,11 @@ rowdump(Row *row, char *file)
 					100.0*(w->r.min.y-c->r.min.y)/Dy(c->r),
 					fontname);
 			}else if(w->dumpstr){
-				dumped = FALSE;
-				Bprint(b, "e%11d %11d %11d %11d %11.7f %s\n", i, t->file->dumpid,
-					0, 0,
+				dumped = TRUE;
+				Bprint(b, "E%11d %11d %11d %11d %11.7f %11d %s\n", i, 0,
+					w->body.q0, w->body.q1,
 					100.0*(w->r.min.y-c->r.min.y)/Dy(c->r),
-					fontname);
+					w->body.file->b.nc, fontname);
 			}else if((w->dirty==FALSE && access(a, 0)==0) || w->isdir){
 				dumped = FALSE;
 				t->file->dumpid = w->id;
@@ -474,13 +475,34 @@ rowdump(Row *row, char *file)
     Continue2:;
 		}
 	}
-	Bterm(b);
+	ok = Bterm(b) == 0;
+	if(!ok)
+		warning(nil, "can't write %s: %r\n", file);
 	close(fd);
 	free(b);
 	fbuffree(r);
 
    Rescue:
 	fbuffree(buf);
+	return ok;
+}
+
+void
+rowsave(Row *row, char *file)
+{
+	char *new, *p;
+	Dir d;
+
+	new = smprint("%s.new", file);
+	if(rowdump(row, new)){
+		p = utfrrune(file, '/');
+		nulldir(&d);
+		d.name = p ? p+1 : file;
+		remove(file);
+		if(dirwstat(new, &d) < 0)
+			warning(nil, "can't rename %s: %r\n", new);
+	}
+	free(new);
 }
 
 static
@@ -527,10 +549,65 @@ rowloadfonts(char *file)
 	Bterm(b);
 }
 
+static void
+rowloadmark(Window *w)
+{
+	static Rune nl[] = { '\n', 0 };
+	static Rune mark[] = { '(', 'r', 'e', 'l', 'o', 'a', 'd', 'e', 'd', ')', '\n', 0 };
+	Rune c;
+	uint n;
+
+	n = w->body.file->b.nc;
+	if(n > 0){
+		bufread(&w->body.file->b, n-1, &c, 1);
+		if(c != '\n')
+			textinsert(&w->body, n++, nl, 1, TRUE);
+	}
+	textinsert(&w->body, n, mark, runestrlen(mark), TRUE);
+}
+
+static int
+rowloadcmd(Biobuf *b, int *linep, Window *w)
+{
+	char *l, *t;
+	Rune *r;
+	int nr;
+
+	l = rdline(b, linep);	/* directory */
+	if(l == nil)
+		return FALSE;
+	l[Blinelen(b)-1] = 0;
+	if(*l == '\0'){
+		if(home == nil)
+			r = bytetorune("./", &nr);
+		else{
+			t = emalloc(strlen(home)+1+1);
+			sprint(t, "%s/", home);
+			r = bytetorune(t, &nr);
+			free(t);
+		}
+	}else
+		r = bytetorune(l, &nr);
+	l = rdline(b, linep);	/* command */
+	if(l == nil){
+		free(r);
+		return FALSE;
+	}
+	t = emalloc(Blinelen(b)+1);
+	memmove(t, l, Blinelen(b));
+	if(w != nil){
+		incref(&w->ref);
+		w->resume = TRUE;
+	}
+	run(w, t, r, nr, TRUE, nil, nil, FALSE);
+	/* r is freed in run() */
+	return TRUE;
+}
+
 int
 rowload(Row *row, char *file, int initing)
 {
-	int i, j, line, y, nr, nfontr, n, ns, ndumped, dumpid, x, fd, done;
+	int i, j, line, y, nr, nfontr, n, ns, ndumped, dumpid, x, fd, done, iscmd;
 	double percent;
 	Biobuf *b, *bout;
 	char *buf, *l, *t, *fontname;
@@ -551,6 +628,11 @@ rowload(Row *row, char *file, int initing)
 		file = buf;
 	}
 	b = Bopen(file, OREAD);
+	if(b == nil){
+		t = smprint("%s.new", file);
+		b = Bopen(t, OREAD);
+		free(t);
+	}
 	if(b == nil){
 		warning(nil, "can't open load file %s: %r\n", file);
 		goto Rescue1;
@@ -654,6 +736,7 @@ rowload(Row *row, char *file, int initing)
 		if(l == nil)
 			break;
 		dumpid = 0;
+		iscmd = FALSE;
 		switch(l[0]){
 		case 'e':
 			if(Blinelen(b) < 1+5*12+1)
@@ -661,29 +744,16 @@ rowload(Row *row, char *file, int initing)
 			l = rdline(b, &line);	/* ctl line; ignored */
 			if(l == nil)
 				goto Rescue2;
-			l = rdline(b, &line);	/* directory */
-			if(l == nil)
+			if(!rowloadcmd(b, &line, nil))
 				goto Rescue2;
-			l[Blinelen(b)-1] = 0;
-			if(*l == '\0'){
-				if(home == nil)
-					r = bytetorune("./", &nr);
-				else{
-					t = emalloc(strlen(home)+1+1);
-					sprint(t, "%s/", home);
-					r = bytetorune(t, &nr);
-					free(t);
-				}
-			}else
-				r = bytetorune(l, &nr);
-			l = rdline(b, &line);	/* command */
-			if(l == nil)
-				goto Rescue2;
-			t = emalloc(Blinelen(b)+1);
-			memmove(t, l, Blinelen(b));
-			run(nil, t, r, nr, TRUE, nil, nil, FALSE);
-			/* r is freed in run() */
 			goto Nextline;
+		case 'E':
+			if(Blinelen(b) < 1+6*12+1)
+				goto Rescue2;
+			fontname = l+1+6*12;
+			ndumped = atoi(l+1+5*12+1);
+			iscmd = TRUE;
+			break;
 		case 'f':
 			if(Blinelen(b) < 1+5*12+1)
 				goto Rescue2;
@@ -784,9 +854,13 @@ rowload(Row *row, char *file, int initing)
 			textload(&w->body, 0, buf, 1);
 			remove(buf);
 			close(fd);
-			w->body.file->mod = TRUE;
+			if(iscmd){
+				rowloadmark(w);
+				q0 = q1 = w->body.file->b.nc;
+			}
+			w->body.file->mod = !iscmd;
 			for(n=0; n<w->body.file->ntext; n++)
-				w->body.file->text[n]->w->dirty = TRUE;
+				w->body.file->text[n]->w->dirty = !iscmd;
 			winsettag(w);
 		}else if(dumpid==0 && r[ns+1]!='+' && r[ns+1]!='-')
 			get(&w->body, nil, nil, FALSE, XXX, nil, 0);
@@ -800,6 +874,8 @@ rowload(Row *row, char *file, int initing)
 		textshow(&w->body, q0, q1, 1);
 		w->maxlines = min(w->body.fr.nlines, max(w->maxlines, w->body.fr.maxlines));
 		xfidlog(w, "new");
+		if(iscmd && !rowloadcmd(b, &line, w))
+			goto Rescue2;
 Nextline:
 		l = rdline(b, &line);
 	}

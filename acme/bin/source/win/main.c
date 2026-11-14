@@ -17,6 +17,7 @@ int	eraseinput;
 int	dirty = 0;
 
 Window *win;		/* the main window */
+ulong	resumept;	/* the end of the body win is resumed in */
 
 void
 usage(void)
@@ -29,7 +30,7 @@ void
 threadmain(int argc, char *argv[])
 {
 	int i, j;
-	char *dir, *tag, *name;
+	char *dir, *tag, *name, *id;
 	char buf[1024], **av;
 
 	quotefmtinstall();
@@ -69,11 +70,18 @@ threadmain(int argc, char *argv[])
 	dir = estrdup(dir);
 	tag = estrdup(dir);
 	tag = eappend(estrdup(tag), "/-", name);
-	win = newwindow();
+	id = getenv("acmeresume");
+	if(id != nil){
+		remove("/env/acmeresume");
+		win = oldwindow(id, &resumept);
+	}else
+		win = newwindow();
 	snprint(buf, sizeof buf, "%d", win->id);
 	putenv("winid", buf);
 	winname(win, tag);
-	wintagwrite(win, "Send Noscroll", 5+8);
+	if(id == nil)
+		wintagwrite(win, "Send Noscroll", 5+8);
+	free(id);
 	threadcreate(mainctl, win, STACK);
 	mountcons();
 	threadcreate(fsloop, nil, STACK);
@@ -421,8 +429,8 @@ mainctl(void *v)
 	proccreate(wineventproc, w, STACK);
 	held = nil;
 
-	hostpt = 0;
-	endpt = 0;
+	hostpt = resumept;
+	endpt = resumept;
 	winsetaddr(w, "0", 0);
 	pendingS = 0;
 	pendingK = 0;

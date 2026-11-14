@@ -7,13 +7,25 @@
 Window*
 newwindow(void)
 {
-	char buf[12];
+	return oldwindow(nil, nil);
+}
+
+Window*
+oldwindow(char *id, ulong *nbody)
+{
+	char buf[5*12+1];
 	Window *w;
+	int n;
 
 	w = emalloc(sizeof(Window));
-	w->ctl = open("/mnt/wsys/new/ctl", ORDWR|OCEXEC);
-	if(w->ctl<0 || read(w->ctl, buf, 12)!=12)
+	snprint(buf, sizeof buf, "/mnt/wsys/%s/ctl", id ? id : "new");
+	w->ctl = open(buf, ORDWR|OCEXEC);
+	n = nbody ? 5*12 : 12;
+	if(w->ctl<0 || read(w->ctl, buf, n)!=n)
 		error("can't open window ctl file: %r");
+	buf[n] = 0;
+	if(nbody)
+		*nbody = strtoul(buf+2*12, nil, 10);
 	ctlprint(w->ctl, "noscroll\n");
 	w->id = atoi(buf);
 	w->event = winopenfile(w, "event");

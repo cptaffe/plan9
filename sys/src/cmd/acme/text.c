@@ -386,6 +386,7 @@ textinsert(Text *t, uint q0, Rune *r, uint n, int tofile)
 	if(n == 0)
 		return;
 	if(tofile){
+		dumpseq++;
 		fileinsert(t->file, q0, r, n);
 		if(t->what == Body){
 			t->w->dirty = TRUE;
@@ -490,6 +491,7 @@ textdelete(Text *t, uint q0, uint q1, int tofile)
 	if(n == 0)
 		return;
 	if(tofile){
+		dumpseq++;
 		filedelete(t->file, q0, q1);
 		if(t->what == Body){
 			t->w->dirty = TRUE;
