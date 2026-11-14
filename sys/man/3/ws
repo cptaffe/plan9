@@ -1,6 +1,6 @@
 .TH WS 3
 .SH NAME
-ws, remoteweb \- WebSocket connections, and the site's webfs over one
+ws \- WebSocket connections
 .SH SYNOPSIS
 .nf
 .B bind -a #I /net
@@ -11,8 +11,6 @@ ws, remoteweb \- WebSocket connections, and the site's webfs over one
 .BI /net/ws/ n /local
 .BI /net/ws/ n /remote
 .BI /net/ws/ n /status
-
-.B remoteweb
 .fi
 .SH DESCRIPTION
 On p9web,
@@ -54,54 +52,56 @@ reaches a 9P server over a WebSocket, and
 .IR srv (4)
 posts it:
 .EX
-	srv ws!acme.connor.zip!9p web
-	mount /srv/web /mnt/web
+	srv ws!example.org!9p ex
+	mount /srv/ex /n/ex
 .EE
 .PP
-The site serves
-.IR webfs (4)
-at
-.BR /9p :
-its requests are made by the server, not the browser, so the browser's
+The site is a machine that
+.IR import (4)
+takes trees from:
+its
+.B /9p
+speaks
+.IR exportfs (4)'s
+handshake, and its trees are
+.BR /mnt/web ,
+its
+.IR webfs (4),
+and
+.BR /net .
+Webfs's requests are made by the server, not the browser, so the browser's
 cross-origin rules do not stop them.
 It fetches only from the hosts it allows, at first
 .B api.anthropic.com
 and
 .BR opencode.ai ,
 and holds no keys.
-.PP
-.I Remoteweb
-mounts the site's webfs on
-.B /mnt/web
-in the caller's name space, dialing
-.BI ws! $site !9p
-and posting it as
-.B /srv/web.remote
-if no live connection is posted there.
+The site's sign-in comes before
+.B /9p
+answers, so import needs no authentication of its own:
+.EX
+	import -A ws!$site!9p /mnt/web
+.EE
 The page sets
 .B $site
-to its own host; with no
-.BR $site ,
-.I remoteweb
-does nothing.
+to its own host.
 .IR Sibyl 's
 servers and
 .IR searchfs (4)
-run in a name space that it has made so.
+run in a name space where this has been done.
 .SH SOURCE
 .B k/src/kernel/netws.ts
 .br
 .B k/src/web9p.ts
 .br
-.B site/worker.js
+.B k/src/site9p.ts
 .br
-.B rc/bin/remoteweb
+.B site/worker.js
 .SH SEE ALSO
 .IR ip (3),
+.IR import (4),
 .IR srv (4),
 .IR webfs (4),
 .IR searchfs (4)
 .SH BUGS
-A connection that the site drops takes its mounts with it;
-.I remoteweb
-dials again only for mounts made after.
+A connection that the site drops takes its mounts with it.
