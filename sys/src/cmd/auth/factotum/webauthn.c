@@ -85,19 +85,30 @@ webauthninit(Proto *p, Fsstate *fss)
 	s = emalloc(sizeof *s);
 	s->key = k;
 	s->user = _strfindattr(k->attr, "user");
-	s->invite = _strfindattr(k->privattr, "!invite");
 	s->dom = _strfindattr(k->attr, "dom");
 	if(s->user == nil || s->dom == nil){
 		closekey(k);
 		free(s);
 		return failure(fss, "webauthn key has no user or dom");
 	}
+	if((s->invite = _strfindattr(k->privattr, "!invite")) != nil)
+		s->invite = estrdup(s->invite);
 	curve25519_dh_new(s->x, s->cpub);
 	fss->phasename = phasenames;
 	fss->maxphase = Maxphase;
 	fss->phase = CHaveUser;
 	fss->ps = s;
 	return RpcOk;
+}
+
+static void
+dropinvite(State *s)
+{
+	if(s->invite == nil)
+		return;
+	memset(s->invite, 0, strlen(s->invite));
+	free(s->invite);
+	s->invite = nil;
 }
 
 static void
@@ -110,6 +121,7 @@ webauthnclose(Fsstate *fss)
 		closekey(s->key);
 	memset(s->x, 0, sizeof s->x);
 	memset(s->secret, 0, sizeof s->secret);
+	dropinvite(s);
 	free(s);
 }
 
@@ -378,7 +390,7 @@ webauthnwrite(Fsstate *fss, void *va, uint n)
 			return failure(fss, Easproto);
 		if(s->created){
 			s->key->privattr = _delattr(s->key->privattr, "!invite");
-			s->invite = nil;
+			dropinvite(s);
 		}
 		fss->ai.cuid = s->user;
 		fss->ai.suid = s->user;
