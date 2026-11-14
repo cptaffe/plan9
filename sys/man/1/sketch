@@ -89,13 +89,16 @@ Type it; Backspace, control-U and control-W edit it, and newline, Escape or a cl
 Turn the piece here: what lines, arcs and constraints join to it,
 or, if there are any, the things designated.
 It turns around the circle center if there is one, and else around the middle of the piece,
-as the mouse goes around that point; angles near a multiple of 15° take it.
+as the mouse goes around that point.
+A line or text here snaps to a direction within 2° of a multiple of 15°.
 Typing a number turns it that many degrees, Backspace edits the number,
-and the wheel turns it a step.
+and the wheel turns it 3°.
 .B s
 changes to sizing.
-A click or newline keeps it; Escape or another button takes it back.
-The constraints are met after, so a turned line held horizontal goes back.
+A click or newline keeps it, and forgets the circle center;
+Escape or another button takes it back.
+The constraints are met as it turns, so a line held horizontal won't turn,
+and fixed points stay fixed where the turn puts them.
 .TP
 .B s
 Size the piece here, as
@@ -124,9 +127,16 @@ and
 .TP
 .B a
 Make what is here an attacher of this drawing, or not.
+Only points, lines, arcs and texts attach.
 .TP
 .B d
-Designate what is here for the next copy, or not.
+Designate what is here for the next copy, or for
+.B r
+and
+.BR s .
+Designated things show in blue with their order;
+.B d
+on one moves it last, and on the last one forgets it.
 .TP
 .B k
 Show or hide the constraints that hold.
@@ -147,7 +157,7 @@ Write the file.
 Exit; with changes not written, the first says so and the second exits.
 .TP
 Escape
-Forget a circle center.
+Forget the circle center, which shows as a blue ring, and the designations.
 .PD
 .SS Constraints
 Each constraint shows as a circle with its letter, Sketchpad's, with arms to the points it
