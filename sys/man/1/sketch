@@ -111,6 +111,18 @@ Undo.
 .BR Command-Shift-Z ", Command-Y, control-Y"
 Redo what undo took back.
 .TP
+.BR Command-C ", control-C"
+Copy what is selected, or else what is here, to
+.BR /dev/snarf
+as a picture: the things, the points they stand on, and the constraints among them.
+.TP
+.BR Command-X ", control-X"
+Copy, then delete.
+.TP
+.BR Command-V ", control-V"
+Paste under the mouse, at the same size, and select what was pasted.
+A snarf that isn't a picture becomes a text of its first line.
+.TP
 .BR Command-A ", control-A"
 Select everything.
 .TP
