@@ -24,6 +24,7 @@ OFILES=\
 	chdir.$O\
 	chmod.$O\
 	chown.$O\
+	chroot.$O\
 	clock_gettime.$O\
 	close.$O\
 	convD2M.$O\
