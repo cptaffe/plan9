@@ -10,7 +10,7 @@ static void
 usage(void)
 {
 	fprint(2, "mntgen [-s srvname] [mtpt]\n");
-	exits("usage");
+	threadexitsall("usage");
 }
 
 ulong time0;
@@ -218,7 +218,7 @@ Srv fs=
 };
 
 void
-main(int argc, char **argv)
+threadmain(int argc, char **argv)
 {
 	char *service;
 
@@ -237,6 +237,6 @@ main(int argc, char **argv)
 
 	if(argc > 1)
 		usage();
-	postmountsrv(&fs, service, argc ? argv[0] : "/n", MAFTER);
-	exits(nil);
+	threadpostmountsrv(&fs, service, argc ? argv[0] : "/n", MAFTER);
+	threadexits(nil);
 }
