@@ -21,7 +21,9 @@ replaces a
 .I rio
 window with a fresh instance of the shell,
 .IR rc (1),
-running within an emulation of an xterm, by
+running under
+.I ptty
+within an emulation of an xterm, by
 .IR vt (2).
 It is for programs on other systems, reached by
 .IR ssh (1)
@@ -49,7 +51,9 @@ and
 .B $XPIXELS
 and
 .B $YPIXELS
-to the window's size, again when it changes.
+to the window's size, and tells
+.I ptty
+when it changes.
 A program's title is the window's label.
 .PP
 Lines that leave the top of the screen are kept, the last 2000.
@@ -89,20 +93,11 @@ best one of fixed width.
 names a
 .I log
 file for the session, which gets what the host sends.
-.SS "Raw and cooked"
-In cooked mode, the default,
-.I vt
-keeps the line being typed and sends it whole: Backspace, control-U and control-W edit it,
-control-D at its start sends an end of file, Delete interrupts the shell's command,
-and Page Up and Page Down move through the kept lines.
-In raw mode each key is sent as an xterm sends it, and a newline as a return.
-A program asks for raw mode by writing
-.B rawon
-to
-.BR /dev/consctl ,
-as on a Plan 9 terminal; it lasts until
-.B rawoff
-or until the program closes the file.
+.SS Keys
+Each key is sent as an xterm sends it, and a newline as a return.
+.I Ptty
+keeps the line being typed, unless a program has made it raw;
+Delete is its interrupt character while it takes one.
 .SS Menus
 The right button has a menu with the following entries to provide
 the sort of character processing expected by non-Plan 9 systems:
@@ -126,18 +121,24 @@ Print a carriage return after receiving a newline from the host.
 Do not print a carriage return after newline.
 .TP
 .B raw
-Enter raw mode.
+Make
+.I ptty
+raw.
 .TP
 .B cooked
-Leave raw mode.
+Make it cooked again.
 .TP
 .B exit
 Exit
 .IR vt .
 .PD
 .PP
-Each mode has its own settings: cooked mode prints a carriage return after a newline,
-as Plan 9's programs need, and raw mode does not, as a Unix host's terminal does that itself.
+.B crnl
+and
+.B nlcr
+are off at first, as
+.I ptty
+prints a carriage return after a newline itself.
 .PP
 The middle button has a menu with the following entries:
 .TF right_key
@@ -174,11 +175,3 @@ The down arrow key advances a page without sending the character to the host.
 .B /sys/src/cmd/vt
 .SH SEE ALSO
 .IR vt (2)
-.SH BUGS
-A program on a Unix host that sets its terminal raw does not tell
-.IR vt ;
-choose
-.B raw
-from the menu.
-.PP
-The host is not told when the window's size changes.
