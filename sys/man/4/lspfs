@@ -323,4 +323,3 @@ The Language Server Protocol,
 .B https://microsoft.github.io/language-server-protocol/
 .SH BUGS
 Servers run as the user, with the user's namespace; the namespace they should have is yet to come.
-Rename and code actions are yet to come.
