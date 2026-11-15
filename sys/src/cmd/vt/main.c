@@ -1,166 +1,908 @@
 #include <u.h>
 #include <libc.h>
 #include <draw.h>
-#include <event.h>
-#include <bio.h>
+#include <thread.h>
+#include <mouse.h>
 #include <keyboard.h>
-#include "cons.h"
+#include <vt.h>
 
-enum{
-	Ehost		= 4,
+enum {
+	Xmargin	= 5,
+	Ymargin	= 5,
+	Inset	= 3,
+	Nhist	= 2000,
+	Bsize	= 8192,
+	Ncolor	= 64,
+	Stack	= 16*1024,
 };
 
-char	*menutext2[] = {
+enum {
+	Cooked,
+	Raw,
+};
+
+typedef struct Buf Buf;
+typedef struct Hline Hline;
+typedef struct Color Color;
+typedef struct Ttystate Ttystate;
+
+struct Buf {
+	long	n;
+	uchar	d[Bsize];
+};
+
+struct Hline {
+	Vtcell	*c;
+	int	n;
+};
+
+struct Color {
+	ulong	rgb;
+	Image	*i;
+};
+
+struct Ttystate {
+	int	crnl;
+	int	nlcr;
+};
+
+int	mainstacksize = 64*1024;
+
+/* a Unix host's pty turns its newlines into returns and newlines, as rc's need */
+Ttystate ttystate[2] = { {0, 1}, {0, 0} };
+
+char *menutext2[] = {
 	"backup",
 	"forward",
 	"reset",
 	"clear",
 	"send",
 	"page",
-	0
+	nil
 };
 
-char	*menutext3[] = {
+char *menutext3[] = {
 	"24x80",
 	"crnl",
 	"nl",
 	"raw",
 	"exit",
-	0
+	nil
 };
 
-/* variables associated with the screen */
+Menu	menu2 = { menutext2 };
+Menu	menu3 = { menutext3 };
 
-int	x, y;	/* character positions */
-char	*backp;
-int	backc;
-int	atend;
-int	nbacklines;
-int	xmax, ymax;
-int	blocked;
-int	resize_flag;
-int	pagemode;
-int	olines;
-int	peekc;
-int	cursoron = 1;
-Menu	menu2;
-Menu	menu3;
-char	*histp;
-char	hist[HISTSIZ];
-int	yscrmin, yscrmax;
-int	attr, defattr;
-int	wctlout;
-
-Image	*bordercol;
-Image	*cursback;
-Image	*colors[8];
-Image	*hicolors[8];
-Image	*red;
-Image	*fgcolor;
-Image	*bgcolor;
-Image	*fgdefault;
-Image	*bgdefault;
-
-uint rgbacolors[8] = {
-	0x000000FF,	/* black */
-	0xAA0000FF,	/* red */
-	0x00AA00FF,	/* green */
-	0xFF5500FF,	/* brown */
-	0x0000FFFF,	/* blue */
-	0xAA00AAFF,	/* purple */
-	0x00AAAAFF,	/* cyan */
-	0x7F7F7FFF,	/* white */
+ulong ansi[16] = {
+	0x000000, 0xAA0000, 0x00AA00, 0xFF5500, 0x0000FF, 0xAA00AA, 0x00AAAA, 0x7F7F7F,
+	0x555555, 0xFF5555, 0x55FF55, 0xFFFF55, 0x5555FF, 0xFF55FF, 0x55FFFF, 0xFFFFFF,
 };
 
-ulong rgbahicolors[8] = {
-	0x555555FF,	/* light black aka grey */
-	0xFF5555FF,	/* light red */
-	0x55FF55FF,	/* light green */
-	0xFFFF55FF,	/* light brown aka yellow */
-	0x5555FFFF,	/* light blue */
-	0xFF55FFFF,	/* light purple */
-	0x55FFFFFF,	/* light cyan */
-	0xFFFFFFFF,	/* light grey aka white */
-};
-
-/* terminal control */
-struct ttystate ttystate[2] = { {0, 1}, {0, 1} };
-
-int	NS;
-int	CW;
-Consstate *cs;
-Mouse	mouse;
-
-int	debug;
+Vt	*vt;
+Mousectl	*mc;
+Keyboardctl	*kc;
+Channel	*hostc;
+char	*term;
 int	nocolor;
-int	logfd = -1;
+ulong	fgrgb, bgrgb;
+int	CW, NS;
+Image	*bordercol;
+Image	*red;
+Image	*cursback;
+int	cursdrawn;
+Point	curspt;
+Color	colors[Ncolor];
+int	ncolors;
+Hline	hist[Nhist];
+int	hhead, nhist;
+int	back;
+int	raw;
+int	pagemode, blocked, olines;
+Buf	*cur;
+uchar	*pend;
+long	npend;
+char	sendbuf[Bsize];
+int	nsend;
 int	outfd = -1;
-Biobuf	*snarffp = 0;
-
-char	*host_buf;
-char	*hostp;				/* input from host */
-int	host_bsize = 2*BSIZE;
-int	hostlength;			/* amount of input from host */
-char	echo_input[BSIZE];
-char	*echop = echo_input;		/* characters to echo, after canon */
-char	sendbuf[BSIZE];	/* hope you can't type ahead more than BSIZE chars */
-char	*sendp = sendbuf;
-
-char *term;
-struct funckey *fk;
-
-/* functions */
-void	initialize(int, char **);
-void	ebegin(int);
-int	waitchar(void);
-int	rcvchar(void);
-void	set_input(char *);
-void	set_host(Event *);
-void	bigscroll(void);
-void	readmenu(void);
-void	eresized(int);
-void	resize(void);
-void	send_interrupt(void);
-int	alnum(int);
-void	escapedump(int,uchar *,int);
-
-void
-main(int argc, char **argv)
-{
-	initialize(argc, argv);
-	emulate();
-}
+int	logfd = -1;
+int	hostpid;
 
 void
 usage(void)
 {
-	fprint(2, "usage: %s [-2abcx] [-f font] [-l logfile]\n", argv0);
-	exits("usage");
+	fprint(2, "usage: %s [-2abcx] [-f font] [-l logfile] [cmd]\n", argv0);
+	threadexitsall("usage");
+}
+
+void*
+emalloc(ulong n)
+{
+	void *v;
+
+	v = mallocz(n, 1);
+	if(v == nil)
+		sysfatal("out of memory");
+	return v;
+}
+
+Point
+pt(int x, int y)
+{
+	return addpt(screen->r.min, Pt(x*CW+Xmargin, y*NS+Ymargin));
+}
+
+Image*
+colimg(ulong rgb)
+{
+	int i;
+
+	for(i = 0; i < ncolors; i++)
+		if(colors[i].rgb == rgb)
+			return colors[i].i;
+	if(ncolors == Ncolor){
+		for(i = 0; i < ncolors; i++)
+			freeimage(colors[i].i);
+		ncolors = 0;
+	}
+	colors[ncolors].rgb = rgb;
+	colors[ncolors].i = allocimage(display, Rect(0,0,1,1), screen->chan, 1, rgb<<8 | 0xFF);
+	if(colors[ncolors].i == nil)
+		sysfatal("allocimage: %r");
+	return colors[ncolors++].i;
+}
+
+int
+cube(int n)
+{
+	return n ? 55+40*n : 0;
+}
+
+ulong
+rgbof(ulong c, ulong def)
+{
+	int i, g;
+
+	switch(c & 0xFF000000){
+	case Vindex:
+		i = c & 0xFF;
+		if(i < 16)
+			return ansi[i];
+		if(i < 232){
+			i -= 16;
+			return cube(i/36)<<16 | cube(i/6%6)<<8 | cube(i%6);
+		}
+		g = 8+10*(i-232);
+		return g<<16 | g<<8 | g;
+	case Vrgb:
+		return c & 0xFFFFFF;
+	}
+	return def;
 }
 
 void
-initialize(int argc, char **argv)
+style(Vtcell *c, Image **fg, Image **bg)
 {
-	int i, blkbg;
+	ulong f, b, t;
+
+	f = c->fg;
+	b = c->bg;
+	if(nocolor)
+		f = b = Vdefault;
+	if((c->attr & Vbold) && (f & 0xFF000000) == Vindex && (f & 0xFF) < 8)
+		f += 8;
+	f = rgbof(f, fgrgb);
+	b = rgbof(b, bgrgb);
+	if(c->attr & Vreverse){
+		t = f;
+		f = b;
+		b = t;
+	}
+	*fg = colimg(f);
+	*bg = colimg(b);
+}
+
+int
+same(Vtcell *a, Vtcell *b)
+{
+	return a->fg == b->fg && a->bg == b->bg && (a->attr & ~(Vwide|Vcont)) == (b->attr & ~(Vwide|Vcont));
+}
+
+void
+drawline(int y, Vtcell *c, int n)
+{
+	Image *fg, *bg;
+	Point p;
+	int x, e, k;
+
+	if(n > vt->cols)
+		n = vt->cols;
+	draw(screen, Rpt(pt(0, y), pt(vt->cols, y+1)), colimg(bgrgb), nil, ZP);
+	for(x = 0; x < n; x = e){
+		for(e = x+1; e < n && same(&c[e], &c[x]); e++)
+			;
+		style(&c[x], &fg, &bg);
+		draw(screen, Rpt(pt(x, y), pt(e, y+1)), bg, nil, ZP);
+		if(!(c[x].attr & Vinvisible))
+			for(k = x; k < e; k++)
+				if(c[k].r != ' ' && c[k].r != 0 && !(c[k].attr & Vcont))
+					runestringn(screen, pt(k, y), fg, ZP, font, &c[k].r, 1);
+		if(c[x].attr & Vunder){
+			p = pt(x, y);
+			draw(screen, Rect(p.x, p.y+font->ascent+1, pt(e, y).x, p.y+font->ascent+2), fg, nil, ZP);
+		}
+		if(c[x].attr & Vstrike){
+			p = pt(x, y);
+			draw(screen, Rect(p.x, p.y+NS/2, pt(e, y).x, p.y+NS/2+1), fg, nil, ZP);
+		}
+	}
+}
+
+/* row y of the window, which shows the history's last back lines above the screen */
+void
+drawrow(int y)
+{
+	Hline *h;
+	int i;
+
+	i = nhist - back + y;
+	if(i < nhist){
+		h = &hist[(hhead+i) % Nhist];
+		drawline(y, h->c, h->n);
+	}else
+		drawline(y, vt->line[i-nhist].c, vt->cols);
+}
+
+void
+drawall(void)
+{
+	int y;
+
+	draw(screen, screen->r, colimg(bgrgb), nil, ZP);
+	for(y = 0; y < vt->rows; y++)
+		drawrow(y);
+}
+
+void
+cursoff(void)
+{
+	if(cursdrawn)
+		draw(screen, Rpt(curspt, addpt(curspt, Pt(CW+1, NS+1))), cursback, nil, ZP);
+	cursdrawn = 0;
+}
+
+void
+curson(void)
+{
+	if(back > 0 || !(vt->mode & Mcursor) && !blocked)
+		return;
+	curspt = pt(vt->x, vt->y);
+	draw(cursback, cursback->r, screen, nil, curspt);
+	border(screen, Rpt(curspt, addpt(curspt, Pt(CW, NS))), 2, blocked ? red : bordercol, ZP);
+	cursdrawn = 1;
+}
+
+void
+keep(Vtline *l)
+{
+	Hline *h;
+
+	if(nhist < Nhist)
+		h = &hist[(hhead + nhist++) % Nhist];
+	else{
+		h = &hist[hhead];
+		hhead = (hhead+1) % Nhist;
+		free(h->c);
+	}
+	h->n = vt->cols;
+	h->c = emalloc(h->n * sizeof h->c[0]);
+	memmove(h->c, l->c, h->n * sizeof h->c[0]);
+}
+
+void
+label(char *s)
+{
+	int fd;
+
+	fd = open("/dev/label", OWRITE);
+	if(fd >= 0){
+		write(fd, s, strlen(s));
+		close(fd);
+	}
+}
+
+void
+scrollrect(Vtscroll *s)
+{
+	int n;
+
+	n = s->n;
+	if(n > 0 && n < s->bot-s->top)
+		draw(screen, Rpt(pt(0, s->top), pt(vt->cols, s->bot-n)), screen, nil, pt(0, s->top+n));
+	else if(n < 0 && -n < s->bot-s->top)
+		draw(screen, Rpt(pt(0, s->top-n), pt(vt->cols, s->bot)), screen, nil, pt(0, s->top));
+}
+
+/* apply what changed since the last frame */
+void
+frame(void)
+{
+	Vtframe f;
+	int i, any;
+
+	vtframe(vt, &f);
+	for(i = 0; i < f.ngone; i++)
+		keep(&vt->gone[i]);
+	any = f.all || f.nscroll || f.cursor;
+	for(i = 0; i < vt->rows; i++)
+		any |= f.dirty[i];
+	if(f.title)
+		label(vt->title);
+	if(!any)
+		return;
+	cursoff();
+	if(back > 0){
+		back += f.ngone;
+		if(back > nhist)
+			back = nhist;
+		drawall();
+	}else if(f.all)
+		drawall();
+	else{
+		for(i = 0; i < f.nscroll; i++)
+			scrollrect(&f.scroll[i]);
+		for(i = 0; i < vt->rows; i++)
+			if(f.dirty[i])
+				drawrow(i);
+	}
+	curson();
+	flushimage(display, 1);
+}
+
+void
+view(int n)
+{
+	if(n > nhist)
+		n = nhist;
+	if(n < 0)
+		n = 0;
+	if(n == back)
+		return;
+	back = n;
+	cursoff();
+	drawall();
+	curson();
+	flushimage(display, 1);
+}
+
+void
+tohost(char *s, int n)
+{
+	if(write(outfd, s, n) < 0)
+		threadexitsall("write");
+}
+
+void
+reply(Vt*, char *s, int n)
+{
+	tohost(s, n);
+}
+
+/* the host's bytes, or the echo, to the screen as ttystate says */
+void
+hostbytes(uchar *b, long n)
+{
+	Ttystate *t;
+	uchar o[2*Bsize];
+	long i, j, m, k;
+
+	t = &ttystate[raw];
+	if(!t->crnl && !t->nlcr){
+		vtwrite(vt, b, n);
+		return;
+	}
+	for(i = 0; i < n; i += k){
+		k = n-i < Bsize ? n-i : Bsize;
+		m = 0;
+		for(j = i; j < i+k; j++){
+			o[m++] = b[j];
+			if(b[j] == '\r' && t->crnl)
+				o[m++] = '\n';
+			else if(b[j] == '\n' && t->nlcr)
+				o[m++] = '\r';
+		}
+		vtwrite(vt, o, m);
+	}
+}
+
+void
+echo(char *s)
+{
+	hostbytes((uchar*)s, strlen(s));
+}
+
+/* the host's bytes waiting, until a page fills in page mode */
+void
+feed(void)
+{
+	uchar *p;
+	long k;
+
+	while(npend > 0 && !blocked){
+		if(!pagemode){
+			hostbytes(pend, npend);
+			npend = 0;
+			break;
+		}
+		p = memchr(pend, '\n', npend);
+		k = p ? p-pend+1 : npend;
+		if(p && olines >= vt->rows-1 && vt->y == vt->rows-1){
+			blocked = 1;
+			break;
+		}
+		hostbytes(pend, k);
+		pend += k;
+		npend -= k;
+		if(p)
+			olines++;
+	}
+	if(npend == 0){
+		free(cur);
+		cur = nil;
+	}
+}
+
+void
+host(Buf *b)
+{
+	cur = b;
+	pend = b->d;
+	npend = b->n;
+	if(logfd >= 0)
+		write(logfd, b->d, b->n);
+	feed();
+	while(!blocked && nbrecv(hostc, &b) > 0){
+		if(b == nil){
+			frame();
+			threadexitsall(nil);
+		}
+		cur = b;
+		pend = b->d;
+		npend = b->n;
+		if(logfd >= 0)
+			write(logfd, b->d, b->n);
+		feed();
+	}
+	frame();
+}
+
+int
+alnum(int c)
+{
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c >= 0x80;
+}
+
+/* takes back the line's last rune */
+int
+unrune(void)
+{
+	if(nsend == 0)
+		return 0;
+	while(--nsend > 0 && (sendbuf[nsend] & 0xC0) == 0x80)
+		;
+	echo("\b \b");
+	return 1;
+}
+
+/* cooked mode: the line is kept, edited and echoed here, and sent whole */
+void
+canon(Rune r)
+{
+	char s[UTFmax+1];
+	int n;
+
+	switch(r){
+	case Kbs:
+		unrune();
+		return;
+	case 0x15:
+		nsend = 0;
+		echo("^U\n");
+		return;
+	case 0x17:
+		while(nsend > 0 && !alnum((uchar)sendbuf[nsend-1]) && unrune())
+			;
+		while(nsend > 0 && alnum((uchar)sendbuf[nsend-1]) && unrune())
+			;
+		return;
+	case Kdel:
+		nsend = 0;
+		postnote(PNGROUP, hostpid, "interrupt");
+		return;
+	case 0x11:
+	case '\r':
+	case '\n':
+		sendbuf[nsend++] = '\n';
+		tohost(sendbuf, nsend);
+		nsend = 0;
+		if(r != 0x11)
+			echo("\n");
+		return;
+	case 0x04:
+		if(nsend == 0){
+			tohost(sendbuf, 0);
+			return;
+		}
+		break;
+	}
+	if(r >= KF && r < KF+0x100 || r >= Spec && r < Spec+0x100)
+		return;
+	n = runetochar(s, &r);
+	if(nsend+n >= sizeof sendbuf-1)
+		return;
+	memmove(sendbuf+nsend, s, n);
+	nsend += n;
+	s[n] = 0;
+	echo(s);
+}
+
+void
+key(Rune r)
+{
+	char b[64];
+	int n;
+
+	olines = 0;
+	if(blocked){
+		blocked = 0;
+		feed();
+		frame();
+		if(r == Kdown)
+			return;
+	}
+	if(!raw && (r == Kpgup || r == Kpgdown)){
+		view(r == Kpgup ? back + vt->rows : back - vt->rows);
+		return;
+	}
+	view(0);
+	if(!raw){
+		canon(r);
+		frame();
+		return;
+	}
+	if(r == '\n' && (vt->mode & Mnewline)){
+		tohost("\r\n", 2);
+		return;
+	}
+	if(r == '\n')
+		r = '\r';
+	else if(r == '\r')
+		r = '\n';
+	n = vtkey(vt, r, b, sizeof b);
+	if(n > 0)
+		tohost(b, n);
+}
+
+void
+paste(void)
+{
+	char *s, *b;
+	long n, m;
+	int fd;
+	Rune r;
+	int i;
+
+	fd = open("/dev/snarf", OREAD);
+	if(fd < 0)
+		return;
+	s = nil;
+	n = 0;
+	for(;;){
+		s = realloc(s, n+Bsize+1);
+		m = read(fd, s+n, Bsize);
+		if(m <= 0)
+			break;
+		n += m;
+	}
+	close(fd);
+	if(n == 0){
+		free(s);
+		return;
+	}
+	view(0);
+	if(raw){
+		b = emalloc(2*n+12);
+		m = vtpaste(vt, s, n, b, 2*n+12);
+		if(m > 0)
+			tohost(b, m);
+		free(b);
+	}else{
+		s[n] = 0;
+		for(i = 0; i < n; ){
+			i += chartorune(&r, s+i);
+			canon(r);
+		}
+		if(s[n-1] != '\n')
+			canon('\n');
+		frame();
+	}
+	free(s);
+}
+
+void
+exportsize(void)
+{
+	char buf[20];
+
+	snprint(buf, sizeof buf, "%d", Dx(screen->r)-2*Xmargin);
+	putenv("XPIXELS", buf);
+	snprint(buf, sizeof buf, "%d", Dy(screen->r)-2*Ymargin);
+	putenv("YPIXELS", buf);
+	snprint(buf, sizeof buf, "%d", vt->rows);
+	putenv("LINES", buf);
+	snprint(buf, sizeof buf, "%d", vt->cols);
+	putenv("COLS", buf);
+	putenv("COLUMNS", buf);
+	putenv("TERM", term);
+}
+
+void
+winsize(int *cols, int *rows)
+{
+	*cols = (Dx(screen->r)-2*Xmargin)/CW;
+	*rows = (Dy(screen->r)-2*Ymargin)/NS;
+	if(*cols < 1)
+		*cols = 1;
+	if(*rows < 1)
+		*rows = 1;
+}
+
+void
+resized(void)
+{
+	int cols, rows;
+
+	if(getwindow(display, Refnone) < 0)
+		sysfatal("can't reattach to window: %r");
+	cursdrawn = 0;
+	winsize(&cols, &rows);
+	if(cols != vt->cols || rows != vt->rows){
+		vtresize(vt, cols, rows);
+		exportsize();
+	}
+	frame();
+	cursdrawn = 0;
+	drawall();
+	curson();
+	flushimage(display, 1);
+}
+
+void
+setdim(int ht, int wid)
+{
+	Rectangle r;
+	int fd;
+
+	r.min = screen->r.min;
+	r.max = addpt(screen->r.min, Pt(wid*CW+2*Xmargin+2*Inset, ht*NS+2*Ymargin+2*Inset));
+	fd = open("/dev/wctl", OWRITE);
+	if(fd >= 0){
+		fprint(fd, "resize -dx %d -dy %d\n", Dx(r)+2*Borderwidth, Dy(r)+2*Borderwidth);
+		close(fd);
+	}
+}
+
+/* the lines above the cursor's go to the history, as if the host had scrolled them */
+void
+clear(void)
+{
+	char buf[32];
+
+	view(0);
+	if(vt->y > 0){
+		snprint(buf, sizeof buf, "\033[%dS\033[1;%dH", vt->y, vt->x+1);
+		vtwrite(vt, (uchar*)buf, strlen(buf));
+		frame();
+	}
+}
+
+void
+menu(int but)
+{
+	if(but == 3){
+		menu3.item[1] = ttystate[raw].crnl ? "cr" : "crnl";
+		menu3.item[2] = ttystate[raw].nlcr ? "nl" : "nlcr";
+		menu3.item[3] = raw ? "cooked" : "raw";
+		switch(menuhit(3, mc, &menu3, nil)){
+		case 0:
+			setdim(24, 80);
+			break;
+		case 1:
+			ttystate[raw].crnl = !ttystate[raw].crnl;
+			break;
+		case 2:
+			ttystate[raw].nlcr = !ttystate[raw].nlcr;
+			break;
+		case 3:
+			raw = !raw;
+			break;
+		case 4:
+			postnote(PNGROUP, hostpid, "hangup");
+			threadexitsall(nil);
+		}
+		return;
+	}
+	menu2.item[5] = pagemode ? "scroll" : "page";
+	switch(menuhit(2, mc, &menu2, nil)){
+	case 0:
+		view(back + vt->rows);
+		break;
+	case 1:
+		view(back - vt->rows);
+		break;
+	case 2:
+		view(0);
+		break;
+	case 3:
+		clear();
+		break;
+	case 4:
+		paste();
+		break;
+	case 5:
+		pagemode = !pagemode;
+		olines = 0;
+		if(blocked && !pagemode){
+			blocked = 0;
+			feed();
+			frame();
+		}
+		break;
+	}
+}
+
+/* the mouse goes to the host if it asks for it; else the wheel moves through the history */
+void
+mouse(Mouse m)
+{
+	static int ob, ox, oy;
+	char b[64];
+	int x, y, n;
+
+	if(m.buttons & 2){
+		menu(2);
+		return;
+	}
+	if(m.buttons & 4){
+		menu(3);
+		return;
+	}
+	if(!(vt->mode & (Mmouse|Mmousedrag|Mmouseall)) || back > 0){
+		if(m.buttons & 8)
+			view(back + 3);
+		else if(m.buttons & 16)
+			view(back - 3);
+		ob = m.buttons;
+		return;
+	}
+	x = (m.xy.x - screen->r.min.x - Xmargin) / CW;
+	y = (m.xy.y - screen->r.min.y - Ymargin) / NS;
+	if(x < 0)
+		x = 0;
+	if(x >= vt->cols)
+		x = vt->cols-1;
+	if(y < 0)
+		y = 0;
+	if(y >= vt->rows)
+		y = vt->rows-1;
+	n = 0;
+	if((m.buttons & 1) && !(ob & 1))
+		n = vtmouse(vt, 1, x, y, 1, b, sizeof b);
+	else if(!(m.buttons & 1) && (ob & 1))
+		n = vtmouse(vt, 1, x, y, 0, b, sizeof b);
+	else if((m.buttons & 8) && !(ob & 8))
+		n = vtmouse(vt, 4, x, y, 1, b, sizeof b);
+	else if((m.buttons & 16) && !(ob & 16))
+		n = vtmouse(vt, 5, x, y, 1, b, sizeof b);
+	else if(x != ox || y != oy)
+		n = vtmouse(vt, m.buttons & 1, x, y, -1, b, sizeof b);
+	if(n > 0)
+		tohost(b, n);
+	ob = m.buttons;
+	ox = x;
+	oy = y;
+}
+
+void
+hostproc(void*)
+{
+	Buf *b;
+
+	threadsetname("vt host");
+	for(;;){
+		b = emalloc(sizeof *b);
+		b->n = read(outfd, b->d, sizeof b->d);
+		if(b->n <= 0){
+			free(b);
+			sendp(hostc, nil);
+			return;
+		}
+		sendp(hostc, b);
+	}
+}
+
+/* the host's consctl is a pipe: rawon and rawoff set raw, and its last close ends it */
+void
+consctlproc(void*)
+{
+	char buf[128], *f[10];
+	int fd, n, i, nf;
+
+	threadsetname("vt consctl");
+	for(;;){
+		fd = open("/mnt/cons/consctl/data", OREAD);
+		if(fd < 0)
+			return;
+		while((n = read(fd, buf, sizeof buf-1)) > 0){
+			buf[n] = 0;
+			nf = tokenize(buf, f, nelem(f));
+			for(i = 0; i < nf; i++)
+				if(strcmp(f[i], "rawon") == 0)
+					raw = 1;
+				else if(strcmp(f[i], "rawoff") == 0)
+					raw = 0;
+		}
+		close(fd);
+		raw = 0;
+	}
+}
+
+void
+execproc(void *v)
+{
+	Channel *pidc;
+	int fd;
+
+	pidc = v;
+	threadsetname("vt exec");
+	rfork(RFFDG|RFNOTEG);
+	fd = open("/dev/cons", OREAD);
+	dup(fd, 0);
+	if(fd != 0)
+		close(fd);
+	fd = open("/dev/cons", OWRITE);
+	dup(fd, 1);
+	dup(fd, 2);
+	if(fd != 1 && fd != 2)
+		close(fd);
+	procexecl(pidc, "/bin/rc", "rcX", nil);
+	fprint(2, "vt: exec rc: %r\n");
+	threadexits("exec");
+}
+
+void
+threadmain(int argc, char **argv)
+{
 	char *fontname, *p;
+	int cols, rows, blkbg;
+	Channel *pidc;
+	Buf *b;
+	Mouse m;
+	Rune r;
+	Alt a[5];
 
 	rfork(RFNAMEG|RFNOTEG);
-
 	fontname = nil;
-	term = "vt100";
-	fk = vt100fk;
-	blkbg = nocolor = 0;
+	term = "xterm-256color";
+	blkbg = 0;
 	ARGBEGIN{
 	case '2':
 		term = "vt220";
-		fk = vt220fk;
 		break;
 	case 'a':
 		term = "ansi";
-		fk = ansifk;
 		break;
 	case 'b':
-		blkbg = 1;		/* e.g., for linux colored output */
+		blkbg = 1;
 		break;
 	case 'c':
 		nocolor = 1;
@@ -170,706 +912,92 @@ initialize(int argc, char **argv)
 		break;
 	case 'l':
 		p = EARGF(usage());
-		logfd = create(p, OWRITE, 0666);
+		logfd = create(p, OWRITE|OCEXEC, 0666);
 		if(logfd < 0)
 			sysfatal("could not create log file: %s: %r", p);
 		break;
 	case 'x':
-		fk = xtermfk;
 		term = "xterm";
 		break;
 	default:
 		usage();
-		break;
-	}ARGEND;
+	}ARGEND
 
-	host_buf = malloc(host_bsize);
-	hostp = host_buf;
-	hostlength = 0;
-
-	if(initdraw(0, fontname, term) < 0){
-		fprint(2, "%s: initdraw failed: %r\n", term);
-		exits("initdraw");
-	}
-	werrstr("");		/* clear spurious error messages */
-	ebegin(Ehost);
-
-	histp = hist;
-	menu2.item = menutext2;
-	menu3.item = menutext3;
-	pagemode = 0;
-	blocked = 0;
+	if(initdraw(nil, fontname, "vt") < 0)
+		sysfatal("initdraw: %r");
+	mc = initmouse(nil, screen);
+	if(mc == nil)
+		sysfatal("initmouse: %r");
+	kc = initkeyboard(nil);
+	if(kc == nil)
+		sysfatal("initkeyboard: %r");
 	NS = font->height;
 	CW = stringwidth(font, "m");
-
+	fgrgb = blkbg ? 0xFFFFFF : 0x000000;
+	bgrgb = blkbg ? 0x000000 : 0xFFFFFF;
 	red = allocimage(display, Rect(0,0,1,1), screen->chan, 1, DRed);
-	bordercol = allocimage(display, Rect(0,0,1,1), screen->chan, 1, 0xCCCCCCCC);
+	bordercol = allocimage(display, Rect(0,0,1,1), screen->chan, 1, 0xCCCCCCFF);
 	cursback = allocimage(display, Rect(0, 0, CW+1, NS+1), screen->chan, 0, DNofill);
+	if(red == nil || bordercol == nil || cursback == nil)
+		sysfatal("allocimage: %r");
 
-	for(i=0; i<8; i++){
-		colors[i] = allocimage(display, Rect(0,0,1,1), screen->chan, 1,
-			rgbacolors[i]);
-		hicolors[i] = allocimage(display, Rect(0,0,1,1), screen->chan, 1,
-			rgbahicolors[i]);
-	}
+	winsize(&cols, &rows);
+	vt = vtnew(cols, rows);
+	if(vt == nil)
+		sysfatal("vtnew: %r");
+	vt->reply = reply;
 
-	bgdefault = (blkbg? display->black: display->white);
-	fgdefault = (blkbg? display->white: display->black);
-	bgcolor = bgdefault;
-	fgcolor = fgdefault;
-
-	resize();
-
-	if(argc > 0) {
-		sendnchars(strlen(argv[0]),argv[0]);
-		sendnchars(1,"\n");
-	}
-}
-
-void
-clear(Rectangle r)
-{
-	draw(screen, r, bgcolor, nil, ZP);
-}
-
-void
-newline(void)
-{
-	nbacklines--;
-	if(y >= yscrmax) {
-		y = yscrmax;
-		if(pagemode && olines >= yscrmax) {
-			blocked = 1;
-			return;
-		}
-		scroll(yscrmin+1, yscrmax+1, yscrmin, yscrmax);
-	} else
-		y++;
-	olines++;
-}
-
-void
-cursoff(void)
-{
-	draw(screen, Rpt(pt(x, y), addpt(pt(x, y), Pt(CW,NS))),
-		cursback, nil, cursback->r.min);
-}
-
-void
-curson(int bl)
-{
-	Image *col;
-
-	if(!cursoron){
-		cursoff();
-		return;
-	}
-
-	draw(cursback, cursback->r, screen, nil, pt(x, y));
-	if(bl)
-		col = red;
-	else
-		col = bordercol;
-	border(screen, Rpt(pt(x, y), addpt(pt(x, y), Pt(CW,NS))), 2, col, ZP);
-}
-
-int
-get_next_char(void)
-{
-	int c = peekc;
-	uchar buf[1];
-	peekc = 0;
-	if(c > 0)
-		return(c);
-	while(c <= 0) {
-		if(backp) {
-			c = *backp;
-			if(c && nbacklines >= 0) {
-				backp++;
-				if(backp >= &hist[HISTSIZ])
-					backp = hist;
-				return(c);
-			}
-			backp = 0;
-		}
-		c = (uchar)waitchar();
-		if(c > 0 && logfd >= 0) {
-			buf[0] = c;
-			write(logfd, buf, 1);
-		}
-	}
-	*histp++ = c;
-	if(histp >= &hist[HISTSIZ])
-		histp = hist;
-	*histp = '\0';
-	return(c);
-}
-
-int
-canon(char *ep, int c)
-{
-	if(c&0200)
-		return(SCROLL);
-	switch(c) {
-		case '\b':
-			if(sendp > sendbuf)
-				sendp--;
-			*ep++ = '\b';
-			*ep++ = ' ';
-			*ep++ = '\b';
-			break;
-		case 0x15:	/* ^U line kill */
-			sendp = sendbuf;
-			*ep++ = '^';
-			*ep++ = 'U';
-			*ep++ = '\n';
-			break;
-		case 0x17:	/* ^W word kill */
-			while(sendp > sendbuf && !alnum(*sendp)) {
-				*ep++ = '\b';
-				*ep++ = ' ';
-				*ep++ = '\b';
-				sendp--;
-			}
-			while(sendp > sendbuf && alnum(*sendp)) {
-				*ep++ = '\b';
-				*ep++ = ' ';
-				*ep++ = '\b';
-				sendp--;
-			}
-			break;
-		case '\177':	/* interrupt */
-			sendp = sendbuf;
-			send_interrupt();
-			return(NEWLINE);
-		case '\021':	/* quit */
-		case '\r':
-		case '\n':
-			if(sendp < &sendbuf[512])
-				*sendp++ = '\n';
-			sendnchars((int)(sendp-sendbuf), sendbuf);
-			sendp = sendbuf;
-			if(c == '\n' || c == '\r') {
-				*ep++ = '\n';
-			}
-			*ep = 0;
-			return(NEWLINE);
-		case '\004':	/* EOT */
-			if(sendp == sendbuf) {
-				sendnchars(0,sendbuf);
-				*ep = 0;
-				return(NEWLINE);
-			}
-			/* fall through */
-		default:
-			if(sendp < &sendbuf[512])
-				*sendp++ = c;
-			*ep++ = c;
-			break;
-
-	}
-	*ep = 0;
-	return(OTHER);
-}
-
-void
-sendfk(char *name)
-{
-	int i;
-	static int fd;
-
-	for(i=0; fk[i].name; i++)
-		if(strcmp(name, fk[i].name)==0){
-			sendnchars2(strlen(fk[i].sequence), fk[i].sequence);
-			return;
-		}
-}
-
-int
-waitchar(void)
-{
-	Event e;
-	int c;
-	char c2;
-	int newmouse;
-	int wasblocked;
-	int kbdchar = -1;
-	char echobuf[3*BSIZE];
-	static int lastc = -1;
-
-
-	for(;;) {
-		if(resize_flag)
-			resize();
-		wasblocked = blocked;
-		if(backp)
-			return(0);
-		if(ecanmouse() && (button2() || button3()))
-			readmenu();
-		if(snarffp) {
-			if((c = Bgetc(snarffp)) < 0) {
-				if(lastc != '\n')
-					write(outfd,"\n",1);
-				Bterm(snarffp);
-				snarffp = 0;
-				if(lastc != '\n') {
-					lastc = -1;
-					return('\n');
-				}
-				lastc = -1;
-				continue;
-			}
-			lastc = c;
-			c2 = c;
-			write(outfd, &c2, 1);
-			return(c);
-		}
-		if(!blocked && host_avail())
-			return(rcvchar());
-		if(kbdchar > 0) {
-			if(blocked)
-				resize();
-			if(cs->raw) {
-				switch(kbdchar){
-				case Kup:
-					sendfk("up key");
-					break;
-				case Kdown:
-					sendfk("down key");
-					break;
-				case Kleft:
-					sendfk("left key");
-					break;
-				case Kright:
-					sendfk("right key");
-					break;
-				case Kpgup:
-					sendfk("page up");
-					break;
-				case Kpgdown:
-					sendfk("page down");
-					break;
-				case KF|1:
-					sendfk("F1");
-					break;
-				case KF|2:
-					sendfk("F2");
-					break;
-				case KF|3:
-					sendfk("F3");
-					break;
-				case KF|4:
-					sendfk("F4");
-					break;
-				case KF|5:
-					sendfk("F5");
-					break;
-				case KF|6:
-					sendfk("F6");
-					break;
-				case KF|7:
-					sendfk("F7");
-					break;
-				case KF|8:
-					sendfk("F8");
-					break;
-				case KF|9:
-					sendfk("F9");
-					break;
-				case KF|10:
-					sendfk("F10");
-					break;
-				case KF|11:
-					sendfk("F11");
-					break;
-				case KF|12:
-					sendfk("F12");
-					break;
-				case '\n':
-					echobuf[0] = '\r';
-					sendnchars(1, echobuf);
-					break;
-				case '\r':
-					echobuf[0] = '\n';
-					sendnchars(1, echobuf);
-					break;
-				default:
-					echobuf[0] = kbdchar;
-					sendnchars(1, echobuf);
-					break;
-				}
-			} else if(canon(echobuf,kbdchar) == SCROLL) {
-				if(!blocked)
-					bigscroll();
-			} else
-				strcat(echo_input,echobuf);
-			blocked = 0;
-			kbdchar = -1;
-			continue;
-		}
-		curson(wasblocked);	/* turn on cursor while we're waiting */
-		do {
-			newmouse = 0;
-			switch(eread(blocked ? Emouse|Ekeyboard :
-					       Emouse|Ekeyboard|Ehost, &e)) {
-			case Emouse:
-				mouse = e.mouse;
-				if(button2() || button3())
-					readmenu();
-				else if(resize_flag == 0) {
-					/* eresized() is triggered by special mouse event */
-					newmouse = 1;
-				}
-				break;
-			case Ekeyboard:
-				kbdchar = e.kbdc;
-				break;
-			case Ehost:
-				set_host(&e);
-				break;
-			default:
-				perror("protocol violation");
-				exits("protocol violation");
-			}
-		} while(newmouse == 1);
-		cursoff();	/* turn cursor back off */
-	}
-}
-
-void
-eresized(int new)
-{
-	resize_flag = 1+new;
-}
-
-void
-putenvint(char *name, int x)
-{
-	char buf[20];
-
-	snprint(buf, sizeof buf, "%d", x);
-	putenv(name, buf);
-}
-
-void
-exportsize(void)
-{
-	putenvint("XPIXELS", Dx(screen->r)-2*XMARGIN);
-	putenvint("YPIXELS", Dy(screen->r)-2*XMARGIN);
-	putenvint("LINES", ymax+1);
-	putenvint("COLS", xmax+1);
-	putenv("TERM", term);
-}
-
-void
-resize(void)
-{
-	if(resize_flag > 1 && getwindow(display, Refnone) < 0){
-		fprint(2, "can't reattach to window: %r\n");
-		exits("can't reattach to window");
-	}
-	xmax = (Dx(screen->r)-2*XMARGIN)/CW-1;
-	ymax = (Dy(screen->r)-2*YMARGIN)/NS-1;
-	if(xmax == 0 || ymax == 0)
-		exits("window gone");
-	x = 0;
-	y = 0;
-	yscrmin = 0;
-	yscrmax = ymax;
-	olines = 0;
+	/* the host's cons and consctl are pipes */
+	if(bind("#|", "/mnt/cons/consctl", MBEFORE) < 0
+	|| bind("/mnt/cons/consctl/data1", "/dev/consctl", MREPL) < 0)
+		sysfatal("bind consctl: %r");
+	if(bind("#|", "/mnt/cons/cons", MREPL) < 0
+	|| bind("/mnt/cons/cons/data1", "/dev/cons", MREPL) < 0)
+		sysfatal("bind cons: %r");
+	outfd = open("/mnt/cons/cons/data", ORDWR|OCEXEC);
+	if(outfd < 0)
+		sysfatal("open cons: %r");
 	exportsize();
-	clear(screen->r);
-	resize_flag = 0;
-	werrstr("");		/* clear spurious error messages */
-}
 
-void
-setdim(int ht, int wid)
-{
-	int fd;
-	Rectangle r;
+	hostc = chancreate(sizeof(Buf*), 8);
+	pidc = chancreate(sizeof(ulong), 0);
+	proccreate(consctlproc, nil, Stack);
+	proccreate(execproc, pidc, Stack);
+	hostpid = recvul(pidc);
+	if(hostpid == ~0)
+		sysfatal("exec rc: %r");
+	proccreate(hostproc, nil, Stack);
 
-	if(ht != -1)
-		ymax = ht-1;
-	if(wid != -1)
-		xmax = wid-1;
-
-	r.min = screen->r.min;
-	r.max = addpt(screen->r.min,
-			Pt((xmax+1)*CW+2*XMARGIN+2*INSET,
-				(ymax+1)*NS+2*YMARGIN+2*INSET));
-	fd = open("/dev/wctl", OWRITE);
-	if(fd < 0 || fprint(fd, "resize -dx %d -dy %d\n", Dx(r)+2*Borderwidth,
-	    Dy(r)+2*Borderwidth) < 0){
-		border(screen, r, INSET, bordercol, ZP);
-		exportsize();
-	}
-	if(fd >= 0)
-		close(fd);
-}
-
-void
-readmenu(void)
-{
-	if(button3()) {
-		menu3.item[1] = ttystate[cs->raw].crnl ? "cr" : "crnl";
-		menu3.item[2] = ttystate[cs->raw].nlcr ? "nl" : "nlcr";
-		menu3.item[3] = cs->raw ? "cooked" : "raw";
-
-		switch(emenuhit(3, &mouse, &menu3)) {
-		case 0:		/* 24x80 */
-			setdim(24, 80);
-			return;
-		case 1:		/* newline after cr? */
-			ttystate[cs->raw].crnl = !ttystate[cs->raw].crnl;
-			return;
-		case 2:		/* cr after newline? */
-			ttystate[cs->raw].nlcr = !ttystate[cs->raw].nlcr;
-			return;
-		case 3:		/* switch raw mode */
-			cs->raw = !cs->raw;
-			return;
-		case 4:
-			exits(0);
-		}
-		return;
+	drawall();
+	curson();
+	flushimage(display, 1);
+	if(argc > 0){
+		tohost(argv[0], strlen(argv[0]));
+		tohost("\n", 1);
 	}
 
-	menu2.item[5] = pagemode? "scroll": "page";
-
-	switch(emenuhit(2, &mouse, &menu2)) {
-
-	case 0:		/* back up */
-		if(atend == 0) {
-			backc++;
-			backup(backc);
-		}
-		return;
-
-	case 1:		/* move forward */
-		backc--;
-		if(backc >= 0)
-			backup(backc);
-		else
-			backc = 0;
-		return;
-
-	case 2:		/* reset */
-		backc = 0;
-		backup(0);
-		return;
-
-	case 3:		/* clear screen */
-		eresized(0);
-		return;
-
-	case 4:		/* send the snarf buffer */
-		snarffp = Bopen("/dev/snarf",OREAD);
-		return;
-
-	case 5:		/* pause and clear at end of screen */
-		pagemode = 1-pagemode;
-		if(blocked && !pagemode) {
-			eresized(0);
-			blocked = 0;
-		}
-		return;
-	}
-}
-
-void
-backup(int count)
-{
-	register n;
-	register char *cp;
-
-	eresized(0);
-	n = 3*(count+1)*ymax/4;
-	cp = histp;
-	atend = 0;
-	while (n >= 0) {
-		cp--;
-		if(cp < hist)
-			cp = &hist[HISTSIZ-1];
-		if(*cp == '\0') {
-			atend = 1;
+	a[0] = (Alt){mc->c, &m, CHANRCV};
+	a[1] = (Alt){mc->resizec, nil, CHANRCV};
+	a[2] = (Alt){kc->c, &r, CHANRCV};
+	a[3] = (Alt){hostc, &b, CHANRCV};
+	a[4] = (Alt){nil, nil, CHANEND};
+	for(;;){
+		a[3].op = blocked || npend > 0 ? CHANNOP : CHANRCV;
+		switch(alt(a)){
+		case 0:
+			mouse(m);
+			break;
+		case 1:
+			resized();
+			break;
+		case 2:
+			key(r);
+			break;
+		case 3:
+			if(b == nil)
+				threadexitsall(nil);
+			host(b);
 			break;
 		}
-		if(*cp == '\n')
-			n--;
 	}
-	cp++;
-	if(cp >= &hist[HISTSIZ])
-		cp = hist;
-	backp = cp;
-	nbacklines = ymax-2;
-}
-
-Point
-pt(int x, int y)
-{
-	return addpt(screen->r.min, Pt(x*CW+XMARGIN,y*NS+YMARGIN));
-}
-
-void
-scroll(int sy, int ly, int dy, int cy)	/* source, limit, dest, which line to clear */
-{
-	draw(screen, Rpt(pt(0, dy), pt(xmax+1, dy+ly-sy)), screen, nil, pt(0, sy));
-	clear(Rpt(pt(0, cy), pt(xmax+1, cy+1)));
-	flushimage(display, 1);
-}
-
-void
-bigscroll(void)			/* scroll up half a page */
-{
-	int half = ymax/3;
-
-	if(x == 0 && y == 0)
-		return;
-	if(y < half) {
-		clear(Rpt(pt(0,0),pt(xmax+1,ymax+1)));
-		x = y = 0;
-		return;
-	}
-	draw(screen, Rpt(pt(0, 0), pt(xmax+1, ymax+1)), screen, nil, pt(0, half));
-	clear(Rpt(pt(0,y-half+1),pt(xmax+1,ymax+1)));
-	y -= half;
-	if(olines)
-		olines -= half;
-	flushimage(display, 1);
-}
-
-int
-number(char *p, int *got)
-{
-	int c, n = 0;
-
-	if(got)
-		*got = 0;
-	while ((c = get_next_char()) >= '0' && c <= '9'){
-		if(got)
-			*got = 1;
-		n = n*10 + c - '0';
-	}
-	*p = c;
-	return(n);
-}
-
-/* stubs */
-
-void
-sendnchars(int n,char *p)
-{
-	sendnchars2(n, p);
-	p[n+1] = 0;
-}
-
-void
-sendnchars2(int n,char *p)
-{
-	if(write(outfd,p,n) < 0) {
-		close(outfd);
-		close(0);
-		close(1);
-		close(2);
-		exits("write");
-	}
-}
-
-int
-host_avail(void)
-{
-	return(*echop || ((hostp - host_buf) < hostlength));
-}
-
-int
-rcvchar(void)
-{
-	int c;
-	if(*echop) {
-		c = *echop++;
-		if(!*echop) {
-			echop = echo_input;
-			*echop = 0;
-		}
-		return c;
-	}
-	return *hostp++;
-}
-
-void
-set_host(Event *e)
-{
-	hostlength = e->n;
-	if(hostlength > host_bsize) {
-		host_bsize *= 2;
-		host_buf = realloc(host_buf,host_bsize);
-	}
-	hostp = host_buf;
-	memmove(host_buf,e->data,hostlength);
-	host_buf[hostlength]=0;
-}
-
-void
-ringbell(void){
-}
-
-int
-alnum(int c)
-{
-	if(c >= 'a' && c <= 'z')
-		return 1;
-	if(c >= 'A' && c <= 'Z')
-		return 1;
-	if(c >= '0' && c <= '9')
-		return 1;
-	return 0;
-}
-
-void
-escapedump(int fd,uchar *str,int len)
-{
-	int i;
-
-	for(i = 0; i < len; i++) {
-		if((str[i] < ' ' || str[i] > '\177') &&
-			str[i] != '\n' && str[i] != '\t') fprint(fd,"^%c",str[i]+64);
-		else if(str[i] == '\177') fprint(fd,"^$");
-		else if(str[i] == '\n') fprint(fd,"^J\n");
-		else fprint(fd,"%c",str[i]);
-	}
-}
-
-void
-funckey(int key)
-{
-	if(key >= NKEYS)
-		return;
-	if(fk[key].name == 0)
-		return;
-	sendnchars2(strlen(fk[key].sequence), fk[key].sequence);
-}
-
-
-void
-drawstring(Point p, char *str, int attr)
-{
-	int i;
-	Image *txt, *bg, *tmp;
-
-	txt = fgcolor;
-	bg = bgcolor;
-	if(attr & TReverse){
-		tmp = txt;
-		txt = bg;
-		bg = tmp;
-	}
-	if(attr & THighIntensity){
-		for(i=0; i<8; i++)
-			if(txt == colors[i])
-				txt = hicolors[i];
-	}
-
-	draw(screen, Rpt(p, addpt(p, stringsize(font, str))), bg, nil, p);
-	string(screen, p, txt, ZP, font, str);
 }

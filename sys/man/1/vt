@@ -1,6 +1,6 @@
 .TH VT 1
 .SH NAME
-vt \- emulate a VT-100 or VT-220 terminal
+vt \- emulate an xterm
 .SH SYNOPSIS
 .B vt
 [
@@ -12,6 +12,8 @@ vt \- emulate a VT-100 or VT-220 terminal
 ] [
 .B -l
 .I log
+] [
+.I cmd
 ]
 .SH DESCRIPTION
 .I Vt
@@ -19,12 +21,40 @@ replaces a
 .I rio
 window with a fresh instance of the shell,
 .IR rc (1),
-running within an emulation of a DEC VT-100 terminal.
+running within an emulation of an xterm, by
+.IR vt (2).
+It is for programs on other systems, reached by
+.IR ssh (1)
+or
+.IR cpu (1),
+that draw on a terminal.
+If
+.I cmd
+is given, it is typed to the shell, as if followed by a newline.
 To exit
 .IR vt ,
 exit the
 .B rc
 it starts.
+.PP
+.I Vt
+sets
+.B $TERM
+to
+.BR xterm-256color ,
+and
+.BR $LINES ,
+.BR $COLS ,
+.BR $COLUMNS ,
+.B $XPIXELS
+and
+.B $YPIXELS
+to the window's size, again when it changes.
+A program's title is the window's label.
+.PP
+Lines that leave the top of the screen are kept, the last 2000.
+The wheel moves through them, or, when a program asks for the mouse,
+button 1 and the wheel go to it.
 .SS Options
 .TF m
 .TP
@@ -33,9 +63,15 @@ it starts.
 .B a
 .TP
 .B x
-change
-.I vt
-to emulate a VT-220, ANSI, or XTerm terminal respectively.
+set
+.B $TERM
+to
+.BR vt220 ,
+.B ansi
+or
+.B xterm
+for a host that has no
+.BR xterm-256color .
 .TP
 .B b
 changes the color scheme to white text on a black background,
@@ -46,12 +82,27 @@ changes the color scheme to monochrome (no colors).
 .TP
 .B f
 sets the
-.IR font .
+.IR font ,
+best one of fixed width.
 .TP
 .B l
 names a
 .I log
-file for the session.
+file for the session, which gets what the host sends.
+.SS "Raw and cooked"
+In cooked mode, the default,
+.I vt
+keeps the line being typed and sends it whole: Backspace, control-U and control-W edit it,
+control-D at its start sends an end of file, Delete interrupts the shell's command,
+and Page Up and Page Down move through the kept lines.
+In raw mode each key is sent as an xterm sends it, and a newline as a return.
+A program asks for raw mode by writing
+.B rawon
+to
+.BR /dev/consctl ,
+as on a Plan 9 terminal; it lasts until
+.B rawoff
+or until the program closes the file.
 .SS Menus
 The right button has a menu with the following entries to provide
 the sort of character processing expected by non-Plan 9 systems:
@@ -75,7 +126,7 @@ Print a carriage return after receiving a newline from the host.
 Do not print a carriage return after newline.
 .TP
 .B raw
-Enter raw (no echo, no interpretation) character mode for input.
+Enter raw mode.
 .TP
 .B cooked
 Leave raw mode.
@@ -85,6 +136,9 @@ Exit
 .IR vt .
 .PD
 .PP
+Each mode has its own settings: cooked mode prints a carriage return after a newline,
+as Plan 9's programs need, and raw mode does not, as a Unix host's terminal does that itself.
+.PP
 The middle button has a menu with the following entries:
 .TF right_key
 .TP
@@ -93,16 +147,12 @@ Move the display back one screenful.
 .TP
 .B forward
 Move the display forward one screenful.
-(These are a poor substitute for a scroll bar.)
 .TP
 .B reset
-Display the last screenful; the same as going
-.B forward
-to the end.
+Display the screen.
 .TP
 .B clear
-Clear the screen.  Previous contents can be recovered using
-.BR backup .
+Move the lines above the cursor's into the kept lines.
 .TP
 .B send
 Send the contents of the
@@ -111,7 +161,7 @@ snarf buffer, just as
 .B send
 in the
 .B rio
-menu.
+menu, bracketed if the program asked for that.
 .TP
 .B scroll
 Make new lines visible as they appear at the bottom.
@@ -122,14 +172,13 @@ The down arrow key advances a page without sending the character to the host.
 .PD
 .SH SOURCE
 .B /sys/src/cmd/vt
+.SH SEE ALSO
+.IR vt (2)
 .SH BUGS
-This program is used only for communicating with foreign systems,
-so it is not
-as rich an emulation as its equivalent in other environments.
+A program on a Unix host that sets its terminal raw does not tell
+.IR vt ;
+choose
+.B raw
+from the menu.
 .PP
-Use care in setting raw and newline modes when connecting to Unix systems
-via
-.IR con (1)
-or
-.IR ssh (1).
-It may also be necessary to set the emulator into raw mode.
+The host is not told when the window's size changes.
