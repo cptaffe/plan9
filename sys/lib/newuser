@@ -21,6 +21,7 @@ test -e $home/lib/factotum && cat $home/lib/factotum >/mnt/factotum/ctl
 # webfs, and to its accounts /adm and /mnt/keys. A passkey signs you in (factotum(4)'s webauthn):
 #	import ws!$auth!9p / /n/$auth; bind -a /n/$auth/net /net
 font = /lib/font/bit/Iosevka/12a/font,/lib/font/bit/Iosevka/24a/font
+EDITOR=E
 switch($service){
 case terminal
 	# sound is shared: mixfs binds over /dev/audio, so a second play mixes with the first
