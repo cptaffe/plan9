@@ -84,6 +84,8 @@ char *sys_errlist[] = {
 	"Connection reset",		/* ECONNRESET */
 	"Too many levels of symbolic links",	/* ELOOP */
 	"Value too large",		/* EOVERFLOW */
+	"Disk quota exceeded",		/* EDQUOT */
+	"Stale file handle",		/* ESTALE */
 };
 #define	_IO_nerr	(sizeof sys_errlist/sizeof sys_errlist[0])
 int sys_nerr = _IO_nerr;
@@ -106,10 +108,15 @@ strerror(int n)
 		return "Unknown error";
 }
 
-char *
-strerror_r(int n, char *buf, int len)
+int
+strerror_r(int n, char *buf, size_t len)
 {
-	strncpy(buf, strerror(n), len);
+	char *s;
+
+	s = strerror(n);
+	if(len == 0)
+		return ERANGE;
+	strncpy(buf, s, len);
 	buf[len-1] = 0;
-	return buf;
+	return strlen(s) < len ? 0 : ERANGE;
 }
