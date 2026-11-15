@@ -751,6 +751,12 @@ texttype(Text *t, Rune r)
 
 	nr = 1;
 	rp = &r;
+	/* veil: every key but the wheel's goes to the event file, uninterpreted */
+	if(t->w && t->w->noecho && t->what==Body && r!=Kscrolloneup && r!=Kscrollonedown){
+		typecommit(t);
+		winevent(t->w, "%c%d %d 0 %d %.*S\n", 'V', t->q0, t->q0+nr, nr, nr, rp);
+		return;
+	}
 	switch(r){
 	case Kleft:
 		typecommit(t);
@@ -913,14 +919,6 @@ texttype(Text *t, Rune r)
 		paste(t, t, nil, TRUE, FALSE, nil, 0);
 		textshow(t, t->q0, t->q1, 1);
 		t->iq1 = t->q1;
-		return;
-	}
-
-	/* veil: do not insert, send KV event incl. control keys,
-		quirk: esc is sent not interpreted */
-	if (t->w && t->w->noecho && t->what==Body) {
-		typecommit(t);
-		winevent(t->w, "%c%d %d 0 %d %.*S\n", 'V', t->q0, t->q0+nr, nr, nr, rp);
 		return;
 	}
 
