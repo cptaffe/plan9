@@ -36,6 +36,7 @@
 #define	F_GETLK		5	/* Get file lock */
 #define	F_SETLK		6	/* Set file lock */
 #define	F_SETLKW	7	/* Set file lock and wait */
+#define	F_DUPFD_CLOEXEC	8
 
 #define FD_CLOEXEC	1
 
