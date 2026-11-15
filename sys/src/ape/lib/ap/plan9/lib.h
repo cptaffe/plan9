@@ -46,6 +46,8 @@ typedef struct Fdinfo{
 #define FD_BUFFERED	0x4
 #define FD_BUFFEREDX	0x8
 #define FD_ISTTY	0x20
+#define FD_DIRCHECKED	0x40
+#define FD_ISDIR	0x80
 
 #define MAXSIG (NSIG-1)
 
