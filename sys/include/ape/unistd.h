@@ -164,6 +164,8 @@ extern long pathconf(const char *, int);
 extern long fpathconf(int, int);
 #ifdef __TYPES_H
 extern int chown(const char *, uid_t, gid_t);
+extern int fchown(int, uid_t, gid_t);
+extern int lchown(const char *, uid_t, gid_t);
 #endif
 
 /* input and output primitives */

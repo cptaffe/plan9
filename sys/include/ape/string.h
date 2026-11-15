@@ -41,8 +41,11 @@ extern size_t strlcpy(char *, const char *, size_t);
 extern size_t strlcat(char *, const char *, size_t);
 #endif
 
+#if defined(_REENTRANT_SOURCE) || _POSIX_C_SOURCE >= 200112L
+extern int strerror_r(int, char *, size_t);
+#endif
+
 #ifdef _REENTRANT_SOURCE
-extern char *strerror_r(int, const char *, int);
 extern char *strtok_r(char *, const char *, char **);
 #endif
 
