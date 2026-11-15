@@ -28,7 +28,7 @@ freelines(Vtline *l, int rows)
 }
 
 void
-blank(Vt *vt, Vtcell *c, int n)
+_vtblank(Vt *vt, Vtcell *c, int n)
 {
 	Priv *p;
 	int i;
@@ -49,14 +49,14 @@ blanklines(Vt *vt, Vtline *l, int rows)
 	int i;
 
 	for(i = 0; i < rows; i++){
-		blank(vt, l[i].c, vt->cols);
+		_vtblank(vt, l[i].c, vt->cols);
 		l[i].wrapped = 0;
 	}
 }
 
-/* begin starts a change: the dirty rows the last frame gave are cleared */
+/* _vtbegin starts a change: the dirty rows the last frame gave are cleared */
 void
-begin(Vt *vt)
+_vtbegin(Vt *vt)
 {
 	Priv *p;
 
@@ -68,14 +68,14 @@ begin(Vt *vt)
 }
 
 void
-touch(Vt *vt, int y)
+_vttouch(Vt *vt, int y)
 {
 	if(y >= 0 && y < vt->rows)
 		P(vt)->dirty[y] = 1;
 }
 
 void
-touchall(Vt *vt)
+_vttouchall(Vt *vt)
 {
 	P(vt)->all = 1;
 }
@@ -154,9 +154,9 @@ damage(Vt *vt, int top, int bot, int n)
 	s->n = n;
 }
 
-/* scroll moves rows top to bot-1 up by n, or down by -n; keep says the lines that leave the top go to gone */
+/* _vtscroll moves rows top to bot-1 up by n, or down by -n; keep says the lines that leave the top go to gone */
 void
-scroll(Vt *vt, int top, int bot, int n, int keep)
+_vtscroll(Vt *vt, int top, int bot, int n, int keep)
 {
 	Vtline t;
 	int i, h;
@@ -176,7 +176,7 @@ scroll(Vt *vt, int top, int bot, int n, int keep)
 			t = vt->line[top];
 			memmove(vt->line+top, vt->line+top+1, (h-1)*sizeof t);
 			vt->line[bot-1] = t;
-			blank(vt, t.c, vt->cols);
+			_vtblank(vt, t.c, vt->cols);
 			vt->line[bot-1].wrapped = 0;
 		}
 	else
@@ -184,7 +184,7 @@ scroll(Vt *vt, int top, int bot, int n, int keep)
 			t = vt->line[bot-1];
 			memmove(vt->line+top+1, vt->line+top, (h-1)*sizeof t);
 			vt->line[top] = t;
-			blank(vt, t.c, vt->cols);
+			_vtblank(vt, t.c, vt->cols);
 			vt->line[top].wrapped = 0;
 		}
 	damage(vt, top, bot, n);
@@ -250,7 +250,7 @@ vtfree(Vt *vt)
 }
 
 void
-softreset(Vt *vt)
+_vtsoftreset(Vt *vt)
 {
 	Priv *p;
 
@@ -272,9 +272,9 @@ vtreset(Vt *vt)
 	Priv *p;
 
 	p = P(vt);
-	begin(vt);
+	_vtbegin(vt);
 	vt->mode = 0;
-	softreset(vt);
+	_vtsoftreset(vt);
 	vt->line = p->main;
 	blanklines(vt, p->main, vt->rows);
 	blanklines(vt, p->alt, vt->rows);
@@ -283,7 +283,7 @@ vtreset(Vt *vt)
 	p->state = Ground;
 	p->nutf = 0;
 	p->last = 0;
-	touchall(vt);
+	_vttouchall(vt);
 }
 
 static void
@@ -297,7 +297,7 @@ resizelines(Vt *vt, Vtline **lp, int cols, int rows)
 	l = newlines(cols, rows);
 	n = rows < vt->rows ? rows : vt->rows;
 	for(i = 0; i < rows; i++){
-		blank(vt, l[i].c, cols);
+		_vtblank(vt, l[i].c, cols);
 		if(i < n){
 			memmove(l[i].c, o[i].c, (cols < oc ? cols : oc)*sizeof(Vtcell));
 			l[i].wrapped = o[i].wrapped;
@@ -324,18 +324,18 @@ vtresize(Vt *vt, int cols, int rows)
 		rows = 1;
 	if(p->dumb || cols == vt->cols && rows == vt->rows)
 		return;
-	begin(vt);
+	_vtbegin(vt);
 	alt = vt->line == p->alt;
 	if(vt->y >= rows){
 		n = vt->y - rows + 1;
-		scroll(vt, 0, vt->rows, n, 1);
+		_vtscroll(vt, 0, vt->rows, n, 1);
 		vt->y -= n;
 	}
 	for(i = 0; i < Vgone; i++)
 		if(p->ring[i].c != nil){
 			p->ring[i].c = realloc(p->ring[i].c, cols*sizeof(Vtcell));
 			if(cols > vt->cols)
-				blank(vt, p->ring[i].c+vt->cols, cols-vt->cols);
+				_vtblank(vt, p->ring[i].c+vt->cols, cols-vt->cols);
 		}
 	resizelines(vt, &p->main, cols, rows);
 	resizelines(vt, &p->alt, cols, rows);
@@ -362,7 +362,7 @@ vtresize(Vt *vt, int cols, int rows)
 			p->saved[i].y = rows-1;
 	}
 	p->pending = 0;
-	touchall(vt);
+	_vttouchall(vt);
 }
 
 void

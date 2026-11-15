@@ -116,7 +116,7 @@ index(Vt *vt)
 	p = P(vt);
 	p->pending = 0;
 	if(vt->y == p->bot-1)
-		scroll(vt, p->top, p->bot, 1, 1);
+		_vtscroll(vt, p->top, p->bot, 1, 1);
 	else if(vt->y < vt->rows-1)
 		vt->y++;
 }
@@ -129,7 +129,7 @@ revindex(Vt *vt)
 	p = P(vt);
 	p->pending = 0;
 	if(vt->y == p->top)
-		scroll(vt, p->top, p->bot, -1, 0);
+		_vtscroll(vt, p->top, p->bot, -1, 0);
 	else if(vt->y > 0)
 		vt->y--;
 }
@@ -171,10 +171,10 @@ erase(Vt *vt, int y, int x0, int x1)
 	if(x0 >= x1)
 		return;
 	unwide(vt, y, x0, x1-x0);
-	blank(vt, vt->line[y].c+x0, x1-x0);
+	_vtblank(vt, vt->line[y].c+x0, x1-x0);
 	if(x1 == vt->cols)
 		vt->line[y].wrapped = 0;
-	touch(vt, y);
+	_vttouch(vt, y);
 }
 
 static void
@@ -254,7 +254,7 @@ put(Vt *vt, Rune r)
 		c[1].r = 0;
 		c[1].attr = (c[0].attr & ~Vwide) | Vcont;
 	}
-	touch(vt, vt->y);
+	_vttouch(vt, vt->y);
 	p->last = r;
 	if(vt->x+w >= vt->cols){
 		vt->x = vt->cols-1;
@@ -399,10 +399,10 @@ altscreen(Vt *vt, int on, int clear)
 		vt->mode &= ~Malt;
 	if(on && clear)
 		for(i = 0; i < vt->rows; i++){
-			blank(vt, p->alt[i].c, vt->cols);
+			_vtblank(vt, p->alt[i].c, vt->cols);
 			p->alt[i].wrapped = 0;
 		}
-	touchall(vt);
+	_vttouchall(vt);
 }
 
 static void
@@ -594,13 +594,13 @@ insertcells(Vt *vt, int n)
 		n = k;
 	unwide(vt, vt->y, vt->x, 0);
 	memmove(c+vt->x+n, c+vt->x, (k-n)*sizeof c[0]);
-	blank(vt, c+vt->x, n);
+	_vtblank(vt, c+vt->x, n);
 	if(c[vt->cols-1].attr & Vwide){
 		c[vt->cols-1].r = ' ';
 		c[vt->cols-1].attr &= ~Vwide;
 	}
 	vt->line[vt->y].wrapped = 0;
-	touch(vt, vt->y);
+	_vttouch(vt, vt->y);
 }
 
 static void
@@ -615,9 +615,9 @@ deletecells(Vt *vt, int n)
 		n = k;
 	unwide(vt, vt->y, vt->x, n);
 	memmove(c+vt->x, c+vt->x+n, (k-n)*sizeof c[0]);
-	blank(vt, c+vt->cols-n, n);
+	_vtblank(vt, c+vt->cols-n, n);
 	vt->line[vt->y].wrapped = 0;
-	touch(vt, vt->y);
+	_vttouch(vt, vt->y);
 }
 
 static void
@@ -639,7 +639,7 @@ csi(Vt *vt, int f)
 		return;
 	if(p->inter != 0){
 		if(p->inter == '!' && f == 'p'){
-			softreset(vt);
+			_vtsoftreset(vt);
 			vt->x = vt->y = 0;
 		}
 		return;
@@ -715,14 +715,14 @@ csi(Vt *vt, int f)
 		break;
 	case 'L':
 		if(vt->y >= p->top && vt->y < p->bot){
-			scroll(vt, vt->y, p->bot, -n, 0);
+			_vtscroll(vt, vt->y, p->bot, -n, 0);
 			vt->x = 0;
 			p->pending = 0;
 		}
 		break;
 	case 'M':
 		if(vt->y >= p->top && vt->y < p->bot){
-			scroll(vt, vt->y, p->bot, n, 0);
+			_vtscroll(vt, vt->y, p->bot, n, 0);
 			vt->x = 0;
 			p->pending = 0;
 		}
@@ -731,11 +731,11 @@ csi(Vt *vt, int f)
 		deletecells(vt, n);
 		break;
 	case 'S':
-		scroll(vt, p->top, p->bot, n, 1);
+		_vtscroll(vt, p->top, p->bot, n, 1);
 		break;
 	case 'T':
 		if(nargs(vt) <= 1)
-			scroll(vt, p->top, p->bot, -n, 0);
+			_vtscroll(vt, p->top, p->bot, -n, 0);
 		break;
 	case 'X':
 		erase(vt, vt->y, vt->x, vt->x+n);
@@ -830,7 +830,7 @@ esc(Vt *vt, int f)
 			p->top = 0;
 			p->bot = vt->rows;
 			vt->x = vt->y = 0;
-			touchall(vt);
+			_vttouchall(vt);
 		}
 		return;
 	}
@@ -1082,7 +1082,7 @@ vtwrite(Vt *vt, uchar *buf, long n)
 	long i;
 
 	p = P(vt);
-	begin(vt);
+	_vtbegin(vt);
 	for(i = 0; i < n; i++){
 		if(p->nutf > 0){
 			if((buf[i] & 0xC0) == 0x80){
