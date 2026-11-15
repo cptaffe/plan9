@@ -182,11 +182,10 @@ xfidattach(Xfid *x)
 			err = Ebadrect;
 		else{
 			if(hideit)
-				i = allocimage(display, r, screen->chan, 0, DWhite);
+				i = allocimage(display, r, screen->chan, 0, backcolor);
 			else
-				i = allocwindow(wscreen, r, Refbackup, DWhite);
+				i = allocwindow(wscreen, r, Refbackup, backcolor);
 			if(i){
-				border(i, r, Selborder, display->black, ZP);
 				if(pid == 0)
 					pid = -1;	/* make sure we don't pop a shell! - UGH */
 				w = new(i, hideit, scrolling, pid, nil, nil, nil);

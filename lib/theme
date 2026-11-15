@@ -1,31 +1,70 @@
-# The system's colors (theme(6)). A program reads $home/lib/theme, or this file if there is none;
-# copy this file there to change it. A name left out keeps the program's own color.
+# The system's colors (theme(6)), night, a dark theme; /lib/themes/day is the light one. A program
+# reads $home/lib/theme, or this file if there is none; copy a theme there to change it. A name left
+# out keeps the program's own color.
 
-# rio: back text high htext border title ltitle hold lhold palehold size rioback
-# menus: menuback menuhigh menubord menutext menuhtext
-# acme's windows: tag body tagsel bodysel tagborder bodyborder modbutton colbutton but2 but3
+# rio
+rioback	0e1015
+wallpaper	fg=6a7488 bg=0c0e12
+back	1b1e24
+text	d4d4cc
+ltext	7d8594
+high	3b4a5e
+htext	f2f2ea
+border	2c313a
+title	46607f
+ltitle	3a404c
+hold	a98bd6
+lhold	5d4c7c
+palehold	3b3550
+size	e8747c
 
-# Text in acme's style files and astyles(4)'s layers, by role
-comment	fg=336633 bg=f0fff0
-keyword	fg=00007f bg=f0f0ff
-string	fg=880000 bg=fff0f0
-type	fg=440088 bg=f5f0ff
-number	fg=884400 bg=fffaf0
-operator	fg=444444
-error	fg=cc0000 bg=ffe8e8
-warning	fg=885500 bg=fff4d8
-info	fg=005588
-hint	fg=667766
-function	fg=006677 bg=f0fafc
-macro	fg=995500 bg=fffcee
-namespace	fg=005577
-variable	fg=222222
-highlight	fg=000000 bg=ffff00
-bold	fg=000066
-italic	fg=224444
-heading1	fg=1a0078 bg=e4e0ff
-heading2	fg=000066 bg=eef0ff
-heading3	fg=000077
-heading4	fg=222266
-heading5	fg=333388
-heading6	fg=4444aa
+# menus
+menuback	222833
+menuhigh	3b4a5e
+menubord	56647a
+menutext	c9d3df
+menuhtext	ffffff
+
+# acme
+tag	fg=c9d3df bg=222833
+tagsel	fg=eef3f8 bg=3b4a5e
+tagborder	56647a
+body	fg=d4d4cc bg=1b1e24
+bodysel	fg=f2eedc bg=4b4530
+bodyborder	3a404c
+modbutton	6b9bd8
+colbutton	8a7fd0
+but2	a8414b
+but3	3f7a45
+colback	15171c
+colrule	0c0e12
+
+# libcontrol
+pale	2c313a
+entry	222833
+ok	3f7a45
+
+# roles in acme's style files and astyles(4)'s layers
+comment	fg=7d8594
+keyword	fg=c792ea
+string	fg=a8cc8c
+type	fg=e5c07b
+number	fg=e09a6a
+operator	fg=98a2b0
+function	fg=6fb3f2
+macro	fg=5cc3c8
+namespace	fg=7fb4ca
+variable	fg=d4d4cc
+error	fg=ff8a8a bg=3a1f24
+warning	fg=e5c07b bg=33301e
+info	fg=6fb3f2
+hint	fg=7d8594
+highlight	fg=1b1e24 bg=e5c07b
+bold	fg=ffffff
+italic	fg=c8c0b0
+heading1	fg=6fb3f2 bg=232b38
+heading2	fg=6fb3f2
+heading3	fg=8cc4f5
+heading4	fg=a6cdf0
+heading5	fg=b6c6d8
+heading6	fg=98a2b0

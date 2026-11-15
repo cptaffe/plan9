@@ -64,7 +64,9 @@ For these a bare color is the text's.
 .BR htext
 and
 .B border
-for the windows' text;
+for the windows' text,
+.B ltext
+for the text of windows other than the current one;
 .B title
 and
 .B ltitle
@@ -164,12 +166,15 @@ which controls take when not told otherwise, and which programs such as
 name.
 .SH FILES
 .TP
-.B /lib/themes/night
-a dark theme; copy it to
+.B /lib/theme
+the system's theme, night, a dark one
+.TP
+.B /lib/themes/day
+the light theme, Plan 9's own colors; copy it to
 .B $home/lib/theme
 and start
 .I rio
-again.
+again
 .SH SOURCE
 .B /sys/src/libdraw/theme.c
 .SH SEE ALSO
