@@ -181,7 +181,8 @@ iconinit(void)
 
 /*
  * p9web: /lib/wallpaper, an image(6) file of depth 8 (k8), scaled to cover the screen r and cut
- * to it, is the background. Without it rio keeps its grey.
+ * to it, is the background. Without it rio keeps its grey. The theme's wallpaper, fg= and bg=,
+ * colors it: black becomes bg and white fg.
  */
 void
 wallpaper(Rectangle r)
@@ -189,9 +190,11 @@ wallpaper(Rectangle r)
 	static uchar *data;
 	static int w, h, tried;
 	char hdr[5*12+1];
-	uchar *buf, *p;
+	uchar *buf, *p, *tint;
 	Image *b;
-	int fd, x, y, W, H, sx, sy, ox, oy;
+	Themecol *t;
+	ulong chan;
+	int fd, x, y, W, H, sx, sy, ox, oy, i, k, f, g, n;
 	double s;
 
 	if(!tried){
@@ -212,6 +215,8 @@ wallpaper(Rectangle r)
 	H = Dy(r);
 	if(data == nil || (buf = malloc(W*H)) == nil)
 		return;
+	chan = GREY8;
+	n = W*H;
 	s = (double)W/w;
 	if((double)H/h > s)
 		s = (double)H/h;
@@ -225,8 +230,20 @@ wallpaper(Rectangle r)
 			*p++ = data[sy*w + sx];
 		}
 	}
-	if((b = allocimage(display, r, GREY8, 0, DBlack)) != nil){
-		loadimage(b, r, buf, W*H);
+	if((t = themelook("wallpaper")) != nil && t->fg && t->bg && (tint = malloc(3*W*H)) != nil){
+		for(i = 0; i < W*H; i++)
+			for(k = 0; k < 3; k++){
+				f = t->fg>>(8+8*k) & 0xFF;
+				g = t->bg>>(8+8*k) & 0xFF;
+				tint[3*i+k] = g + (f-g)*buf[i]/255;
+			}
+		free(buf);
+		buf = tint;
+		chan = RGB24;
+		n = 3*W*H;
+	}
+	if((b = allocimage(display, r, chan, 0, DBlack)) != nil){
+		loadimage(b, r, buf, n);
 		freeimage(background);
 		background = b;
 	}

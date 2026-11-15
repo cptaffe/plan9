@@ -615,6 +615,8 @@ Image		*colbutton;
 Image		*button;
 Image		*but2col;
 Image		*but3col;
+Image		*colback;
+Image		*colrule;
 Cursor		boxcursor;
 Row			row;
 int			timerpid;

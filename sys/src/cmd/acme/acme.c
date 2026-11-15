@@ -596,8 +596,8 @@ mousethread(void *)
 		case MResize:
 			if(getwindow(display, Refnone) < 0)
 				error("attach to window");
-			draw(screen, screen->r, display->white, nil, ZP);
 			iconinit();
+			draw(screen, screen->r, colback, nil, ZP);
 			scrlresize();
 			rowresize(&row, screen->clipr);
 			dumpseq++;
@@ -1047,6 +1047,15 @@ iconinit(void)
 {
 	Rectangle r;
 	Image *tmp;
+
+	if(colback == nil){
+		colback = display->white;
+		colrule = display->black;
+		if(themelook("colback") != nil)
+			colback = colimage(themecolor("colback", DWhite));
+		if(themelook("colrule") != nil)
+			colrule = colimage(themecolor("colrule", DBlack));
+	}
 
 	if(tagcols[BACK] == nil) {
 		/* Blue */
