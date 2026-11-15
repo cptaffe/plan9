@@ -1,0 +1,50 @@
+#!/bin/rc
+rfork e
+if(! ~ $#* 1){
+	echo 'usage: Slides file' >[1=2]
+	exit usage
+}
+f=`{cleanname -d `{pwd} $1}
+if(! test -r $f){
+	echo 'Slides: cannot read '^$f >[1=2]
+	exit open
+}
+. /lib/acme.rc
+n=1
+last=`{awk '/^---$/{s++} END{print s+1}' $f}
+newwindow
+winname `{basename -d $f}^/+Slides
+echo -n ' Prev Next ' | winwrite tag
+fn show {
+	echo -n , | winwrite addr
+	awk -v 'n='^$n '/^---$/{s++; next} s == n-1' $f | winwrite data
+	winctl clean
+	echo -n '#0' | winwrite addr
+	winctl 'dot=addr'
+	winctl show
+}
+fn event {
+	switch($1$2){
+	case Mx MX
+		switch($9){
+		case Next
+			if(test $n -lt $last){
+				n=`{echo $n+1 | hoc}
+				show
+			}
+			windoneevent $*
+		case Prev
+			if(test $n -gt 1){
+				n=`{echo $n-1 | hoc}
+				show
+			}
+			windoneevent $*
+		case *
+			winwriteevent $*
+		}
+	case Ml ML
+		winwriteevent $*
+	}
+}
+show
+wineventloop
