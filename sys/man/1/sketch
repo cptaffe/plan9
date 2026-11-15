@@ -62,21 +62,8 @@ with circles around them of the radii
 chose; and, while a point is placed, the middles of the lines that stay put.
 The mark takes a guide, or where it crosses a line or another guide,
 and the message line says which.
-Letting go on a guide keeps what it says:
-on a level or upright guide, an
-.B H
-with the point it goes through; on a line extended, an
-.B L
-on that line; at a middle, an
-.BR X ;
-on a circle of a typed radius, a
-.B W
-holding that length, and on one of a line's length, an
-.B M
-keeping the two lengths equal, so the drawing still scales.
-Constraints just made show in blue until the next command, and
-.B n
-drops them.
+Letting go on a guide puts the point there and makes no constraint,
+as Gargoyle's snapping does.
 During a drag,
 .B g
 turns this gravity off or on, and
@@ -89,7 +76,7 @@ halve or double its reach.
 .TP
 button 1
 Draw a line from the mark, using a point there if there is one; its end follows the mouse.
-Letting go on a point joins them; on a line or arc, the end stays on it.
+Letting go on a point joins them; on a line or arc, the end goes on it.
 A click with no drag leaves a point.
 After a circle center
 .RB ( c ),
@@ -195,7 +182,9 @@ On a line, make circles of its length, or stop; elsewhere, type a radius in inch
 to make circles of it, or stop, or newline alone to stop all.
 .TP
 .B n
-Drop the constraints the last command made, keeping where things went.
+Drop the constraints the last command, such as
+.B h
+or a copy, made, keeping where things went.
 .TP
 .B "g < >"
 Gravity off or on, half or twice as far, here or during a drag.
