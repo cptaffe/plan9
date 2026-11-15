@@ -12,6 +12,37 @@
 #include <sys/uio.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <termios.h>
+
+static int
+pttysize(struct winsize *w)
+{
+	char buf[128], *p;
+	int fd, n, i;
+
+	if((fd = open("/dev/consctl", O_RDONLY)) < 0)
+		return -1;
+	n = read(fd, buf, sizeof buf - 1);
+	close(fd);
+	if(n <= 0)
+		return -1;
+	buf[n] = 0;
+	if(strncmp(buf, "IOR ", 4) != 0)
+		return -1;
+	p = buf;
+	for(i = 0; i < 1+4+NCCS+1 && p != NULL; i++)
+		if((p = strchr(p, ' ')) != NULL)
+			p++;
+	if(p == NULL)
+		return -1;
+	w->ws_col = strtol(p, &p, 10);
+	w->ws_row = strtol(p, &p, 10);
+	if(w->ws_col <= 0 || w->ws_row <= 0)
+		return -1;
+	w->ws_xpixel = 0;
+	w->ws_ypixel = 0;
+	return 0;
+}
 
 static int
 envint(char *name)
@@ -46,6 +77,8 @@ ioctl(int fd, unsigned long request, void* arg)
 		return 0;
 	} else if(request == TIOCGWINSZ) {
 		w = arg;
+		if(isatty(fd) && pttysize(w) == 0)
+			return 0;
 		if(!isatty(fd) || (w->ws_row = envint("LINES")) == 0 || (w->ws_col = envint("COLS")) == 0) {
 			errno = ENOTTY;
 			return -1;
