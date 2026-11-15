@@ -1,0 +1,8 @@
+# The languages hl(1) colors, by tree-sitter's programs, /bin/ts/name (ts(1)): one a line,
+# ts=name file=pattern, where pattern is a regexp(6) that a window's file name matches.
+# $home/lib/ts is read in place of this file.
+ts=c file="\.[ch]$"
+ts=markdown file="(\.md|/README)$"
+ts=go file="\.go$"
+ts=python file="\.py$"
+ts=rust file="\.rs$"
