@@ -82,14 +82,16 @@ Commands act on what it is at.
 It takes a point within 5/64 inch, and a line, an arc or a crossing within 5/32.
 .PP
 While something is drawn or moved, faint guides show:
-level and upright lines through the points the moving ones are joined to,
+lines at the drawing's slopes, level and upright unless
+.B /
+changes them, through the points the moving ones are joined to,
 and those points' lines extended,
 and the same through the designated points, the anchor, and the hot points
 .RB ( e ),
-with circles around them of the radii
+with circles around them of the drawing's lengths, which
 .B o
-chose; and, while a point is placed, the middles of the lines that stay put.
-The anchor's lines are at their angles to the line or arc it ends, if it ends one,
+chooses; and, while a point is placed, the middles of the lines that stay put.
+The anchor's lines are at their slopes from the line or arc it ends, if it ends one,
 so its level line there is the tangent and its upright the normal.
 The mark takes a guide, or where it crosses a line or another guide,
 and the message line says which.
@@ -265,6 +267,16 @@ Hot points show as gray squares.
 On a line, make circles of its length, or stop; at a point, with an anchor, circles of the
 distance between them; elsewhere, type a radius in inches and newline
 to make circles of it, or stop, or newline alone to stop all.
+A length typed or measured becomes a fixed scalar of the drawing.
+The lengths, and the slopes, are saved in the file, as
+.B "# sk lengths"
+and
+.BR "# sk slopes" ,
+and undo takes them back.
+.TP
+.B /
+On a line, make guides at its slope, or stop; elsewhere, type a slope in degrees from level and
+newline to make guides at it, or stop, or newline alone to go back to level and upright.
 .TP
 .B n
 Drop the constraints the last command, such as
