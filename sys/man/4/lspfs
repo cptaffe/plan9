@@ -64,6 +64,21 @@ the first name found anywhere gives the root.
 A server with no
 .B root=
 gets no project at all and finds its own.
+.TP
+.B map=
+two paths, ours and the server's, for a server that sees the files under other names:
+one on another machine, run by
+.IR ssh (1)
+with its files in
+.BR /n ,
+as
+.B map='/n/devbox /'
+for one whose
+.B /
+is
+.BR /n/devbox .
+A name under the first is given to the server under the second, and the server's names
+under the second come back under the first.
 .PD
 .PP
 Other attributes are for other programs, which read the same file:
