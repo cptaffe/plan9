@@ -151,6 +151,9 @@ extern pid_t setsid(void);
 
 /* files and directories */
 extern int chdir(const char *);
+#if defined(_SUSV2_SOURCE) || defined(_BSD_EXTENSION)
+extern int chroot(const char *);
+#endif
 #if _POSIX_C_SOURCE >= 200112L || defined(_BSD_EXTENSION)
 extern int fchdir(int);
 #endif
