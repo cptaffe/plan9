@@ -23,6 +23,22 @@
 #define	CNSWTCH	0
 
 static int
+ptyctl(char *buf, int n, int write)
+{
+	int fd;
+
+	if((fd = _OPEN("/dev/consctl", write ? 1 : 0)) < 0) {
+		_syserrno();
+		return -1;
+	}
+	n = write ? _WRITE(fd, buf, n) : _READ(fd, buf, n);
+	if(n < 0)
+		_syserrno();
+	_CLOSE(fd);
+	return n;
+}
+
+static int
 isptty(int fd)
 {
 	Dir *d;
@@ -62,16 +78,10 @@ tcgetattr(int fd, struct termios *t)
 			return -1;
 		}
 	}
-	if(_SEEK(fd, -2, 0) != -2) {
-		_syserrno();
+	n = ptyctl(buf, 57, 0);
+	if(n < 0)
 		return -1;
-	}
-
-	n = _READ(fd, buf, 57);
-	if(n < 0) {
-		_syserrno();
-		return -1;
-	}
+	buf[n] = 0;
 
 	t->c_iflag = strtoul(buf+4, 0, 16);
 	t->c_oflag = strtoul(buf+9, 0, 16);
@@ -105,16 +115,8 @@ tcsetattr(int fd, int, const struct termios *t)
 	for(i = 0; i < NCCS; i++)
 		n += sprintf(buf+n, "%2.2x ", t->c_cc[i]);
 
-	if(_SEEK(fd, -2, 0) != -2) {
-		_syserrno();
+	if(ptyctl(buf, n, 1) < 0)
 		return -1;
-	}
-
-	n = _WRITE(fd, buf, n);
-	if(n < 0) {
-		_syserrno();
-		return -1;
-	}
 
 	return 0;
 }
@@ -134,16 +136,8 @@ tcsetpgrp(int fd, pid_t pgrpid)
 	}
 	n = sprintf(buf, "IOW note %d", pgrpid);
 
-	if(_SEEK(fd, -2, 0) != -2) {
-		_syserrno();
+	if(ptyctl(buf, n, 1) < 0)
 		return -1;
-	}
-
-	n = _WRITE(fd, buf, n);
-	if(n < 0) {
-		_syserrno();
-		return -1;
-	}
 	return 0;
 }
 
@@ -158,15 +152,10 @@ tcgetpgrp(int fd)
 		errno = ENOTTY;
 		return -1;
 	}
-	if(_SEEK(fd, -2, 0) != -2) {
-		_syserrno();
+	n = ptyctl(buf, sizeof(buf)-1, 0);
+	if(n < 0)
 		return -1;
-	}
-	n = _READ(fd, buf, sizeof(buf));
-	if(n < 0) {
-		_syserrno();
-		return -1;
-	}
+	buf[n] = 0;
 	pgrp = atoi(buf+24+(NCCS*3));
 	return pgrp;
 }
