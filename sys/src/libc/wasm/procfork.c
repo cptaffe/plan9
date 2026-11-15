@@ -5,6 +5,8 @@
 
 P9(rfork) extern int p9web·rfork(int);
 
+char _procforkmark[1];
+
 #ifdef __clang__
 __attribute__((used))
 #endif
