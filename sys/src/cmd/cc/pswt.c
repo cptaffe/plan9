@@ -53,7 +53,7 @@ doswit(Node *n)
 		if(isv)
 			q->val = c->val;
 		else
-			q->val = (long)c->val;	/* cast ensures correct value for 32-bit switch on 64-bit architecture */
+			q->val = convvtox(c->val, TLONG);
 		q++;
 	}
 	qsort(iq, nc, sizeof(C1), swcmp);
@@ -105,7 +105,7 @@ doswit(Node *n)
 		for(j = i; j < nc; j++){
 			if((iq[j].val>>32) != iqh[nh].val)
 				break;
-			q->val = (long)iq[j].val;
+			q->val = convvtox(iq[j].val, TLONG);
 			q->label = iq[j].label;
 			q++;
 		}

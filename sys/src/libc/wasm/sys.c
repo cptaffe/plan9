@@ -1,76 +1,69 @@
-/*
- * The system calls on wasm: each an import of the p9web module, a trap into the kernel's half
- * of the process (k/src/proc/syscall.ts). An import gives -errno on failure, and errstr then has
- * the kernel's text, as on any Plan 9.
- */
 #include <u.h>
 #include <libc.h>
 #include <tos.h>
+#include "wasm.h"
 
-#define	P9(name)	__attribute__((import_module("p9web"), import_name(name)))
+P9(open) extern int p9web·open(char*, int, int);
+P9(create) extern int p9web·create(char*, int, int, ulong);
+P9(close) extern int p9web·close(int);
+P9(pread) extern long p9web·pread(int, void*, long, vlong);
+P9(pwrite) extern long p9web·pwrite(int, void*, long, vlong);
+P9(seek) extern int p9web·seek(int, vlong, int, vlong*);
+P9(stat) extern int p9web·stat(char*, int, uchar*, int);
+P9(fstat) extern int p9web·fstat(int, uchar*, int);
+P9(wstat) extern int p9web·wstat(char*, int, uchar*, int);
+P9(fwstat) extern int p9web·fwstat(int, uchar*, int);
+P9(remove) extern int p9web·remove(char*, int);
+P9(chdir) extern int p9web·chdir(char*, int);
+P9(fd2path) extern int p9web·fd2path(int, char*, int);
+P9(dup) extern int p9web·dup(int, int);
+P9(pipe) extern int p9web·pipe(int*);
+P9(rfork) extern int p9web·rfork(int);
+P9(exec) extern int p9web·exec(char*, int, char*, int);
+P9(await) extern int p9web·await(int, char*, int);
+P9(errstr) extern int p9web·errstr(char*, uint);
+P9(sleep) extern int p9web·sleep(long);
+P9(alarm) extern long p9web·alarm(ulong);
+P9(bind) extern int p9web·bind(char*, int, char*, int, int);
+P9(mount) extern int p9web·mount(int, int, char*, int, int, char*, int);
+P9(unmount) extern int p9web·unmount(char*, int, char*, int);
+P9(notify) extern int p9web·notify(void(*)(void*, char*));
+P9(exits) extern void p9web·exits(char*, int);
+P9(rendezvous) extern void* p9web·rendezvous(void*, void*);
 
-P9("open") extern int p9open(char*, int, int);
-P9("create") extern int p9create(char*, int, int, ulong);
-P9("close") extern int p9close(int);
-P9("pread") extern long p9pread(int, void*, long, vlong);
-P9("pwrite") extern long p9pwrite(int, void*, long, vlong);
-P9("seek") extern int p9seek(int, vlong, int, vlong*);
-P9("stat") extern int p9stat(char*, int, uchar*, int);
-P9("fstat") extern int p9fstat(int, uchar*, int);
-P9("wstat") extern int p9wstat(char*, int, uchar*, int);
-P9("fwstat") extern int p9fwstat(int, uchar*, int);
-P9("remove") extern int p9remove(char*, int);
-P9("chdir") extern int p9chdir(char*, int);
-P9("fd2path") extern int p9fd2path(int, char*, int);
-P9("dup") extern int p9dup(int, int);
-P9("pipe") extern int p9pipe(int*);
-P9("rfork") extern int p9rfork(int);
-P9("exec") extern int p9exec(char*, int, char*, int);
-P9("await") extern int p9await(int, char*, int);
-P9("errstr") extern int p9errstr(char*, uint);
-P9("sleep") extern int p9sleep(long);
-P9("alarm") extern long p9alarm(ulong);
-P9("bind") extern int p9bind(char*, int, char*, int, int);
-P9("mount") extern int p9mount(int, int, char*, int, int, char*, int);
-P9("unmount") extern int p9unmount(char*, int, char*, int);
-P9("notify") extern int p9notify(void(*)(void*, char*));
-P9("exits") extern void p9exits(char*, int);
-P9("rendezvous") extern void* p9rendezvous(void*, void*);
-
-/* neg is a call's result: Plan 9's -1, for an import's -errno. */
 static long
 neg(long r)
 {
 	return r < 0 ? -1 : r;
 }
 
-int open(char *f, int m) { return neg(p9open(f, strlen(f), m)); }
-int create(char *f, int m, ulong p) { return neg(p9create(f, strlen(f), m, p)); }
-int close(int f) { return neg(p9close(f)); }
-long pread(int f, void *a, long n, vlong o) { return neg(p9pread(f, a, n, o)); }
-long pwrite(int f, void *a, long n, vlong o) { return neg(p9pwrite(f, a, n, o)); }
-int stat(char *f, uchar *b, int n) { return neg(p9stat(f, strlen(f), b, n)); }
-int fstat(int f, uchar *b, int n) { return neg(p9fstat(f, b, n)); }
-int wstat(char *f, uchar *b, int n) { return neg(p9wstat(f, strlen(f), b, n)) < 0 ? -1 : n; }
-int fwstat(int f, uchar *b, int n) { return neg(p9fwstat(f, b, n)) < 0 ? -1 : n; }
-int remove(char *f) { return neg(p9remove(f, strlen(f))); }
-int chdir(char *f) { return neg(p9chdir(f, strlen(f))); }
-int fd2path(int f, char *b, int n) { return neg(p9fd2path(f, b, n)); }
-int dup(int o, int n) { return neg(p9dup(o, n)); }
-int pipe(int *p) { return neg(p9pipe(p)); }
-int await(char *b, int n) { return neg(p9await(0, b, n)); }
-int errstr(char *b, uint n) { return p9errstr(b, n); }
-int sleep(long ms) { return neg(p9sleep(ms)); }
-void* rendezvous(void *t, void *v) { return p9rendezvous(t, v); }
-int bind(char *a, char *b, int f) { return neg(p9bind(a, strlen(a), b, strlen(b), f)); }
-int unmount(char *a, char *b) { if(a == nil) a = ""; return neg(p9unmount(a, strlen(a), b, strlen(b))); }
+int open(char *f, int m) { return neg(p9web·open(f, strlen(f), m)); }
+int create(char *f, int m, ulong p) { return neg(p9web·create(f, strlen(f), m, p)); }
+int close(int f) { return neg(p9web·close(f)); }
+long pread(int f, void *a, long n, vlong o) { return neg(p9web·pread(f, a, n, o)); }
+long pwrite(int f, void *a, long n, vlong o) { return neg(p9web·pwrite(f, a, n, o)); }
+int stat(char *f, uchar *b, int n) { return neg(p9web·stat(f, strlen(f), b, n)); }
+int fstat(int f, uchar *b, int n) { return neg(p9web·fstat(f, b, n)); }
+int wstat(char *f, uchar *b, int n) { return neg(p9web·wstat(f, strlen(f), b, n)) < 0 ? -1 : n; }
+int fwstat(int f, uchar *b, int n) { return neg(p9web·fwstat(f, b, n)) < 0 ? -1 : n; }
+int remove(char *f) { return neg(p9web·remove(f, strlen(f))); }
+int chdir(char *f) { return neg(p9web·chdir(f, strlen(f))); }
+int fd2path(int f, char *b, int n) { return neg(p9web·fd2path(f, b, n)); }
+int dup(int o, int n) { return neg(p9web·dup(o, n)); }
+int pipe(int *p) { return neg(p9web·pipe(p)); }
+int await(char *b, int n) { return neg(p9web·await(0, b, n)); }
+int errstr(char *b, uint n) { return p9web·errstr(b, n); }
+int sleep(long ms) { return neg(p9web·sleep(ms)); }
+void* rendezvous(void *t, void *v) { return p9web·rendezvous(t, v); }
+int bind(char *a, char *b, int f) { return neg(p9web·bind(a, strlen(a), b, strlen(b), f)); }
+int unmount(char *a, char *b) { if(a == nil) a = ""; return neg(p9web·unmount(a, strlen(a), b, strlen(b))); }
 
 int
 mount(int fd, int afd, char *old, int flag, char *aname)
 {
 	if(aname == nil)
 		aname = "";
-	return neg(p9mount(fd, afd, old, strlen(old), flag, aname, strlen(aname)));
+	return neg(p9web·mount(fd, afd, old, strlen(old), flag, aname, strlen(aname)));
 }
 
 vlong
@@ -78,23 +71,22 @@ seek(int f, vlong o, int t)
 {
 	vlong v;
 
-	if(p9seek(f, o, t, &v) < 0)
+	if(p9web·seek(f, o, t, &v) < 0)
 		return -1;
 	return v;
 }
 
-/*
- * rfork with RFPROC copies this process: procfork.c's, by asyncify (D93). It is weak here, so
- * that a program that never forks has no fork import, and needs no asyncify; a program that
- * forks loads procfork (plan9/wasm/mkfile's LDFLAGS, APE's fork).
- */
+#ifdef __clang__
 extern int procfork(int) __attribute__((weak));
+#else
+extern int procfork(int);
+#endif
 
 int
 rfork(int flags)
 {
 	if(!(flags & RFPROC))
-		return neg(p9rfork(flags));
+		return neg(p9web·rfork(flags));
 	if(procfork == nil){
 		werrstr("rfork: the program was not built to fork");
 		return -1;
@@ -119,7 +111,7 @@ exec(char *f, char *argv[])
 		strcpy(p, argv[i]);
 		p += strlen(p)+1;
 	}
-	p9exec(f, strlen(f), b, n);
+	p9web·exec(f, strlen(f), b, n);
 	free(b);
 	return -1;
 }
@@ -129,23 +121,21 @@ _exits(char *s)
 {
 	if(s == nil)
 		s = "";
-	p9exits(s, strlen(s));
+	p9web·exits(s, strlen(s));
 	for(;;)
 		;
 }
 
-/* A note: the handler runs in place at the end of a call (worker.ts), and noted leaves it. */
 static void (*notef)(void*, char*);
 static char notebuf[ERRMAX];
 static jmp_buf notej;
-static uvlong noteureg[8];	/* the handler's ureg: there are no registers to give it, but it is never nil
-				 * (libthread takes nil for "not in a handler", and ends every proc) */
+static uvlong noteureg[8];
 
 int
 notify(void (*f)(void*, char*))
 {
 	notef = f;
-	return neg(p9notify(f));
+	return neg(p9web·notify(f));
 }
 
 int
@@ -155,14 +145,14 @@ noted(int v)
 	return 0;
 }
 
-__attribute__((export_name("p9web_note_buf"))) char*
-notebufp(void)
+EXPORT(p9web_note_buf) char*
+p9web_note_buf(void)
 {
 	return notebuf;
 }
 
-__attribute__((export_name("p9web_note"))) int
-donote(void)
+EXPORT(p9web_note) int
+p9web_note(void)
 {
 	switch(setjmp(notej)){
 	case 0:
@@ -175,8 +165,7 @@ donote(void)
 	return 0;
 }
 
-long alarm(ulong ms) { return neg(p9alarm(ms)); }
+long alarm(ulong ms) { return neg(p9web·alarm(ms)); }
 
-/* Not yet on the kernel. */
 int fauth(int fd, char *a) { USED(fd); USED(a); werrstr("authentication not required"); return -1; }
 int fversion(int fd, int m, char *v, int n) { USED(fd); USED(m); USED(v); USED(n); werrstr("no fversion"); return -1; }

@@ -115,6 +115,7 @@ enum
 	ObjArm64,		/* .4? */
 	ObjRiscv,		/* .i */
 	ObjRiscv64,		/* .j */
+	ObjWasm,		/* .z */
 	Maxobjtype,
 
 	CNONE  = 0,		/* symbol table classes */

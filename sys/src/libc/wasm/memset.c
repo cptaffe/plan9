@@ -1,9 +1,10 @@
 #include	<u.h>
 #include	<libc.h>
+#include	"wasm.h"
 
-/* wasm's memory.fill (bulk memory) */
 void*
 memset(void *ap, int c, ulong n)
 {
-	return __builtin_memset(ap, c, n);
+	wasm·memory_fill(ap, c, n);
+	return ap;
 }

@@ -2,7 +2,11 @@
  * clang: Plan 9's unnamed member of a named type: T's fields in the struct, and a member T for
  * the conversions that Plan 9's compiler makes itself.
  */
+#ifdef __clang__
 #define	Anon(T)	union { T; T T; }
+#else
+#define	Anon(T)	T
+#endif
 
 /* The sizes scale with the display (scalesize), as the border gengetwindow leaves. */
 #define	Selborder	scalesize(display, 4)	/* border of selected window */

@@ -44,6 +44,7 @@ FILES=\
 	9obj\
 	qobj\
 	iobj\
+	zobj\
 	4obj\
 	vcodas\
 
@@ -73,3 +74,4 @@ kobj.$O: /sys/src/cmd/kc/k.out.h
 qobj.$O: /sys/src/cmd/qc/q.out.h
 sparc64obj.$O: sparc64/u.out.h
 vobj.$O: /sys/src/cmd/vc/v.out.h
+zobj.$O: /sys/src/cmd/zc/z.out.h

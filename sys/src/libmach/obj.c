@@ -32,6 +32,7 @@ int	_is2(char*),		/* in [$OS].c */
 	_isv(char*),
 	_isu(char*),
 	_isi(char*),
+	_isz(char*),
 	_read2(Biobuf*, Prog*),
 	_read4(Biobuf*, Prog*),
 	_read5(Biobuf*, Prog*),
@@ -43,7 +44,8 @@ int	_is2(char*),		/* in [$OS].c */
 	_readq(Biobuf*, Prog*),
 	_readv(Biobuf*, Prog*),
 	_readu(Biobuf*, Prog*),
-	_readi(Biobuf*, Prog*);
+	_readi(Biobuf*, Prog*),
+	_readz(Biobuf*, Prog*);
 
 typedef struct Obj	Obj;
 typedef struct Symtab	Symtab;
@@ -70,6 +72,7 @@ static Obj	obj[] =
 	[ObjRiscv]	"riscv .i",	_isi, _readi,
 	[ObjRiscv64]	"riscv64 .j",	_isi, _readi,
 	[ObjMips2]	"mips64 .4",	_is4, _read4,
+	[ObjWasm]	"wasm .z",	_isz, _readz,
 	[Maxobjtype]	0, 0
 };
 

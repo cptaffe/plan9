@@ -1,16 +1,12 @@
-/*
- * What each architecture's main9.s, argv0.s, tas.s, getcallerpc.s and sbrk do, for wasm: _start
- * takes the arguments from the stack, where exec puts them, and runs main, and the heap is the
- * module's memory.
- */
 #include <u.h>
 #include <libc.h>
 #include <tos.h>
+#include "wasm.h"
 
 enum { NPRIVATES = 16 };
 
 extern void main(int, char**);
-extern char __heap_base[], __stack_high[];
+extern char __stack_high[];
 
 Tos *_tos;
 void *_privates;
@@ -18,9 +14,12 @@ int _nprivates;
 char *argv0;
 static Tos tos;
 static void *privates[NPRIVATES];
+#ifdef __clang__
+extern char __heap_base[];
 static char *bloc = __heap_base;
+#endif
+static char asyncbuf[65536];
 
-/* The stack's last word points at argc, which argv and a nil follow (k/src/proc/mach.ts). */
 void
 _start(void)
 {
@@ -35,30 +34,43 @@ _start(void)
 	exits("main");
 }
 
-/* This is a Plan 9 program, not a WASI one: its stats are 9P2000's. */
-__attribute__((export_name("p9web_plan9"))) void
-isplan9(void)
+EXPORT(p9web_plan9) void
+p9web_plan9(void)
 {
 }
 
-__attribute__((export_name("p9web_async_buf"))) char*
-asyncbuf(void)
+EXPORT(p9web_async_buf) char*
+p9web_async_buf(void)
 {
-	static char buf[65536] __attribute__((aligned(16)));
-	return buf;
+	return (char*)(((uintptr)asyncbuf + 15) & ~15);
+}
+
+EXPORT(p9web_async_len) long
+p9web_async_len(void)
+{
+	return sizeof asyncbuf - 16;
 }
 
 int
-brk(void *p)
+brk_(void *p)
 {
 	ulong have, want;
 
-	have = __builtin_wasm_memory_size(0);
+	have = wasm·memory_size();
 	want = ((uintptr)p + 65535) >> 16;
-	if(want > have && __builtin_wasm_memory_grow(0, want-have) == (ulong)-1){
+	if(want > have && wasm·memory_grow(want-have) == (ulong)-1){
 		werrstr("no memory");
 		return -1;
 	}
+	return 0;
+}
+
+#ifdef __clang__
+int
+brk(void *p)
+{
+	if(brk_(p) < 0)
+		return -1;
 	bloc = p;
 	return 0;
 }
@@ -69,12 +81,13 @@ sbrk(ulong n)
 	uintptr b;
 
 	b = ((uintptr)bloc + 7) & ~7;
-	if(brk((void*)(b+n)) < 0)
+	if(brk_((void*)(b+n)) < 0)
 		return (void*)-1;
+	bloc = (char*)b + n;
 	return (void*)b;
 }
+#endif
 
-/* One fiber runs at a time, and a switch is at a call: no atomic instruction is needed. */
 int
 _tas(int *p)
 {
@@ -85,7 +98,6 @@ _tas(int *p)
 	return v;
 }
 
-uintptr getcallerpc(void *p) { USED(p); return 0; }
 ulong getfcr(void) { return 0; }
 void setfcr(ulong v) { USED(v); }
 ulong getfsr(void) { return 0; }
@@ -95,34 +107,9 @@ void cycles(uvlong *t) { *t = 0; }
 long ainc(long *p) { return ++*p; }
 long adec(long *p) { return --*p; }
 
-/* A process alone in its memory has no one to wait for; libthread has its own (libthread/wasm.c). */
 #pragma weak semacquire
 int semacquire(long *p, int block) { USED(block); if(*p > 0){ --*p; return 1; } return 0; }
 #pragma weak tsemacquire
 int tsemacquire(long *p, ulong ms) { USED(ms); return semacquire(p, 0); }
 #pragma weak semrelease
 long semrelease(long *p, long n) { *p += n; return *p; }
-
-/* port/execl.c takes the address of its first argument: wasm's are not on a stack in a row. */
-int
-execl(char *f, ...)
-{
-	va_list a, b;
-	char **v;
-	int n;
-
-	va_start(a, f);
-	va_copy(b, a);
-	for(n = 0; va_arg(a, char*) != nil; n++)
-		;
-	va_end(a);
-	v = malloc((n+1)*sizeof(char*));
-	if(v == nil)
-		return -1;
-	for(n = 0; (v[n] = va_arg(b, char*)) != nil; n++)
-		;
-	va_end(b);
-	exec(f, v);
-	free(v);
-	return -1;
-}
