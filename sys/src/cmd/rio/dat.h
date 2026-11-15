@@ -330,6 +330,8 @@ Cursor	*corners[9];
 Image	*background;
 Image	*lightgrey;
 Image	*red;
+ulong	backcolor;	/* a new window's, before it is drawn: the theme's back */
+ulong	sweepcolor;
 Window	**window;
 Window	*wkeyboard;	/* window of simulated keyboard */
 int		nwindow;

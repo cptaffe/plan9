@@ -1,0 +1,31 @@
+# day: the light theme, Plan 9's colors (theme(6)). To use it, cp /lib/themes/day $home/lib/theme
+# and start rio again, or bind it on /lib/theme in a namespace's own.
+
+# rio: back text high htext border title ltitle hold lhold palehold size rioback
+# menus: menuback menuhigh menubord menutext menuhtext
+# acme's windows: tag body tagsel bodysel tagborder bodyborder modbutton colbutton but2 but3
+
+# Text in acme's style files and astyles(4)'s layers, by role
+comment	fg=336633 bg=f0fff0
+keyword	fg=00007f bg=f0f0ff
+string	fg=880000 bg=fff0f0
+type	fg=440088 bg=f5f0ff
+number	fg=884400 bg=fffaf0
+operator	fg=444444
+error	fg=cc0000 bg=ffe8e8
+warning	fg=885500 bg=fff4d8
+info	fg=005588
+hint	fg=667766
+function	fg=006677 bg=f0fafc
+macro	fg=995500 bg=fffcee
+namespace	fg=005577
+variable	fg=222222
+highlight	fg=000000 bg=ffff00
+bold	fg=000066
+italic	fg=224444
+heading1	fg=1a0078 bg=e4e0ff
+heading2	fg=000066 bg=eef0ff
+heading3	fg=000077
+heading4	fg=222266
+heading5	fg=333388
+heading6	fg=4444aa

@@ -225,7 +225,7 @@ threadmain(int argc, char *argv[])
 			r = screen->r;
 			r.max.x = r.min.x+300;
 			r.max.y = r.min.y+80;
-			i = allocwindow(wscreen, r, Refbackup, DWhite);
+			i = allocwindow(wscreen, r, Refbackup, backcolor);
 			wkeyboard = new(i, FALSE, scrolling, 0, nil, "/bin/rc", kbdargv);
 			if(wkeyboard == nil)
 				error("can't create keyboard window");
@@ -641,10 +641,10 @@ resized(void)
 				break;
 			}
 		if(ishidden){
-			im = allocimage(display, r, screen->chan, 0, DWhite);
+			im = allocimage(display, r, screen->chan, 0, backcolor);
 			r = ZR;
 		}else
-			im = allocwindow(wscreen, r, Refbackup, DWhite);
+			im = allocwindow(wscreen, r, Refbackup, backcolor);
 		if(im)
 			wsendctlmesg(w, Reshaped, r, im);
 	}
@@ -787,7 +787,7 @@ sweep(void)
 			p = onscreen(mouse->xy);
 			r = canonrect(Rpt(p0, p));
 			if(Dx(r)>5 && Dy(r)>5){
-				i = allocwindow(wscreen, r, Refnone, 0xEEEEEEFF); /* grey */
+				i = allocwindow(wscreen, r, Refnone, sweepcolor);
 				freeimage(oi);
 				if(i == nil)
 					goto Rescue;
@@ -802,7 +802,7 @@ sweep(void)
 	if(i==nil || Dx(i->r)<100 || Dy(i->r)<3*font->height)
 		goto Rescue;
 	oi = i;
-	i = allocwindow(wscreen, oi->r, Refbackup, DWhite);
+	i = allocwindow(wscreen, oi->r, Refbackup, backcolor);
 	freeimage(oi);
 	if(i == nil)
 		goto Rescue;
@@ -885,7 +885,7 @@ drag(Window *w, Rectangle *rp)
 	moveto(mousectl, mouse->xy);	/* force cursor update; ugly */
 	menuing = FALSE;
 	flushimage(display, 1);
-	if(mouse->buttons!=0 || (ni=allocwindow(wscreen, r, Refbackup, DWhite))==nil){
+	if(mouse->buttons!=0 || (ni=allocwindow(wscreen, r, Refbackup, backcolor))==nil){
 		moveto(mousectl, om);
 		while(mouse->buttons)
 			readmouse(mousectl);
@@ -1001,7 +1001,7 @@ bandsize(Window *w)
 	}
 	if(abs(p.x-startp.x)+abs(p.y-startp.y) <= 1)
 		return nil;
-	i = allocwindow(wscreen, or, Refbackup, DWhite);
+	i = allocwindow(wscreen, or, Refbackup, backcolor);
 	if(i == nil)
 		return nil;
 	border(i, r, Selborder, red, ZP);
@@ -1087,7 +1087,7 @@ whide(Window *w)
 	for(j=0; j<nhidden; j++)
 		if(hidden[j] == w)	/* already hidden */
 			return -1;
-	i = allocimage(display, w->screenr, w->i->chan, 0, DWhite);
+	i = allocimage(display, w->screenr, w->i->chan, 0, backcolor);
 	if(i){
 		hidden[nhidden++] = w;
 		wsendctlmesg(w, Reshaped, ZR, i);
@@ -1103,7 +1103,7 @@ wunhide(int h)
 	Window *w;
 
 	w = hidden[h];
-	i = allocwindow(wscreen, w->i->r, Refbackup, DWhite);
+	i = allocwindow(wscreen, w->i->r, Refbackup, backcolor);
 	if(i){
 		--nhidden;
 		memmove(hidden+h, hidden+h+1, (nhidden-h)*sizeof(Window*));

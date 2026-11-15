@@ -26,7 +26,7 @@ static	int		id;
 
 static	Image	*cols[NCOL];
 static	Image	*grey;
-static	Image	*darkgrey;
+static	Image	*lighttextcol;
 static	Cursor	*lastcursor;
 static	Image	*titlecol;
 static	Image	*lighttitlecol;
@@ -53,7 +53,7 @@ wmk(Image *i, Mousectl *mc, Channel *ck, Channel *cctl, int scrolling)
 	if(cols[0] == nil){
 		/* greys are multiples of 0x11111100+0xFF, 14* being palest */
 		grey = allocimage(display, Rect(0,0,1,1), CMAP8, 1, 0xEEEEEEFF);
-		darkgrey = allocimage(display, Rect(0,0,1,1), CMAP8, 1, 0x666666FF);
+		lighttextcol = themecol("ltext", 0x666666FF);
 		if((cols[BACK] = themeimage(display, "back")) == nil)
 			cols[BACK] = display->white;
 		cols[HIGH] = themecol("high", 0xCCCCCCFF);
@@ -727,10 +727,11 @@ wsetcols(Window *w)
 		else
 			w->cols[TEXT] = w->cols[HTEXT] = lightholdcol;
 	else
-		if(w == input)
-			w->cols[TEXT] = w->cols[HTEXT] = display->black;
-		else
-			w->cols[TEXT] = w->cols[HTEXT] = darkgrey;
+		if(w == input){
+			w->cols[TEXT] = cols[TEXT];
+			w->cols[HTEXT] = cols[HTEXT];
+		}else
+			w->cols[TEXT] = w->cols[HTEXT] = lighttextcol;
 }
 
 void
