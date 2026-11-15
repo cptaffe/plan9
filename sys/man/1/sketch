@@ -83,8 +83,14 @@ After a circle center
 draw an arc around it instead.
 .TP
 button 2
-Move what is under the mouse: a point, a line's or arc's points, or a text.
+Move what is under the mouse: a point, a line's or arc's points, or a text;
+on a selected thing, move everything selected.
 Dropping a point on a point merges them, and a line on a line merges those.
+A click without moving selects the thing alone; with Shift, it adds the thing or takes it out.
+At nothing, sweep a box: rightward it selects the lines, arcs, texts and lone points
+wholly inside it, leftward those it touches; with Shift it adds to the selection.
+A click at nothing clears the selection.
+On a Mac, button 2 is Option and button 1.
 .TP
 button 3
 The menu.
@@ -98,6 +104,22 @@ Zoom around the mouse.
 During a drag, Escape or another button takes back everything the drag did.
 .SS Keys
 .TF space
+.TP
+.BR Command-Z ", control-Z"
+Undo.
+.TP
+.BR Command-Shift-Z ", Command-Y, control-Y"
+Redo what undo took back.
+.TP
+.BR Command-A ", control-A"
+Select everything.
+.TP
+.BR Command-S ", control-S"
+Write the file.
+.TP
+.BR Delete ", Backspace"
+Delete what is selected, or else what is here,
+with the points that only its lines and arcs used.
 .TP
 .B c
 Make a circle center here; the next button 1 draws an arc around it.
@@ -160,7 +182,7 @@ Make what is here an attacher of this drawing, or not.
 Only points, lines, arcs and texts attach.
 .TP
 .B d
-Designate what is here for the next copy, or for
+Select, or designate, what is here for the next copy, or for
 .B r
 and
 .BR s .
@@ -204,7 +226,7 @@ Center the view here.
 .B w
 Write the file.
 .TP
-.BR q ", Delete"
+.B q
 Exit; with changes not written, the first says so and the second exits.
 .TP
 Escape
