@@ -78,6 +78,7 @@ seek(int f, vlong o, int t)
 
 #ifdef __clang__
 extern int procfork(int) __attribute__((weak));
+extern char _procforkmark[] __attribute__((weak));
 #else
 extern int procfork(int);
 #endif
@@ -87,10 +88,12 @@ rfork(int flags)
 {
 	if(!(flags & RFPROC))
 		return neg(p9web·rfork(flags));
-	if(procfork == nil){
+#ifdef __clang__
+	if(_procforkmark == nil){
 		werrstr("rfork: the program was not built to fork");
 		return -1;
 	}
+#endif
 	return procfork(flags);
 }
 
