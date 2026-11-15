@@ -48,6 +48,38 @@ copy(char *from, char *to, Dir *d)
 	return 0;
 }
 
+static int
+parent(const char *to, char *t)
+{
+	char *p;
+	Dir *pd;
+	int n;
+
+	if(t == to)
+		p = strdup(".");
+	else if(t-to == 1)
+		p = strdup("/");
+	else if((p = malloc(t-to)) != nil){
+		memmove(p, to, t-to-1);
+		p[t-to-1] = 0;
+	}
+	if(p == nil){
+		errno = ENOMEM;
+		return -1;
+	}
+	n = 0;
+	if((pd = _dirstat(p)) == nil){
+		_syserrno();
+		n = -1;
+	}else if(!(pd->mode&DMDIR)){
+		errno = ENOTDIR;
+		n = -1;
+	}
+	free(pd);
+	free(p);
+	return n;
+}
+
 int
 rename(const char *from, const char *to)
 {
@@ -80,7 +112,9 @@ rename(const char *from, const char *to)
 		}
 	}
 	if(!sd && (d->mode&DMDIR)){
-		errno = EXDEV;
+		n = strlen(from);
+		if(parent(to, t) == 0)
+			errno = strncmp(from, to, n) == 0 && to[n] == '/' ? EINVAL : EXDEV;
 		n = -1;
 		goto out;
 	}
