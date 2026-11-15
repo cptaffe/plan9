@@ -1,0 +1,161 @@
+#define	NSNAME	8
+#define	NSYM	50
+#define	NREG	32
+#define	NOREG	127
+#define NOPROF	(1<<0)
+#define DUPOK	(1<<1)
+
+enum
+{
+	REGSP		= 1,
+	REGRET		= 2,
+	REGTMP		= 3,
+	REGTMP2		= 4,
+	REGMIN		= 5,
+	REGMAX		= NREG-1,
+
+	VREG		= NREG,
+	VREGRET		= VREG+0,
+	VREGTMP		= VREG+1,
+	VREGMIN		= VREG+2,
+	VREGMAX		= VREG+NREG-1,
+
+	FREG		= 2*NREG,
+	FREGRET		= FREG+0,
+	FREGTMP		= FREG+1,
+	FREGMIN		= FREG+2,
+	FREGMAX		= FREG+NREG-1,
+
+	NALLREG		= 3*NREG,
+	REGARG		= -1,
+};
+
+enum
+{
+	KNONE,
+	KI32,
+	KI64,
+	KF32,
+	KF64,
+};
+
+enum	as
+{
+	AXXX = 0,
+
+	AADD,
+	ASUB,
+	AMUL,
+	ADIV,
+	ADIVU,
+	AMOD,
+	AMODU,
+	AAND,
+	AOR,
+	AXOR,
+	ASLL,
+	ASRA,
+	ASRL,
+	ANEG,
+
+	AMOVB,
+	AMOVBU,
+	AMOVH,
+	AMOVHU,
+	AMOVW,
+	AMOVV,
+	AMOVF,
+	AMOVD,
+
+	AMOVWV,
+	AMOVWUV,
+	AMOVVW,
+	AMOVWD,
+	AMOVWUD,
+	AMOVVD,
+	AMOVVUD,
+	AMOVVF,
+	AMOVVUF,
+	AMOVDW,
+	AMOVDWU,
+	AMOVDV,
+	AMOVDVU,
+	AMOVDF,
+
+	ACMPEQ,
+	ACMPNE,
+	ACMPLT,
+	ACMPLE,
+	ACMPGT,
+	ACMPGE,
+	ACMPLO,
+	ACMPLS,
+	ACMPHI,
+	ACMPHS,
+
+	ABEQ,
+	ABNE,
+	ABLT,
+	ABLE,
+	ABGT,
+	ABGE,
+	ABLO,
+	ABLS,
+	ABHI,
+	ABHS,
+
+	AJMP,
+	ACALL,
+	ARET,
+	AARG,
+	AARGF,
+	ACOPY,
+	AUNDEF,
+	ANOP,
+
+	APARAM,
+	ARESULT,
+
+	ADATA,
+	AGLOBL,
+	AGOK,
+	AHISTORY,
+	ANAME,
+	ATEXT,
+	AEND,
+	ASIGNAME,
+
+	ALAST,
+};
+
+enum
+{
+	D_GOK	= 0,
+	D_NONE,
+
+	D_EXTERN,
+	D_STATIC,
+	D_AUTO,
+	D_PARAM,
+
+	D_BRANCH,
+	D_OREG,
+	D_CONST,
+	D_FCONST,
+	D_SCONST,
+	D_REG,
+	D_WPARAM,
+	D_FILE,
+	D_FILE1,
+	D_VCONST,
+	D_LOCAL,
+};
+
+#define	SYMDEF	"__.SYMDEF"
+
+typedef	struct	ieee	Ieee;
+struct	ieee
+{
+	long	l;
+	long	h;
+};

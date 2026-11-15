@@ -1,0 +1,26 @@
+</$objtype/mkfile
+
+TARG=zl
+OFILES=\
+	asm.$O\
+	code.$O\
+	obj.$O\
+	enam.$O\
+
+HFILES=\
+	l.h\
+	../zc/z.out.h\
+
+BIN=/$objtype/bin
+CFLAGS=$CFLAGS -. -I.
+CFILES=${OFILES:%.$O=%.c}
+CFILES=${CFILES:enam.c=../zc/enam.c}
+UPDATE=\
+	mkfile\
+	$HFILES\
+	$CFILES\
+
+</sys/src/cmd/mkone
+
+enam.$O:	../zc/enam.c
+	$CC $CFLAGS ../zc/enam.c

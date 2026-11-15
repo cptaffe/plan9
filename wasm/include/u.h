@@ -1,4 +1,7 @@
 #define nil		((void*)0)
+#ifndef __wasm__
+#define	__wasm__	1
+#endif
 typedef	unsigned short	ushort;
 typedef	unsigned char	uchar;
 typedef unsigned long	ulong;
@@ -50,12 +53,16 @@ union FPdbleword
 	};
 };
 
-typedef	__builtin_va_list	va_list;
-#define va_start(list, start)	__builtin_va_start(list, start)
-#define va_end(list)	__builtin_va_end(list)
-#define va_arg(list, mode)	__builtin_va_arg(list, mode)
-#define va_copy(to, from)	__builtin_va_copy(to, from)
-
-/* The compiler's own words, in kencc; clang has neither. */
+typedef	char*	va_list;
+#ifdef __clang__
+#define	va_start(list, start)	__builtin_va_start(*(__builtin_va_list*)&(list), start)
+#define	va_arg(list, mode)	__builtin_va_arg(*(__builtin_va_list*)&(list), mode)
 #define	USED(...)	((void)0)
 #define	SET(...)	((void)0)
+#else
+void*	__va_arg(char**, ...);
+#define	va_start(list, start)	list = *(char**)((char*)&(start) + ((sizeof(start)+3)&~3))
+#define	va_arg(list, mode)	(*(mode*)__va_arg(&(list), (mode*)0))
+#endif
+#define	va_end(list)	USED(list)
+#define	va_copy(to, from)	((to) = (from))

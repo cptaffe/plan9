@@ -18,7 +18,11 @@ void*	deletekey(Intmap*, ulong);
 /*
  * Fid and Request structures.
  */
+#ifdef __clang__
 #define	Anon(T)	union { T; T T; }
+#else
+#define	Anon(T)	T
+#endif
 
 typedef struct Fid		Fid;
 typedef struct Req		Req;

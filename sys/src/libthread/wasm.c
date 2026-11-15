@@ -10,17 +10,23 @@
 #include <thread.h>
 #include "threadimpl.h"
 
-#define	F(name)	__attribute__((import_module("p9web"), import_name(name)))
+#ifdef __clang__
+#define	F(name)	__attribute__((import_module("p9web"), import_name(#name)))
+#define	EXPORT(name)	__attribute__((export_name(#name)))
+#else
+#define	F(name)
+#define	EXPORT(name)
+#endif
 
-F("fiber_new") extern int fibernew(void (*)(void*), void*, void*, int, void*, int, int);	/* the last: a new proc's rfork flags, or 0 */
-F("fiber_self") extern int fiberself(void);
-F("fiber_getdata") extern void* fibergetdata(void);
-F("fiber_setdata") extern void fibersetdata(void*);
-F("fiber_block") extern void fiberblock(void);
-F("fiber_wake") extern void fiberwake(int);
-F("fiber_exit") extern void fiberexit(void);
-F("fiber_exits") extern void fiberexits(char*, int);
-F("await") extern int p9await(int, char*, int);
+F(fiber_new) extern int p9web·fiber_new(void (*)(void*), void*, void*, int, void*, int, int);	/* the last: a new proc's rfork flags, or 0 */
+F(fiber_self) extern int p9web·fiber_self(void);
+F(fiber_getdata) extern void* p9web·fiber_getdata(void);
+F(fiber_setdata) extern void p9web·fiber_setdata(void*);
+F(fiber_block) extern void p9web·fiber_block(void);
+F(fiber_wake) extern void p9web·fiber_wake(int);
+F(fiber_exit) extern void p9web·fiber_exit(void);
+F(fiber_exits) extern void p9web·fiber_exits(char*, int);
+F(await) extern int p9web·await(int, char*, int);
 extern int rforkfn(int, void(*)(void*), void*);
 
 enum
@@ -29,11 +35,11 @@ enum
 	Abuf = 64*1024,	/* what asyncify saves of a stack */
 };
 
-__attribute__((export_name("p9web_fiber_main"))) void
-fibermain(void (*fn)(void*), void *arg)
+EXPORT(p9web_fiber_main) void
+p9web_fiber_main(void (*fn)(void*), void *arg)
 {
 	fn(arg);
-	fiberexit();
+	p9web·fiber_exit();
 }
 
 static int
@@ -41,7 +47,7 @@ newfiber(void (*fn)(void*), void *arg, uchar *stk, uint n, uchar *abuf, int flag
 {
 	int r;
 
-	if((r = fibernew(fn, arg, stk, n, abuf, Abuf, flag)) < 0)
+	if((r = p9web·fiber_new(fn, arg, stk, n, abuf, Abuf, flag)) < 0)
 		sysfatal("fiber_new: error %d", -r);
 	return r;
 }
@@ -54,13 +60,13 @@ _systhreadinit(void)
 Proc*
 _threadgetproc(void)
 {
-	return fibergetdata();
+	return p9web·fiber_getdata();
 }
 
 void
 _threadsetproc(Proc *p)
 {
-	fibersetdata(p);
+	p9web·fiber_setdata(p);
 }
 
 /* The thread's own fiber: its stack is at least Minstack, whatever its creator asked. */
@@ -95,30 +101,30 @@ _threadjump(Thread *t)
 	if(t->fiber == 0)
 		t->fiber = newfiber(threadstart, t, t->stk, t->stksize, t->abuf, 0);
 	else
-		fiberwake(t->fiber);
-	fiberblock();
+		p9web·fiber_wake(t->fiber);
+	p9web·fiber_block();
 }
 
 /* _threadpause goes from thread t to p's scheduler; a moribund thread does not come back. */
 void
 _threadpause(Proc *p, Thread *t)
 {
-	fiberwake(p->fiber);
+	p9web·fiber_wake(p->fiber);
 	if(t->moribund)
-		fiberexit();
-	fiberblock();
+		p9web·fiber_exit();
+	p9web·fiber_block();
 }
 
 int
 _threadinsched(Proc *p)
 {
-	return fiberself() == p->fiber;
+	return p9web·fiber_self() == p->fiber;
 }
 
 void
 _threadschedself(Proc *p)
 {
-	p->fiber = fiberself();
+	p->fiber = p9web·fiber_self();
 }
 
 static void
@@ -174,7 +180,7 @@ _threadwaitpid(int pid)
 	char buf[512], *fld[5];
 	Waitmsg *w;
 
-	if((n = p9await(pid, buf, sizeof buf-1)) < 0)
+	if((n = p9web·await(pid, buf, sizeof buf-1)) < 0)
 		return nil;
 	buf[n] = '\0';
 	if(tokenize(buf, fld, nelem(fld)) != nelem(fld)){
@@ -198,7 +204,7 @@ static int firstsched = -1;
 void
 _threadfirstproc(void)
 {
-	firstsched = fiberself();
+	firstsched = p9web·fiber_self();
 }
 
 /* _threadschedend ends proc p, whose threads are gone. The first proc ends as Plan 9's does,
@@ -207,9 +213,9 @@ _threadfirstproc(void)
 void
 _threadschedend(char *msg)
 {
-	if(fiberself() == firstsched)
-		fiberexits(msg, strlen(msg));
-	fiberexit();
+	if(p9web·fiber_self() == firstsched)
+		p9web·fiber_exits(msg, strlen(msg));
+	p9web·fiber_exit();
 }
 
 /*
@@ -235,7 +241,7 @@ semwake(long *addr)
 	for(l = &semwait; (w = *l) != nil; l = &w->next)
 		if(w->addr == addr){
 			*l = w->next;
-			fiberwake(w->fiber);
+			p9web·fiber_wake(w->fiber);
 			return;
 		}
 }
@@ -253,12 +259,12 @@ semacquire(long *addr, int block)
 		if(!block)
 			return 0;
 		w.addr = addr;
-		w.fiber = fiberself();
+		w.fiber = p9web·fiber_self();
 		w.next = nil;
 		for(l = &semwait; *l != nil; l = &(*l)->next)	/* the first to wait is the first woken */
 			;
 		*l = &w;
-		fiberblock();
+		p9web·fiber_block();
 	}
 	--*addr;
 	return 1;

@@ -1,0 +1,24 @@
+objtype=wasm
+</$objtype/mkfile
+
+LIB=/$objtype/lib/libc.a
+CFILES=\
+	execl.c\
+	main9.c\
+	memmove.c\
+	memset.c\
+	notejmp.c\
+	procfork.c\
+	rforkfn.c\
+	setjmp.c\
+	sys.c\
+
+HFILES=/sys/include/libc.h wasm.h
+
+OFILES=${CFILES:%.c=%.$O}
+
+UPDATE=mkfile\
+	$HFILES\
+	$CFILES\
+
+</sys/src/cmd/mksyslib

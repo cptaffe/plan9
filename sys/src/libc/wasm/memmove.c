@@ -1,16 +1,14 @@
 #include	<u.h>
 #include	<libc.h>
+#include	"wasm.h"
 
-/*
- * wasm's memory.copy (bulk memory), which is memmove's: the
- * copy is right when the two overlap
- */
 void*
 memmove(void *a1, void *a2, ulong n)
 {
 	if((long)n < 0)
 		abort();
-	return __builtin_memmove(a1, a2, n);
+	wasm·memory_copy(a1, a2, n);
+	return a1;
 }
 
 void*

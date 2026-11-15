@@ -1,5 +1,7 @@
 #include "cc.h"
 
+static int	negzero(Node*);
+
 Node*
 dodecl(void (*f)(int,Type*,Sym*), int c, Type *t, Node *n)
 {
@@ -368,7 +370,7 @@ init1(Sym *s, Type *t, long o, int exflag)
 					s->name);
 				return Z;
 			}
-			if(vconst(a) == 0)
+			if(vconst(a) == 0 && !negzero(a))
 				return Z;
 			goto gext;
 		}
@@ -537,6 +539,10 @@ sualign(Type *t)
 	case TSTRUCT:
 		t->offset = 0;
 		w = 0;
+		if(fieldsysv) {
+			sysvalign(t);
+			return;
+		}
 		for(l = t->link; l != T; l = l->down) {
 			if(l->nbits) {
 				if(l->shift <= 0) {
@@ -591,6 +597,52 @@ sualign(Type *t)
 		diag(Z, "unknown type in sualign: %T", t);
 		break;
 	}
+}
+
+static int
+negzero(Node *a)
+{
+	double z;
+
+	if(!typefd[a->type->etype])
+		return 0;
+	z = 0;
+	return memcmp(&a->fconst, &z, sizeof z) != 0;
+}
+
+void
+sysvalign(Type *t)
+{
+	Type *l;
+	vlong bo, s;
+	long w;
+
+	bo = 0;
+	for(l = t->link; l != T; l = l->down) {
+		if(l->nbits) {
+			s = l->width*8;
+			if(bo/s != (bo+l->nbits-1)/s)
+				bo = (bo+s-1)/s*s;
+			l->offset = bo/s*l->width;
+			l->shift = bo - l->offset*8;
+			bo += l->nbits;
+			continue;
+		}
+		if(l->width < 0 ||
+		   l->width == 0 && l->down != T)
+			if(l->sym)
+				diag(Z, "incomplete structure element: %s", l->sym->name);
+			else
+				diag(Z, "incomplete structure element");
+		w = align((bo+7)/8, l, Ael1);
+		l->offset = w;
+		w = align(w, l, Ael2);
+		bo = (vlong)w*8;
+	}
+	w = align((bo+7)/8, t, Asu2);
+	t->width = w;
+	acidtype(t);
+	pickletype(t);
 }
 
 long
@@ -1440,10 +1492,12 @@ edecl(int c, Type *t, Sym *s)
 		t->nbits = lastfield;
 		if(firstbit)
 			t->shift = -t->shift;
-		if(typeu[t->etype])
-			t->etype = tufield->etype;
-		else
-			t->etype = tfield->etype;
+		if(!fieldsysv) {
+			if(typeu[t->etype])
+				t->etype = tufield->etype;
+			else
+				t->etype = tfield->etype;
+		}
 	}
 	if(strf == T)
 		strf = t;
