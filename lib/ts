@@ -1,8 +1,20 @@
 # The languages hl(1) colors, by tree-sitter's programs, /bin/ts/name (ts(1)): one a line,
 # ts=name file=pattern, where pattern is a regexp(6) that a window's file name matches.
 # $home/lib/ts is read in place of this file.
-ts=c file="\.[ch]$"
-ts=markdown file="(\.md|/README)$"
+ts=c file="\.([ch]|def|cpp|cc|cxx|hpp)$"
+ts=markdown file="(\.(md|markdown)|/README)$"
 ts=go file="\.go$"
 ts=python file="\.py$"
 ts=rust file="\.rs$"
+ts=javascript file="\.(js|mjs|cjs|jsx)$"
+ts=bash file="\.sh$"
+ts=java file="\.java$"
+ts=scala file="\.(scala|sc)$"
+ts=typescript file="\.(ts|mts|cts)$"
+ts=tsx file="\.tsx$"
+ts=yaml file="\.(yaml|yml)$"
+ts=json file="\.json$"
+ts=toml file="\.toml$"
+ts=mermaid file="\.(mmd|mermaid)$"
+ts=goyacc file="\.go\.y$"
+ts=yacc file="\.y$"
