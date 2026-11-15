@@ -55,6 +55,7 @@ struct Dest
 	DN	*s;		/* name server */
 	int	nx;		/* number of transmissions */
 	int	code;		/* response code; used to clear dp->respcode */
+	int	tcp;
 
 	ulong	magic;
 };
@@ -980,6 +981,7 @@ mydnsquery(Query *qp, int medium, uchar *udppkt, int len)
 {
 	int rv = -1, nfd;
 	char *domain;
+	vlong ms;
 	char conndir[NETPATHLEN], net[NETPATHLEN];
 	uchar belen[2];
 	NetConnInfo *nci;
@@ -1021,7 +1023,12 @@ mydnsquery(Query *qp, int medium, uchar *udppkt, int len)
 		/* send via TCP & keep fd around for reply */
 		snprint(net, sizeof net, "%s/tcp",
 			(mntpt[0] != '\0'? mntpt: "/net"));
-		alarm(10*1000);
+		ms = qp->req->aborttime - timems();
+		if(ms > 10*1000)
+			ms = 10*1000;
+		if(ms < 1)
+			ms = 1;
+		alarm(ms);
 		qp->tcpfd = rv = dial(netmkaddr(domain, net, "53"), nil,
 			conndir, &qp->tcpctlfd);
 		alarm(0);
@@ -1143,6 +1150,8 @@ xmitquery(Query *qp, int medium, int depth, uchar *obuf, int inns, int len)
 			memmove(obuf, p->a, sizeof p->a);
 			if(qp->udpfd >= 0)
 				mydnsquery(qp, medium, obuf, len);
+			else
+				p->tcp = 1;
 			p->nx++;
 		}
 	if(j == 0) {
@@ -1342,10 +1351,6 @@ tcpquery(Query *qp, DNSmsg *mp, int depth, uchar *ibuf, uchar *obuf, int len,
 	int rv = 0;
 	uvlong endms;
 
-	endms = timems() + waitms;
-	if(endms > qp->req->aborttime)
-		endms = qp->req->aborttime;
-
 	if (0)
 		dnslog("%s: udp reply truncated; retrying query via tcp to %I",
 			qp->dp->name, qp->tcpip);
@@ -1353,9 +1358,15 @@ tcpquery(Query *qp, DNSmsg *mp, int depth, uchar *ibuf, uchar *obuf, int len,
 	qlock(&qp->tcplock);
 	memmove(obuf, ibuf, IPaddrlen);		/* send back to respondent */
 	/* sets qp->tcpip from obuf's udp header */
-	if (xmitquery(qp, Tcp, depth, obuf, inns, len) < 0 ||
-	    readreply(qp, Tcp, req, ibuf, mp, endms) < 0)
+	if (xmitquery(qp, Tcp, depth, obuf, inns, len) < 0)
 		rv = -1;
+	else {
+		endms = timems() + waitms;
+		if(endms > qp->req->aborttime)
+			endms = qp->req->aborttime;
+		if(readreply(qp, Tcp, req, ibuf, mp, endms) < 0)
+			rv = -1;
+	}
 	if (qp->tcpfd > 0) {
 		hangup(qp->tcpctlfd);
 		close(qp->tcpctlfd);
@@ -1419,15 +1430,24 @@ queryns(Query *qp, int depth, uchar *ibuf, uchar *obuf, ulong waitms, int inns)
 
 			/* read udp answer into m */
 			if (qp->udpfd < 0) {
-				if (replywaits > 0 || qp->ndest > qp->curdest - qp->dest)
+				if (replywaits > 0)
 					break;
-				memset(&m, 0, sizeof m);
-				memmove(ibuf, qp->dest[qp->ndest-1].a, IPaddrlen);
-				if (tcpquery(qp, &m, depth, ibuf, obuf, len,
-				    waitms, inns, req) < 0) {
-					freeanswers(&m);
-					break;
+				rv = -1;
+				for(p = qp->dest; p < qp->curdest; p++){
+					if(!p->tcp)
+						continue;
+					p->tcp = 0;
+					if(rv >= 0)
+						continue;
+					memset(&m, 0, sizeof m);
+					memmove(ibuf, p->a, IPaddrlen);
+					rv = tcpquery(qp, &m, depth, ibuf, obuf, len,
+					    waitms, inns, req);
+					if(rv < 0)
+						freeanswers(&m);
 				}
+				if(rv < 0)
+					break;
 				memmove(srcip, qp->tcpip, IPaddrlen);
 			} else if (readreply(qp, Udp, req, ibuf, &m, endms) >= 0)
 				memmove(srcip, ibuf, IPaddrlen);
