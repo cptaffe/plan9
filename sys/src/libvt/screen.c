@@ -215,6 +215,16 @@ vtnew(int cols, int rows)
 	return vt;
 }
 
+Vt*
+vtdumb(void (*put)(Vt*, Rune*, int))
+{
+	Vt *vt;
+
+	vt = vtnew(1, 1);
+	P(vt)->dumb = put;
+	return vt;
+}
+
 void
 vtfree(Vt *vt)
 {
@@ -312,7 +322,7 @@ vtresize(Vt *vt, int cols, int rows)
 		cols = 1;
 	if(rows < 1)
 		rows = 1;
-	if(cols == vt->cols && rows == vt->rows)
+	if(p->dumb || cols == vt->cols && rows == vt->rows)
 		return;
 	begin(vt);
 	alt = vt->line == p->alt;
@@ -363,6 +373,12 @@ vtframe(Vt *vt, Vtframe *f)
 
 	p = P(vt);
 	memset(f, 0, sizeof *f);
+	if(p->dumb){
+		memset(p->dirty, 0, vt->rows);
+		f->dirty = p->dirty;
+		vt->gone = p->out;
+		return;
+	}
 	f->all = p->all;
 	f->ngone = p->ngone;
 	f->lost = p->lost;

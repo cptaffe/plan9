@@ -1,6 +1,6 @@
 .TH VT 2
 .SH NAME
-vtnew, vtfree, vtresize, vtreset, vtwrite, vtframe, vtkey, vtpaste, vtmouse, vtfocus, vtwidth \- a terminal's screen, with nothing drawn
+vtnew, vtdumb, vtfree, vtresize, vtreset, vtwrite, vtframe, vtkey, vtpaste, vtmouse, vtfocus, vtwidth \- a terminal's screen, with nothing drawn
 .SH SYNOPSIS
 .ta \w'long 'u
 .B #include <u.h>
@@ -13,6 +13,9 @@ vtnew, vtfree, vtresize, vtreset, vtwrite, vtframe, vtkey, vtpaste, vtmouse, vtf
 .PP
 .B
 Vt*	vtnew(int cols, int rows)
+.PP
+.B
+Vt*	vtdumb(void (*put)(Vt *vt, Rune *r, int n))
 .PP
 .B
 void	vtfree(Vt *vt)
@@ -252,6 +255,28 @@ are a cell's.
 gives a rune's columns: 2 for Unicode 15.1's East Asian Wide and Fullwidth, 0 for its
 nonspacing and enclosing marks and format characters but the soft hyphen, and for the
 controls, and 1 for the rest.
+.PP
+.I Vtdumb
+makes a terminal that keeps no screen, for a program, such as
+.IR win ,
+that shows text only.
+.I Vtwrite
+parses as it does for any other, but calls
+.I put
+with the
+.I n
+runes of text in
+.IR r ,
+with the backspaces, tabs, returns and newlines among them, and a vertical tab or form feed
+as a newline; a sequence, another control and a C1 rune are dropped.
+DEC's line drawing is given as Unicode's, and REP repeats the last rune.
+For it,
+.IR vtframe 's
+frame is empty,
+.I vtresize
+does nothing, and
+.B Vt.reply
+is never called.
 .SH SOURCE
 .B /sys/src/libvt
 .SH SEE ALSO

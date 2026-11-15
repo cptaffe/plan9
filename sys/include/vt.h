@@ -7,8 +7,9 @@
  * vtpaste, vtmouse and vtfocus make the bytes the host is sent, as the modes ask. A key is a
  * rune or <keyboard.h>'s (Kup, Khome, KF|n, ...), with Vctl, Valt and Vshift or'd in; Kbs
  * sends DEL, and Kdel the delete key's ESC [3~. vtwidth is a rune's columns, 0, 1 or 2, by
- * Unicode 15.1's East Asian Width and general categories, as Vwide and Vcont have them. It
- * needs <u.h> first. See vt(2).
+ * Unicode 15.1's East Asian Width and general categories, as Vwide and Vcont have them.
+ * vtdumb's Vt keeps no screen: it gives its put the text, with \b \t \r and \n. It needs
+ * <u.h> first. See vt(2).
  */
 
 typedef struct Vt	Vt;
@@ -126,6 +127,7 @@ struct Vt
 };
 
 Vt*	vtnew(int cols, int rows);
+Vt*	vtdumb(void (*)(Vt*, Rune*, int));
 void	vtfree(Vt*);
 void	vtresize(Vt*, int cols, int rows);
 void	vtreset(Vt*);

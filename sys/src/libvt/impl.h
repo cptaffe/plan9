@@ -6,6 +6,7 @@ enum
 {
 	Nparam = 32,
 	Nosc = 4096,
+	Ndumb = 256,
 
 	/* the parser's states */
 	Ground = 0,
@@ -52,6 +53,9 @@ struct Priv
 	int	shift;	/* SO: G1 is used */
 	Saved	saved[2];	/* the main screen's and the alternate's */
 	Rune	last;	/* for REP */
+	void	(*dumb)(Vt*, Rune*, int);	/* vtdumb's: the text goes here, and no screen is kept */
+	Rune	dbuf[Ndumb];
+	int	ndbuf;
 
 	int	state;
 	int	param[Nparam];
