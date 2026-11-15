@@ -49,6 +49,22 @@ copy(char *from, char *to, Dir *d)
 }
 
 static int
+empty(const char *p)
+{
+	int fd;
+	long n;
+	Dir *d;
+
+	if((fd = _OPEN(p, 0)) < 0)
+		return 1;
+	d = nil;
+	n = _dirread(fd, &d);
+	_CLOSE(fd);
+	free(d);
+	return n <= 0;
+}
+
+static int
 parent(const char *to, char *t)
 {
 	char *p;
@@ -78,6 +94,21 @@ parent(const char *to, char *t)
 	free(pd);
 	free(p);
 	return n;
+}
+
+static int
+moveerr(const char *from, const char *to, char *t, Dir *td)
+{
+	int n;
+
+	if(parent(to, t) < 0)
+		return errno;
+	if(td != nil && !empty(to))
+		return ENOTEMPTY;
+	n = strlen(from);
+	if(strncmp(from, to, n) == 0 && to[n] == '/')
+		return EINVAL;
+	return EXDEV;
 }
 
 int
@@ -112,9 +143,7 @@ rename(const char *from, const char *to)
 		}
 	}
 	if(!sd && (d->mode&DMDIR)){
-		n = strlen(from);
-		if(parent(to, t) == 0)
-			errno = strncmp(from, to, n) == 0 && to[n] == '/' ? EINVAL : EXDEV;
+		errno = moveerr(from, to, t, td);
 		n = -1;
 		goto out;
 	}
