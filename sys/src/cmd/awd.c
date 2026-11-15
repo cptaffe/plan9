@@ -24,9 +24,13 @@ void
 main(int argc, char **argv)
 {
 	int fd;
-	char dir[512];
+	char dir[512], *id;
 
 	fd = open("/dev/acme/ctl", OWRITE);
+	if(fd < 0 && (id = getenv("winid")) != nil){
+		snprint(dir, sizeof dir, "/mnt/wsys/%s/ctl", id);
+		fd = open(dir, OWRITE);
+	}
 	if(fd < 0)
 		exits(0);
 	getwd(dir, 512);
