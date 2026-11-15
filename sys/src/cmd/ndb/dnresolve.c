@@ -1022,7 +1022,7 @@ mydnsquery(Query *qp, int medium, uchar *udppkt, int len)
 		snprint(net, sizeof net, "%s/tcp",
 			(mntpt[0] != '\0'? mntpt: "/net"));
 		alarm(10*1000);
-		qp->tcpfd = rv = dial(netmkaddr(domain, net, "dns"), nil,
+		qp->tcpfd = rv = dial(netmkaddr(domain, net, "53"), nil,
 			conndir, &qp->tcpctlfd);
 		alarm(0);
 		if (qp->tcpfd < 0) {
@@ -1141,7 +1141,8 @@ xmitquery(Query *qp, int medium, int depth, uchar *obuf, int inns, int len)
 
 			/* fill in UDP destination addr & send it */
 			memmove(obuf, p->a, sizeof p->a);
-			mydnsquery(qp, medium, obuf, len);
+			if(qp->udpfd >= 0)
+				mydnsquery(qp, medium, obuf, len);
 			p->nx++;
 		}
 	if(j == 0) {
@@ -1417,7 +1418,18 @@ queryns(Query *qp, int depth, uchar *ibuf, uchar *obuf, ulong waitms, int inns)
 				rrname(qp->type, buf, sizeof buf), qp->req->from);
 
 			/* read udp answer into m */
-			if (readreply(qp, Udp, req, ibuf, &m, endms) >= 0)
+			if (qp->udpfd < 0) {
+				if (replywaits > 0 || qp->ndest > qp->curdest - qp->dest)
+					break;
+				memset(&m, 0, sizeof m);
+				memmove(ibuf, qp->dest[qp->ndest-1].a, IPaddrlen);
+				if (tcpquery(qp, &m, depth, ibuf, obuf, len,
+				    waitms, inns, req) < 0) {
+					freeanswers(&m);
+					break;
+				}
+				memmove(srcip, qp->tcpip, IPaddrlen);
+			} else if (readreply(qp, Udp, req, ibuf, &m, endms) >= 0)
 				memmove(srcip, ibuf, IPaddrlen);
 			else if (!(m.flags & Ftrunc)) {
 				freeanswers(&m);
@@ -1555,11 +1567,9 @@ udpquery(Query *qp, char *mntpt, int depth, int patient, int inns)
 		}
 		qunlock(&mntlck);
 	}
-	if (fd < 0) {
-		dnslog("can't get udpport for %s query of name %s: %r",
+	if (fd < 0)
+		dnslog("can't get udpport for %s query of name %s: %r; asking by tcp",
 			mntpt, qp->dp->name);
-		sysfatal("out of udp conversations");	/* we're buggered */
-	}
 
 	/*
 	 * Our QIP servers are busted and respond to AAAA and CNAME queries
@@ -1629,7 +1639,7 @@ netquery(Query *qp, int depth)
 		 */
 		qlp = &dp->querylck[qtype2lck(qp->type)];
 		qlock(qlp);
-		if (qlp->Ref.ref > Maxoutstanding) {
+		if (qlp->r.ref > Maxoutstanding) {
 			qunlock(qlp);
 			if (!whined) {
 				whined = 1;
@@ -1639,7 +1649,7 @@ netquery(Query *qp, int depth)
 			}
 			return 0;
 		}
-		++qlp->Ref.ref;
+		++qlp->r.ref;
 		qunlock(qlp);
 	}
 	procsetname("netquery: %s", dp->name);
@@ -1683,9 +1693,9 @@ netquery(Query *qp, int depth)
 
 	if(lock && qlp) {
 		qlock(qlp);
-		assert(qlp->Ref.ref > 0);
+		assert(qlp->r.ref > 0);
 		qunlock(qlp);
-		decref(qlp);
+		decref(&qlp->r);
 	}
 	return rv;
 }
