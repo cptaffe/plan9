@@ -119,27 +119,26 @@ wait4(pid_t wpid, int *status, int options, struct rusage *res)
 	char pname[50];
 	Dir *d;
 	Waitmsg *w;
+	int none;
 
 	w = lookpid(wpid);
-	if(w == nil){
+	while(w == nil){
 		if(options & WNOHANG){
 			snprintf(pname, sizeof(pname), "/proc/%d/wait", getpid());
 			d = _dirstat(pname);
-			if(d != nil && d->length == 0){
-				free(d);
-				return 0;
-			}
+			none = d != nil && d->length == 0;
 			free(d);
+			if(none)
+				return 0;
 		}
-		for(;;){
-			w = _WAIT();
-			if(w == nil){
-				_syserrno();
-				return -1;
-			}
-			if(wpid <= 0 || w->pid == wpid)
-				break;
+		w = _WAIT();
+		if(w == nil){
+			_syserrno();
+			return -1;
+		}
+		if(wpid > 0 && w->pid != wpid){
 			addpid(w);
+			w = nil;
 		}
 	}
 	if(res != nil)
