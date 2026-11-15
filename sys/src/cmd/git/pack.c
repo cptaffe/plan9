@@ -855,7 +855,7 @@ parseauthor(char **str, int *nstr, char **name, vlong *time)
 static void
 parsecommit(Object *o)
 {
-	char *p, *t, buf[128];
+	char *p, buf[128];
 	int np;
 
 	p = o->data;
@@ -881,14 +881,10 @@ parsecommit(Object *o)
 			parseauthor(&p, &np, &o->commit->author, &o->commit->mtime);
 		}else if(strcmp(buf, "committer") == 0){
 			parseauthor(&p, &np, &o->commit->committer, &o->commit->ctime);
-		}else if(strcmp(buf, "gpgsig") == 0){
-			/* just drop it */
-			if((t = strstr(p, "-----END PGP SIGNATURE-----")) == nil)
-				sysfatal("malformed gpg signature");
-			np -= t - p;
-			p = t;
 		}
 		nextline(&p, &np);
+		while(np > 0 && *p == ' ' && memchr(p, '\n', np) != nil)
+			nextline(&p, &np);
 	}
 	while (np && isspace(*p)) {
 		p++;
