@@ -16,11 +16,6 @@ enum {
 	Stack	= 16*1024,
 };
 
-enum {
-	Cooked,
-	Raw,
-};
-
 typedef struct Buf Buf;
 typedef struct Hline Hline;
 typedef struct Color Color;
@@ -48,8 +43,8 @@ struct Ttystate {
 
 int	mainstacksize = 64*1024;
 
-/* a Unix host's pty turns its newlines into returns and newlines, as rc's need */
-Ttystate ttystate[2] = { {0, 1}, {0, 0} };
+/* ptty turns a newline into a return and a newline; these add more, as the menu asks */
+Ttystate	tty;
 
 char *menutext2[] = {
 	"backup",
@@ -96,16 +91,15 @@ int	ncolors;
 Hline	hist[Nhist];
 int	hhead, nhist;
 int	back;
-int	raw;
+int	raw;	/* the menu asked ptty for raw */
 int	pagemode, blocked, olines;
 Buf	*cur;
 uchar	*pend;
 long	npend;
-char	sendbuf[Bsize];
-int	nsend;
 int	outfd = -1;
 int	logfd = -1;
-int	hostpid;
+int	hostpid;	/* ptty's */
+int	pttyfd = -1;
 
 void
 usage(void)
@@ -387,7 +381,7 @@ reply(Vt*, char *s, int n)
 	tohost(s, n);
 }
 
-/* the host's bytes, or the echo, to the screen as ttystate says */
+/* the host's bytes to the screen, with the returns and newlines the menu adds */
 void
 hostbytes(uchar *b, long n)
 {
@@ -395,7 +389,7 @@ hostbytes(uchar *b, long n)
 	uchar o[2*Bsize];
 	long i, j, m, k;
 
-	t = &ttystate[raw];
+	t = &tty;
 	if(!t->crnl && !t->nlcr){
 		vtwrite(vt, b, n);
 		return;
@@ -412,12 +406,6 @@ hostbytes(uchar *b, long n)
 		}
 		vtwrite(vt, o, m);
 	}
-}
-
-void
-echo(char *s)
-{
-	hostbytes((uchar*)s, strlen(s));
 }
 
 /* the host's bytes waiting, until a page fills in page mode */
@@ -475,81 +463,56 @@ host(Buf *b)
 	frame();
 }
 
+/* ptty's consctl, mounted once ptty has posted it */
 int
-alnum(int c)
+pttyopen(void)
 {
-	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c >= 0x80;
+	char buf[32];
+	int fd;
+
+	if(pttyfd < 0 && hostpid > 0){
+		snprint(buf, sizeof buf, "/srv/ptty.%d", hostpid);
+		fd = open(buf, ORDWR);
+		if(fd < 0)
+			return -1;
+		if(mount(fd, -1, "/mnt/ptty", MREPL, "") < 0){
+			close(fd);
+			return -1;
+		}
+		pttyfd = open("/mnt/ptty/consctl", ORDWR|OCEXEC);
+	}
+	return pttyfd;
 }
 
-/* takes back the line's last rune */
-int
-unrune(void)
-{
-	if(nsend == 0)
-		return 0;
-	while(--nsend > 0 && (sendbuf[nsend] & 0xC0) == 0x80)
-		;
-	echo("\b \b");
-	return 1;
-}
-
-/* cooked mode: the line is kept, edited and echoed here, and sent whole */
 void
-canon(Rune r)
+pttysize(int cols, int rows)
 {
-	char s[UTFmax+1];
+	if(pttyopen() >= 0)
+		fprint(pttyfd, "size %d %d", cols, rows);
+}
+
+/* ptty's interrupt character, while it takes one: IOR's lflag has ISIG */
+int
+intrchar(void)
+{
+	char buf[256], *f[20];
 	int n;
 
-	switch(r){
-	case Kbs:
-		unrune();
-		return;
-	case 0x15:
-		nsend = 0;
-		echo("^U\n");
-		return;
-	case 0x17:
-		while(nsend > 0 && !alnum((uchar)sendbuf[nsend-1]) && unrune())
-			;
-		while(nsend > 0 && alnum((uchar)sendbuf[nsend-1]) && unrune())
-			;
-		return;
-	case Kdel:
-		nsend = 0;
-		postnote(PNGROUP, hostpid, "interrupt");
-		return;
-	case 0x11:
-	case '\r':
-	case '\n':
-		sendbuf[nsend++] = '\n';
-		tohost(sendbuf, nsend);
-		nsend = 0;
-		if(r != 0x11)
-			echo("\n");
-		return;
-	case 0x04:
-		if(nsend == 0){
-			tohost(sendbuf, 0);
-			return;
-		}
-		break;
-	}
-	if(r >= KF && r < KF+0x100 || r >= Spec && r < Spec+0x100)
-		return;
-	n = runetochar(s, &r);
-	if(nsend+n >= sizeof sendbuf-1)
-		return;
-	memmove(sendbuf+nsend, s, n);
-	nsend += n;
-	s[n] = 0;
-	echo(s);
+	if(pttyopen() < 0 || (n = pread(pttyfd, buf, sizeof buf-1, 0)) <= 0)
+		return -1;
+	buf[n] = 0;
+	if(tokenize(buf, f, nelem(f)) < 16 || strcmp(f[0], "IOR") != 0)
+		return -1;
+	if(!(strtoul(f[4], nil, 16) & 0x40))
+		return -1;
+	return strtoul(f[8], nil, 16);
 }
 
 void
 key(Rune r)
 {
 	char b[64];
-	int n;
+	int n, c;
 
 	olines = 0;
 	if(blocked){
@@ -559,14 +522,10 @@ key(Rune r)
 		if(r == Kdown)
 			return;
 	}
-	if(!raw && (r == Kpgup || r == Kpgdown)){
-		view(r == Kpgup ? back + vt->rows : back - vt->rows);
-		return;
-	}
 	view(0);
-	if(!raw){
-		canon(r);
-		frame();
+	if(r == Kdel && (c = intrchar()) >= 0){
+		b[0] = c;
+		tohost(b, 1);
 		return;
 	}
 	if(r == '\n' && (vt->mode & Mnewline)){
@@ -588,8 +547,6 @@ paste(void)
 	char *s, *b;
 	long n, m;
 	int fd;
-	Rune r;
-	int i;
 
 	fd = open("/dev/snarf", OREAD);
 	if(fd < 0)
@@ -609,22 +566,11 @@ paste(void)
 		return;
 	}
 	view(0);
-	if(raw){
-		b = emalloc(2*n+12);
-		m = vtpaste(vt, s, n, b, 2*n+12);
-		if(m > 0)
-			tohost(b, m);
-		free(b);
-	}else{
-		s[n] = 0;
-		for(i = 0; i < n; ){
-			i += chartorune(&r, s+i);
-			canon(r);
-		}
-		if(s[n-1] != '\n')
-			canon('\n');
-		frame();
-	}
+	b = emalloc(2*n+12);
+	m = vtpaste(vt, s, n, b, 2*n+12);
+	if(m > 0)
+		tohost(b, m);
+	free(b);
 	free(s);
 }
 
@@ -668,6 +614,7 @@ resized(void)
 	if(cols != vt->cols || rows != vt->rows){
 		vtresize(vt, cols, rows);
 		exportsize();
+		pttysize(cols, rows);
 	}
 	frame();
 	cursdrawn = 0;
@@ -709,21 +656,22 @@ void
 menu(int but)
 {
 	if(but == 3){
-		menu3.item[1] = ttystate[raw].crnl ? "cr" : "crnl";
-		menu3.item[2] = ttystate[raw].nlcr ? "nl" : "nlcr";
+		menu3.item[1] = tty.crnl ? "cr" : "crnl";
+		menu3.item[2] = tty.nlcr ? "nl" : "nlcr";
 		menu3.item[3] = raw ? "cooked" : "raw";
 		switch(menuhit(3, mc, &menu3, nil)){
 		case 0:
 			setdim(24, 80);
 			break;
 		case 1:
-			ttystate[raw].crnl = !ttystate[raw].crnl;
+			tty.crnl = !tty.crnl;
 			break;
 		case 2:
-			ttystate[raw].nlcr = !ttystate[raw].nlcr;
+			tty.nlcr = !tty.nlcr;
 			break;
 		case 3:
-			raw = !raw;
+			if(pttyopen() >= 0 && fprint(pttyfd, raw ? "rawoff" : "rawon") > 0)
+				raw = !raw;
 			break;
 		case 4:
 			postnote(PNGROUP, hostpid, "hangup");
@@ -830,32 +778,6 @@ hostproc(void*)
 	}
 }
 
-/* the host's consctl is a pipe: rawon and rawoff set raw, and its last close ends it */
-void
-consctlproc(void*)
-{
-	char buf[128], *f[10];
-	int fd, n, i, nf;
-
-	threadsetname("vt consctl");
-	for(;;){
-		fd = open("/mnt/cons/consctl/data", OREAD);
-		if(fd < 0)
-			return;
-		while((n = read(fd, buf, sizeof buf-1)) > 0){
-			buf[n] = 0;
-			nf = tokenize(buf, f, nelem(f));
-			for(i = 0; i < nf; i++)
-				if(strcmp(f[i], "rawon") == 0)
-					raw = 1;
-				else if(strcmp(f[i], "rawoff") == 0)
-					raw = 0;
-		}
-		close(fd);
-		raw = 0;
-	}
-}
-
 void
 execproc(void *v)
 {
@@ -874,8 +796,8 @@ execproc(void *v)
 	dup(fd, 2);
 	if(fd != 1 && fd != 2)
 		close(fd);
-	procexecl(pidc, "/bin/rc", "rcX", nil);
-	fprint(2, "vt: exec rc: %r\n");
+	procexecl(pidc, "/bin/ptty", "ptty", nil);
+	fprint(2, "vt: exec ptty: %r\n");
 	threadexits("exec");
 }
 
@@ -947,25 +869,22 @@ threadmain(int argc, char **argv)
 		sysfatal("vtnew: %r");
 	vt->reply = reply;
 
-	/* the host's cons and consctl are pipes */
-	if(bind("#|", "/mnt/cons/consctl", MBEFORE) < 0
-	|| bind("/mnt/cons/consctl/data1", "/dev/consctl", MREPL) < 0)
-		sysfatal("bind consctl: %r");
-	if(bind("#|", "/mnt/cons/cons", MREPL) < 0
-	|| bind("/mnt/cons/cons/data1", "/dev/cons", MREPL) < 0)
-		sysfatal("bind cons: %r");
-	outfd = open("/mnt/cons/cons/data", ORDWR|OCEXEC);
+	/* ptty's terminal is a pipe, whose other end is vt's */
+	if(bind("#|", "/dev", MBEFORE) < 0)
+		sysfatal("bind #|: %r");
+	outfd = open("/dev/data", ORDWR|OCEXEC);
 	if(outfd < 0)
-		sysfatal("open cons: %r");
+		sysfatal("open pipe: %r");
+	if(bind("/dev/data1", "/dev/cons", MREPL) < 0)
+		sysfatal("bind cons: %r");
 	exportsize();
 
 	hostc = chancreate(sizeof(Buf*), 8);
 	pidc = chancreate(sizeof(ulong), 0);
-	proccreate(consctlproc, nil, Stack);
 	proccreate(execproc, pidc, Stack);
 	hostpid = recvul(pidc);
 	if(hostpid == ~0)
-		sysfatal("exec rc: %r");
+		sysfatal("exec ptty: %r");
 	proccreate(hostproc, nil, Stack);
 
 	drawall();
