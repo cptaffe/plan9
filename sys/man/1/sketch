@@ -158,15 +158,17 @@ On a Mac, button 2 is Option and button 1.
 .TP
 button 3
 The menu:
-.BR cut ,
-.BR copy ,
-.BR paste ,
-.BR undo ,
-.BR write ,
-.B exit
+.BR Cut ,
+.BR Copy ,
+.BR Paste ,
+.BR Undo ,
+.BR Write ,
+.B Exit
 and
-.BR more… ,
-which makes the next button 3 show every command and the definitions.
+.BR More… ,
+which makes the next button 3 show every command, named as here but capitalized, and the
+definitions, as
+.BR "Copy par" .
 Its commands act on what the mouse was at when the button went down;
 after a command chosen there, the message line names its key.
 .TP
