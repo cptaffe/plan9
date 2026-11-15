@@ -93,7 +93,16 @@ A click at nothing clears the selection.
 On a Mac, button 2 is Option and button 1.
 .TP
 button 3
-The menu.
+The menu:
+.BR cut ,
+.BR copy ,
+.BR paste ,
+.BR undo ,
+.BR write ,
+.B exit
+and
+.BR more… ,
+which makes the next button 3 show every command and the definitions.
 Its commands act on what the mouse was at when the button went down;
 after a command chosen there, the message line names its key.
 .TP
