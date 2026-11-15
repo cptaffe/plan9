@@ -84,11 +84,13 @@ It takes a point within 5/64 inch, and a line, an arc or a crossing within 5/32.
 While something is drawn or moved, faint guides show:
 level and upright lines through the points the moving ones are joined to,
 and those points' lines extended,
-and the same through the designated points, the circle center, and the hot points
+and the same through the designated points, the anchor, and the hot points
 .RB ( e ),
 with circles around them of the radii
 .B o
 chose; and, while a point is placed, the middles of the lines that stay put.
+The anchor's lines are at their angles to the line or arc it ends, if it ends one,
+so its level line there is the tangent and its upright the normal.
 The mark takes a guide, or where it crosses a line or another guide,
 and the message line says which.
 Letting go on a guide puts the point there and makes no constraint,
@@ -107,9 +109,10 @@ button 1
 Draw a line from the mark, using a point there if there is one; its end follows the mouse.
 Letting go on a point joins them; on a line or arc, the end goes on it.
 A click with no drag leaves a point.
-After a circle center
-.RB ( c ),
-draw an arc around it instead.
+Just after
+.BR c ,
+draw an arc around the anchor instead.
+Letting go, the message line gives the length drawn and its angle, or the arc's radius and sweep.
 .TP
 button 2
 Move what is under the mouse: a point, a line's or arc's points, or a text;
@@ -119,6 +122,9 @@ A click without moving selects the thing alone; with Shift, it adds the thing or
 At nothing, sweep a box: rightward it selects the lines, arcs, texts and lone points
 wholly inside it, leftward those it touches; with Shift it adds to the selection.
 A click at nothing clears the selection.
+With an anchor, Shift and button 2 on a selected thing turns and sizes the selection about the anchor,
+as the mouse goes around it and nearer or farther;
+the turn takes a multiple of 15° within 2°.
 On a Mac, button 2 is Option and button 1.
 .TP
 button 3
@@ -172,7 +178,13 @@ Delete what is selected, or else what is here,
 with the points that only its lines and arcs used.
 .TP
 .B c
-Make a circle center here; the next button 1 draws an arc around it.
+Make the point here, or a new one, the anchor, which shows as a blue ring.
+The next button 1 draws an arc around it; after that the anchor stays, for
+.BR r ,
+.BR s ,
+Shift and button 2, its guides, and
+.BR o ,
+until Escape lifts it.
 .TP
 .B t
 Start a text here.
@@ -181,7 +193,7 @@ Type it; Backspace, control-U and control-W edit it, and newline, Escape or a cl
 .B r
 Turn the piece here: what lines, arcs and constraints join to it,
 or, if there are any, the things designated.
-It turns around the circle center if there is one, else around the piece's one fixed point
+It turns around the anchor if there is one, else around the piece's one fixed point
 if it has one, and else around the middle of the piece,
 as the mouse goes around that point.
 A line or text here snaps to a direction within 2° of a multiple of 15°.
@@ -190,7 +202,7 @@ and erasing it gives the turn back to the mouse;
 the wheel turns it 3°, and the mouse no longer snaps after that.
 .B s
 changes to sizing.
-A click or newline keeps it, and forgets the circle center;
+A click or newline keeps it;
 Escape or another button takes it back.
 The constraints are met as it turns, so a line held horizontal won't turn,
 and fixed points stay fixed where the turn puts them.
@@ -243,14 +255,15 @@ on one moves it last, and on the last one forgets it.
 at nothing starts a box: sweep it with button 1.
 Swept rightward, it designates the lines, arcs, texts and lone points wholly inside it;
 leftward, those it touches.
-Undo, and Escape during a copy, keep the designations and the circle center.
+Undo, and Escape during a copy, keep the designations and the anchor.
 .TP
 .B e
 Make the point here hot, so it has guides in every drag, or not.
 Hot points show as gray squares.
 .TP
 .B o
-On a line, make circles of its length, or stop; elsewhere, type a radius in inches and newline
+On a line, make circles of its length, or stop; at a point, with an anchor, circles of the
+distance between them; elsewhere, type a radius in inches and newline
 to make circles of it, or stop, or newline alone to stop all.
 .TP
 .B n
@@ -280,7 +293,7 @@ Write the file.
 Exit; with changes not written, the first says so and the second exits.
 .TP
 Escape
-Forget the circle center, which shows as a blue ring, the designations and the hot points.
+Lift the anchor, and forget the designations and the hot points.
 .PD
 .SS Constraints
 Each constraint shows as a circle with its letter, Sketchpad's, with arms to the points it
