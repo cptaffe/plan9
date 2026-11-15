@@ -33,6 +33,7 @@ static struct {
 	{"term",				SIGTERM},
 	{"usr1",				SIGUSR1},
 	{"usr2",				SIGUSR2},
+	{"winch",				SIGWINCH},
 };
 #define NSIGTAB ((sizeof sigtab)/(sizeof (sigtab[0])))
 
@@ -104,6 +105,8 @@ _notehandler(void *u, char *msg)
 	for(i = 0; i<NSIGTAB; i++){
 		if(strncmp(msg, sigtab[i].msg, strlen(sigtab[i].msg)) == 0){
 			f = _sighdlr[sigtab[i].num];
+			if(f == SIG_DFL && sigtab[i].num == SIGWINCH)
+				f = SIG_IGN;
 			if(f == SIG_DFL || f == SIG_ERR)
 				break;
 			if(f != SIG_IGN) {

@@ -114,6 +114,7 @@ tcsetattr(int fd, int, const struct termios *t)
 
 	for(i = 0; i < NCCS; i++)
 		n += sprintf(buf+n, "%2.2x ", t->c_cc[i]);
+	n += sprintf(buf+n, "%d", getpid());
 
 	if(ptyctl(buf, n, 1) < 0)
 		return -1;
