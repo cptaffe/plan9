@@ -207,9 +207,8 @@ main(int argc, char *argv[])
 	/* start syslog before we fork */
 	fmtinstall('F', fcallfmt);
 	dninit();
-	/* this really shouldn't be fatal */
 	if(myipaddr(ipaddr, mntpt) < 0)
-		sysfatal("can't read my ip address");
+		dnslog("can't read my ip address");
 	dnslog("starting %s%sdns %s%s%son %I's %s",
 		(cfg.straddle? "straddling ": ""),
 		(cfg.cachedb? "caching ": ""),

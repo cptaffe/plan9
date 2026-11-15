@@ -199,7 +199,7 @@ struct Querylck
 {
 	QLock;
 //	Rendez;
-	Ref;
+	Ref	r;
 };
 
 /*
