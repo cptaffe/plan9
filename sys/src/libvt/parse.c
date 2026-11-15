@@ -178,6 +178,28 @@ erase(Vt *vt, int y, int x0, int x1)
 }
 
 static void
+flushdumb(Vt *vt)
+{
+	Priv *p;
+
+	p = P(vt);
+	if(p->ndbuf > 0)
+		p->dumb(vt, p->dbuf, p->ndbuf);
+	p->ndbuf = 0;
+}
+
+static void
+dput(Vt *vt, Rune r)
+{
+	Priv *p;
+
+	p = P(vt);
+	if(p->ndbuf == Ndumb)
+		flushdumb(vt);
+	p->dbuf[p->ndbuf++] = r;
+}
+
+static void
 put(Vt *vt, Rune r)
 {
 	Priv *p;
@@ -187,6 +209,13 @@ put(Vt *vt, Rune r)
 	p = P(vt);
 	if(r >= 0x60 && r <= 0x7E && p->g[p->shift])
 		r = graphics[r-0x60];
+	if(p->dumb){
+		if(r < 0x80 || r > 0x9F){
+			dput(vt, r);
+			p->last = r;
+		}
+		return;
+	}
 	w = vtwidth(r);
 	if(w == 0)
 		return;
@@ -260,6 +289,27 @@ control(Vt *vt, int c)
 	Priv *p;
 
 	p = P(vt);
+	if(p->dumb){
+		switch(c){
+		case 0x08:
+		case 0x09:
+		case 0x0A:
+		case 0x0D:
+			dput(vt, c);
+			break;
+		case 0x0B:
+		case 0x0C:
+			dput(vt, '\n');
+			break;
+		case 0x0E:
+			p->shift = 1;
+			break;
+		case 0x0F:
+			p->shift = 0;
+			break;
+		}
+		return;
+	}
 	switch(c){
 	case 0x07:
 		p->bell++;
@@ -578,6 +628,8 @@ csi(Vt *vt, int f)
 
 	p = P(vt);
 	n = arg(vt, 0, 1);
+	if(p->dumb && (f != 'b' || p->priv != 0 || p->inter != 0))
+		return;
 	if(p->priv == '>' || p->priv == '='){
 		if(f == 'c' && p->priv == '>')
 			reply(vt, "\033[>1;10;0c");
@@ -764,6 +816,8 @@ esc(Vt *vt, int f)
 		p->g[p->inter == ')'] = f == '0';
 		return;
 	}
+	if(p->dumb)
+		return;
 	if(p->inter == '#'){
 		if(f == '8'){
 			for(i = 0; i < vt->rows; i++){
@@ -846,6 +900,8 @@ osc(Vt *vt)
 	int n;
 
 	p = P(vt);
+	if(p->dumb)
+		return;
 	p->osc[p->nosc] = 0;
 	s = p->osc;
 	n = strtol(s, &t, 10);
@@ -1057,4 +1113,6 @@ vtwrite(Vt *vt, uchar *buf, long n)
 		}
 		byte(vt, buf[i]);
 	}
+	if(p->dumb)
+		flushdumb(vt);
 }
