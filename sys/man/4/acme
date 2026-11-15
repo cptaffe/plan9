@@ -177,9 +177,11 @@ is always appended; the file offset is ignored.
 .B ctl
 may be read to recover the five numbers as held in the
 .B index
-file, described above, plus three more fields: the width of the
+file, described above, plus seven more fields: the width of the
 window in pixels, the name of the font used in the window,
-and the width of a tab character in pixels.
+the width of a tab character in pixels, whether there is anything to undo
+and to redo (1 or 0), the number of lines the body shows, and the width
+of the digit 0 in pixels, a column's width in a fixed-width font.
 Text messages may be written to
 .B ctl
 to affect the window.
@@ -307,6 +309,19 @@ to `scroll' to display the new text.
 .TP
 .B show
 Guarantee at least some of the selected text is visible on the display.
+.TP
+.B unveil
+Cancel a
+.B veil
+message.
+.TP
+.B veil
+Send every key typed in the body, but the wheel's, to the
+.B event
+file as a
+.B KV
+event, with neither the text inserted nor the key interpreted:
+the arrows, Escape and the control keys go to the program, as a terminal's do.
 .RE
 .PD
 .TP
@@ -394,6 +409,10 @@ for text inserted to the tag,
 for a button 3 action in the body,
 .B l
 for a button 3 action in the tag,
+.B V
+for a key typed in a veiled body (see
+.B veil
+below),
 .B X
 for a button 2 action in the body, and
 .B x
