@@ -1,0 +1,20 @@
+</$objtype/mkfile
+
+LIB=/$objtype/lib/libvt.a
+OFILES=\
+	key.$O\
+	parse.$O\
+	screen.$O\
+	width.$O\
+
+HFILES=/sys/include/vt.h\
+	impl.h\
+
+UPDATE=\
+	mkfile\
+	$HFILES\
+	${OFILES:%.$O=%.c}\
+	${LIB:/$objtype/%=/386/%}\
+
+</sys/src/cmd/mksyslib
+
