@@ -3,6 +3,13 @@
 sketch \- draw with constraints, after Sutherland's Sketchpad
 .SH SYNOPSIS
 .B sketch
+[
+.B -d
+]
+[
+.B -l
+.I log
+]
 .I file
 .br
 .B sketch
@@ -44,6 +51,28 @@ draws nothing: it reads a drawing from
 or standard input, satisfies its constraints, and writes it to standard output.
 It names each constraint it could not satisfy on standard error, and exits with status
 .BR unmet .
+.PP
+With
+.BR -l ,
+.I sketch
+writes to
+.I log
+what the mouse and keys did, as atoms (see Atoms).
+With
+.BR -d ,
+it opens no window: it reads atoms from standard input and does what they say,
+as if the mouse and keys had,
+writing
+.I file
+only when they type
+.BR w ;
+it puts what it would show on the message line on standard error, and exits at the end of its input.
+So
+.B "sketch -d file <log"
+does again what the session that wrote
+.I log
+did, from the same
+.IR file .
 .SS Pointing
 A red mark follows the mouse and shows what it is at:
 a ring at a point, a dot on a line or arc, a cross where two cross, a square at a text,
@@ -287,6 +316,46 @@ its next-to-last attacher merges with what the mark is at,
 its last follows the mouse, and a click drops it, merging it with what it lands on;
 earlier attachers merge with the things designated, in order.
 The menu lists every definition.
+.SS Atoms
+An atom is a line of words, quoted as in
+.IR rc (1);
+a line that begins
+.B #
+is a comment.
+.TF "menu item"
+.TP
+.BI m " buttons point name"
+The mouse, with these buttons down, at this point on the page, in inches as
+.IB x , y\f1,
+and at the thing of this name.
+Either the point or the name may be left out.
+If the thing named is there and the point is not at it, the name wins:
+the mouse goes to the point or text named,
+or onto the line or arc, at its middle if no point is given.
+.TP
+.BI k " key"
+A key: the character, or
+.BI 0x hex
+for its rune.
+.TP
+.BI menu " item"
+The item chosen from button 3's menu, or none.
+.TP
+.BI snarf " n"
+The
+.I n
+bytes on the next lines are what a paste read from
+.BR /dev/snarf .
+.TP
+.BI scale " s\fR, \fPdpi " n
+The zoom, in pixels an inch, and the display's pixels an inch, which set how far the mark reaches.
+.PD
+.PP
+The log begins with
+.B scale
+and
+.BR dpi ,
+names each thing it points at as the drawing will, and gives every move of a drag.
 .SH FILES
 .TF /lib/font/hershey/futural.jhf
 .TP
