@@ -60,7 +60,7 @@ in
 .BR /lib/hotkey/acme :
 .IP
 .EX
-cmd-p	{test -e /mnt/acme/index || mount /srv/acme /mnt/acme; Find}
+cmd-p	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; Find}
 .EE
 .SH SOURCE
 plan9web's

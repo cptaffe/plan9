@@ -53,8 +53,10 @@ and mounts itself on
 .I mtpt
 .RB ( /mnt/alsp ),
 then waits for
-.B /srv/acme
-and follows its windows.
+.BR $acmesrv ,
+an acme's
+.B /srv
+file, and follows its windows.
 .B Acmestart
 starts it after
 .I astyles

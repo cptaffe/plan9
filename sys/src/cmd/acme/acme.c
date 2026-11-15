@@ -117,6 +117,11 @@ threadmain(int argc, char *argv[])
 		if(mtpt == nil)
 			goto Usage;
 		break;
+	case 'S':
+		srvname = ARGF();
+		if(srvname == nil)
+			goto Usage;
+		break;
 	case 'r':
 		swapscrollbuttons = TRUE;
 		break;
@@ -125,7 +130,7 @@ threadmain(int argc, char *argv[])
 		break;
 	default:
 	Usage:
-		fprint(2, "usage: acme -a -c ncol -d dumpfile -f fontname -F fixedwidthfontname -l loadfile -s stylefile\n");
+		fprint(2, "usage: acme -a -c ncol -d dumpfile -f fontname -F fixedwidthfontname -l loadfile -S srvname\n");
 		threadexitsall("usage");
 	}ARGEND
 

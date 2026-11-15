@@ -191,14 +191,18 @@ under
 .I hotkey
 and sets
 .B $acmewin
-to the focused window.
+to the focused window and
+.B $acmesrv
+to the acme's
+.B /srv
+file.
 Acme's files are not in
 .IR hotkey 's
 name space, so a rule mounts them:
 .IP
 .EX
-cmd-s	{test -e /mnt/acme/index || mount /srv/acme /mnt/acme; echo put >/mnt/acme/$acmewin/ctl}
-ctl-x ctl-s	{test -e /mnt/acme/index || mount /srv/acme /mnt/acme; echo put >/mnt/acme/$acmewin/ctl}
+cmd-s	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; echo put >/mnt/acme/$acmewin/ctl}
+ctl-x ctl-s	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; echo put >/mnt/acme/$acmewin/ctl}
 .EE
 .PP
 Switch to another set of rules:

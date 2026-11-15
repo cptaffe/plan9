@@ -33,8 +33,14 @@ by default) and mounts itself on
 .I mtpt
 .RB ( /mnt/astyles ),
 then waits for
-.B /srv/acme
-and follows the windows of the acme it gives, mounted on
+.BR $acmesrv ,
+the
+.B /srv
+file of an acme
+(which
+.B acmestart
+sets),
+and follows that acme's windows, mounted on
 .I acme
 .RB ( /mnt/acme ).
 It exits when acme does.

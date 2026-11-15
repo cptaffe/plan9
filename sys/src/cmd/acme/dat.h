@@ -647,6 +647,7 @@ char			*dumpfile;
 ulong		dumpseq;
 int			dodollarsigns;
 char*		mtpt;
+char			*srvname;
 
 enum
 {
