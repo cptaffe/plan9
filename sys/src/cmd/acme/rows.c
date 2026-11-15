@@ -28,7 +28,7 @@ rowinit(Row *row, Rectangle r)
 	Rectangle r1;
 	Text *t;
 
-	draw(screen, r, display->white, nil, ZP);
+	draw(screen, r, colback, nil, ZP);
 	row->r = r;
 	row->col = nil;
 	row->ncol = 0;
@@ -42,7 +42,7 @@ rowinit(Row *row, Rectangle r)
 	t->col = nil;
 	r1.min.y = r1.max.y;
 	r1.max.y += Border;
-	draw(screen, r1, display->black, nil, ZP);
+	draw(screen, r1, colrule, nil, ZP);
 	textinsert(t, 0, Lcolhdr, 29, TRUE);
 	textsetselect(t, t->file->b.nc, t->file->b.nc);
 }
@@ -73,7 +73,7 @@ rowadd(Row *row, Column *c, int x)
 		r = d->r;
 		if(Dx(r) < 100)
 			return nil;
-		draw(screen, r, display->white, nil, ZP);
+		draw(screen, r, colback, nil, ZP);
 		r1 = r;
 		r1.max.x = min(x-Border, r.max.x-50);
 		if(Dx(r1) < 50)
@@ -81,7 +81,7 @@ rowadd(Row *row, Column *c, int x)
 		colresize(d, r1);
 		r1.min.x = r1.max.x;
 		r1.max.x = r1.min.x+Border;
-		draw(screen, r1, display->black, nil, ZP);
+		draw(screen, r1, colrule, nil, ZP);
 		r.min.x = r1.max.x;
 	}
 	if(c == nil){
@@ -114,7 +114,7 @@ rowresize(Row *row, Rectangle r)
 	textresize(&row->tag, r1, TRUE);
 	r1.min.y = r1.max.y;
 	r1.max.y += Border;
-	draw(screen, r1, display->black, nil, ZP);
+	draw(screen, r1, colrule, nil, ZP);
 	r.min.y = r1.max.y;
 	r1 = r;
 	r1.max.x = r1.min.x;
@@ -129,7 +129,7 @@ rowresize(Row *row, Rectangle r)
 		if(i > 0){
 			r2 = r1;
 			r2.max.x = r2.min.x+Border;
-			draw(screen, r2, display->black, nil, ZP);
+			draw(screen, r2, colrule, nil, ZP);
 			r1.min.x = r2.max.x;
 		}
 		colresize(c, r1);
@@ -190,14 +190,14 @@ rowdragcol(Row *row, Column *c, int _0)
 		p.x = c->r.max.x-80-Scrollwid;
 	r = d->r;
 	r.max.x = c->r.max.x;
-	draw(screen, r, display->white, nil, ZP);
+	draw(screen, r, colback, nil, ZP);
 	r.max.x = p.x;
 	colresize(d, r);
 	r = c->r;
 	r.min.x = p.x;
 	r.max.x = r.min.x;
 	r.max.x += Border;
-	draw(screen, r, display->black, nil, ZP);
+	draw(screen, r, colrule, nil, ZP);
 	r.min.x = r.max.x;
 	r.max.x = c->r.max.x;
 	colresize(c, r);
@@ -222,7 +222,7 @@ rowclose(Row *row, Column *c, int dofree)
 	memmove(row->col+i, row->col+i+1, (row->ncol-i)*sizeof(Column*));
 	row->col = realloc(row->col, row->ncol*sizeof(Column*));
 	if(row->ncol == 0){
-		draw(screen, r, display->white, nil, ZP);
+		draw(screen, r, colback, nil, ZP);
 		return;
 	}
 	if(i == row->ncol){		/* extend last column right */
@@ -233,7 +233,7 @@ rowclose(Row *row, Column *c, int dofree)
 		c = row->col[i];
 		r.max.x = c->r.max.x;
 	}
-	draw(screen, r, display->white, nil, ZP);
+	draw(screen, r, colback, nil, ZP);
 	colresize(c, r);
 }
 
@@ -312,6 +312,29 @@ rowclean(Row *row)
 	return clean;
 }
 
+extern Command *command;
+
+/*
+ * untagcmds takes the names of running commands, which acme put there,
+ * out of the n runes of the row's tag in r; a command that a load runs
+ * again puts its name back.
+ */
+static int
+untagcmds(Rune *r, int n)
+{
+	Command *c;
+	int i;
+
+	for(c=command; c; c=c->next)
+		for(i=0; i+c->nname<=n; i++)
+			if((i==0 || r[i-1]==' ') && runeeq(r+i, c->nname, c->name, c->nname)){
+				runemove(r+i, r+i+c->nname, n-i-c->nname);
+				n -= c->nname;
+				break;
+			}
+	return n;
+}
+
 int
 rowdump(Row *row, char *file)
 {
@@ -365,6 +388,7 @@ rowdump(Row *row, char *file)
 	n = 0;
 	while(n<m && r[n]!='\n')
 		n++;
+	n = untagcmds(r, n);
 	Bprint(b, "w %.*S\n", n, r);
 	for(i=0; i<row->ncol; i++){
 		c = row->col[i];
@@ -703,12 +727,12 @@ rowload(Row *row, char *file, int initing)
 			r2.min.x = x;
 			if(Dx(r1) < 50 || Dx(r2) < 50)
 				continue;
-			draw(screen, Rpt(r1.min, r2.max), display->white, nil, ZP);
+			draw(screen, Rpt(r1.min, r2.max), colback, nil, ZP);
 			colresize(c1, r1);
 			colresize(c2, r2);
 			r2.min.x = x-Border;
 			r2.max.x = x;
-			draw(screen, r2, display->black, nil, ZP);
+			draw(screen, r2, colrule, nil, ZP);
 		}
 		if(i >= row->ncol)
 			rowadd(row, nil, x);

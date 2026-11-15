@@ -75,9 +75,14 @@ and
 .B palehold
 for those in hold mode,
 .B size
-for the outline as a window is swept, and
+for the outline as a window is swept,
 .B rioback
-for the background.
+for the background, and
+.B wallpaper
+for the picture on it, whose black becomes its
+.B bg=
+and white its
+.BR fg= .
 .TP
 menus
 .BR menuback ,
@@ -105,11 +110,15 @@ and
 .B modbutton
 and
 .B colbutton
-for the boxes at the left of tags, and
+for the boxes at the left of tags,
 .B but2
 and
 .B but3
-for text swept with buttons 2 and 3.
+for text swept with buttons 2 and 3,
+.B colback
+for space no window covers, and
+.B colrule
+for the lines between columns and windows.
 For
 .BR tag ,
 .BR tagsel ,
@@ -130,7 +139,14 @@ and
 .BR string ,
 which the theme colors.
 .B /lib/theme
-gives those the system's programs use.
+gives those the system's programs use;
+.IR alsp (4)
+marks diagnostics
+.BR error ,
+.BR warning ,
+.B info
+and
+.BR hint .
 .TP
 .IR control (2)
 .BR back ,
@@ -146,6 +162,14 @@ which controls take when not told otherwise, and which programs such as
 (see
 .IR factotum (4))
 name.
+.SH FILES
+.TP
+.B /lib/themes/night
+a dark theme; copy it to
+.B $home/lib/theme
+and start
+.I rio
+again.
 .SH SOURCE
 .B /sys/src/libdraw/theme.c
 .SH SEE ALSO

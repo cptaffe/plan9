@@ -1,0 +1,68 @@
+# night: a dark theme (theme(6)). To use it, cp /lib/themes/night $home/lib/theme and start rio
+# again, or bind it on /lib/theme in a namespace's own.
+
+# rio
+rioback	0e1015
+wallpaper	fg=343b48 bg=0c0e12
+back	1b1e24
+text	d4d4cc
+high	3b4a5e
+htext	f2f2ea
+border	2c313a
+title	46607f
+ltitle	3a404c
+hold	a98bd6
+lhold	5d4c7c
+palehold	3b3550
+size	e8747c
+
+# menus
+menuback	222833
+menuhigh	3b4a5e
+menubord	56647a
+menutext	c9d3df
+menuhtext	ffffff
+
+# acme
+tag	fg=c9d3df bg=222833
+tagsel	fg=eef3f8 bg=3b4a5e
+tagborder	56647a
+body	fg=d4d4cc bg=1b1e24
+bodysel	fg=f2eedc bg=4b4530
+bodyborder	3a404c
+modbutton	6b9bd8
+colbutton	8a7fd0
+but2	a8414b
+but3	3f7a45
+colback	15171c
+colrule	0c0e12
+
+# libcontrol
+pale	2c313a
+entry	222833
+ok	3f7a45
+
+# roles in acme's style files and astyles(4)'s layers
+comment	fg=7d8594
+keyword	fg=c792ea
+string	fg=a8cc8c
+type	fg=e5c07b
+number	fg=e09a6a
+operator	fg=98a2b0
+function	fg=6fb3f2
+macro	fg=5cc3c8
+namespace	fg=7fb4ca
+variable	fg=d4d4cc
+error	fg=ff8a8a bg=3a1f24
+warning	fg=e5c07b bg=33301e
+info	fg=6fb3f2
+hint	fg=7d8594
+highlight	fg=1b1e24 bg=e5c07b
+bold	fg=ffffff
+italic	fg=c8c0b0
+heading1	fg=6fb3f2 bg=232b38
+heading2	fg=6fb3f2
+heading3	fg=8cc4f5
+heading4	fg=a6cdf0
+heading5	fg=b6c6d8
+heading6	fg=98a2b0
