@@ -94,7 +94,32 @@ chooses; and, while a point is placed, the middles of the lines that stay put.
 The anchor's lines are at their slopes from the line or arc it ends, if it ends one,
 so its level line there is the tangent and its upright the normal.
 The mark takes a guide, or where it crosses a line or another guide,
-and the message line says which.
+and the message line says which, tersely:
+.B "∠60° P1"
+is the 60° line through
+.BR P1 ,
+.B "∥L1 P2"
+and
+.B "⊥L1 P2"
+the anchor's tangent and normal on
+.BR L1 ,
+.B ∈L3
+.B L3
+extended,
+.B ½L1
+its middle,
+.B "○P1 S1"
+and
+.B "○P1 |L3|"
+circles about
+.B P1
+of
+.BR S1
+or
+.BR L3 's
+length, and
+.B ∩
+where two meet.
 Letting go on a guide puts the point there and makes no constraint,
 as Gargoyle's snapping does.
 During a drag,
@@ -114,7 +139,9 @@ A click with no drag leaves a point.
 Just after
 .BR c ,
 draw an arc around the anchor instead.
-Letting go, the message line gives the length drawn and its angle, or the arc's radius and sweep.
+Letting go, the message line gives the length drawn and its angle,
+.BR "L2 = 1 ∠120°" ,
+or the arc's radius and sweep.
 .TP
 button 2
 Move what is under the mouse: a point, a line's or arc's points, or a text;
@@ -154,7 +181,7 @@ During a drag, Escape or another button takes back everything the drag did.
 .BR Command-Z ", control-Z"
 Undo.
 .TP
-.BR Command-Shift-Z ", Command-Y, control-Y"
+.BR Command-Shift-Z ", Command-Y, control-Y, control-R"
 Redo what undo took back.
 .TP
 .BR Command-C ", control-C"
