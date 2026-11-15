@@ -89,9 +89,9 @@ struct Priv
 
 #define P(vt)	((Priv*)(vt)->priv)
 
-void	begin(Vt*);
-void	blank(Vt*, Vtcell*, int);
-void	touch(Vt*, int);
-void	touchall(Vt*);
-void	scroll(Vt*, int, int, int, int);
-void	softreset(Vt*);
+void	_vtbegin(Vt*);
+void	_vtblank(Vt*, Vtcell*, int);
+void	_vttouch(Vt*, int);
+void	_vttouchall(Vt*);
+void	_vtscroll(Vt*, int, int, int, int);
+void	_vtsoftreset(Vt*);
