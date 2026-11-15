@@ -235,8 +235,11 @@ the wheel turns it 3°, and the mouse no longer snaps after that.
 changes to sizing.
 A click or newline keeps it;
 Escape or another button takes it back.
-The constraints are met as it turns, so a line held horizontal won't turn,
-and fixed points stay fixed where the turn puts them.
+What it turns is held where the turn puts it, as a drag holds what it moves,
+and the rest of the drawing meets the constraints around it,
+so turning a linkage's crank moves the linkage;
+when it is let go, all the constraints are met again,
+so a line held horizontal turns back, and fixed points stay fixed where the turn put them.
 .TP
 .B s
 Size the piece here, as
@@ -367,7 +370,8 @@ or
 .BR $home/lib/sketch .
 Copying one puts a copy in the drawing:
 its next-to-last attacher merges with what the mark is at,
-its last follows the mouse, and a click drops it, merging it with what it lands on;
+its last follows the mouse, and a click drops it, merging it with what it lands on,
+and only then are the copy's constraints met;
 earlier attachers merge with the things designated, in order.
 The menu lists every definition.
 .SS Atoms
