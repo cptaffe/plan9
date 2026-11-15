@@ -1,0 +1,262 @@
+.TH VT 2
+.SH NAME
+vtnew, vtfree, vtresize, vtreset, vtwrite, vtframe, vtkey, vtpaste, vtmouse, vtfocus, vtwidth \- a terminal's screen, with nothing drawn
+.SH SYNOPSIS
+.ta \w'long 'u
+.B #include <u.h>
+.br
+.B #include <libc.h>
+.br
+.B #include <keyboard.h>
+.br
+.B #include <vt.h>
+.PP
+.B
+Vt*	vtnew(int cols, int rows)
+.PP
+.B
+void	vtfree(Vt *vt)
+.PP
+.B
+void	vtresize(Vt *vt, int cols, int rows)
+.PP
+.B
+void	vtreset(Vt *vt)
+.PP
+.B
+void	vtwrite(Vt *vt, uchar *buf, long n)
+.PP
+.B
+void	vtframe(Vt *vt, Vtframe *f)
+.PP
+.B
+int	vtkey(Vt *vt, int key, char *buf, int n)
+.PP
+.B
+long	vtpaste(Vt *vt, char *s, long len, char *buf, long n)
+.PP
+.B
+int	vtmouse(Vt *vt, int but, int x, int y, int press, char *buf, int n)
+.PP
+.B
+int	vtfocus(Vt *vt, int in, char *buf, int n)
+.PP
+.B
+int	vtwidth(Rune r)
+.SH DESCRIPTION
+These functions keep the screen a Unix program draws on a terminal by xterm's escape
+sequences, so that a program such as
+.IR vt (1)
+or
+.I avt
+can show it.
+They draw nothing: a screen is cells, and what changed is told in frames.
+.PP
+.I Vtnew
+makes a screen of
+.I cols
+columns and
+.I rows
+rows;
+.I vtfree
+frees it.
+.I Vtwrite
+gives it
+.I n
+bytes of the program's output, in UTF-8.
+A sequence or a rune may be split between writes.
+.I Vtresize
+changes its size: what fits stays where it was, and if the cursor's row is cut off,
+the rows above it leave the top as a line feed would push them.
+.I Vtreset
+is RIS, a terminal as
+.I vtnew
+made it.
+.PP
+.B Vt.line
+is the screen shown,
+.B Vt.rows
+lines of
+.B Vt.cols
+cells.
+A cell holds a rune, its colors and its attributes,
+.BR Vbold ,
+.BR Vfaint ,
+.BR Vitalic ,
+.BR Vunder ,
+.BR Vblink ,
+.BR Vreverse ,
+.BR Vinvisible
+and
+.BR Vstrike .
+A rune two columns wide fills two cells: the first has
+.BR Vwide ,
+the second
+.B Vcont
+and the rune 0.
+A rune of no width, a combining mark, has no cell.
+A color is
+.BR Vdefault ,
+.B Vindex
+or'd with one of the 256 colors, or
+.B Vrgb
+or'd with 0xRRGGBB.
+A cell's
+.B link
+is the index in
+.B Vt.links
+of the URI an OSC 8 sequence gave it, or 0.
+A line's
+.B wrapped
+says the line runs on into the next, by autowrap.
+.PP
+.B Vt.x
+and
+.B Vt.y
+are the cursor, shown if
+.B Vt.mode
+has
+.BR Mcursor .
+The other modes are
+.B Mappcursor
+(DECCKM),
+.B Mappkeypad
+(DECKPAM),
+.B Mwrap
+(DECAWM),
+.B Morigin
+(DECOM),
+.B Minsert
+(IRM),
+.B Mnewline
+(LNM),
+.B Malt
+(the alternate screen, by 47, 1047 or 1049),
+.B Mbracket
+(2004),
+.B Mfocus
+(1004),
+.BR Mmouse ,
+.B Mmousedrag
+and
+.B Mmouseall
+(1000, 1002 and 1003), and
+.B Msgr
+(1006).
+.B Vt.title
+is the last title OSC 0 or 2 gave.
+.PP
+.I Vtframe
+fills
+.I f
+with what changed since the last frame, in the order to apply it.
+.B all
+says every row changed: the screen was switched, resized or reset.
+.B ngone
+lines left the top of the main screen, by a line feed or SU with the scroll region at
+the top; they are
+.BR Vt.gone ,
+oldest first, at most
+.BR Vgone ,
+and
+.B lost
+counts those left out before them.
+Then the
+.B nscroll
+scrolls
+.BR scroll :
+rows
+.B top
+to
+.B bot\-1
+moved up
+.B n
+rows, or down if
+.B n
+is negative, the rows uncovered blank.
+Then the rows whose byte in
+.B dirty
+is set changed, numbered as they are after the scrolls.
+.B Cursor
+says the cursor moved or was shown or hidden,
+.B modes
+has the modes that changed,
+.B title
+says the title changed, and
+.B bell
+counts the BELs.
+.BR Scroll ,
+.B dirty
+and
+.B Vt.gone
+are the library's, good until the next call that changes the screen.
+.PP
+.B Vt.reply
+is called with the answers to the program's questions (DA, DSR's cursor position),
+for the program; if it is nil they are dropped.
+.B Vt.aux
+is the caller's.
+.PP
+.IR Vtkey ,
+.IR vtpaste ,
+.I vtmouse
+and
+.I vtfocus
+put in
+.I buf
+the bytes to send the program for a key, a paste, the mouse, or the window's focus, as
+the modes ask, and return how many, 0 if there are none to send, or \-1 if
+.I n
+is too few.
+A
+.I key
+is a rune or one of
+.IR keyboard.h 's,
+.BR Kup ,
+.BR Kdown ,
+.BR Kleft ,
+.BR Kright ,
+.BR Khome ,
+.BR Kend ,
+.BR Kpgup ,
+.BR Kpgdown ,
+.BR Kins ,
+or
+.B KF|1
+to
+.BR KF|12 ,
+with
+.BR Vctl ,
+.B Valt
+and
+.B Vshift
+or'd in;
+.B Kbs
+sends DEL, and
+.B Kdel
+the delete key's ESC [3~.
+A paste's newlines are sent as returns; with
+.B Mbracket
+it is bracketed, and its escapes dropped, so it cannot end the bracket.
+.IR Vtmouse 's
+.I but
+is 1, 2 or 3, a button, 4 or 5, the wheel, or 0, none, with the modifiers or'd in;
+.I press
+is 1 for a press, 0 for a release and \-1 for a move;
+.I x
+and
+.I y
+are a cell's.
+.PP
+.I Vtwidth
+gives a rune's columns: 2 for Unicode 15.1's East Asian Wide and Fullwidth, 0 for its
+nonspacing and enclosing marks and format characters but the soft hyphen, and for the
+controls, and 1 for the rest.
+.SH SOURCE
+.B /sys/src/libvt
+.SH SEE ALSO
+.IR vt (1)
+.SH BUGS
+A combining mark is dropped.
+Double-width and double-height lines, VT52 and the sixel graphics DCS brings are not
+kept.
