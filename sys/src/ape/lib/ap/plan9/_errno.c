@@ -23,7 +23,7 @@ static struct errmap {
 	{ENOENT,	"does not exist"},
 	{ENXIO,	"unknown device in # filename"},
 	{ENOTDIR,	"not a directory"},
-	{EISDIR,	"file is a directory"},
+	{EISDIR,	"is a directory"},
 	{EINVAL,	"bad character in file name"},
 	{EINVAL,	"file name syntax"},
 	{EPERM,	"permission denied"},
