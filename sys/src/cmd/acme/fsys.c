@@ -122,22 +122,26 @@ fsysinit(void)
 {
 	int p[2], fd;
 	char buf[12];
-	char *u;
+	char *u, *srv;
 
 	initfcall();
 	if(pipe(p) < 0)
 		error("can't create pipe");
-	/* the mount end: runproc mounts it, and /srv/acme gives it to others */
+	/* the mount end: runproc mounts it, and /srv/acme.user.pid, or -S's, gives it to others */
 	cfd = p[0];
 	sfd = p[1];
-	if((fd = create("/srv/acme", OWRITE, 0600)) < 0)
+	fmtinstall('F', fcallfmt);
+	if((u = getuser()) != nil)
+		user = estrdup(u);
+	if(srvname == nil)
+		srv = smprint("/srv/acme.%s.%d", user, getpid());
+	else
+		srv = smprint("/srv/%s", srvname);
+	if(srv == nil || (fd = create(srv, OWRITE|OCEXEC|ORCLOSE, 0600)) < 0)
 		error("can't post service");
 	sprint(buf, "%d", cfd);
 	if(write(fd, buf, strlen(buf)) != strlen(buf))
 		error("can't post service");
-	fmtinstall('F', fcallfmt);
-	if((u = getuser()) != nil)
-		user = estrdup(u);
 	proccreate(fsysproc, nil, STACK);
 }
 

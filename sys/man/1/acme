@@ -23,6 +23,10 @@ acme, win, awd \- interactive text windows
 .I fixfont
 ]
 [
+.B -S
+.I srvname
+]
+[
 .B -l
 .I loadfile
 |
@@ -97,6 +101,20 @@ and
 .B Load
 with no argument still use
 .BR $home/acme.dump .
+.PP
+.I Acme
+posts its files as
+.BI /srv/acme. user . pid\f1,
+or with
+.B -S
+as
+.BI /srv/ srvname\f1,
+for programs it did not start to
+.IR mount ;
+the name goes when
+.I acme
+exits.
+.PP
 Plain files display as text; directories display as columnated lists of the
 names of their components, as in
 .B "ls -p directory|mc

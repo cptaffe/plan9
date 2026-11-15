@@ -641,6 +641,7 @@ char *dumpfile;
 ulong dumpseq;
 int dodollarsigns;
 char *mtpt;
+char *srvname;
 
 enum { Kscrolloneup = KF | 0x20, Kscrollonedown = KF | 0x21 };
 
