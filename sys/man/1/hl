@@ -1,0 +1,150 @@
+.TH HL 1
+.SH NAME
+hl, ts \- tree-sitter's colors in acme's windows
+.SH SYNOPSIS
+.B hl
+[
+.B -a
+.I acme
+] [
+.B -s
+.I astyles
+] [
+.B -t
+.I tsdir
+]
+.PP
+.BI /bin/ts/ lang
+[
+.B -q
+.I highlights.scm
+]
+.SH DESCRIPTION
+.I Hl
+colors the text of
+.IR acme (1)'s
+windows by its syntax, as tree-sitter's grammars parse it,
+in each window's
+.IR astyles (4)
+layer
+.BR treesitter .
+It waits for
+.BR $acmesrv ,
+an acme's
+.B /srv
+file, and follows its windows, mounted on
+.I acme
+.RB ( /mnt/acme ),
+writing their layers in
+.I astyles
+.RB ( /mnt/astyles ).
+.PP
+A window whose file the first rule of
+.B $home/lib/ts
+or
+.B /lib/ts
+matches is colored by that rule's grammar.
+A rule is a line,
+.BI ts= name
+.BI file= pattern\f1,
+where
+.I pattern
+is a
+.IR regexp (6)
+of the file's name.
+Each time the window's body changes,
+.I hl
+reads it under acme's
+.B seq
+guard and writes its layer under the same
+.BR seq ,
+so that
+.I astyles
+refuses colors for text that has since changed,
+and
+.I hl
+colors the window again.
+.PP
+Each grammar is a program,
+.IB tsdir / name
+.RB ( /bin/ts/ name ),
+that
+.I hl
+starts once and keeps for every window in its language.
+It reads requests on its standard input and answers each on its standard output:
+.TF close\ id
+.TP
+.BI body " id n"
+followed by
+.I n
+bytes, the text of document
+.IR id ;
+answered by
+.BI runs " id m"
+and
+.I m
+bytes of runs, in the form of
+.IR astyles (4)'s
+.B style
+file.
+The program keeps each document's parse, so that a change is parsed again only where it is.
+.TP
+.BI close " id"
+forgets document
+.IR id .
+.PD
+.PP
+Any program that speaks this, such as one for a small format written by hand, can stand in for one.
+.PP
+A grammar's program colors the captures of its query,
+.IB lang /highlights.scm\f1,
+by tree-sitter's query language with its
+.BR #eq? ,
+.B #match?
+and
+.B #any-of?
+predicates and their
+.B not-
+forms.
+Where captures overlap, the first one wins.
+A capture's run takes the name that
+.B names
+gives its capture, or the capture with its last
+.BI . part
+taken off, and so on; a capture with no name has no run.
+Each of these files is read from
+.B $home/lib/ts
+in place of
+.BR /sys/lib/ts .
+The
+.B -q
+option reads the query from a file instead.
+.SH FILES
+.TF /sys/lib/ts/lang/highlights.scm
+.TP
+.B /lib/ts
+the languages' rules
+.TP
+.B /sys/lib/ts/names
+capture names to
+.IR theme (6)
+names
+.TP
+.BI /sys/lib/ts/ lang /highlights.scm
+a language's query
+.TP
+.BI /bin/ts/ lang
+a language's program
+.PD
+.SH SOURCE
+plan9web's
+.B src/cmd/hl.c
+and
+.BR src/cmd/ts/ts.c ;
+tree-sitter's runtime and grammars from
+.BR scripts/dl.sh ,
+and the queries and names from acme-treesitter
+.SH SEE ALSO
+.IR acme (1),
+.IR astyles (4),
+.IR theme (6)

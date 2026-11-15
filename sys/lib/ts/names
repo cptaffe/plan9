@@ -1,0 +1,76 @@
+# The names ts(1)'s runs take, from tree-sitter's captures: a theme(6) name, then a capture's
+# name without its @. A capture takes its name's entry, or the entry of its name with its last
+# .part taken off, and so on. $home/lib/ts/names is read in place of this file.
+
+# ── Standard tree-sitter programming-language names ───────────────────────────
+keyword   keyword
+comment   comment
+string    string
+type      type
+number    number
+operator  operator
+error     error
+function  function
+macro     macro
+
+# ── Standard structural names used across language families ───────────────────
+type      attribute            # HTML/XML attribute; also used for fenced-block lang tag
+operator  punctuation          # brackets, delimiters, and punctuation.special
+operator  string.escape        # escape sequences within strings/markup
+
+# ── @markup.* — tree-sitter standard hierarchy for markup languages ───────────
+# Any @markup.* capture not listed explicitly falls back up the dot chain until
+# it hits one of the entries below.
+
+# Headings — a per-level palette entry for each level; unlevelled falls to keyword.
+keyword   markup.heading
+heading1  markup.heading.1
+heading2  markup.heading.2
+heading3  markup.heading.3
+heading4  markup.heading.4
+heading5  markup.heading.5
+heading6  markup.heading.6
+
+# Typographic spans.
+bold      markup.bold
+italic    markup.italic
+type      markup.strikethrough
+
+# Raw / verbatim content.  Specific sub-types first; @markup.raw is the catch-all.
+keyword   markup.raw.delimiter   # ``` and ` fence/span delimiters
+string    markup.raw.inline      # inline code-span content
+string    markup.raw.block       # fenced/indented code block content
+string    markup.raw             # catch-all for any other @markup.raw.*
+
+# Block-structure markers.
+operator  markup.quote           # block-quote >
+operator  markup.list            # list bullets, numbers, task markers (checked/unchecked
+                         # fall through to this via dot-strip)
+
+# Links — label and URL get distinct colours; anything else falls to function.
+function  markup.link            # catch-all for @markup.link.*
+function  markup.link.label      # [label] in a reference link
+string    markup.link.url        # link destination / autolink URI
+
+# HTML and tables are our extensions of the @markup.* convention; not in the
+# published spec but follow the same dot-namespaced pattern.
+macro     markup.html            # HTML block or inline HTML in markdown
+operator  markup.table           # pipe-table pipes and delimiter row
+
+# ── Legacy short-form aliases ─────────────────────────────────────────────────
+# No query file currently emits these stems.  Kept so that any external tool or
+# hand-written query that uses @bold / @h1 / … still resolves correctly.
+bold      bold
+italic    italic
+heading1  h1
+heading2  h2
+heading3  h3
+heading4  h4
+heading5  h5
+heading6  h6
+
+# ── Older nvim-treesitter names used by the mermaid query ─────────────────────
+number    float
+number    constant
+type      field
+keyword   include

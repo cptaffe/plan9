@@ -164,6 +164,7 @@ unzip gzip
 zip gzip
 hget hget
 history history
+hl hl
 hoc hoc
 htmlroff htmlroff
 idiff idiff
@@ -323,6 +324,7 @@ dpost troff
 nroff troff
 troff troff
 troff2html troff2html
+ts hl
 tweak tweak
 uniq uniq
 units units
