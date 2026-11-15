@@ -415,9 +415,8 @@ main(int argc, char **argv)
 	 */
 	for(;;) {
 		r = getsbuf();
-		while((n = localread9pmsg(0, r->buf, messagesize, ini)) == 0)
-			;
-		if(n < 0)
+		n = localread9pmsg(0, r->buf, messagesize, ini);
+		if(n <= 0)
 			fatal(nil);
 		if(convM2S(r->buf, n, &r->work) == 0)
 			fatal("convM2S format error");
