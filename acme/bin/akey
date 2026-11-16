@@ -1,0 +1,28 @@
+#!/bin/rc
+rfork ne
+if(~ $#* 0 || ~ $#acmewin 0){
+	echo usage: akey cmd [arg ...] >[1=2]
+	exit usage
+}
+test -e /mnt/acme/index || mount $acmesrv /mnt/acme
+winid=$acmewin
+bind -b /acme/bin/$cputype /bin >[2]/dev/null
+bind -b /acme/bin /bin
+f=`{sed 1q /mnt/acme/$winid/tag | awk '{print $1}'}
+d=`{basename -d $f}
+if(test -d $f)
+	d=$f
+cd $d
+o=/tmp/akey.$pid
+$* >$o >[2=1]
+if(test -s $o){
+	e=`{awk -v 'n='$d/+Errors '$6 == n {print $1; exit}' /mnt/acme/index}
+	if(~ $#e 0){
+		e=`{sed 1q /mnt/acme/new/ctl}
+		e=$e(1)
+		echo name $d/+Errors >/mnt/acme/$e/ctl
+	}
+	cat $o >/mnt/acme/$e/body
+	echo -n show >/mnt/acme/$e/ctl
+}
+rm -f $o
