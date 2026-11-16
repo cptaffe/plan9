@@ -38,3 +38,10 @@ chessarrow	006677
 chesscheck	cc0000
 chesscomment	336633
 chesserror	cc0000
+
+# sketch(1) and grapw(1): text and back are their ink and paper
+sketchsel	cc0000
+sketchpoint	0000cc
+sketchdim	777777
+sketchguide	bbbbbb
+grapsel	cc0000

@@ -33,6 +33,9 @@ chesscheck	ff8a8a
 chesscomment	7d8594
 chesserror	ff8a8a
 
+# grapw(1): text and back are its ink and paper, ltext a point under the mouse
+grapsel	e8747c
+
 # menus
 menuback	222833
 menuhigh	3b4a5e

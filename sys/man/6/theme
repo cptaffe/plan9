@@ -203,6 +203,16 @@ two colors, and its moves
 with
 .BR tagsel 's
 for the move at dot.
+.TP
+.IR grapw (1)
+.B back
+and
+.B text
+for its paper and ink,
+.B ltext
+for the ring around the point under the mouse, and
+.B grapsel
+for the points of selected rows.
 .SH FILES
 .TP
 .B /lib/theme
