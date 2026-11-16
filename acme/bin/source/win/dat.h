@@ -41,7 +41,6 @@ struct Window
 	int		data;
 	int		body;
 	int		seq;
-	int		log;
 
 	/* event input */
 	char		buf[512];
