@@ -4,6 +4,8 @@ chess, Chess \- a board for a game of chess in PGN
 .SH SYNOPSIS
 .B chess
 [
+.B -A
+] [
 .B -e
 .I engine
 ] [
@@ -49,6 +51,8 @@ chess, Chess \- a board for a game of chess in PGN
 .br
 .B Chess
 [
+.B -A
+] [
 .B -e
 .I engine
 ] [
@@ -106,6 +110,8 @@ A move the game already has goes to that move instead.
 Button 3 is a menu:
 .B flip
 turns the board,
+.B hint
+shows the engine's best move in this position alone,
 .B analysis
 and
 .B play
@@ -151,7 +157,10 @@ and
 are castling's
 .BR O .
 Newline makes the one move a partial move can be, Backspace takes back a letter,
-and Escape forgets what was typed and lets go of a piece.
+and Escape forgets what was typed and lets go of a piece;
+.B ?
+is
+.BR hint .
 .SS Engine
 The
 .I engine
@@ -174,6 +183,8 @@ With
 .B "''"
 there is none.
 .PP
+Analysis starts off, so the game is yours to think through first, or on with
+.BR -A .
 While
 .B analysis
 is on, the engine searches the position at dot.
@@ -182,6 +193,10 @@ an arrow shows the engine's best move; and the line under the board gives
 the evaluation, the depth, and the line of play it expects.
 .I Chess
 writes none of this to the game.
+.B hint
+in the menu, or the
+.B ?
+key, does the same for the position at dot until dot moves on.
 A search stops after 30 seconds on one position.
 .PP
 .B Eval
@@ -209,6 +224,16 @@ by adding its own, in
 milliseconds.
 .B Play
 again stops it.
+A game ends at checkmate, stalemate, a position neither side can mate from,
+the fifth time a position comes again, or 75 moves without a capture or a pawn's move;
+in play, also the third time or after 50.
+Otherwise the third time and 50 moves are said under the board, as a draw either side can claim.
+When the move that ends it is the last of the main line and the game's result is
+.BR * ,
+.I chess
+writes the result after it and in the
+.B Result
+tag, in the same change as the move.
 The analysis is on or off apart from play: while it is on, it shows on your moves, and the engine
 gives it up to play its own.
 .SS Without a window
