@@ -1,4 +1,6 @@
 #include	"cc.h"
+
+static	int	littype(uvlong, int);
 #include	"y.tab.h"
 
 #ifndef	CPP
@@ -834,33 +836,15 @@ ncu:
 		yyerror("overflow in constant");
 
 	vv = yylval.vval;
-	if(c1 & Numvlong) {
-		if((c1 & Numuns) || convvtox(vv, TVLONG) < 0) {
-			c = LUVLCONST;
-			t = TUVLONG;
-			goto nret;
-		}
-		c = LVLCONST;
-		t = TVLONG;
-		goto nret;
+	t = littype(vv, c1);
+	switch(t) {
+	case TINT:	c = LCONST; break;
+	case TUINT:	c = LUCONST; break;
+	case TLONG:	c = LLCONST; break;
+	case TULONG:	c = LULCONST; break;
+	case TVLONG:	c = LVLCONST; break;
+	default:	c = LUVLCONST; t = TUVLONG; break;
 	}
-	if(c1 & Numlong) {
-		if((c1 & Numuns) || convvtox(vv, TLONG) < 0) {
-			c = LULCONST;
-			t = TULONG;
-			goto nret;
-		}
-		c = LLCONST;
-		t = TLONG;
-		goto nret;
-	}
-	if((c1 & Numuns) || convvtox(vv, TINT) < 0) {
-		c = LUCONST;
-		t = TUINT;
-		goto nret;
-	}
-	c = LCONST;
-	t = TINT;
 	goto nret;
 
 nret:
@@ -906,7 +890,7 @@ caseout:
 	}
 	*cp = 0;
 	peekc = c;
-	yylval.dval = strtod(symb, nil);
+	yylval.dval = ccstrtod(symb);
 	if(isInf(yylval.dval, 1) || isInf(yylval.dval, -1)) {
 		yyerror("overflow in float constant");
 		yylval.dval = 0;
@@ -914,6 +898,265 @@ caseout:
 	if(c1 & Numflt)
 		return LFCONST;
 	return LDCONST;
+}
+
+static int
+fits(uvlong u, int t)
+{
+	switch(t) {
+	case TINT:
+	case TLONG:
+		return u <= 0x7fffffffULL;
+	case TUINT:
+	case TULONG:
+		return u <= 0xffffffffULL;
+	case TVLONG:
+		return u <= 0x7fffffffffffffffULL;
+	}
+	return 1;
+}
+
+static int
+littype(uvlong u, int c1)
+{
+	static char dec[] = { TINT, TLONG, TVLONG, TUVLONG, 0 };
+	static char oct[] = { TINT, TUINT, TLONG, TULONG, TVLONG, TUVLONG, 0 };
+	static char decu[] = { TUINT, TULONG, TUVLONG, 0 };
+	static char decl[] = { TLONG, TVLONG, TUVLONG, 0 };
+	static char octl[] = { TLONG, TULONG, TVLONG, TUVLONG, 0 };
+	static char decul[] = { TULONG, TUVLONG, 0 };
+	static char decll[] = { TVLONG, TUVLONG, 0 };
+	static char octll[] = { TVLONG, TUVLONG, 0 };
+	static char ull[] = { TUVLONG, 0 };
+	char *p;
+
+	if(c1 & Numvlong)
+		p = (c1 & Numuns) ? ull : (c1 & Numdec) ? decll : octll;
+	else if(c1 & Numlong)
+		p = (c1 & Numuns) ? decul : (c1 & Numdec) ? decl : octl;
+	else
+		p = (c1 & Numuns) ? decu : (c1 & Numdec) ? dec : oct;
+	for(; *p; p++)
+		if(fits(u, *p))
+			return *p;
+	return TUVLONG;
+}
+
+enum
+{
+	Bigw	= 200,
+	Maxdig	= 800,
+};
+
+typedef struct Big Big;
+struct Big
+{
+	int	n;
+	ulong	w[Bigw];
+};
+
+static void
+bigmul(Big *b, ulong m, ulong a)
+{
+	int i;
+	uvlong t;
+
+	for(i=0; i<b->n; i++) {
+		t = (uvlong)(b->w[i] & 0xffffffffUL) * m + a;
+		b->w[i] = t & 0xffffffffUL;
+		a = t >> 32;
+	}
+	if(a && b->n < Bigw)
+		b->w[b->n++] = a;
+}
+
+static int
+biglen(Big *b)
+{
+	int n;
+	ulong w;
+
+	while(b->n > 0 && b->w[b->n-1] == 0)
+		b->n--;
+	if(b->n == 0)
+		return 0;
+	n = (b->n-1)*32;
+	for(w = b->w[b->n-1]; w; w >>= 1)
+		n++;
+	return n;
+}
+
+static void
+bigshl(Big *b, int s)
+{
+	int i, q, r;
+
+	q = s/32;
+	r = s%32;
+	if(b->n + q + 1 > Bigw)
+		return;
+	for(i=b->n-1; i>=0; i--) {
+		if(r)
+			b->w[i+q+1] = (b->w[i+q+1] | (b->w[i] >> (32-r))) & 0xffffffffUL;
+		b->w[i+q] = (b->w[i] << r) & 0xffffffffUL;
+	}
+	for(i=0; i<q; i++)
+		b->w[i] = 0;
+	b->n += q+1;
+	biglen(b);
+}
+
+static int
+bigcmpshl(Big *a, Big *m, int s)
+{
+	Big t;
+	int i;
+
+	t = *m;
+	bigshl(&t, s);
+	biglen(a);
+	if(a->n != t.n)
+		return a->n < t.n ? -1 : 1;
+	for(i=a->n-1; i>=0; i--)
+		if(a->w[i] != t.w[i])
+			return a->w[i] < t.w[i] ? -1 : 1;
+	return 0;
+}
+
+static void
+bigsubshl(Big *a, Big *m, int s)
+{
+	Big t;
+	int i;
+	vlong d;
+	long br;
+
+	t = *m;
+	bigshl(&t, s);
+	br = 0;
+	for(i=0; i<a->n; i++) {
+		d = (vlong)(a->w[i] & 0xffffffffUL) - (i < t.n ? (vlong)(t.w[i] & 0xffffffffUL) : 0) - br;
+		br = d < 0;
+		if(br)
+			d += (vlong)1<<32;
+		a->w[i] = d;
+	}
+	biglen(a);
+}
+
+double
+ccstrtod(char *s)
+{
+	Big N, M;
+	int nd, e, x, xs, dot, sticky, s2, i, drop, L;
+	uvlong q, m, bits;
+	vlong E;
+	double d;
+
+	memset(&N, 0, sizeof N);
+	memset(&M, 0, sizeof M);
+	nd = 0;
+	e = 0;
+	dot = 0;
+	sticky = 0;
+	for(; *s; s++) {
+		if(*s == '.') {
+			dot = 1;
+			continue;
+		}
+		if(*s < '0' || *s > '9')
+			break;
+		if(nd == 0 && *s == '0') {
+			if(dot)
+				e--;
+			continue;
+		}
+		if(nd < Maxdig) {
+			bigmul(&N, 10, *s - '0');
+			nd++;
+			if(dot)
+				e--;
+		} else {
+			if(*s != '0')
+				sticky = 1;
+			if(!dot)
+				e++;
+		}
+	}
+	if(*s == 'e' || *s == 'E') {
+		s++;
+		xs = 1;
+		if(*s == '-') {
+			xs = -1;
+			s++;
+		} else if(*s == '+')
+			s++;
+		x = 0;
+		for(; *s >= '0' && *s <= '9'; s++)
+			if(x < 100000)
+				x = x*10 + *s - '0';
+		e += xs*x;
+	}
+	if(sticky) {
+		bigmul(&N, 10, 1);
+		e--;
+	}
+	if(biglen(&N) == 0)
+		return 0;
+	if(e + nd > 330)
+		return Inf(1);
+	if(e + nd < -330)
+		return 0;
+	M.n = 1;
+	M.w[0] = 1;
+	if(e >= 0)
+		for(i=0; i<e; i++)
+			bigmul(&N, 10, 0);
+	else
+		for(i=0; i<-e; i++)
+			bigmul(&M, 10, 0);
+	s2 = 56 - (biglen(&N) - biglen(&M));
+	if(s2 > 0)
+		bigshl(&N, s2);
+	else if(s2 < 0)
+		bigshl(&M, -s2);
+	q = 0;
+	for(i=63; i>=0; i--)
+		if(bigcmpshl(&N, &M, i) >= 0) {
+			bigsubshl(&N, &M, i);
+			q |= (uvlong)1 << i;
+		}
+	if(biglen(&N) != 0)
+		sticky = 1;
+	else
+		sticky = 0;
+	for(L = 0; L < 64 && (q >> L) != 0; L++)
+		;
+	drop = L - 53;
+	if(-1074 + s2 > drop)
+		drop = -1074 + s2;
+	if(drop > 0) {
+		m = drop < 64 ? q >> drop : 0;
+		if(drop <= 64 && ((q >> (drop-1)) & 1) && (sticky || (q & (((uvlong)1 << (drop-1)) - 1)) || (m & 1)))
+			m++;
+	} else
+		m = q << -drop;
+	E = (vlong)drop - s2;
+	if(m == 0)
+		return 0;
+	if(m >> 53) {
+		m >>= 1;
+		E++;
+	}
+	if(m >> 52) {
+		E += 52 + 1023;
+		if(E >= 2047)
+			return Inf(1);
+		bits = ((uvlong)E << 52) | (m & (((uvlong)1 << 52) - 1));
+	} else
+		bits = m;
+	memmove(&d, &bits, sizeof d);
+	return d;
 }
 
 /*

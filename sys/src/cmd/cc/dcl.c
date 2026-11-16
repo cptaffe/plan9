@@ -1,6 +1,6 @@
 #include "cc.h"
 
-static int	negzero(Node*);
+static int	unnamedbit;
 
 Node*
 dodecl(void (*f)(int,Type*,Sym*), int c, Type *t, Node *n)
@@ -80,6 +80,13 @@ loop:
 		if(lastbit > tfield->width*8) {
 			lastbit = lastfield;
 			firstbit = 1;
+		}
+		if(fieldsysv && n->left == Z && f == edecl) {
+			unnamedbit = 1;
+			edecl(c, t, S);
+			unnamedbit = 0;
+			if(lastfield == 0)
+				strl->nbits = -1;
 		}
 		n = n->left;
 		goto loop;
@@ -496,6 +503,8 @@ init1(Sym *s, Type *t, long o, int exflag)
 
 	again:
 		for(t1 = t->link; t1 != T; t1 = t1->down) {
+			if(t1->nbits && t1->sym == S)
+				continue;
 			if(a->op == OARRAY && t1->etype != TARRAY)
 				break;
 			if(a->op == OELEM) {
@@ -599,7 +608,7 @@ sualign(Type *t)
 	}
 }
 
-static int
+int
 negzero(Node *a)
 {
 	double z;
@@ -619,6 +628,11 @@ sysvalign(Type *t)
 
 	bo = 0;
 	for(l = t->link; l != T; l = l->down) {
+		if(l->nbits < 0) {
+			s = l->width*8;
+			bo = (bo+s-1)/s*s;
+			continue;
+		}
 		if(l->nbits) {
 			s = l->width*8;
 			if(bo/s != (bo+l->nbits-1)/s)
@@ -1475,7 +1489,7 @@ edecl(int c, Type *t, Sym *s)
 {
 	Type *t1;
 
-	if(s == S) {
+	if(s == S && !unnamedbit) {
 		if(!typesu[t->etype])
 			diag(Z, "unnamed structure element must be struct/union");
 		if(c != CXXX)

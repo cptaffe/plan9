@@ -646,7 +646,7 @@ nilcast(Type *t1, Type *t2)
 		return 0;
 	}
 	if(typechlp[et1] && typechlp[et2]) {
-		if(ewidth[et1] < ewidth[et2])
+		if(ewidth[et1] < ewidth[et2] && (typeu[et1] || !typeu[et2]))
 			return 1;
 		return 0;
 	}

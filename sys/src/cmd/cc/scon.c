@@ -13,6 +13,14 @@ acast(Type *t, Node *n)
 }
 
 
+static int
+truth(Node *n)
+{
+	if(typefd[n->type->etype])
+		return n->fconst != 0;
+	return n->vconst != 0;
+}
+
 void
 evconst(Node *n)
 {
@@ -55,6 +63,8 @@ evconst(Node *n)
 		if(isf) {
 			if(typefd[et])
 				d = l->fconst;
+			else if(typeu[et])
+				d = (uvlong)l->vconst;
 			else
 				d = l->vconst;
 		} else {
@@ -97,6 +107,8 @@ evconst(Node *n)
 
 
 	case ODIV:
+		if(isf && r->fconst == 0)
+			return;
 		if(vconst(r) == 0) {
 			warn(n, "divide by zero");
 			return;
@@ -221,20 +233,16 @@ evconst(Node *n)
 		break;
 
 	case OANDAND:
-		if(typefd[l->type->etype])
-			v = l->fconst && r->fconst;
-		else
-			v = l->vconst && r->vconst;
+		v = truth(l) && truth(r);
 		break;
 
 	case OOROR:
-		if(typefd[l->type->etype])
-			v = l->fconst || r->fconst;
-		else
-			v = l->vconst || r->vconst;
+		v = truth(l) || truth(r);
 		break;
 	}
 	if(isf) {
+		if(n->type->etype == TFLOAT)
+			d = (float)d;
 		n->fconst = d;
 	} else {
 		n->vconst = convvtox(v, n->type->etype);

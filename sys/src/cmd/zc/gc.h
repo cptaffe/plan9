@@ -133,6 +133,7 @@ int	rclass(int);
 int	tclass(Type*);
 int	kind(Type*);
 int	sutype(Type*);
+Type*	sumember(Type*, long*);
 long	talign(Type*);
 void	gprologue(Sym*);
 int	extop(int);
