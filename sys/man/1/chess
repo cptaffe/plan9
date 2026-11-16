@@ -171,8 +171,18 @@ A search stops after 30 seconds on one position.
 runs
 .B "chess -a"
 (below) on the moves selected, or the move at dot,
-from the position before them, and puts what it writes in their place:
-an evaluation after each move.
+from the position before them, and puts what it writes in their place,
+as acme does with a command, whether it succeeds or fails:
+an evaluation after each move, or, when it fails, the moves as they were.
+What it says on standard error, and a failing status, go to
+.IR chess 's
+standard error.
+.PP
+When the text no longer parses as PGN,
+the board stays as it last parsed, the line under it gives the error and its line,
+and the board takes no move until the text parses again,
+after an edit or
+.BR Undo .
 .PP
 In
 .BR play ,
@@ -287,9 +297,17 @@ adds
 .B Play
 and
 .B "|chess -a"
-to the tag, and takes them away when it ends.
+to the tag, as words it does not have already.
 .B Chess
-there ends it, and the window shows its text;
+there ends it, and the window shows its text, with
+.B Chess
+and
+.B "|chess -a"
+still in the tag and
+.B Play
+gone;
+.B Chess
+there again draws the board.
 .B Play
 is
 .BR play ;
@@ -321,7 +339,9 @@ and
 writes to the body only if no one else has changed it since it last read it;
 if someone has, it says the file changed, reads it again, and leaves dot where it was.
 .B Del
-on a modified window says so in
+is ctl's
+.BR del :
+on a modified window acme says so in
 .B +Errors
 and leaves it; a second
 .BR Del ,
@@ -399,3 +419,6 @@ another program that sets it at the same moment, as
 does as it colors, can make a write of
 .I Chess
 fail, or one of its own.
+A write longer than 4096 bytes goes in pieces, one
+.BR Undo ;
+an edit by another program between two pieces leaves part of the rewrite.

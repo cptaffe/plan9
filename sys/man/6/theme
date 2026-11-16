@@ -179,6 +179,30 @@ for points and constraints,
 for dimmer marks, and
 .B sketchguide
 for guides.
+.TP
+.IR chess (1)
+.B chesslight
+and
+.B chessdark
+for the squares,
+.B chesssel
+for the piece picked and its moves,
+.B chesslast
+for the last move,
+.B chessarrow
+for the engine's best move,
+.B chesscheck
+for a king in check,
+.B chesscomment
+for comments, and
+.B chesserror
+for errors; its pieces are
+.BR body 's
+two colors, and its moves
+.BR body 's,
+with
+.BR tagsel 's
+for the move at dot.
 .SH FILES
 .TP
 .B /lib/theme
