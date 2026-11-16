@@ -85,13 +85,19 @@ hide(Image *i)
 }
 
 static void
+letgo(Image *i, char *name)
+{
+	hide(i);
+	nameimage(i, name, 0);
+	freeimage(i);
+}
+
+static void
 freelayer(Wsys *s)
 {
 	if(s->i == nil)
 		return;
-	hide(s->i);
-	nameimage(s->i, s->name, 0);
-	freeimage(s->i);
+	letgo(s->i, s->name);
 	s->i = nil;
 }
 
@@ -119,6 +125,8 @@ layer(Window *w)
 {
 	Wsys *s;
 	Rectangle r;
+	Image *old;
+	char oname[64];
 
 	s = w->wsys;
 	r = bodyr(w);
@@ -131,11 +139,19 @@ layer(Window *w)
 		r = Rect(r.min.x, r.min.y, r.min.x+max(Dx(r), 1), r.min.y+1);
 	}else
 		s->r = r;
-	freelayer(s);
-	s->i = allocwindow(_screen, r, Refbackup, DWhite);
+	old = s->i;
+	strcpy(oname, s->name);
+	s->i = allocwindow(_screen, r, Refbackup, DNofill);
 	if(s->i == nil){
 		warning(nil, "acme: can't allocate window %d's image: %r\n", w->id);
+		if(old != nil)
+			letgo(old, oname);
 		return;
+	}
+	draw(s->i, s->i->r, textcols[BACK], nil, ZP);
+	if(old != nil){
+		draw(s->i, s->i->r, old, nil, old->r.min);
+		letgo(old, oname);
 	}
 	if(Dy(s->r) <= 0)
 		hide(s->i);
