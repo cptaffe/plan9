@@ -103,24 +103,31 @@ It runs
 .IR rc (1)
 in the file's directory, as
 .IR acme (1)
-runs its commands on a selection:
+runs its commands on a selection, with dot the selected lines, or, if nothing is selected,
+the empty text before the graph's closing brace:
 .B |cmd
-sends the selected lines, or the whole file if nothing is selected, through
+sends dot through
 .I cmd
-and puts what it prints in their place;
+and puts what it prints in its place;
 .B <cmd
 puts what
 .I cmd
-prints in place of the selected lines, or before the closing brace;
+prints in place of dot;
 .B >cmd
-sends them to
+sends dot to
 .IR cmd ,
 whose output goes to standard error.
 So
 .B "|sort -u"
 sorts the selected lines, and
-.B |tred
-reduces the graph.
+.B "<echo x"
+adds a node
+.BR x .
+With nothing selected,
+.B |cmd
+reads nothing; the menu's
+.B tred
+is the way to send the whole graph through a command.
 .SS Dag
 .I Dag
 is
@@ -157,6 +164,13 @@ or
 is
 .IR dag 's,
 as if typed.
+Acme's
+.B "Edit ,|tred"
+sends the whole body through
+.IR tred ,
+and
+.I Dag
+draws the result.
 The menu has no
 .B undo
 or
@@ -197,3 +211,11 @@ draws edges written with a subgraph,
 but cannot select them.
 .br
 It draws text in the window's font, not the graph's.
+.br
+In a
+.I Dag
+window, Command-Z and Command-Shift-Z do nothing; the tag's
+.B Undo
+and
+.B Redo
+work.
