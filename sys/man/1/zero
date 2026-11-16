@@ -97,6 +97,17 @@ or
 The network, as the
 .B Network
 option.
+.I Zero
+assumes none: with neither
+.B -n
+nor
+.BR Network ,
+it searches nothing and says so,
+and
+.B -e
+and
+.B -B
+refuse to start.
 .PP
 With
 .BR -e ,
@@ -185,18 +196,14 @@ Its options:
 .B Nodes
 The visits a search makes unless
 .B go
-says otherwise; 1 if not set, the policy's own move, as Maia is meant to play; 0 for no limit but time,
-or, with no time either, until the tree holds some four million moves.
+says otherwise; 0 if not set, for no limit but time,
+or, with no time either, until the tree holds some four million moves; 1 is the policy's own move,
+as Maia is meant to play.
 .TP
 .B Network
-The network's file,
-.B /lib/nn/maia1500.pb.gz
-if not set.
-.TP
-.B Elo
-A rating, for the Maia network nearest it, from 1100 to 1900;
-0, as it starts, for
-.BR Network .
+The network's file, as
+.B -n
+names it to start.
 .TP
 .B Temperature
 0, the move with the most visits (with one, the policy's best move);
@@ -233,36 +240,30 @@ and a first-play value of the parent's value less 0.33 times the root of the pol
 A position that has come three times, or twice within the search, is a draw,
 as are those of the 50-move rule and those with no mating material.
 .SH EXAMPLES
-Play against Maia at 1100 in
-.IR chess (1):
+.IR chess (1)
+names engines in
+.BR /lib/chess/engines ,
+a line each: Maia at 1100, playing its policy's move, and Leela searching:
 .IP
 .EX
-chessengine='zero' Chess game.pgn
+engine=maia1100 cmd=zero Network=/lib/nn/maia1100.pb.gz Nodes=1
+engine=leela cmd=zero Network=/lib/nn/703810.pb.gz Nodes=0
 .EE
 .PP
-with the rating set first:
-.IP
-.EX
-cat >$home/bin/rc/maia1100 <<'!'
-#!/bin/rc
-{ echo setoption name Elo value 1100; cat } | zero
-!
-chmod +x $home/bin/rc/maia1100
-Chess -e maia1100
-.EE
-.PP
+so that
+.B "Chess -e maia1100 game.pgn"
+plays it.
 Evaluate a game's moves with Leela's network, 800 visits each:
 .IP
 .EX
-chess -a -e '{ echo setoption name Network value /lib/nn/703810.pb.gz
-	echo setoption name Nodes value 800; cat } | zero' game.pgn
+chess -a -e '{ echo setoption name Nodes value 800; cat } | zero -n /lib/nn/703810.pb.gz' game.pgn
 .EE
 .PP
 Show Maia's policy for the position after 1. e4:
 .IP
 .EX
-{ echo setoption name VerboseMoveStats value true
-  echo position startpos moves e2e4; echo go; echo quit } | zero
+{ echo setoption name VerboseMoveStats value true; echo setoption name Nodes value 1
+  echo position startpos moves e2e4; echo go; echo quit } | zero -n /lib/nn/maia1500.pb.gz
 .EE
 .SH FILES
 .TF /lib/nn/703810.pb.gz
