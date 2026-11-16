@@ -50,8 +50,10 @@ read from lc0's own weights file, and searches as AlphaZero does:
 a Monte Carlo tree search that chooses each move to look at by PUCT,
 the network's prior for it against what the search has found,
 and takes the network's value of each new position in place of a playout.
-It gathers the positions to evaluate in batches, a virtual loss on each line
-taken keeping the next from taking it too, and evaluates a batch at once.
+It gathers the positions to evaluate in batches, as lc0 does,
+the visits in flight on each line counting against its share of exploration
+so that the next line taken is another where it can be,
+and evaluates a batch at once.
 Its moves are
 .IR chess 's.
 .PP
@@ -72,7 +74,8 @@ castling, the side to move and the 50-move count),
 a residual tower with or without squeeze and excitation,
 a convolutional policy head of 1858 moves,
 and a value head of win, draw and loss, or of one value.
-It does not run the attention networks of lc0's later runs.
+It does not run the attention networks of lc0's later runs,
+and refuses a network whose layers do not fit one another, saying which part is wrong.
 .PP
 It runs the network on the GPU, by
 .IR gpu (3),
@@ -136,6 +139,11 @@ takes
 .B stop
 and
 .BR quit .
+A
+.B position
+with a FEN it cannot read is refused, with an
+.B "info string"
+saying so, and the position it had is kept.
 While it searches, it answers
 .B isready
 and takes
@@ -177,7 +185,8 @@ Its options:
 .B Nodes
 The visits a search makes unless
 .B go
-says otherwise; 1 if not set, the policy's own move, as Maia is meant to play; 0 for no limit but time.
+says otherwise; 1 if not set, the policy's own move, as Maia is meant to play; 0 for no limit but time,
+or, with no time either, until the tree holds some four million moves.
 .TP
 .B Network
 The network's file,
@@ -219,7 +228,8 @@ As
 The search's other constants are lc0's: its PUCT constant
 1.745 + 3.894 ln((N+38739)/38739) at a node of
 .I N
-visits, and a first-play value of the parent's value less 0.33 times the root of the policy already visited.
+visits, times the root of its children's visits,
+and a first-play value of the parent's value less 0.33 times the root of the policy already visited.
 A position that has come three times, or twice within the search, is a draw,
 as are those of the 50-move rule and those with no mating material.
 .SH EXAMPLES
