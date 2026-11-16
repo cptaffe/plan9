@@ -111,6 +111,25 @@ file.
 is an empty file, writable without effect, present only for compatibility with
 .BR rio .
 .TP
+.B log
+reports the operations on windows since it was opened, a line each, as they happen;
+a read blocks until there is one.
+Each line has three fields separated by single spaces:
+the window's ID, the operation, and the window's name.
+The operation is
+.BR new ,
+.BR zerox ,
+.BR get ,
+.BR put ,
+.BR del ,
+.BR focus ,
+or
+.BR name ,
+which reports a new name:
+at once when it is written to the window's
+.BR ctl ,
+and when typed in the tag, once it has stayed the same for half a second.
+.TP
 .B new
 A directory analogous to the numbered directories
 .RI ( q.v. ).

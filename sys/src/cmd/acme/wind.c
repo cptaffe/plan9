@@ -33,6 +33,7 @@ wininit(Window *w, Window *clone, Rectangle r)
 	if(globalincref)
 		incref(&w->ref);
 	w->ctlfid = ~0;
+	w->nameage = -1;
 	w->utflastqid = -1;
 	w->wantseq = -1;
 	r1 = r;
@@ -608,6 +609,7 @@ wincommit(Window *w, Text *t)
 		w->dirty = TRUE;
 		winsetname(w, r, i);
 		winsettag(w);
+		w->nameage = 0;
 	}
 	free(r);
 }

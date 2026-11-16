@@ -813,7 +813,7 @@ xfidctlwrite(Xfid *x, Window *w)
 	int i, m, n, nb, nr, nulls;
 	Rune *r;
 	char *err, *p, *pp, *q, *e;
-	int isfbuf, scrdraw, settag;
+	int isfbuf, scrdraw, settag, renamed;
 	Text *t;
 
 	err = nil;
@@ -886,7 +886,12 @@ xfidctlwrite(Xfid *x, Window *w)
 out:
 			seq++;
 			filemark(w->body.file);
+			renamed = nr!=w->body.file->nname || runeeq(r, nr, w->body.file->name, nr)==FALSE;
 			winsetname(w, r, nr);
+			if(renamed){
+				w->nameage = -1;
+				xfidlog(w, "name");
+			}
 			m += (q+1) - pp;
 		}else
 		if(strncmp(p, "font ", 5) == 0){		/* execute font command */

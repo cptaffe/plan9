@@ -322,6 +322,7 @@ enum
 {
 	Dottick = 50,
 	Dotquiet = 150,
+	Namequiet = 500,
 };
 
 static void
@@ -340,6 +341,17 @@ dotcheck(Window *w, void*)
 		winlogdot(w);
 }
 
+static void
+namecheck(Window *w, void*)
+{
+	if(w->nameage < 0)
+		return;
+	if((w->nameage += Dottick) >= Namequiet){
+		w->nameage = -1;
+		xfidlog(w, "name");
+	}
+}
+
 void
 dotthread(void*)
 {
@@ -352,6 +364,7 @@ dotthread(void*)
 		timerstop(t);
 		qlock(&row.lk);
 		allwindows(dotcheck, nil);
+		allwindows(namecheck, nil);
 		qunlock(&row.lk);
 	}
 }

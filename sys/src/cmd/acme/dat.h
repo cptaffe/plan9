@@ -337,6 +337,7 @@ struct Window
 	uint		dotq0;
 	uint		dotq1;
 	int		dotage;
+	int		nameage;
 	uint		sentq0;
 	uint		sentq1;
 };
