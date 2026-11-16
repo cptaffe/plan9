@@ -210,6 +210,37 @@ of the file operations and a
 of each file;
 .I Apply
 in its tag applies it, and runs the action's command if it has one.
+.PP
+.IR Hotkey (1)'s
+rules for
+.IR acme ,
+.BR /lib/hotkey/acme ,
+run them by key, at dot in the window with the focus:
+F12 is
+.IR Def ,
+Cmd-. is
+.IR Act ,
+Cmd-I
+.IR Doc ,
+Cmd-Shift-O
+.IR Syms ,
+and F2 adds
+.B Rename
+to the tag, for the new name;
+Cmd-K then R, I, T, D, F or C is
+.IR Refs ,
+.IR Impls ,
+.IR Type ,
+.IR Diag ,
+.I Fmt
+or
+.IR Comp .
+They run by
+.BR /acme/bin/akey ,
+which runs a command as the window's tag would, with
+.B $winid
+set and in its directory, and puts what it prints in that directory's
+.BR +Errors .
 .SH FILES
 .TF /mnt/alsp/ctl
 .TP
