@@ -5,6 +5,11 @@ if(! ~ $#* 2 4){
 	echo usage: lspshow name edit [path action] >[1=2]
 	exit usage
 }
+if(! test -e /mnt/alsp/ctl){
+	echo 'no language server: alsp(4) is not mounted on /mnt/alsp' >[1=2]
+	rm -f $2
+	exit nolsp
+}
 name=$1
 edit=$2
 at=$3

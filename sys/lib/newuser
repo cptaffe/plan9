@@ -106,7 +106,7 @@ that manual page: the plumber sends them to Acme.
 | Cmd-B or F12 | Def: the definition of the word at the cursor |
 | Cmd-Shift-B | Refs: where it is used |
 | Cmd-I | Doc: its documentation, which follows the cursor |
-| Cmd-. | Act: the language server's fixes |
+| Cmd-. | Act: the language server's fixes, then 1–9 picks, Esc cancels |
 | F2 | Rename: type the new name after it in the tag, then Esc and B2 |
 | Cmd-Shift-O | Syms: the file's functions and types |
 | Cmd-K, then R, I, T, D, F or C | Refs, Impls, Type, Diag, Fmt, Comp |
