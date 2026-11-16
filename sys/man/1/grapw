@@ -1,0 +1,270 @@
+.TH GRAPW 1
+.SH NAME
+grapw, Grap \- draw grap's graphs and edit their data with the mouse
+.SH SYNOPSIS
+.B grapw
+[
+.B -p
+]
+.I file
+.br
+.B Grap
+[
+.I file
+]
+.SH DESCRIPTION
+.I Grapw
+draws a
+.IR grap (1)
+graph in a
+.IR rio (1)
+window: its frame, ticks, grid and labels, and a point for each number in its rows of data,
+joined as its
+.B draw
+statements say.
+Each point knows the line it came from, so selecting points selects their lines,
+and moving a point rewrites its numbers in its line and nothing else.
+.PP
+The graph is the text between the first
+.B .G1
+and the
+.B .G2
+after it, and
+.I grapw
+keeps the rest of the file as it is, so
+.B "grap file | pic | troff"
+prints it.
+A file with no
+.B .G1
+is all graph.
+If
+.I file
+doesn't exist, the graph starts empty, and
+.B w
+makes it.
+.PP
+.I Grapw
+places things as
+.I grap
+does, but draws only part of its language:
+.BR frame ,
+.BR ticks ,
+.BR grid ,
+.BR label ,
+.B coord
+with
+.B x
+and
+.B y
+ranges,
+.B draw
+and
+.BR new ,
+variables set to numbers, such as
+.B frameht
+and
+.BR margin ,
+and rows of numbers, separated by spaces or commas, one to a line or several separated by
+.BR ; .
+A row of one number is a point whose x counts the rows; a row of several is an x
+and the y of a point for each of the rest.
+.I Grapw
+keeps lines of
+.I pic
+or
+.I troff
+but doesn't draw them.
+For anything else, such as a loop, a macro, a log scale, a named coordinate system,
+or a
+.BR line ,
+.B circle
+or
+.BR plot ,
+.I grapw
+names it and its line on standard error and exits with status
+.BR subset .
+.PP
+With
+.BR -p ,
+.I grapw
+draws nothing: it prints the frame's size, the mapping from data to inches,
+each tick and grid line with its label, and each point with its line.
+.SS Mouse
+.TF button\ 3
+.TP
+button 1
+A click selects the row of the point under the mouse; a sweep selects the rows of the points in the box.
+With Shift, a click adds a row or takes it out, and a sweep adds.
+A click at nothing clears the selection.
+.TP
+button 2
+Drag a point.
+Letting go rewrites the numbers in its line: its y, and its x unless the row is one number;
+a new x moves every point of the row.
+.I Grapw
+keeps a number the mouse moved less than 4 pixels along.
+A new number has as many decimals as a pixel is worth, and no more than its column has anywhere
+in the graph, so whole numbers stay whole.
+Escape or another button takes the drag back.
+.TP
+button 3
+The menu:
+.BR Cut ,
+.BR Copy ,
+.BR Paste ,
+.BR Undo ,
+.BR Redo ,
+.B Write
+and
+.BR Exit .
+.PD
+.PP
+The message line shows the line of the point under the mouse,
+or the x and y of the mouse in the frame.
+.SS Keys
+.TF Command-Shift-Z
+.TP
+.BR Delete ", Backspace"
+Delete the selected rows.
+.TP
+.BR Command-Z ", control-Z"
+Undo; it keeps the last hundred changes.
+.TP
+.BR Command-Shift-Z ", Command-Y, control-Y"
+Redo.
+.TP
+.BR Command-C ", control-C"
+Copy the selected rows to
+.BR /dev/snarf .
+.TP
+.BR Command-X ", control-X"
+Copy, then delete.
+.TP
+.BR Command-V ", control-V"
+Paste the snarf's lines after the last selected row, or after the last row, and select them.
+.TP
+.BR Command-A ", control-A"
+Select every row.
+.TP
+Escape
+Clear the selection.
+.TP
+.BR w ", Command-S"
+Write the file.
+.TP
+.B q
+Exit; with changes not written, the first says so and the second exits.
+.PD
+.SS Grap
+.I Grap
+is
+.I grapw
+in an
+.IR acme (1)
+window, whose body is the graph's text.
+With no
+.IR file ,
+.I Grap
+draws the window it runs in,
+.BR $winid ;
+with one, or outside a window, it opens a new window, with the file's text if it exists.
+Each change writes only the lines it changed into the body, so
+.B Put
+saves it, and diffs stay small.
+Dot is the lines from the first selected row to the last,
+and the rows on dot's lines start selected.
+.PP
+.I Grap
+adds itself to the tag.
+.B Grap
+there ends it and the window shows its text;
+.B Grap
+again draws it, or says in
+.B +Errors
+why it cannot.
+While the graph shows,
+.B Undo
+and
+.B Redo
+are
+.IR grapw 's,
+.B Write
+and
+.B w
+are
+.BR Put ,
+.B Exit
+and
+.B q
+end it as
+.B Grap
+does, and these commands run in the file's directory:
+.TP
+.BI | cmd
+Send the selected rows, or with none selected every row, through
+.IR cmd ,
+once for each run of rows between other statements, such as one series of a
+.BR new .
+If
+.I cmd
+gives back a line for each line it got, each replaces the row it came from;
+if not, they all go where the first was.
+.I Grap
+selects what comes back.
+.TP
+.BI < cmd
+Put
+.IR cmd 's
+output after the selected rows, or after the last row, and select it.
+.TP
+.BI > cmd
+Send the selected rows, or with none selected the whole text, to
+.IR cmd ,
+whose output goes to
+.BR +Errors .
+.PD
+.PP
+.B Del
+deletes the window, ending
+.I Grap
+with it.
+.SH EXAMPLES
+In a
+.I Grap
+window's tag, with the outliers selected:
+.IP
+.EX
+|awk '$2 < 100'
+.EE
+.PP
+With nothing selected, sort each series by x, and add squares:
+.IP
+.EX
+|sort -n
+<seq 10 | awk '{print $1, $1*$1}'
+.EE
+.PP
+Typeset the graph:
+.IP
+.EX
+>grap | pic | troff >/tmp/graph.out
+.EE
+.SH SOURCE
+plan9web's
+.B src/cmd/grapw
+.SH "SEE ALSO"
+.IR grap (1),
+.IR pic (1),
+.IR sketch (1),
+.IR acme (4)
+.SH BUGS
+.I Grapw
+draws text in the screen's font, not troff's, so it loses sizes and most escapes,
+and it draws a mark other than a bullet, box, square, circle, star, plus, times, delta, dot, or tick
+as its text.
+.br
+.I Grap
+doesn't read again a body that something else changes while the graph shows;
+run
+.I Grap
+again.

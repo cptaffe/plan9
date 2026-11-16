@@ -179,6 +179,16 @@ for points and constraints,
 for dimmer marks, and
 .B sketchguide
 for guides.
+.TP
+.IR grapw (1)
+.B back
+and
+.B text
+for its paper and ink,
+.B ltext
+for the ring around the point under the mouse, and
+.B grapsel
+for the points of selected rows.
 .SH FILES
 .TP
 .B /lib/theme
