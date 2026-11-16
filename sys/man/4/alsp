@@ -72,11 +72,13 @@ or
 .B /lib/lsp
 matches is opened in
 .IR lspfs ,
-and each edit to it is sent there, as acme's log gives it.
+and each edit to it is sent there, as the window's
+.B rdevent
+gives it.
 The edits are counted, as acme counts them, so each thing
 .I alsp
 reads or writes is at a known place in the window's history:
-the text of an insert too long for acme's log is read under the edit's
+the text of an insert too long for an event is read under the edit's
 .B seq
 guard (see
 .IR astyles (4)),
@@ -124,9 +126,9 @@ of its file's directory, made if need be, as
 .I Doc
 does. While that window is open, each time the file's dot rests
 (acme's
-.B S
-line in the window's
-.BR log ),
+.B MS
+message in the window's
+.BR rdevent ),
 alsp writes what is at dot there, unless the answer is empty.
 .PP
 Writing
