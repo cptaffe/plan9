@@ -1,0 +1,197 @@
+.TH TREE 1
+.SH NAME
+Tree \- a window's syntax tree, as an outline, in acme
+.SH SYNOPSIS
+.B Tree
+[
+.I winid
+]
+.SH DESCRIPTION
+.I Tree
+in the tag of an
+.IR acme (1)
+window opens a window,
+.IB file +Tree\f1,
+that draws the parse of the first window's text as an outline.
+The grammar is the one
+.IR hl (1)
+would color the file by, from the rules of
+.B $home/lib/ts
+or
+.BR /lib/ts ,
+and the parse is its program's answer to a
+.B tree
+request.
+Given
+.IR winid ,
+it shows that window instead of
+.BR $winid .
+.PP
+Each row is a named node of the parse:
+the name of its field in its parent, if it has one, its type, and some of its text:
+a definition's name, a leaf's text, or, dimmer, the first line of a larger node's.
+A triangle at the left of a node with children points down at an open node and right at a closed one.
+At first the definitions that the language's
+.B tags.scm
+finds are open, with the nodes that hold them,
+and the rest closed;
+for a language without
+.BR tags.scm ,
+every node starts open.
+.PP
+.I Tree
+follows the window by its
+.B rdevent
+file
+.RI ( acme (4)).
+It keeps the text, passes each insert and delete on to the grammar's program, as
+.I hl
+does,
+and asks for a
+.BR delta ,
+so after an edit only what changed comes back, and the nodes still there stay open or closed as they were.
+When
+.B rdevent
+leaves an insert's text out, as it does for a long one, or the program has lost the text,
+.I Tree
+reads the window's body and starts again.
+.PP
+.I Tree
+highlights the row of the node at the window's selection.
+When the selection moves into a closed node,
+.I Tree
+opens the nodes down to it, and closes them again when the selection leaves them;
+a node opened or closed by hand stays so.
+.PP
+Button 1 on a triangle opens or closes its node.
+Button 1 on a row selects its node and sets the window's selection to the node's text, and shows it.
+The wheel scrolls.
+.PP
+Button 2 drags a row onto another, and the dragged node moves to just before that node,
+or after it in the row's lower half, among its siblings.
+Among the same siblings this reorders them, functions or statements or arguments,
+and the text between siblings, its commas, blank lines and indentation, stays in place.
+Onto another node, such as the
+.B if
+that holds a statement, the node leaves its siblings with the text that separated it,
+and goes in with the text that separates its new siblings, indented as they are,
+and with a semicolon if they end with one and it ends with neither one nor a brace
+and does not parse there without it.
+.I Tree
+parses the result first.
+It refuses a move that would make more errors than there were,
+or change any node but the moved one, such as by adding an empty statement,
+and says so.
+When the window's text changes under a move or a pipe,
+.I Tree
+writes nothing and says the file changed.
+.PP
+.BI | cmd
+in
+.IR Tree 's
+tag runs
+.I cmd
+with
+.IR rc (1)
+in the file's directory, the selected node's text on its standard input,
+and puts what it prints in the node's place in the window, in one write, as
+.IR acme 's
+.B |
+does: a command that fails still has its output put there, and
+.I Tree
+says how it failed.
+Undo takes it back, and text that no longer parses shows as error nodes.
+.I Tree
+writes nothing only if the text changed while the command ran.
+When the node's text has no newline at its end,
+.I Tree
+drops one the command adds there.
+.PP
+.IR Tree 's
+own text is its output, not something to edit: the outline, a row to a line.
+A row is a tab for each level below the top, then
+.L ▸
+for a closed node,
+.L ▾
+for an open one or a blank for a leaf, a blank,
+the field name and a colon and blank if there is one, the type,
+and a blank and the row's text if it has some.
+Its selection is the selected row.
+Its colors are
+.IR theme (6)'s
+.B body
+and
+.BR bodysel ,
+with
+.B comment
+for field names and the dim text, and
+.B function
+for definitions' names.
+Its window is always clean, so one
+.B Del
+deletes it and ends
+.IR Tree ,
+and so does deleting the window it shows.
+When that window takes a new name,
+.I Tree
+renames its own and takes the new name's grammar, or says there is none.
+A grammar's program that answers
+.B tree
+with an error, as
+.B /bin/ts/pic
+does, gets no more requests, and
+.I Tree
+shows its answer.
+.SH EXAMPLES
+In a C file's window, run
+.BR Tree ,
+select a function's row with button 1, then type this in its tag and sweep it with button 2
+.IP
+.EX
+|sed 's/count/n/g'
+.EE
+.PP
+to rename a variable in that function alone.
+.SH FILES
+.TF /sys/lib/ts/lang/tags.scm
+.TP
+.B /lib/ts
+the languages' rules
+.TP
+.BI /sys/lib/ts/ lang /tags.scm
+what a language's definitions are
+.TP
+.BI /bin/ts/ lang
+a language's program
+.PD
+.SH SOURCE
+plan9web's
+.B src/cmd/Tree.c
+.SH SEE ALSO
+.IR acme (1),
+.IR hl (1),
+.IR acme (4),
+.IR theme (6)
+.SH BUGS
+A move works on text alone.
+A node that leaves an expression takes the operator before or after it along,
+and nothing takes its place: hoisting does not make a variable for it.
+After each edit
+.B tags
+runs over the whole text.
+.PP
+Acme's
+.B seq
+guard is one for each window, taken by the next open:
+.I hl
+or another program arming it between
+.IR Tree 's
+write of
+.B seq
+and its open can make that open fail, or take the guard
+.I Tree
+set.
+.PP
+.I Tree
+writes a change of the window's text in pieces that end where a rune does, as one Undo;
+an edit by another program between two pieces leaves part of the change written.

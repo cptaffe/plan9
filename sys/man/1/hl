@@ -164,16 +164,179 @@ or by
 .BI stale " id"
 if an edit could not be made.
 .TP
+.BI tree " id n"
+followed by
+.I n
+bytes, the text of document
+.IR id ;
+answered by
+.BI tree " id m"
+and
+.I m
+bytes: a line for each named node of the parse, root first and each node before its children,
+.IP
+.IB "depth start length type field"
+.IP
+where
+.I depth
+counts the named nodes above it,
+.I start
+and
+.I length
+are in runes,
+and
+.I field
+is the name the grammar gives the node's place in its parent, or
+.LR - .
+.TP
+.BI tree " id"
+with no text, answered by
+.BI delta " id m"
+and
+.I m
+bytes: what changed in the parse since the last answer to
+.BR tree ,
+as hunks (see below).
+.TP
+.BI check " id n"
+followed by
+.I n
+bytes, a text parsed alone and not kept; answered by
+.BI check " id k n\f1,"
+where
+.I k
+counts the parse's error and missing nodes and
+.I n
+its named nodes.
+.TP
+.BI tags " id n"
+followed by
+.I n
+bytes, the text of document
+.IR id ,
+or with no
+.I n
+the text as the program keeps it;
+answered by
+.BI tags " id m"
+and
+.I m
+bytes: a line for each match of the language's
+.BR tags.scm ,
+.IP
+.IB "start length type kind name-start name-length"
+.IP
+where
+.I kind
+is the match's capture, such as
+.B definition.function
+or
+.BR reference.call ,
+and the name is its
+.B @name
+capture's text;
+or, if the language has no
+.BR tags.scm ,
+by
+.BI error " id why"\f1.
+.TP
 .BI close " id"
 forgets document
 .IR id .
 .PD
+.PP
+The program keeps a document's parse from one request to the next, whichever they are.
+For the C text
+.LR "int x = f(1);" ,
+.B tree
+gives
+.IP
+.EX
+0 0 14 translation_unit -
+1 0 13 declaration -
+2 0 3 primitive_type type
+2 4 8 init_declarator declarator
+3 4 1 identifier declarator
+3 8 4 call_expression value
+4 8 1 identifier function
+4 9 3 argument_list arguments
+5 10 1 number_literal -
+.EE
+.PP
+which tree-sitter writes as
+.IP
+.EX
+(translation_unit (declaration type: (primitive_type)
+  declarator: (init_declarator declarator: (identifier)
+    value: (call_expression function: (identifier)
+      arguments: (argument_list (number_literal))))))
+.EE
+.PP
+A
+.B delta
+answer is the last
+.B tree
+or
+.B delta
+answer brought up to date.
+Each line of that answer not in a hunk stays, with its start and end moved by the
+.B insert
+and
+.B delete
+requests since, in order.
+An insert of
+.I k
+runes at
+.I q
+moves a start at or after
+.I q
+and an end after
+.I q
+by
+.IR k ,
+so it moves a node that starts there and does not lengthen one that ends there.
+A delete of
+.I q0
+to
+.I q1
+moves a place at or after
+.I q1
+back by
+.IR q1 \- q0 ,
+and one between them to
+.IR q0 .
+A hunk is a line
+.IB "@ i k j"
+followed by
+.I j
+lines in
+.BR tree 's
+form, which take the place of the
+.I k
+lines from line
+.I i
+(from 0) of the last answer; hunks come in the order of
+.IR i .
+If the program does not have the text, as after an edit past its end, it answers
+.B tree
+and
+.B tags
+without text with
+.BI error " id " lost\f1,
+and wants the text again, as by
+.BI tree " id n"\f1.
 .PP
 Any program that speaks this, such as one for a small format written by hand, can stand in for one.
 .B /bin/ts/pic
 is one, for
 .IR pic (1)'s
 pictures: their words, labels, numbers, strings and comments.
+It has no parse: it answers
+.BR tree ,
+.B tags
+and
+.B check
+with an error.
 .PP
 A grammar's program colors the captures of its query,
 .IB lang /highlights.scm\f1,
@@ -212,6 +375,11 @@ names
 .BI /sys/lib/ts/ lang /highlights.scm
 a language's query
 .TP
+.BI /sys/lib/ts/ lang /tags.scm
+its definitions and references, for
+.BR tags ,
+from the grammar's own repository
+.TP
 .BI /bin/ts/ lang
 a language's program
 .PD
@@ -226,5 +394,6 @@ tree-sitter's runtime and grammars from
 and the queries and names from acme-treesitter
 .SH SEE ALSO
 .IR acme (1),
+.IR Tree (1),
 .IR astyles (4),
 .IR theme (6)
