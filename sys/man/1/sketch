@@ -515,5 +515,16 @@ MIT, 1963; University of Cambridge Computer Laboratory Technical Report 574, 200
 .SH BUGS
 Text is strokes, not troff's text, so it prints in its own face.
 .br
+.IR Sketch 's
+writes of the window's text are guarded by the window's
+.BR seq ,
+which other programs, such as
+.IR hl (1),
+also arm; if two arm it at once, a write can fail, and
+.I Sketch
+then asks for the text to be read again with
+.B Sketch
+twice.
+.br
 The thesis's instances, scalars and dimension lines, one-pass ordering,
 and constraint button are not built yet.
