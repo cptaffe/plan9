@@ -34,7 +34,6 @@
 #include <u.h>
 #include <libc.h>
 #include <bio.h>
-#include <stdio.h>
 #include "ext.h"
 #include "common.h"
 #include "tr2post.h"
@@ -43,7 +42,7 @@
 #include "path.h"		/* just for TEMPDIR definition */
 /* #include "ext.h" */		/* external variable declarations */
 
-Biobuf	*bfp_pic = NULL;
+Biobuf	*bfp_pic = nil;
 Biobufhdr	*Bfp_pic;
 Biobufhdr	*picopen(char *);
 
@@ -66,7 +65,8 @@ picture(Biobufhdr *inp, char *buf) {
 	int	totrap;		/* distance to next trap */
 	int	whiteout = 0;	/* white out the box? */
 	char	flags[20];	/* miscellaneous stuff */
-	char	hwo[40], *p;	/* height, width and offset strings */
+	char	hwo[40], *p, *e;
+	double	rot2;	/* height, width and offset strings */
 	char	name[100];	/* picture file and page string */
 	char	units;		/* scale indicator for frame dimensions */
 	double	adjx = 0.5;	/* left-right adjustment */
@@ -126,7 +126,7 @@ picture(Biobufhdr *inp, char *buf) {
 		page = atoi(fields[1]);
 	}
 
-	if ((fp_in = picopen(name)) == NULL) {
+	if ((fp_in = picopen(name)) == nil) {
 		error(WARNING, "can't open picture file %s\n", name);
 		return;
 	}
@@ -134,10 +134,14 @@ picture(Biobufhdr *inp, char *buf) {
 	frame[0] = frame[1] = -1;		/* default frame height, width */
 	frame[2] = frame[3] = 0;		/* and y and x offsets */
 
-	for (i = 0, p = hwo-1; i < 4 && p != NULL; i++, p = strchr(p, ','))
-		if (sscanf(++p, "%lf%c", &frame[i], &units) == 2)
-	    		if (units == 'i' || units == ',' || units == '\0')
+	for (i = 0, p = hwo-1; i < 4 && p != nil; i++, p = strchr(p, ',')) {
+		frame[i] = strtod(++p, &e);
+		if (e != p && *e != '\0') {
+			units = *e;
+			if (units == 'i' || units == ',')
 				frame[i] *= devres;
+		}
+	}
 
 	if (frame[0] <= 0)		/* check what we got for height */
 		frame[0] = totrap;
@@ -157,8 +161,11 @@ picture(Biobufhdr *inp, char *buf) {
 		case 'o': outline = 1; break;	/* outline the picture */
 		case 'w': whiteout = 1; break;	/* white out the box */
 		case 's': scaleboth = 1; break;	/* scale both dimensions */
-		case 'a': if ( sscanf(&flags[i+1], "%lf", &rot) != 1 )
-			  rot += 90;
+		case 'a': rot2 = strtod(&flags[i+1], &e);
+			  if (e == &flags[i+1])
+				rot += 90;
+			  else
+				rot = rot2;
 	}
 
 	/* restore(); */
@@ -176,10 +183,10 @@ picture(Biobufhdr *inp, char *buf) {
 
 /*
  * Responsible for finding and opening the next picture file. If we've accumulated
- * any in-line pictures fp_pic won't be NULL and we'll look there first. If *path
+ * any in-line pictures fp_pic won't be nil and we'll look there first. If *path
  * is found in *fp_pic we create another temp file, open it for update, unlink it,
  * copy in the picture, seek back to the start of the new temp file, and return
- * the file pointer to the caller. If fp_pic is NULL or the lookup fails we just
+ * the file pointer to the caller. If fp_pic is nil or the lookup fails we just
  * open file *path and return the resulting file pointer to the caller.
  */
 Biobufhdr *
@@ -194,17 +201,17 @@ picopen(char *path) {
 	return bfp;
 
 #ifdef UNDEF
-	if (Bfp_pic != NULL) {
+	if (Bfp_pic != nil) {
 		Bseek(Bfp_pic, 0L, 0);
 		while (Bgetfield(Bfp_pic, 's', name, 99)>0
 			&& Bgetfield(Bfp_pic, 'd', &total, 0)>0) {
 			pos = Bseek(Bfp_pic, 0L, 1);
 			if (strcmp(path, name) == 0) {
-				if (tmpnam(pictmpname) == NULL)
+				if (tmpnam(pictmpname) == nil)
 					error(FATAL, "can't generate temp file name");
-				if ( (bfp = Bopen(pictmpname, ORDWR)) == NULL )
+				if ( (bfp = Bopen(pictmpname, ORDWR)) == nil )
 					error(FATAL, "can't open %s", pictmpname);
-				Bfp = &(bfp->Biobufhdr);
+				Bfp = (Biobufhdr*)bfp;
 				piccopy(Bfp_pic, Bfp, total);
 				Bseek(Bfp, 0L, 0);
 				return(Bfp);
@@ -232,7 +239,7 @@ inlinepic(Biobufhdr *Bfp, char *buf) {
 	char	name[100];		/* picture file pathname */
 	long	total;			/* and size - both from *buf */
 
-	if (Bfp_pic == NULL ) {
+	if (Bfp_pic == nil ) {
 		tmpnam(pictmpname);
 		if ((bfp_pic = Bopen(pictmpname, ORDWR)) == 0)
 	    		error(FATAL, "can't open in-line picture file %s", ipictmpname);
@@ -241,7 +248,7 @@ inlinepic(Biobufhdr *Bfp, char *buf) {
 	if ( sscanf(buf, "%s %ld", name, &total) != 2 )
 		error(FATAL, "in-line picture error");
 	fseek(Bfp_pic, 0L, 2);
-	fprintf(Bfp_pic, "%s %ld\n", name, total);
+	Bprint(Bfp_pic, "%s %ld\n", name, total);
 	getc(fp);
 	fflush(fp_pic);
 	piccopy(fp, fp_pic, total);

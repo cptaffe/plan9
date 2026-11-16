@@ -284,3 +284,12 @@ void
 notavail(char *msg) {
 	fprint(2, "%s is not available at this time.\n", msg);
 }
+
+char *
+tmpnam(char *s)
+{
+	static int n;
+
+	sprint(s, "/tmp/tr2post.%d.%d", getpid(), n++);
+	return s;
+}

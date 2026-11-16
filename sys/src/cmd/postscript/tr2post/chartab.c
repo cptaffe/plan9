@@ -144,7 +144,7 @@ readpsfontdesc(char *fontname, int trindex) {
 		error(WARNING, "cannot open file %s\n", filename);
 		return(0);
 	}
-	Bfd = &bfd->Biobufhdr;
+	Bfd = (Biobufhdr*)bfd;
 
 	do {
 		offset = 0;
@@ -237,7 +237,7 @@ readtroffmetric(char *fontname, int trindex) {
 		error(WARNING, "cannot open file %s\n", filename);
 		return(0);
 	}
-	Bfd = &bfd->Biobufhdr;
+	Bfd = (Biobufhdr*)bfd;
 	do {
 		/*
 		 * deal with the few lines at the beginning of the

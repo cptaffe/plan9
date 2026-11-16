@@ -1,7 +1,6 @@
 #include <u.h>
 #include <libc.h>
 #include <bio.h>
-#include <stdio.h>
 #include "common.h"
 #include "tr2post.h"
 #include "comments.h"
@@ -104,13 +103,13 @@ main(int argc, char *argv[]) {
 	programname = argv[0];
 	if (Binit(&bstderr, 2, OWRITE) == Beof)
 		sysfatal("Binit");
-	Bstderr = &bstderr.Biobufhdr;
+	Bstderr = (Biobufhdr*)&bstderr;
 
 	tmpnam(tmpfilename);
 	if ((bstdout=Bopen(tmpfilename, OWRITE)) == 0)
 		sysfatal("cannot open temporary file %s: %r", tmpfilename);
 	atexit(cleanup);
-	Bstdout = &bstdout->Biobufhdr;
+	Bstdout = (Biobufhdr*)bstdout;
 
 	ARGBEGIN{
 	case 'a':			/* aspect ratio */
@@ -162,7 +161,7 @@ main(int argc, char *argv[]) {
 			sysfatal("malloc");
 		if (Binit(binp, 0, OREAD) == Beof)
 			sysfatal("Binit of <stdin> failed.");
-		Binp = &binp->Biobufhdr;
+		Binp = (Biobufhdr*)binp;
 		if (debug) fprint(2, "using standard input\n");
 		conv(Binp);
 		Bterm(Binp);
@@ -172,7 +171,7 @@ main(int argc, char *argv[]) {
 			fprint(2, "cannot open file %s\n", argv[i]);
 			continue;
 		}
-		Binp = &binp->Biobufhdr;
+		Binp = (Biobufhdr*)binp;
 		inputfilename = argv[i];
 		conv(Binp);
 		Bterm(Binp);
@@ -185,7 +184,7 @@ main(int argc, char *argv[]) {
 	bstdout = galloc(0, sizeof(Biobuf), "bstdout");
 	if (Binit(bstdout, 1, OWRITE) == Beof)
 		sysfatal("Binit of <stdout> failed.");
-	Bstdout = &(bstdout->Biobufhdr);
+	Bstdout = (Biobufhdr*)bstdout;
 	prologues();
 	Bflush(Bstdout);
 	tot = 0;

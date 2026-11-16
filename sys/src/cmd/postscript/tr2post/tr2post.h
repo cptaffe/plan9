@@ -101,3 +101,6 @@ void ps_include(Biobufhdr *, Biobufhdr *, int, int,
 void picture(Biobufhdr *, char *);
 void beginpath(char*, int);
 void drawpath(char*, int);
+
+enum { BUFSIZ = 8192 };
+char	*tmpnam(char*);

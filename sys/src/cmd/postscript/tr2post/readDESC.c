@@ -57,7 +57,7 @@ readDESC(void)
 		error(WARNING, "cannot open file %s\n", descfilename);
 		return 0;
 	}
-	Bfd = &(bfd->Biobufhdr);
+	Bfd = (Biobufhdr*)bfd;
 
 	while (Bgetfield(Bfd, 's', token, MAXTOKENSIZE) > 0) {
 		for (i=0; i<NDESCTOKS; i++) {

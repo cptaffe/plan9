@@ -1,0 +1,100 @@
+.TH MD2MS 1
+.SH NAME
+md2ms \- markdown as troff -ms
+.SH SYNOPSIS
+.B md2ms
+[
+.I file ...
+]
+.SH DESCRIPTION
+.I Md2ms
+writes the markdown of its files, or of its standard input, as
+.IR troff (1)
+input for the
+.IR ms (6)
+macros.
+The first heading of one
+.L #
+is the title
+.RB ( .TL );
+the others are section headings
+.RB ( .SH ).
+A blank line ends a paragraph
+.RB ( .LP );
+a line that starts with
+.LR - ,
+.L *
+or
+.L +
+is a bulleted item, and one that starts with a number and a period a numbered one
+.RB ( .IP ).
+Inline,
+.BI ** text **
+is bold,
+.BI * text *
+italic, and
+.BI ` text `
+constant width.
+.PP
+A fenced block,
+.L ```
+on a line before it and after it, is set as program text
+.RB ( .P1
+and
+.BR .P2 ),
+unless its language is
+.LR pic :
+then it is a
+.IR pic (1)
+picture, between
+.B .PS
+and
+.B .PE
+if it has not its own, as
+.IR sketch (1)
+writes them.
+.SH EXAMPLES
+Render a document with a drawing in it, and look at it:
+.IP
+.EX
+md2ms doc.md | pic | tbl | troff -ms | page
+.EE
+.PP
+From
+.IR acme 's
+.IR win ,
+which has no window of
+.IR rio 's
+for
+.I page
+to draw in, render it to PostScript and plumb that, which opens
+.I page
+in a window of its own:
+.IP
+.EX
+md2ms doc.md | pic | tbl | troff -ms | lp -dstdout >doc.ps; plumb doc.ps
+.EE
+.PP
+.IR Page (1)
+turns
+.IR troff 's
+output into PostScript with
+.BR "lp -dstdout" ;
+here
+.I lp
+has no printers, and
+.B -dstdout
+is all it does, by
+.BR aux/tr2post .
+.SH SOURCE
+plan9web's
+.B rc/bin/md2ms
+and
+.B rc/bin/lp
+.SH SEE ALSO
+.IR ms (6),
+.IR pic (1),
+.IR troff (1),
+.IR page (1)
+.SH BUGS
+Tables, links, block quotes and nested lists are set as plain text.
