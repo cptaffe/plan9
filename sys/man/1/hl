@@ -58,18 +58,26 @@ of the file's name, and
 .BR fence= ,
 of the other names of the rule's language,
 as a fenced block in markdown names it.
-Each time the window's body changes,
-.I hl
-reads it under acme's
+.I Hl
+gives a window's grammar its body once, under acme's
 .B seq
-guard and writes its layer under the same
-.BR seq ,
-so that
+guard, and then its edits, from the window's
+.BR rdevent ,
+and writes in its layer only the runs that the grammar says may have changed,
+each under the
+.B seq
+of the edits it reflects, so that
 .I astyles
 refuses colors for text that has since changed,
 and
 .I hl
-colors the window again.
+colors that text again after the next edits.
+A Get, an edit whose text
+.B rdevent
+leaves out, or a grammar that has lost the document
+has
+.I hl
+give the body again.
 .PP
 A grammar's program gives the text of a language it does not have,
 such as a markdown file's fenced block of code, as one run,
@@ -91,6 +99,8 @@ pattern matches it, or else
 .BI /bin/ts/ lang
 if there is one,
 and puts the program's runs where the text is.
+The program gets the block's edits as the window's grammar does,
+and a block whose bounds an edit crosses is given again.
 So a block marked
 .B sh
 is colored as
@@ -102,8 +112,8 @@ Each grammar is a program,
 that
 .I hl
 starts once and keeps for every window in its language.
-It reads requests on its standard input and answers each on its standard output:
-.TF close\ id
+It reads requests on its standard input and answers some on its standard output:
+.TF delete\ id\ q0\ q1
 .TP
 .BI body " id n"
 followed by
@@ -119,6 +129,40 @@ bytes of runs, in the form of
 .B style
 file.
 The program keeps each document's parse, so that a change is parsed again only where it is.
+.TP
+.BI insert " id q n"
+followed by
+.I n
+bytes, put in document
+.I id
+at rune
+.IR q .
+.TP
+.BI delete " id q0 q1"
+takes the runes
+.I q0
+to
+.I q1
+from it.
+.TP
+.BI span " id q0 q1"
+answered by
+.BI span " id r0 r1 m"
+and
+.I m
+bytes of the runs of the runes
+.I r0
+to
+.IR r1 ,
+counted from
+.IR r0 :
+the text whose runs may have changed since the last answer, and that of
+.I q0
+to
+.IR q1 ;
+or by
+.BI stale " id"
+if an edit could not be made.
 .TP
 .BI close " id"
 forgets document
