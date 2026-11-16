@@ -248,13 +248,19 @@ line, as the file has it.
 .BI | cmd
 Send the selection through
 .IR cmd .
-Its output is the selection's new version, read the same way:
-each series' rows in it replace that series' selected rows,
+Its output is the selection's new version, read the same way.
+When a series has as many rows in it as the series had selected,
+each takes the place of the selected row it matches in order,
+on that row's line, so an unselected row between two selected ones stays between them,
+and
+.I Grap
+selects only those rows.
+Otherwise the series' rows replace its selected rows
 as one block where the first of them was;
 .I Grap
 takes out a row the output leaves out, even from a line it shares by
-.BR ; ,
-and the rest of the file keeps its text, layout and order.
+.BR ; .
+The rest of the file keeps its text, layout and order.
 With nothing selected, as with
 .IR acme 's
 .BR | ,
