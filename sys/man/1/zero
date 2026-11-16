@@ -1,0 +1,294 @@
+.TH ZERO 1
+.SH NAME
+zero \- a chess engine that searches as AlphaZero does, with lc0's networks
+.SH SYNOPSIS
+.B zero
+[
+.B -b
+.I batch
+] [
+.B -g
+.I backend
+] [
+.B -n
+.I network
+]
+.br
+.B zero
+[
+.I option ...
+]
+.B -e
+.I position
+.br
+.B zero
+[
+.I option ...
+]
+.B -p
+.I position
+.br
+.B zero
+[
+.I option ...
+]
+.B -B
+[
+.I batch
+]
+.br
+.B zero
+.B -t
+.SH DESCRIPTION
+.I Zero
+is a chess engine speaking UCI, the Universal Chess Interface, on its standard input and output,
+as
+.IR chess (1)
+runs one.
+It evaluates positions with a neural network of Leela Chess Zero's (lc0's),
+read from lc0's own weights file, and searches as AlphaZero does:
+a Monte Carlo tree search that chooses each move to look at by PUCT,
+the network's prior for it against what the search has found,
+and takes the network's value of each new position in place of a playout.
+It gathers the positions to evaluate in batches, a virtual loss on each line
+taken keeping the next from taking it too, and evaluates a batch at once.
+Its moves are
+.IR chess 's.
+.PP
+The networks are in
+.BR /lib/nn :
+.BI maia N .pb.gz\fR,
+Maia's, for
+.I N
+from 1100 to 1900 by hundreds,
+each trained to play the move that a human player of that rating plays;
+and
+.BR 703810.pb.gz ,
+Leela's, the last network of its T70 run,
+ten residual blocks of 128 filters.
+.I Zero
+runs a network of lc0's classical input (112 planes of 8 by 8: the last eight positions,
+castling, the side to move and the 50-move count),
+a residual tower with or without squeeze and excitation,
+a convolutional policy head of 1858 moves,
+and a value head of win, draw and loss, or of one value.
+It does not run the attention networks of lc0's later runs.
+.PP
+It runs the network on the GPU, by
+.IR gpu (3),
+where there is one, and on the CPU otherwise.
+Its options:
+.TP
+.B -b
+The most positions it evaluates at once, 32 if not told.
+.TP
+.B -g
+The backend:
+.BR auto ,
+the GPU if it can, then the CPU;
+.BR gpu ,
+or
+.BR cpu .
+.TP
+.B -n
+The network, as the
+.B Network
+option.
+.PP
+With
+.BR -e ,
+.I zero
+evaluates the
+.I position
+(as UCI's
+.B position
+command takes it:
+.B startpos
+or
+.BI fen " fen"\fR,
+then
+.B moves
+and the moves)
+once and prints the backend, the win, draw and loss and the moves-left estimate,
+and each legal move with the policy's logit for it;
+with
+.BR -p ,
+it prints the position's input planes,
+each as its number, its squares as 64 bits, and the value of a square that is set;
+with
+.BR -B ,
+it evaluates
+.I batch
+copies of the start position for three seconds and says how many positions it evaluated a second;
+with
+.BR -t ,
+it prints its table of lc0's 1858 policy moves, one a line,
+then the 4672 entries of the convolutional policy's map from planes to moves.
+.SS UCI
+.I Zero
+takes
+.BR uci ,
+.BR isready ,
+.BR setoption ,
+.BR ucinewgame ,
+.BR position ,
+.BR go ,
+.B stop
+and
+.BR quit .
+While it searches, it answers
+.B isready
+and takes
+.BR stop ;
+the other commands wait for the search to end, and
+.B quit
+ends a
+.B "go infinite"
+at once.
+.B Go
+takes
+.BR infinite ,
+.BI nodes " n"\fR,
+.BI movetime " ms"\fR,
+and
+.BR wtime ,
+.BR btime ,
+.BR winc ,
+.B binc
+and
+.BR movestogo ,
+of which it spends the side to move's time over 25 moves, or the moves to go, and half its increment.
+A search ends at the first of its nodes and its time;
+an infinite one ends at
+.BR stop .
+While it searches it says, every half second and at its end,
+.EX
+	info depth 5 seldepth 12 time 1084 nodes 432 nps 398 score cp -9 pv c7c5 g1f3 ...
+.EE
+where the depth is the mean depth of its visits, the seldepth the deepest,
+and the nodes the visits to the root;
+the score, from the side to move, is lc0's centipawns,
+90 tan(1.5637541897 q) for the expected outcome
+.I q
+(1 a win, \-1 a loss) of the move,
+or a mate in one when the move mates.
+Its options:
+.TP
+.B Nodes
+The visits a search makes unless
+.B go
+says otherwise; 1 if not set, the policy's own move, as Maia is meant to play; 0 for no limit but time.
+.TP
+.B Network
+The network's file,
+.B /lib/nn/maia1500.pb.gz
+if not set.
+.TP
+.B Elo
+A rating, for the Maia network nearest it, from 1100 to 1900;
+0, as it starts, for
+.BR Network .
+.TP
+.B Temperature
+0, the move with the most visits (with one, the policy's best move);
+above 0, a move drawn at random, each as likely as its visits, or its policy, to the power of 1/temperature.
+.TP
+.B MultiPV
+How many moves its
+.B info
+lines show, the most visited first, each with
+.BR multipv .
+.TP
+.B VerboseMoveStats
+After a search, a line for each move, as lc0 writes it:
+.EX
+	info string e2e4  (322 ) N:     281 (+ 0) (P: 50.24%) (Q:  0.04612) (V:  0.0383)
+.EE
+its policy index, its visits, the visits in flight, its prior, its value from the search
+and the network's value of the position it leads to, from the side that moves;
+then the root's line,
+.BR node .
+.TP
+.B PolicyTemperature
+The temperature of the policy's softmax over the legal moves, 1.359 as in lc0.
+.TP
+.B Backend
+As
+.BR -g .
+.PP
+The search's other constants are lc0's: its PUCT constant
+1.745 + 3.894 ln((N+38739)/38739) at a node of
+.I N
+visits, and a first-play value of the parent's value less 0.33 times the root of the policy already visited.
+A position that has come three times, or twice within the search, is a draw,
+as are those of the 50-move rule and those with no mating material.
+.SH EXAMPLES
+Play against Maia at 1100 in
+.IR chess (1):
+.IP
+.EX
+chessengine='zero' Chess game.pgn
+.EE
+.PP
+with the rating set first:
+.IP
+.EX
+cat >$home/bin/rc/maia1100 <<'!'
+#!/bin/rc
+{ echo setoption name Elo value 1100; cat } | zero
+!
+chmod +x $home/bin/rc/maia1100
+Chess -e maia1100
+.EE
+.PP
+Evaluate a game's moves with Leela's network, 800 visits each:
+.IP
+.EX
+chess -a -e '{ echo setoption name Network value /lib/nn/703810.pb.gz
+	echo setoption name Nodes value 800; cat } | zero' game.pgn
+.EE
+.PP
+Show Maia's policy for the position after 1. e4:
+.IP
+.EX
+{ echo setoption name VerboseMoveStats value true
+  echo position startpos moves e2e4; echo go; echo quit } | zero
+.EE
+.SH FILES
+.TF /lib/nn/703810.pb.gz
+.TP
+.BI /lib/nn/maia N .pb.gz
+Maia's networks
+.TP
+.B /lib/nn/703810.pb.gz
+Leela's network 703810
+.TP
+.B /dev/gpu
+the GPU,
+.IR gpu (3)
+.SH SOURCE
+plan9web's
+.BR src/cmd/zero ,
+with
+.I chess 's
+.B pos.c
+.SH "SEE ALSO"
+.IR chess (1),
+.IR gpu (3)
+.br
+David Silver et al.,
+``A general reinforcement learning algorithm that masters chess, shogi, and Go through self-play'',
+.IR Science ,
+362, 2018.
+.br
+Reid McIlroy-Young, Siddhartha Sen, Jon Kleinberg and Ashton Anderson,
+``Aligning Superhuman AI with Human Behavior: Chess as a Model System'',
+KDD 2020.
+.br
+.B https://lczero.org/
+.SH BUGS
+A search does not keep its tree for the next move,
+and knows a mate only one move away.
+Two
+.I zero
+processes do not share a GPU session.
