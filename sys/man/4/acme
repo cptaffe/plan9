@@ -251,6 +251,19 @@ files below, until the
 .B ctl
 file this was written to is closed.
 The body's text is kept and shows again then.
+.B Draw
+turns the tag's
+.BR Undo ,
+.B Redo
+and
+.B Put
+on, as
+.B menu
+does, even when a program holds the
+.B event
+file, so the tag follows the text under the drawing;
+.B nomenu
+after it turns them off.
 While the body is drawn,
 .B draw
 through another open
