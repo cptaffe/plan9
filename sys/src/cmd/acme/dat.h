@@ -25,6 +25,12 @@ enum
 	QWwrsel,
 	QWtag,
 	QWxdata,
+	QWcons,
+	QWconsctl,
+	QWcursor,
+	QWmouse,
+	QWwctl,
+	QWwinname,
 	QMAX,
 };
 
@@ -59,6 +65,7 @@ typedef	struct	WinEditLog WinEditLog;
 typedef	struct	WinStyleEntry WinStyleEntry;
 typedef	struct	WinStyleRun WinStyleRun;
 typedef	struct	Window Window;
+typedef	struct	Wsys Wsys;
 typedef	struct	Xfid Xfid;
 
 struct Runestr
@@ -341,6 +348,7 @@ struct Window
 	WinStyleRun	*wruns;
 	int		nwruns;
 	WinEditLog	editlog;	/* per-window body edit notification log */
+	Wsys	*wsys;
 };
 
 void	wininit(Window*, Window*, Rectangle);

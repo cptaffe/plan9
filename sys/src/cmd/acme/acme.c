@@ -160,15 +160,9 @@ threadmain(int argc, char *argv[])
 	bind("/acme/bin", "/bin", MBEFORE);
 	getwd(wdir, sizeof wdir);
 
-/*
-	if(geninitdraw(nil, derror, fontnames[0], "acme", nil, Refnone) < 0){
+	if(geninitdraw(nil, derror, fontnames[0], "acme", nil, Refbackup) < 0){
 		fprint(2, "acme: can't open display: %r\n");
 		threadexitsall("geninitdraw");
-	}
-*/
-	if(initdraw(derror, fontnames[0], "acme") < 0){
-		fprint(2, "acme: can't open display: %r\n");
-		threadexitsall("initdraw");
 	}
 	d = display;
 	font = d->defaultfont;
@@ -594,7 +588,8 @@ mousethread(void *)
 		flushimage(display, 1);
 		switch(alt(alts)){
 		case MResize:
-			if(getwindow(display, Refnone) < 0)
+			wsysscreen();
+			if(getwindow(display, Refbackup) < 0)
 				error("attach to window");
 			iconinit();
 			draw(screen, screen->r, colback, nil, ZP);
@@ -638,6 +633,8 @@ mousethread(void *)
 				winunlock(mousetext->w);
 			}
 			mousetext = t;
+			if(wsysmouse(t, &m))
+				goto Continue;
 			if(t == nil)
 				goto Continue;
 			w = t->w;

@@ -219,6 +219,23 @@ Set the user's selected text in the window to the text addressed by the
 .B addr
 address.
 .TP
+.B draw
+Have a program draw the body, through the window's
+.BR cons ,
+.BR consctl ,
+.BR cursor ,
+.BR mouse ,
+.BR wctl
+and
+.B winname
+files below, until the
+.B ctl
+file this was written to is closed.
+The body's text stays, and shows again then.
+A second
+.B draw
+while the body is drawn fails.
+.TP
 .BI dump " command
 Set the command string to recreate the window from a dump file.
 .TP
@@ -519,10 +536,57 @@ The
 file like
 .B data
 except that reads stop at the end address.
+.PP
+The
+.BR cons ,
+.BR consctl ,
+.BR cursor ,
+.BR mouse ,
+.B wctl
+and
+.B winname
+files are
+.IR rio (4)'s,
+for one window's body, so that a program that uses
+.IR graphics (2),
+with them bound over
+.BR /dev ,
+draws in the body as in a window of
+.IR rio .
+.B Winname
+names an image the size of the body, and can be read only while the body is drawn (see
+.B draw
+above).
+.B Mouse
+gives the mouse in the body as
+.IR rio 's
+does, and an
+.B r
+when the body moves, changes size, or is drawn again: the program then reads
+.B winname
+for its new image.
+After
+.B rawon
+is written to
+.BR consctl ,
+the keys typed in the body are read from
+.BR cons ;
+before it, they are dropped while the body is drawn.
+A write to
+.B cons
+is added to the body.
+.B Wctl
+gives the body's rectangle and whether it is current and visible; it cannot be written.
+When the window is deleted, reads of
+.B mouse
+and
+.B cons
+fail; ending the program is for whoever started it.
 .SH SOURCE
 .B /sys/src/cmd/acme
 .SH SEE ALSO
 .IR rio (1),
 .IR acme (1),
+.IR rio (4),
 .IR cons (3),
 .IR theme (6).

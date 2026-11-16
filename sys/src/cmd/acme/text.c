@@ -730,6 +730,8 @@ texttype(Text *t, Rune r)
 
 	nr = 1;
 	rp = &r;
+	if(t->w && t->what==Body && wsyskey(t->w, r))
+		return;
 	/* veil: every key but the wheel's goes to the event file, uninterpreted */
 	if(t->w && t->w->noecho && t->what==Body && r!=Kscrolloneup && r!=Kscrollonedown){
 		typecommit(t);
