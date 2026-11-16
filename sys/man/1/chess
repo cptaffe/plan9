@@ -96,7 +96,8 @@ Button 1 on a piece of the side to move marks the squares it can move to;
 button 1 on one of those squares makes the move.
 Dragging the piece there makes it too.
 A pawn that reaches the last rank shows the pieces it can become, to choose with button 1.
-A move made at the end of a line extends it.
+A move made at the end of a line extends it, or starts the next line when it would make the line
+longer than 79 characters.
 A move made at an earlier move opens a variation:
 .I chess
 writes it in parentheses, numbered, after the move it replaces.
@@ -192,7 +193,8 @@ by adding its own, in
 milliseconds.
 .B Play
 again stops it.
-Play hides the analysis.
+The analysis is on or off apart from play: while it is on, it shows on your moves, and the engine
+gives it up to play its own.
 .SS Without a window
 With
 .BR -s ,
@@ -294,7 +296,8 @@ a pipe, or another program, the board follows it.
 .I Chess
 adds
 .BR Chess ,
-.B Play
+.BR Play ,
+.B Analysis
 and
 .B "|chess -a"
 to the tag, as words it does not have already.
@@ -305,6 +308,8 @@ and
 .B "|chess -a"
 still in the tag and
 .B Play
+and
+.B Analysis
 gone;
 .B Chess
 there again draws the board.
