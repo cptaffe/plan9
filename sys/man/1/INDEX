@@ -324,6 +324,7 @@ dpost troff
 nroff troff
 troff troff
 troff2html troff2html
+Tree Tree
 ts hl
 tweak tweak
 uniq uniq

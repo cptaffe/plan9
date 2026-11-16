@@ -1,0 +1,121 @@
+.TH TREE 1
+.SH NAME
+Tree \- a window's syntax tree, as an outline, in acme
+.SH SYNOPSIS
+.B Tree
+[
+.I winid
+]
+.SH DESCRIPTION
+.I Tree
+in the tag of an
+.IR acme (1)
+window opens a window,
+.IB file +Tree\f1,
+that draws the parse of the first window's text as an outline.
+The grammar is the one
+.IR hl (1)
+would color the file by, from the rules of
+.B $home/lib/ts
+or
+.BR /lib/ts ,
+and the parse is its program's answer to a
+.B tree
+request.
+Given
+.IR winid ,
+it shows that window instead of
+.BR $winid .
+.PP
+Each row is a named node of the parse:
+the name of its field in its parent, if it has one, its type, and some of its text:
+a definition's name, a leaf's text, or, dimmer, the first line of a larger node's.
+A triangle at the left of a node with children points down at an open node and right at a closed one.
+At first the definitions that the language's
+.B tags.scm
+finds are open, with the nodes that hold them,
+and the rest closed;
+for a language without
+.BR tags.scm ,
+every node starts open.
+.PP
+.I Tree
+follows the window, as
+.I hl
+does, by its
+.B rdevent
+file
+.RI ( acme (4)):
+after an edit it asks for the parse again, and the nodes still there stay open or closed as they were.
+It highlights the row of the node at the window's selection,
+or of the nearest open node that holds it.
+.PP
+Button 1 on a triangle opens or closes its node.
+Button 1 on a row selects its node and sets the window's selection to the node's text, and shows it.
+The wheel scrolls.
+.PP
+.BI | cmd
+in
+.IR Tree 's
+tag runs
+.I cmd
+with
+.IR rc (1)
+in the file's directory, the selected node's text on its standard input,
+and puts what it prints in the node's place in the window,
+unless the command fails or the text changed while it ran.
+When the node's text has no newline at its end,
+.I Tree
+drops one the command adds there.
+.PP
+.IR Tree 's
+own text is the outline, a row to a line, indented by tabs, with
+.L ▸
+and
+.L ▾
+for the triangles; its selection is the selected row, for programs that read it.
+Its colors are
+.IR theme (6)'s
+.B body
+and
+.BR bodysel ,
+with
+.B comment
+for field names and the dim text, and
+.B function
+for definitions' names.
+.B Del
+ends it, and so does deleting the window it shows.
+.SH EXAMPLES
+In a C file's window, run
+.BR Tree ,
+select a function's row with button 1, then type this in its tag and sweep it with button 2
+.IP
+.EX
+|sed 's/count/n/g'
+.EE
+.PP
+to rename a variable in that function alone.
+.SH FILES
+.TF /sys/lib/ts/lang/tags.scm
+.TP
+.B /lib/ts
+the languages' rules
+.TP
+.BI /sys/lib/ts/ lang /tags.scm
+what a language's definitions are
+.TP
+.BI /bin/ts/ lang
+a language's program
+.PD
+.SH SOURCE
+plan9web's
+.B src/cmd/Tree.c
+.SH SEE ALSO
+.IR acme (1),
+.IR hl (1),
+.IR acme (4),
+.IR theme (6)
+.SH BUGS
+Each edit sends the whole text to the grammar's program and reads back every node,
+so a long file is slow to follow.
