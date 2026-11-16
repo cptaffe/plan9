@@ -9,26 +9,14 @@
 
 /*
  * p9web: a process that shares memory is a fiber of libthread's here, which proccreate makes:
- * rfork(RFPROC|RFMEM) has no stack of its own to return on. A slave's note handler is its own
- * proc's (threadnotify), where notify's would be every proc's, for they share memory.
+ * rfork(RFPROC|RFMEM) has no stack of its own to return on.
  */
-static int
-slavenote(void*, char *cause)
-{
-	if(strncmp(cause, "sys:", 4) == 0 && !strstr(cause, "pipe")) {
-		fprint(2, "exportsrv: note: %s\n", cause);
-		exits("noted");
-	}
-	return strncmp(cause, "kill", 4) != 0;
-}
-
 static void
 slaveproc(void *a)
 {
 	Proc *m;
 
 	m = a;
-	threadnotify(slavenote, 1);
 	m->pid = getpid();
 	blockingslave(m);
 	threadexits(nil);
@@ -587,9 +575,7 @@ blockingslave(Proc *m)
 	Fsrpc *p;
 	Fcall rhdr;
 
-#ifndef __wasm__
-	notify(flushaction);	/* p9web: slaveproc's threadnotify */
-#endif
+	notify(flushaction);
 
 	for(;;) {
 		p = rendezvous(m, nil);
