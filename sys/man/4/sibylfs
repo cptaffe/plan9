@@ -1,0 +1,135 @@
+.TH SIBYLFS 4
+.SH NAME
+sibylfs \- sessions of a coding agent
+.SH SYNOPSIS
+.B sibylfs
+[
+.B -D
+] [
+.B -d
+.I model
+] [
+.B -m
+.I mtpt
+] [
+.B -o
+.I ocurl
+] [
+.B -s
+.I srvname
+] [
+.B -u
+.I url
+]
+.SH DESCRIPTION
+.I Sibylfs
+serves the sessions of
+.IR sibyl (1)
+on
+.I mtpt
+.RB ( /mnt/sibyl ),
+laid out as
+.B /net
+is, and posts them as
+.BI /srv/ srvname
+with
+.BR -s .
+.I Acmestart
+mounts one before Acme starts, so Acme and what it runs share it.
+Each session runs its own agent loop against Anthropic's Messages API, through
+.IR webfs (4),
+or OpenCode Go's for a model named
+.BI opencode-go/ id\f1;
+.B -u
+and
+.B -o
+name other places for them, and
+.B -d
+the model a session starts with (else
+.BR $sibylmodel ).
+The key is factotum's,
+.B proto=pass
+.B service=anthropic
+or
+.BR service=opencode .
+.B doc/sibyl.md
+has the rest.
+.TF n/call/k/status
+.TP
+.B clone
+Opening it makes a session,
+.IR n ;
+the fid is
+.IB n /ctl\f1's.
+.TP
+.IB n /ctl
+Reading gives
+.IR n ,
+then the model, the key's service, the effort, the role, the prompt file and the state.
+Writing takes
+.BI model " m" \f1,
+.BI effort " e" \f1,
+.BI role " r"
+.RB ( /lib/sibyl/ \fIr\fP's
+instructions too),
+.BI prompt " file" \f1,
+.BR cancel ,
+.BI steer " text"
+and
+.BR hangup ,
+which ends the session at once.
+.TP
+.IB n /data
+A turn is what is written on one open, sent when it is closed; a read gives the reply as it
+comes, to the end of the turn a reader has not finished, and a turn that failed gives its
+error there.
+Opened to read and write,
+.B data
+is an aside, as
+.BR /net/cs
+is a query and its answer: what is written is the turn, sent at the first read, which gives
+its reply; the session's other readers pass over it.
+Asides wait behind the session's turns.
+.TP
+.IB n /ask
+Questions, from one fid to another.
+A fid that writes first asks: what it writes is the question, whole at its first read, which
+waits for the answer and gives it.
+A fid that reads first answers: its reads give the oldest question no other fid has, to its
+end, and what it writes, to its close, is the answer.
+.I Sibyl -i
+answers its session's questions, from
+.IR quibble ,
+by sending each as an aside.
+.TP
+.IB n /event
+A line for each call,
+.IB k " rc" \f1,
+and
+.IB k " cancel"
+when a cancel ends one being run.
+A line read is gone.
+.TP
+.IB n /call/ k /cmd
+The call's command.
+.TP
+.IB n /call/ k /out
+Its output: the runner's writes add to it, and a read waits for more until
+.TP
+.IB n /call/ k /status
+is written, which ends the call.
+.TP
+.IB n /usage
+The session's tokens and their cost.
+.PD
+.PP
+A session ends when the last of its files is closed.
+.B -D
+prints the 9P messages.
+.SH SOURCE
+plan9web's
+.B src/cmd/sibylfs
+.SH SEE ALSO
+.IR sibyl (1),
+.IR searchfs (4),
+.IR webfs (4)
