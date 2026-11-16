@@ -127,6 +127,36 @@ So a rule after an
 .B include
 can change a key the included file binds.
 .PP
+A line
+.BI mode " name"
+starts a section of rules for the mode
+.IR name ,
+which apply only while that mode is on;
+a line
+.B mode
+alone goes back to the rules for no mode.
+Sections with the same name are one mode.
+A section lasts to the next
+.B mode
+line or the end of its file:
+an included file's rules start in the including file's section,
+and after the
+.B include
+the including file goes on in the section it was in.
+.PP
+While a mode is on,
+.I hotkey
+matches keys against its rules alone.
+A rule's command runs and the mode stays on.
+A key the mode does not bind turns the mode off and is then handled as with no mode on:
+it passes through, or starts or finishes a rule for no mode.
+A key that breaks off a sequence of the mode's keys turns the mode off too,
+and is discarded with them, as with no mode on.
+Keys typed by
+.B send
+are matched in the same way,
+so a mode's rule that sends a key the mode does not bind ends the mode.
+.PP
 Commands run in
 .IR hotkey 's
 name space and environment, with standard input
@@ -159,6 +189,20 @@ and
 to the real
 .BR consctl ,
 and turns raw mode off when the file descriptor that set it closes.
+.TP
+.B mode
+The mode.
+Writing a mode's name turns it on, in place of any mode that is on;
+a name no section has fails the write.
+The mode lasts while the file descriptor that turned it on is open,
+and ends when it closes, or when it writes an empty line,
+or at a key the mode does not bind, as above.
+A mode another descriptor replaced does not come back when that one closes.
+A rule's command can turn a mode on for as long as it holds the file, as
+.B "{echo m; sleep 2} >/mnt/hotkey/mode"
+does for two seconds.
+Replacing the rules keeps the mode on if the new rules have it, and otherwise turns it off.
+Reading gives the name of the mode that is on, or nothing.
 .TP
 .B rules
 The rules. Closing the file after writing replaces them.
@@ -211,6 +255,27 @@ Switch to another set of rules:
 cmd-g	{cat $home/lib/hotkey/acme.g >/mnt/hotkey/rules}
 .EE
 .PP
+Number the choices in a window, as
+.BR /lib/hotkey/acme 's
+rules do for
+.IR Act 's
+.BR +Act :
+Command-. runs
+.IR Act ,
+which holds
+.B mode
+open with
+.B act
+written to it while its window lasts,
+and 1 to 9 and Esc go to the pipe it posted:
+.IP
+.EX
+cmd-.	{/acme/bin/akey Act -m}
+mode act
+1	{test -e /srv/act.$user && echo 1 >>/srv/act.$user}
+esc	{test -e /srv/act.$user && echo esc >>/srv/act.$user}
+.EE
+.PP
 Make Control-A go to the start of the line in a program that only knows Home:
 .IP
 .EX
@@ -229,6 +294,14 @@ user rules
 the Mac's Command keys as control keys:
 Command-C, V, X and Z become control-C, V, X and Z,
 and Command-Shift-Z becomes control-R
+.TP
+.B /lib/hotkey/acme
+Acme's keys, with the mode
+.B act
+for
+.IR Act 's
+window (see
+.IR alsp (4))
 .TP
 .B /lib/hotkey/acme.emacs
 Emacs's keys for

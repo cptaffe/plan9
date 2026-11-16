@@ -7,7 +7,7 @@ f12	{/acme/bin/akey Def}
 # and JetBrains's Cmd-B for the definition, with Cmd-Shift-B for the references
 cmd-b	{/acme/bin/akey Def}
 cmd-B	{/acme/bin/akey Refs}
-cmd-.	{/acme/bin/akey Act}
+cmd-.	{/acme/bin/akey Act -m}
 cmd-i	{/acme/bin/akey Doc}
 cmd-O	{/acme/bin/akey Syms}
 f2	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && echo -n ' Rename ' >/mnt/acme/$acmewin/tag}
@@ -20,3 +20,15 @@ cmd-k c	{/acme/bin/akey Comp}
 # sibyl: an instruction for the selection, typed in the tag; or the session, asked about it
 cmd-k e	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && echo -n ' |sibyl ' >/mnt/acme/$acmewin/tag}
 cmd-k s	{/acme/bin/akey Ask}
+# +Act's options while Act -m has the window: 1 to 9 picks one, esc deletes the window
+mode act
+1	{test -e /srv/act.$user && echo 1 >>/srv/act.$user}
+2	{test -e /srv/act.$user && echo 2 >>/srv/act.$user}
+3	{test -e /srv/act.$user && echo 3 >>/srv/act.$user}
+4	{test -e /srv/act.$user && echo 4 >>/srv/act.$user}
+5	{test -e /srv/act.$user && echo 5 >>/srv/act.$user}
+6	{test -e /srv/act.$user && echo 6 >>/srv/act.$user}
+7	{test -e /srv/act.$user && echo 7 >>/srv/act.$user}
+8	{test -e /srv/act.$user && echo 8 >>/srv/act.$user}
+9	{test -e /srv/act.$user && echo 9 >>/srv/act.$user}
+esc	{test -e /srv/act.$user && echo esc >>/srv/act.$user}
