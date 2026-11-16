@@ -106,7 +106,7 @@ fn new {
 # delete: the sessions of the lines that dot touches, or of the line it is on if it is empty
 fn delete {
 	for(n in `{windotlines | awk '$1 ~ /^[0-9]+$/ {print $1}'})
-		rm -rf $lib/$n $lib/$n.tree
+		rm -rf $lib/$n $lib/$n.tree $lib/$n.session
 	refresh
 }
 
