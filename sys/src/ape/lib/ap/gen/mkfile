@@ -37,6 +37,7 @@ ALLOFILES=\
 	qsort.$O\
 	raise.$O\
 	rand.$O\
+	rand48.$O\
 	reallocarray.$O\
 	strcat.$O\
 	strchr.$O\
@@ -50,6 +51,7 @@ ALLOFILES=\
 	strncat.$O\
 	strncmp.$O\
 	strncpy.$O\
+	strndup.$O\
 	strnlen.$O\
 	strpbrk.$O\
 	strrchr.$O\

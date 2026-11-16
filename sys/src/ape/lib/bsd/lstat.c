@@ -9,15 +9,19 @@ lstat(char *name, struct stat *ans)
 }
 
 int
-symlink(char *, char *)
+symlink(const char *, const char *)
 {
 	errno = EPERM;
 	return -1;
 }
 
-int
-readlink(char *, char *, int )
+ssize_t
+readlink(const char *name, char *, size_t)
 {
-	errno = EIO;
+	struct stat s;
+
+	if(stat(name, &s) < 0)
+		return -1;
+	errno = EINVAL;
 	return -1;
 }
