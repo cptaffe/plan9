@@ -11,6 +11,9 @@
 ; LHS of a grammar rule
 (grammar_rule_declaration) @function
 
+; A rule's %prec, %dprec and %merge
+(directive ["%prec" "%dprec" "%merge"] @keyword)
+
 ; Literals
 (string_literal) @string
 (char_literal) @string
