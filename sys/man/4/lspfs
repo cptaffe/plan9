@@ -272,7 +272,8 @@ and the message
 .B marks
 the diagnostics as runs, a start and length in runes and the severity, as
 .IR astyles (4)
-takes them
+takes them; a diagnostic of no width, a place between runes, is marked on the rune after it,
+or the one before at the end of a line
 .TP
 .B ver
 the text's version, which each edit or write of the body adds one to
