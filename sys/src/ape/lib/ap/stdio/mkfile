@@ -19,6 +19,7 @@ OFILES=\
 	fgets.$O\
 	fgetwc.$O\
 	fileno.$O\
+	flockfile.$O\
 	fopen.$O\
 	fprintf.$O\
 	fputc.$O\

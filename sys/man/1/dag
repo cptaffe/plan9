@@ -1,0 +1,199 @@
+.TH DAG 1
+.SH NAME
+dag, Dag \- draw and edit a graph in dot
+.SH SYNOPSIS
+.B dag
+.I file
+.br
+.B Dag
+[
+.I file
+]
+.SH DESCRIPTION
+.I Dag
+draws a graph written in
+.IR dot (1)'s
+language, as
+.I dot
+lays it out, in a
+.IR rio (1)
+window.
+The
+.I file
+is the graph's text, a node or an edge to a line:
+.IP
+.EX
+digraph {
+	a
+	b
+	a -> b
+}
+.EE
+.PP
+.B "dot -Txdot"
+lays the graph out again after each change to the text.
+If
+.I file
+does not exist, the graph starts empty, and
+.B write
+makes it.
+.I Dag
+needs the
+.B graphviz
+package, and adds it with
+.IR pkg (1)
+if
+.B /bin/dot
+is not there.
+.PP
+The selection is a set of lines, those of the selected nodes and edges.
+A node's lines are those that name it alone, or, if none does, those of the edges it is in.
+.SS Mouse
+.TF button\ 3
+.TP
+button 1
+At nothing, adds a node's line before the graph's closing brace,
+with the first free name of
+.BR n1 ,
+.BR n2 ,
+.BR n3 ….
+Dragged from a node to a node, adds an edge between them,
+.B "a -> b"
+in a digraph and
+.B "a -- b"
+in a graph; let go at nothing, it adds a new node too.
+A click at a node selects it.
+.I Dag
+selects what it adds.
+.TP
+button 2
+On a node or an edge, selects it; with Shift, adds it to the selection or takes it out.
+Swept over nothing, selects what is inside the box.
+A click at nothing selects nothing.
+.TP
+button 3
+A menu:
+.B delete
+deletes the selected lines, and a node's edges with it;
+.B undo
+and
+.BR redo ;
+.B tred
+sends the graph through
+.IR tred ,
+which removes the edges another path implies;
+.B write
+writes the file;
+.B exit
+ends
+.IR dag .
+.PD
+.SS Keys
+Delete and Backspace delete what is selected, and Escape selects nothing.
+Command-Z undoes, Command-Shift-Z redoes, Command-A selects every node and edge,
+Command-C copies the selected lines to the snarf buffer, and Command-S writes the file.
+.PP
+Typing
+.BR | ,
+.B <
+or
+.B >
+starts a command, shown at the bottom of the window; Return runs it and Escape drops it.
+It runs
+.IR rc (1)
+in the file's directory, as
+.IR acme (1)
+runs its commands on a selection:
+.B |cmd
+sends the selected lines, or the whole file if nothing is selected, through
+.I cmd
+and puts what it prints in their place;
+.B <cmd
+puts what
+.I cmd
+prints in place of the selected lines, or before the closing brace;
+.B >cmd
+sends them to
+.IR cmd ,
+whose output goes to standard error.
+So
+.B "|sort -u"
+sorts the selected lines, and
+.B |tred
+reduces the graph.
+.SS Dag
+.I Dag
+is
+.I dag
+in an
+.IR acme (1)
+window, whose body is the graph's text.
+With no
+.IR file ,
+it draws the window it runs in,
+.BR $winid ;
+with one, or outside a window, it opens a new window on the file.
+An edit writes only the lines it changes, so the window's
+.BR Undo ,
+.B Redo
+and
+.B Put
+are Acme's, and
+.I Dag
+draws the graph again after any change to the text, Undo's too.
+Dot is the selection's lines:
+.I Dag
+selects what dot covers when it starts, and sets dot as the selection changes.
+.PP
+.I Dag
+adds itself to the window's tag.
+.B Dag
+there ends it, and the window shows its text, to edit as any other.
+While the graph shows, a command in the tag beginning with
+.BR | ,
+.B <
+or
+.B >
+is
+.IR dag 's,
+as if typed.
+The menu has no
+.B undo
+or
+.BR redo ,
+and its
+.B write
+is
+.BR Put .
+.SH EXAMPLES
+In a
+.I Dag
+window, remove the nodes no edge leaves:
+.IP
+.EX
+|gvpr -c 'N[outdegree==0]{delete(0,$)}'
+.EE
+.SH SOURCE
+plan9web's
+.B src/cmd/dag
+and, for Graphviz,
+.BR mk/pkg
+and
+.B src/graphviz
+.SH "SEE ALSO"
+.IR dot (1),
+.IR tred (1),
+.IR gvpr (1),
+.IR pkg (1),
+.IR acme (4)
+.SH BUGS
+Only
+.I dot
+lays the graph out, and dragging a node does not move it.
+.br
+.I Dag
+draws edges written with a subgraph,
+.BR "a -> {b c}" ,
+but cannot select them.
+.br
+It draws text in the window's font, not the graph's.

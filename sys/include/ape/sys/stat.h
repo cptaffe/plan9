@@ -97,8 +97,8 @@ extern int fchmod(int, mode_t);
 #ifdef _BSD_EXTENSION
 #pragma lib "/$M/lib/ape/libbsd.a"
 extern int	lstat(char *, struct stat *);
-extern int	symlink(char *, char *);
-extern int	readlink(char *, char*, int);
+extern int	symlink(const char *, const char *);
+extern ssize_t	readlink(const char *, char *, size_t);
 #endif
 
 #ifdef __cplusplus

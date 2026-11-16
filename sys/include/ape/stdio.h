@@ -163,6 +163,12 @@ int	vdprintf(int, const char *, va_list);
 char	*fgetln(FILE *, size_t *);
 #endif
 
+#if _POSIX_C_SOURCE >= 199506L || defined(_REENTRANT_SOURCE)
+void	flockfile(FILE *);
+int	ftrylockfile(FILE *);
+void	funlockfile(FILE *);
+#endif
+
 #ifdef _REENTRANT_SOURCE
 char	*tmpnam_r(char *);
 char	*ctermid_r(char *);
