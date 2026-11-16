@@ -160,7 +160,7 @@ execute(Text *t, uint aq0, uint aq1, int external, Text *argt)
 	Rune *r, *s;
 	char *b, *a, *aa;
 	Exectab *e;
-	int c, n, f;
+	int c, n, f, tell;
 	Runestr dir;
 
 	q0 = aq0;
@@ -182,7 +182,8 @@ execute(Text *t, uint aq0, uint aq1, int external, Text *argt)
 	r = runemalloc(q1-q0);
 	bufread(&t->file->b, q0, r, q1-q0);
 	e = lookup(r, q1-q0);
-	if(!external && t->w!=nil && t->w->nopen[QWevent]>0){
+	if(!external && t->w!=nil && (t->w->nopen[QWevent]>0 || t->w->rdlog.nf>0)){
+		tell = t->w->nopen[QWevent] > 0;
 		f = 0;
 		if(e)
 			f |= 1;
@@ -191,16 +192,18 @@ execute(Text *t, uint aq0, uint aq1, int external, Text *argt)
 			f |= 2;
 		}
 		aa = getbytearg(argt, TRUE, TRUE, &a);
-		if(a){
-			if(strlen(a) > EVENTSIZE){	/* too big; too bad */
+		if(a && strlen(a) > EVENTSIZE){	/* too big; too bad */
+			free(aa);
+			free(a);
+			aa = a = nil;
+			if(tell){
 				free(r);
-				free(aa);
-				free(a);
 				warning(nil, "argument string too long\n");
 				return;
 			}
-			f |= 8;
 		}
+		if(a)
+			f |= 8;
 		c = 'x';
 		if(t->what == Body)
 			c = 'X';
@@ -224,10 +227,12 @@ execute(Text *t, uint aq0, uint aq1, int external, Text *argt)
 			else
 				winevent(t->w, "%c0 0 0 0 \n", c);
 		}
-		free(r);
 		free(aa);
 		free(a);
-		return;
+		if(tell){
+			free(r);
+			return;
+		}
 	}
 	if(e){
 		if(e->mark && seltext!=nil)
@@ -268,7 +273,7 @@ executerunestr(Text *t, Rune *r, int external)
 
 	nr = runestrlen(r);
 	e = lookup(r, nr);
-	if(!external && t->w!=nil && t->w->nopen[QWevent]>0){
+	if(!external && t->w!=nil && (t->w->nopen[QWevent]>0 || t->w->rdlog.nf>0)){
 		f = 0;
 		if(e)
 			f |= 1;
@@ -280,7 +285,8 @@ executerunestr(Text *t, Rune *r, int external)
 			winevent(t->w, "%c%d %d %d %d %.*S\n", c, 0, 0, f, nr, nr, r);
 		else
 			winevent(t->w, "%c%d %d %d 0 \n", c, 0, 0, f);
-		return;
+		if(t->w->nopen[QWevent] > 0)
+			return;
 	}
 	if(e){
 		if(e->mark && seltext!=nil)

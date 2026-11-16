@@ -77,7 +77,7 @@ startplumbing(void)
 void
 look3(Text *t, uint q0, uint q1, int external, int reverse)
 {
-	int n, c, f, expanded;
+	int n, c, f, expanded, tell;
 	Text *ct;
 	Expand e;
 	Rune *r;
@@ -90,7 +90,8 @@ look3(Text *t, uint q0, uint q1, int external, int reverse)
 	if(ct == nil)
 		seltext = t;
 	expanded = expand(t, q0, q1, &e, reverse);
-	if(!external && t->w!=nil && t->w->nopen[QWevent]>0){
+	if(!external && t->w!=nil && (t->w->nopen[QWevent]>0 || expanded && t->w->rdlog.nf>0)){
+		tell = t->w->nopen[QWevent] > 0;
 		/* send alphanumeric expansion to external client */
 		if(expanded == FALSE)
 			return;
@@ -114,8 +115,11 @@ look3(Text *t, uint q0, uint q1, int external, int reverse)
 			free(r);
 		}else
 			winevent(t->w, "%c%d %d %d 0 \n", c, q0, q1, f, n);
-		if(q0==e.q0 && q1==e.q1)
-			return;
+		if(q0==e.q0 && q1==e.q1){
+			if(tell)
+				return;
+			goto Told;
+		}
 		if(e.nname){
 			n = e.nname;
 			if(e.a1 > e.a0)
@@ -137,8 +141,10 @@ look3(Text *t, uint q0, uint q1, int external, int reverse)
 		else
 			winevent(t->w, "%c%d %d %d 0 \n", c, e.q0, e.q1, f, n);
 		free(r);
-		goto Return;
+		if(tell)
+			goto Return;
 	}
+    Told:
 	if(plumbsendfd >= 0){
 		/* send whitespace-delimited word to plumber */
 		m = emalloc(sizeof(Plumbmsg));

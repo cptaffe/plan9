@@ -30,6 +30,7 @@ enum {
   QWmouse,
   QWwctl,
   QWwinname,
+  QWrdevent,
   QMAX
 };
 
@@ -338,6 +339,7 @@ struct Window {
   int            nwruns;
 
   WinEditLog editlog; /* per-window body edit notification log */
+  WinEditLog rdlog;
   Wsys *wsys;
   uint dotq0, dotq1;  /* the body's dot as last seen, and how long it has stayed */
   int dotage;

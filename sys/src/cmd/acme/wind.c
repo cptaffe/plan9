@@ -727,15 +727,20 @@ winevent(Window *w, char *fmt, ...)
 	Xfid *x;
 	va_list arg;
 
-	if(w->nopen[QWevent] == 0)
+	if(w->nopen[QWevent] == 0 && w->rdlog.nf == 0)
 		return;
-	if(w->owner == 0)
-		error("no window owner");
 	va_start(arg, fmt);
 	b = vsmprint(fmt, arg);
 	va_end(arg);
 	if(b == nil)
 		error("vsmprint failed");
+	winrdevent(w, w->owner != 0 ? w->owner : 'M', b);
+	if(w->nopen[QWevent] == 0){
+		free(b);
+		return;
+	}
+	if(w->owner == 0)
+		error("no window owner");
 	n = strlen(b);
 	w->events = erealloc(w->events, w->nevents+1+n);
 	w->events[w->nevents++] = w->owner;
