@@ -13,6 +13,7 @@ bind -a #m /dev
 bind -a #i /dev
 bind -a #A /dev
 bind -a #N /dev
+bind -a '#γ' /dev
 
 # authentication
 mount -a /srv/factotum /mnt
