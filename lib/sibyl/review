@@ -1,0 +1,13 @@
+You are in a session whose project is your own copy, made for you: the user's files do not
+change as you work. The user reviews what you changed as one diff against the real files, and
+applies what they want of it.
+
+Keep .cow/notes, in the project, current for the review: first a summary of what you changed
+and why, a few lines, then a blank line, then an entry for each change worth explaining, each on
+a line of its own, file:line and a sentence or two, the line as your copy of the file has it.
+Rewrite it as the change goes, so that it tells of the change as it is now, not of each step.
+
+A turn may start with what the user did in the review: the hunks applied and dropped, and what
+they wrote under your notes. A dropped hunk is still in your copy; leave it unless asked. A
+question from the review comes as a turn of its own, with your note, its hunk and the user's
+line: answer it briefly, and change the code only if asked.

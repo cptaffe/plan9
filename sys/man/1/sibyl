@@ -1,0 +1,308 @@
+.TH SIBYL 1
+.SH NAME
+sibyl, Sibyl, Review, quibble \- a programmer's assistant for Acme
+.SH SYNOPSIS
+.B sibyl
+[
+.B -e
+.I effort
+] [
+.B -m
+.I model
+] [
+.I instruction ...
+]
+.PP
+.B sibyl -i
+[
+.B -w
+] [
+.B -s
+.I n
+] [
+.B -e
+.I effort
+] [
+.B -m
+.I model
+]
+.PP
+.B Sibyl
+.PP
+.B Review
+[
+.B -n
+|
+.B -s
+] [
+.I n
+]
+.PP
+.B quibble -s
+.I n
+.SH DESCRIPTION
+.I Sibyl
+is a coding agent that Acme drives through files: its sessions are those of
+.BR /mnt/sibyl ,
+served by
+.IR sibylfs ,
+and the model's one tool, rc, is run by
+.I sibylrun
+as
+.B none
+in the name space
+.I sibylns
+makes: the user's tree to read, the project to write, no
+.B /srv
+or network.
+.B doc/sibyl.md
+has the design.
+.PP
+.I Sibyl
+with no
+.B -i
+is a filter.
+The instruction, then the text on standard input, are a turn; the answer comes on standard
+output, and the commands the model runs, each after
+.BR % ,
+its output indented, on standard error.
+As
+.B |sibyl
+in Acme the answer replaces the selection; Undo is its review.
+Its commands change the project itself.
+.PP
+.B Sibyl -i
+is a conversation, as
+.B win sibyl -i
+runs it.
+A turn is what is typed up to a
+.B ^D
+(win's end of file); the reply follows a line
+.B -->
+and ends at a line
+.BR <-- .
+Delete cancels a turn, and
+.B ^D
+alone ends the session.
+The session is kept in
+.BI $home/lib/sibyl/ n\f1,
+after a header of
+.B dir
+and
+.B date
+lines and a blank line;
+.B -s
+goes on with session
+.IR n ,
+showing its transcript and sending it ahead of the first turn.
+A one-line turn
+.BI /effort " e" \f1,
+.BI /model " m"
+or
+.BI /prompt " file"
+goes to the session's
+.BR ctl ;
+each alone shows the setting.
+.PP
+The commands of
+.B sibyl -i
+change the session's own copy of the project:
+.IR cowfs (4)
+serves the project with each change kept in
+.BI $home/lib/sibyl/ n .tree\f1,
+posted as
+.BI /srv/sibyl. n .tree
+while the session runs, so the real files, and Acme's windows on them, are as they were.
+The model is told so
+.RB ( /lib/sibyl/review )
+and keeps
+.B .cow/notes
+in its copy: a summary, then a
+.IB file : line
+entry for each change worth explaining.
+.B Review
+in the window's tag, and the end of a turn that changed the copy, open the review.
+With
+.BR -w ,
+the session is in place: its commands change the project itself, as the filter's do, the
+header says
+.BR "tree inplace" ,
+and there is no review; Undo, or
+.IR git (1)'s
+diff, is the review.
+.PP
+.I Sibyl
+lists the saved sessions in the window
+.BR /sibyl/ ,
+one a line: number, date, directory and first turn.
+Button 3 on a line opens its session in a window of its own,
+.IB dir /-sibyl. n\f1.
+In the tag,
+.B New
+.RB [ -w ]
+.RI [ dir ]
+starts a session,
+.B Delete
+removes the sessions of the lines dot touches, with their copies, and
+.B Get
+lists them again.
+.SS Review
+.I Review
+shows session
+.IR n 's
+changes, in the window
+.IB dir /+review\f1,
+.I dir
+being its directory, the project.
+With no
+.IR n ,
+it is the session of the window
+.B $winid
+names,
+.IB dir /-sibyl. n\f1.
+The window starts with the summary of
+.BR .cow/notes ,
+as
+.B #
+lines.
+Then each changed file is a paragraph:
+.B create
+.I file
+for a file the copy made,
+.B delete
+.I file
+for one it removed, and the hunks of
+.B diff -n -c
+of the real file against the copy, each under the notes on its lines, as
+.B #
+lines.
+A hunk's header names the real file on the left and the copy on the right, in
+.IB file : lines " - " copy : lines
+form, so button 3 on either opens it there.
+The real file's text is its window's if it has one, else the disk's.
+Notes on no hunk are listed last, after
+.BR "# Other notes:" .
+.PP
+The window is a document: delete the hunks, or a file's paragraph, you do not want, and write
+under the notes.
+While it is open,
+.I Review
+watches the copy, and makes again the paragraph of each file that changes as the agent works,
+keeping in it the lines you wrote and the hunks you deleted that are still the same; the
+others are left as you have them.
+In the tag:
+.TF Discard
+.TP
+.B Apply
+puts the hunks left in the window into the files' windows, each file's as one change, opening
+a window for a file with none, and leaving them dirty for
+.BR Put .
+A file whose text, its window's or the disk's, is not what the copy began from, by the hash
+.IR cowfs (4)
+noted, is refused, and +Errors says which; so is a hunk that no longer fits.
+A
+.B delete
+left in the window removes the file from the disk.
+Applied hunks then match the window, and leave the review; the dropped ones stay in the copy, for
+the agent to see and be asked about, until
+.BR Discard .
+.TP
+.B Discard
+empties the copy: the agent sees the real tree again.
+.TP
+.B Get
+makes the window again from the copy.
+.TP
+.B Quibble
+turns questions on and off, as
+.B Indent
+does indenting, saying which in +Errors; it is off when the window opens.
+While it is on, a
+.B #
+line you type, ended with a newline, is a question: the note above it, its hunk and your line
+go to
+.IR quibble ,
+and its answer is put in under your line as
+.B #
+lines.
+Questions wait their turn, one at a time.
+.PD
+.PP
+The next turn begins with what
+.B Apply
+did: the hunks applied, dropped and refused, and the lines you wrote, each under the note it
+follows.
+.PP
+.B -n
+prints the review and exits;
+.B -s
+prints a stamp of the copy, which changes when it does.
+.SS Quibble
+.I Quibble
+is a filter, as
+.B |sibyl
+is, bound to session
+.IR n ,
+which must be open as
+.BR "sibyl -i" :
+the text on standard input is sent to the session as a turn of its own, an aside on
+.B data
+that the session's other readers pass over, and the answer is printed.
+The session's window and transcript show the question and its answer as any turn.
+.SH FILES
+.TF $home/lib/sibyl/n.tree/.cow/files
+.TP
+.BI $home/lib/sibyl/ n
+session
+.IR n 's
+transcript
+.TP
+.BI $home/lib/sibyl/ n .tree
+its copy's changes, the shadow of
+.IR cowfs (4)
+.TP
+.BI $home/lib/sibyl/ n .tree/.cow/fed
+what
+.B Apply
+and
+.B Discard
+did, for the next turn
+.TP
+.B /lib/sibyl/prompt
+the model's instructions;
+.B /lib/sibyl/filter
+and
+.B /lib/sibyl/review
+are added for the filter and for a session with a copy
+.TP
+.B /lib/sibyl/patterns
+what of the tree the commands may read
+.TP
+.B /lib/namespace.sibyl
+what is mounted for them
+.SH SOURCE
+.B /rc/bin/sibyl
+.br
+.B /rc/bin/quibble
+.br
+.B /acme/bin/Sibyl
+.br
+plan9web's
+.B src/cmd/sibylfs
+and
+.B src/cmd/cowfs/Review.c
+.SH SEE ALSO
+.IR acme (1),
+.IR cowfs (4),
+.IR searchfs (4)
+.SH BUGS
+.I Review
+watches the copy once a second.
+A paragraph the agent changes loses your edits to its hunks, though not your lines.
+A file whose window is closed after
+.B Apply
+and before
+.B Put
+is refused by the next
+.BR Apply ,
+since its disk text is not the one it noted.
