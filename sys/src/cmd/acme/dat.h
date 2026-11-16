@@ -17,7 +17,6 @@ enum {
   QWeditout,
   QWerrors,
   QWevent,
-  QWlog,
   QWseq,
   QWstyle,
   QWrdsel,
@@ -291,7 +290,7 @@ struct Window {
   int id;
   Range addr;
   int hasaddr;   /* 1 after a write to addr, cleared when style fid opens OWRITE */
-  int seq;       /* monotonic edit count; incremented on each body edit (winlogedit) */
+  int seq;       /* monotonic edit count; incremented on each body edit */
   int wantseq;   /* seq guard armed by writing seq; -1=unset.  Like addr,
                     reset when seq is opened with nopen 0->1; moved onto the
                     fid of the next guarded open (body, data, xdata, style,
@@ -338,7 +337,6 @@ struct Window {
   WinStyleRun   *wruns;
   int            nwruns;
 
-  WinEditLog editlog; /* per-window body edit notification log */
   WinEditLog rdlog;
   Wsys *wsys;
   uint dotq0, dotq1;  /* the body's dot as last seen, and how long it has stayed */
@@ -499,12 +497,11 @@ void xfidlogread(Xfid *);
 void xfidlogflush(Xfid *);
 void xfidlog(Window *, char *);
 
-/* per-window body-edit notification log (QWlog / "<winid>/log") */
+/* rdevent, a read-only copy of a window's events */
 void xfidwinlogopen(Xfid *, Window *);
 void xfidwinlogclose(Xfid *, Window *);
 void xfidwinlogread(Xfid *, Window *);
 void xfidwinlogflush(Xfid *, Window *);
-void winlogedit(Window *, char, ulong, ulong, Rune *, int);
 void winlogdot(Window *);
 void winlogfree(Window *);
 
