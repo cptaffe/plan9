@@ -32,6 +32,11 @@ sketch \- draw with constraints, after Sutherland's Sketchpad
 [
 .I factor
 ]
+.br
+.B len
+[
+.I length
+]
 .SH DESCRIPTION
 .I Sketch
 is Ivan Sutherland's Sketchpad (1963) for a
@@ -484,6 +489,12 @@ and
 .I scale
 are such commands: they turn a picture's points about their middle,
 90° if not told, and scale them, twice if not told.
+.I Len
+holds each line of a picture at
+.IR length ,
+or at the length it has if not told, by adding a fixed scalar and a
+.B D
+constraint for it.
 .SH FILES
 .TF /lib/font/hershey/futural.jhf
 .TP
