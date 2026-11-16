@@ -94,8 +94,15 @@ tag runs
 with
 .IR rc (1)
 in the file's directory, the selected node's text on its standard input,
-and puts what it prints in the node's place in the window,
-unless the command fails or the text changed while it ran.
+and puts what it prints in the node's place in the window, in one write, as
+.IR acme 's
+.B |
+does: a command that fails still has its output put there, and
+.I Tree
+says how it failed.
+Undo takes it back, and text that no longer parses shows as error nodes.
+.I Tree
+writes nothing only if the text changed while the command ran.
 When the node's text has no newline at its end,
 .I Tree
 drops one the command adds there.
