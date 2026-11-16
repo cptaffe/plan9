@@ -94,6 +94,12 @@ Dirtab dirtabw[]=
 	{ "wrsel",		QTFILE,		QWwrsel,		0200 },
 	{ "tag",		QTAPPEND,	QWtag,		0600|DMAPPEND },
 	{ "xdata",		QTFILE,		QWxdata,		0600 },
+	{ "cons",		QTFILE,		QWcons,		0600 },
+	{ "consctl",	QTFILE,		QWconsctl,	0200 },
+	{ "cursor",		QTFILE,		QWcursor,		0600 },
+	{ "mouse",		QTFILE,		QWmouse,		0600 },
+	{ "wctl",		QTFILE,		QWwctl,		0400 },
+	{ "winname",	QTFILE,		QWwinname,	0400 },
 	{ nil, }
 };
 

@@ -202,6 +202,10 @@ xfidflush(Xfid *x)
 			w = c->w[i];
 			winlock(w, 'E');
 			xfidwinlogflush(x, w);
+			if(wsysflush(w, x->fcall.oldtag)){
+				winunlock(w);
+				goto out;
+			}
 			for(ef = w->eventhead; ef != nil; ef = ef->eventnext){
 				wx = ef->eventx;
 				if(wx != nil && wx->fcall.tag == x->fcall.oldtag){
@@ -363,6 +367,19 @@ xfidopen(Xfid *x)
 			w->wrselrange = range(t->q1, t->q1);
 			w->nomark = TRUE;
 			break;
+		case QWcons:
+		case QWconsctl:
+		case QWcursor:
+		case QWmouse:
+		case QWwctl:
+		case QWwinname:
+			s = wsysopen(w, q);
+			if(s != nil){
+				winunlock(w);
+				respond(x, &fc, s);
+				return;
+			}
+			break;
 		case QWeditout:
 			if(editing == FALSE){
 				winunlock(w);
@@ -426,6 +443,7 @@ xfidclose(Xfid *x)
 				w->ctlfid = ~0;
 				qunlock(&w->ctllock);
 			}
+			wsysctlclose(w, x->f);
 			break;
 		case QWdata:
 		case QWxdata:
@@ -516,6 +534,13 @@ xfidclose(Xfid *x)
 			break;
 		case QWeditout:
 			qunlock(&w->editoutlk);
+			break;
+		case QWconsctl:
+		case QWmouse:
+			wsysclose(w, q);
+			break;
+		case QWcursor:
+			wsyscursorclose(w);
 			break;
 		}
 		winunlock(w);
@@ -684,6 +709,15 @@ xfidread(Xfid *x)
 		fc.data = b;
 		respond(x, &fc, nil);
 		fbuffree(b);
+		break;
+
+	case QWcons:
+	case QWconsctl:
+	case QWcursor:
+	case QWmouse:
+	case QWwctl:
+	case QWwinname:
+		wsysread(x, w, q);
 		break;
 
 	default:
@@ -954,6 +988,18 @@ xfidwrite(Xfid *x)
 		respond(x, &fc, nil);
 		break;
 
+	case QWcons:
+		t = &w->body;
+		goto BodyTag;
+
+	case QWconsctl:
+	case QWcursor:
+	case QWmouse:
+	case QWwctl:
+	case QWwinname:
+		wsyswrite(x, w, qid);
+		break;
+
 	default:
 		sprint(buf, "unknown qid %d in write", qid);
 		respond(x, &fc, buf);
@@ -1185,6 +1231,12 @@ out:
 		if(strncmp(p, "unveil", 6) == 0){	/* display keyboard input */
 			w->noecho = FALSE;
 			m = 6;
+		}else
+		if(strncmp(p, "draw", 4)==0 && (p[4]==0 || p[4]=='\n')){
+			err = wsysdraw(w, x->f);
+			if(err != nil)
+				break;
+			m = 4;
 		}else
 		{
 			err = Ebadctl;
