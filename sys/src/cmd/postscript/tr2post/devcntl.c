@@ -1,7 +1,6 @@
 #include <u.h>
 #include <libc.h>
 #include <bio.h>
-#include <stdio.h>
 #include "../common/common.h"
 #include "tr2post.h"
 
@@ -33,20 +32,20 @@ PSInclude(Biobufhdr *inp) {
 struct sjt specialjumptable[] = {
 	{"PI", picture},
 	{"PictureInclusion", picture},
-	{"InlinePicture", NULL},
-	{"BeginPath", NULL},
-	{"DrawPath", NULL},
-	{"BeginObject", NULL},
-	{"EndObject", NULL},
-	{"NewBaseline", NULL},
-	{"DrawText", NULL},
-	{"SetText", NULL},
-	{"SetColor", NULL},
-	{"INFO", NULL},
+	{"InlinePicture", nil},
+	{"BeginPath", nil},
+	{"DrawPath", nil},
+	{"BeginObject", nil},
+	{"EndObject", nil},
+	{"NewBaseline", nil},
+	{"DrawText", nil},
+	{"SetText", nil},
+	{"SetColor", nil},
+	{"INFO", nil},
 	{"PS", PSInclude},
 	{"Postscript", PSInclude},
 	{"ExportPS", notavail("ExportPS")},
-	{NULL, NULL}
+	{nil, nil}
 };
  */
 

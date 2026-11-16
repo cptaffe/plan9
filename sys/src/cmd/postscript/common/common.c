@@ -216,7 +216,7 @@ cat(char *filename) {
 	if ((bfile = Bopen(filename, OREAD)) == 0) {
 		return(1);
 	}
-	Bfile = &(bfile->Biobufhdr);
+	Bfile = (Biobufhdr*)bfile;
 	while ((n=Bread(Bfile, buf, Bsize)) > 0) {
 		if (Bwrite(Bstdout, buf, n) != n)
 			break;
