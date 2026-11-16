@@ -105,6 +105,10 @@ Of two trees, the nearer wins.
 .I Lspfs
 starts a server the first time a file it serves is opened or asked about,
 and runs one process for all the projects it serves, telling it of each new root.
+Its files answer at once while a server starts or stays silent:
+.I lspfs
+holds what it sends a server until the server is up, and answers a question when the server
+does.
 A server that cannot be told of another project gets a process for each.
 A server that exits is started again, and the documents it had are opened in it again;
 one that exits five times within three minutes is not started again until the rules are
@@ -311,7 +315,14 @@ or
 .BR file= ,
 is checked only when the file is closed; if it is bad then, the rules are left as they were
 and the error goes to standard error.
-The servers then start again, by the new rules.
+A server whose entry keeps its name,
+.BR cmd= ,
+.B lang=
+and
+.B map=
+goes on and opens its documents again;
+.I lspfs
+stops the others, which start again by the new rules.
 .IP
 .EX
 cp $home/lib/lsp /mnt/lsp/rules
