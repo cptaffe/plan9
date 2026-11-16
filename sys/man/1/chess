@@ -28,6 +28,9 @@ chess, Chess \- a board for a game of chess in PGN
 .B -t
 .I ms
 ] [
+.B -f
+.I fen
+] [
 .I file
 ]
 .br
@@ -165,18 +168,11 @@ writes none of this to the game.
 A search stops after 30 seconds on one position.
 .PP
 .B Eval
-gives the engine
-.I ms
-milliseconds, 1000 if not told, on the position after each move selected,
-or the move at dot,
-and writes its evaluation in a comment after the move:
-.B {+0.35}
-in pawns from white's side, or
-.B {#3}
-and
-.BR {#-3} ,
-a mate in three for white and for black.
-It replaces a comment of that form already there.
+runs
+.B "chess -a"
+(below) on the moves selected, or the move at dot,
+from the position before them, and puts what it writes in their place:
+an evaluation after each move.
 .PP
 In
 .BR play ,
@@ -200,9 +196,31 @@ An illegal move is an error, named with its line and column.
 .PP
 With
 .BR -a ,
-it writes the game with an evaluation, as
-.BR eval 's,
-after each move of the main line but a mate.
+it reads a game, or moves alone, and writes it back with the engine's evaluation in a comment
+after each move, in variations too, but a mate:
+.B {+0.35}
+in pawns from white's side, after
+.I ms
+milliseconds on the position, 1000 if not told, or
+.B {#3}
+and
+.BR {#-3} ,
+a mate in three for white and for black.
+It replaces an evaluation already there.
+The moves start from the game's
+.B FEN
+tag, or
+.IR fen ,
+or the start.
+If they are not legal from there, or the engine fails or does not answer,
+.I chess
+writes its input back as it was, says why on standard error and fails,
+so in
+.IR acme (1)
+.B "|chess -a"
+on a selection, or
+.BR "Edit ,|chess -a" ,
+never loses a move.
 .PP
 With
 .BR -d ,
@@ -268,17 +286,22 @@ adds
 .BR Chess ,
 .B Play
 and
-.B |eval
-to the tag.
+.B "|chess -a"
+to the tag, and takes them away when it ends.
 .B Chess
 there ends it, and the window shows its text;
 .B Play
-and
-.B |eval
-are
-.B play
-and
+is
+.BR play ;
+.BR "|chess -a" ,
+with arguments of its own if given, is
 .BR eval ,
+run from the position before the selection,
+with
+.B -e
+and
+.B -t
+passed on;
 and
 .B Flip
 and
@@ -290,10 +313,28 @@ Other commands are acme's: a
 or
 .B >
 command works on the text at dot.
+Command-Z and Command-Shift-Z are acme's
+.B Undo
+and
+.BR Redo .
+.I Chess
+writes to the body only if no one else has changed it since it last read it;
+if someone has, it says the file changed, reads it again, and leaves dot where it was.
 .B Del
+on a modified window says so in
+.B +Errors
+and leaves it; a second
+.BR Del ,
+or
+.BR Delete ,
 deletes the window, ending
 .I Chess
 and the engine with it.
+A note that ends
+.IR Chess ,
+as
+.B Kill
+sends, ends the engine too.
 .SH EXAMPLES
 Evaluate a game's moves for half a second each:
 .IP
@@ -345,4 +386,16 @@ Null moves and Chess960 are not taken.
 .br
 Weiss searches on its one thread, as APE has one,
 and looks at its input every 2048 positions for
-.BR stop .
+.BR stop ,
+by the bytes waiting in a pipe:
+from a terminal it does not see
+.B stop
+until it has searched,
+and when its input ends while it searches with no limit, it goes on.
+.br
+Acme's guard on a window's writes is one for the window, which the next open of its body takes:
+another program that sets it at the same moment, as
+.IR hl (1)
+does as it colors, can make a write of
+.I Chess
+fail, or one of its own.
