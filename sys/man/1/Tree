@@ -44,8 +44,9 @@ follows the window by its
 .B rdevent
 file
 .RI ( acme (4)).
-It keeps the text, passes each insert and delete on to the grammar's program as an
-.BR edit ,
+It keeps the text, passes each insert and delete on to the grammar's program, as
+.I hl
+does,
 and asks for a
 .BR delta ,
 so after an edit only what changed comes back, and the nodes still there stay open or closed as they were.
@@ -74,10 +75,16 @@ Onto another node, such as the
 .B if
 that holds a statement, the node leaves its siblings with the text that separated it,
 and goes in with the text that separates its new siblings, indented as they are,
-and with a semicolon if they end with one and it does not.
+and with a semicolon if they end with one and it ends with neither one nor a brace
+and does not parse there without it.
 .I Tree
-parses the result first, and refuses a move that would make more errors than there were,
+parses the result first.
+It refuses a move that would make more errors than there were,
+or change any node but the moved one, such as by adding an empty statement,
 and says so.
+When the window's text changes under a move or a pipe,
+.I Tree
+writes nothing and says the file changed.
 .PP
 .BI | cmd
 in
@@ -115,6 +122,16 @@ for field names and the dim text, and
 for definitions' names.
 .B Del
 ends it, and so does deleting the window it shows.
+When that window takes a new name,
+.I Tree
+renames its own and takes the new name's grammar, or says there is none.
+A grammar's program that answers
+.B tree
+with an error, as
+.B /bin/ts/pic
+does, gets no more requests, and
+.I Tree
+shows its answer.
 .SH EXAMPLES
 In a C file's window, run
 .BR Tree ,
@@ -152,3 +169,15 @@ and nothing takes its place: hoisting does not make a variable for it.
 After each edit
 .B tags
 runs over the whole text.
+.PP
+Acme's
+.B seq
+guard is one for each window, taken by the next open:
+.I hl
+or another program arming it between
+.IR Tree 's
+write of
+.B seq
+and its open can make that open fail, or take the guard
+.I Tree
+set.
