@@ -3,10 +3,10 @@
 # lists those saved in $home/lib/sibyl, one a line: its number, date and directory, then its
 # first turn. Button 3 on a line opens that session, in its own window, $dir/-sibyl.n: win
 # running sibyl -i, in the session's directory, or that window again if it is open. In the
-# tag, New [dir] starts a session (in dir, else Sibyl's directory) and lists it once it is saved,
-# Delete removes the sessions of the lines dot touches (the line it is on, if it is empty), and Get
-# lists them again. It is an acme client in rc, on /lib/acme.rc;
-# /acme/bin is Acme's, as Mail is, apart from sibyl(1).
+# tag, New [-w] [dir] starts a session (in dir, else Sibyl's directory) and lists it once it is
+# saved, in place with -w (sibyl -i -w: no review), Delete removes the sessions of the lines dot
+# touches (the line it is on, if it is empty), with their trees, and Get lists them again. It is
+# an acme client in rc, on /lib/acme.rc; /acme/bin is Acme's, as Mail is, apart from sibyl(1).
 rfork e
 if(! ~ $#* 0){
 	echo usage: Sibyl >[1=2]
@@ -75,9 +75,14 @@ fn open {
 # newest: the number of the newest session saved
 fn newest { ls $lib | sed 's,.*/,,' | grep '^[0-9]+$' | sort -n | tail -1 }
 
-# new [dir]: a new session, in dir; sibyl -i numbers and saves it
+# new [-w] [dir]: a new session, in dir; sibyl -i numbers and saves it
 fn new {
 	dir=$here
+	w=()
+	if(~ $1 -w){
+		w=-w
+		shift
+	}
 	if(~ $#* 1)
 		dir=$1
 	if(! test -d $dir){
@@ -85,7 +90,7 @@ fn new {
 		return
 	}
 	last=`{newest}
-	@{ cd $dir && win sibyl -i } &
+	@{ cd $dir && win sibyl -i $w } &
 	@{
 		for(i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20){
 			sleep 0.5
@@ -101,7 +106,7 @@ fn new {
 # delete: the sessions of the lines that dot touches, or of the line it is on if it is empty
 fn delete {
 	for(n in `{windotlines | awk '$1 ~ /^[0-9]+$/ {print $1}'})
-		rm -f $lib/$n
+		rm -rf $lib/$n $lib/$n.tree
 	refresh
 }
 

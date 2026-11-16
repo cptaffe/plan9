@@ -1,0 +1,121 @@
+.TH COWFS 4
+.SH NAME
+cowfs \- a tree whose changes are kept apart
+.SH SYNOPSIS
+.B cowfs
+[
+.B -D
+] [
+.B -m
+.I mtpt
+] [
+.B -s
+.I srvname
+]
+.I base
+.I shadow
+.SH DESCRIPTION
+.I Cowfs
+serves the tree
+.IR base ,
+with every change to it kept in the directory
+.IR shadow ,
+so that
+.I base
+itself does not change.
+It posts the service as
+.BI /srv/ srvname
+and mounts it on
+.IR mtpt ;
+with neither option, it mounts it on
+.I base
+in the caller's name space, while its own still sees the real one.
+.PP
+A file is read from
+.I base
+until it changes.
+An open to write, or with
+.BR OTRUNC ,
+or a
+.IR wstat ,
+first copies the file whole into
+.IR shadow ,
+at the same path, making its directories there as
+.I base
+has them; from then on the tree has the copy.
+A
+.I create
+is made in
+.IR shadow .
+A
+.I remove
+takes the file from
+.I shadow
+if it is there, and leaves a whiteout for one in
+.IR base ,
+so the file is gone from the tree but not from
+.IR base .
+A directory lists the names of both, less the whiteouts, and must be empty in the tree to be
+removed.
+A rename is a copy under the new name and a whiteout of the old; a directory of
+.I base
+cannot be renamed.
+.PP
+The file
+.IB shadow /.cow/files
+notes each path that was copied or removed, a line each:
+.B c
+for a copy or
+.B w
+for a whiteout,
+.IR base 's
+.B qid.vers
+and the SHA-1 of its text when it was noted, in hex
+.RB ( -
+for a directory), and the path from the tree's root, quoted as
+.IR quote (2)
+quotes.
+A program that later writes the changes back can check by the hash that
+.IR base 's
+file is still the text the copy began from.
+.PP
+In the tree,
+.B .cow
+is a directory that holds only
+.BR notes ,
+kept as
+.IB shadow /.cow/notes\f1;
+.IR base 's
+own
+.B .cow
+is not seen, and nothing else may be made there.
+.I Cowfs
+keeps nothing else of its own: another started on the same
+.I base
+and
+.I shadow
+serves the same tree.
+.PP
+.B -D
+prints the 9P messages.
+.SH EXAMPLES
+A session of
+.IR sibyl (1)
+serves its project so, for the agent's commands; its review shows
+.I shadow
+against the real files:
+.IP
+.EX
+cowfs -s sibyl.1.tree /usr/glenda/src/proj /usr/glenda/lib/sibyl/1.tree
+.EE
+.SH SOURCE
+plan9web's
+.B src/cmd/cowfs
+.SH SEE ALSO
+.IR sibyl (1),
+.IR srvfs (4),
+.IR exportfs (4)
+.SH BUGS
+A copy is of the whole file.
+A file opened only to read before another open copies it goes on reading
+.IR base .
