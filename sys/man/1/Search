@@ -1,0 +1,180 @@
+.TH SEARCH 1
+.SH NAME
+Search, srch \- find anything by part of it, in acme
+.SH SYNOPSIS
+.B Search
+[
+.B -s
+.I letters
+] [
+.I dir
+|
+.I query ...
+]
+.PP
+.B srch/files
+.I root
+.br
+.B srch/grep
+.I root pattern
+.br
+.B srch/windows
+.I root
+.SH DESCRIPTION
+.I Search
+opens an
+.IR acme (1)
+window,
+.IB dir /+Search\f1.
+Its first line is a query, and the lines after it are what matches it, best first, as many as a
+hundred and at most five from one file, changing as the query is typed.
+A result is a file, or a file and a line,
+.IB file : line
+followed by the line's text.
+.PP
+The results come from sources, programs
+.BI /bin/srch/ name
+that
+.B /lib/search
+names, or
+.B $home/lib/search
+in its place: one a line, a letter, a name, and
+.B static
+or
+.BR query .
+A static source runs once, as
+.BI srch/ name " root"\f1,
+and its lines are filtered as the query is typed;
+a query source runs again, as
+.BI srch/ name " root pattern"\f1,
+at each pause in typing, stopping the run before it.
+The sources are
+.B w
+(acme's windows),
+.B f
+(files) and
+.B g
+(the lines of files, by
+.IR grep (1)).
+.B -s
+names the sources searched; with none, all.
+A query ending
+.BI + letters
+searches those alone.
+.PP
+A query is words separated by blanks, and a result must match each:
+a word's letters in order, counting for more at the start of a name or a word, in a run, and in
+a file's own name;
+.BI ' word
+the word itself;
+.BI ^ word
+at the start;
+.IB word $
+at the end; and
+.BI ! word
+not anywhere.
+A word with no upper-case letter ignores case.
+A query source is given the words to look for, without their marks, as its pattern.
+.PP
+A newline typed at the end of the query opens the first result;
+button 3 or button 2 on a result opens that one, by the plumber's
+.B edit
+port, at its line.
+The window stays, with its query, until
+.BR Del .
+Given text that is not a directory, as when
+.I Search
+is run with a chorded argument,
+.I Search
+starts with that text as its query.
+.PP
+The files are those of
+.I dir
+and below, as
+.IR walk (1)
+gives them, without
+.BR .git ;
+or, in a git repository with the
+.B git9
+package added (see
+.IR pkg (1)),
+its tracked files, by
+.BR git/walk ;
+and
+.I dir
+is the repository's top.
+With no
+.IR dir ,
+.I Search
+takes the directory of the file in acme window
+.B $acmewin
+or
+.BR $winid ,
+or else the current directory.
+.PP
+When a rule of
+.B $home/lib/lsp
+or
+.B /lib/lsp
+(see
+.IR lspfs (4))
+maps a directory above
+.I dir
+to another machine,
+.B map="\fIhere there\fP"
+with
+.B cmd="ssh \fIhost\fP ..."\f1,
+the sources run there:
+.I Search
+gives them
+.B $host
+and
+.BR $hostroot ,
+.IR dir 's
+place on
+.IR host .
+.B srch/files
+and
+.B srch/grep
+then list and search the files by
+.IR ssh (1)
+on
+.I host
+rather than through the mount, and the paths they print are under
+.IR dir .
+.SH EXAMPLES
+.I Acmestart
+binds Command-P and Command-Shift-F in
+.BR /lib/hotkey/acme :
+.IP
+.EX
+cmd-p	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; Search -s wf}
+cmd-F	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; Search -s g}
+.EE
+.PP
+Find a function's callers by grep alone, but not its tests:
+.IP
+.EX
+decodeToken !_test+g
+.EE
+.SH FILES
+.TF /lib/search
+.TP
+.B /lib/search
+the sources
+.TP
+.B /bin/srch
+their programs
+.SH SOURCE
+plan9web's
+.B src/cmd/Search.c
+and
+.B rc/bin/srch
+.SH SEE ALSO
+.IR acme (1),
+.IR grep (1),
+.IR hotkey (1),
+.IR lspfs (4),
+.IR pkg (1),
+.IR plumb (1),
+.IR walk (1)
