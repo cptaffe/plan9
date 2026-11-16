@@ -36,7 +36,11 @@ keeps the rest of the file as it is, so
 prints it.
 A file with no
 .B .G1
-is all graph.
+is all graph; it prints through
+.B "{echo .G1; cat file; echo .G2} | grap"
+or
+.IR Grap 's
+.BR > .
 If
 .I file
 doesn't exist, the graph starts empty, and
@@ -202,13 +206,10 @@ does, and these commands run in the file's directory:
 .TP
 .BI | cmd
 Send the selected rows, or with none selected every row, through
-.IR cmd ,
-once for each run of rows between other statements, such as one series of a
-.BR new .
-If
 .I cmd
-gives back a line for each line it got, each replaces the row it came from;
-if not, they all go where the first was.
+as one input.
+Its output replaces them as one block, where the first of them was;
+rows not selected stay where they are.
 .I Grap
 selects what comes back.
 .TP
@@ -222,6 +223,15 @@ Send the selected rows, or with none selected the whole text, to
 .IR cmd ,
 whose output goes to
 .BR +Errors .
+A text with no
+.B .G1
+goes between a
+.B .G1
+and a
+.BR .G2 ,
+so
+.B ">grap | pic | troff"
+prints it.
 .PD
 .PP
 .B Del
@@ -237,7 +247,7 @@ window's tag, with the outliers selected:
 |awk '$2 < 100'
 .EE
 .PP
-With nothing selected, sort each series by x, and add squares:
+With nothing selected, sort the rows by x, and add squares:
 .IP
 .EX
 |sort -n
