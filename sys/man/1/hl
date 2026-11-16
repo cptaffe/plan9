@@ -46,12 +46,18 @@ or
 matches is colored by that rule's grammar.
 A rule is a line,
 .BI ts= name
-.BI file= pattern\f1,
+.BI file= pattern
+[
+.BI fence= pattern
+]\f1,
 where
-.I pattern
+.B file=
 is a
 .IR regexp (6)
-of the file's name.
+of the file's name, and
+.BR fence= ,
+of the other names of the rule's language,
+as a fenced block in markdown names it.
 Each time the window's body changes,
 .I hl
 reads it under acme's
@@ -64,6 +70,31 @@ refuses colors for text that has since changed,
 and
 .I hl
 colors the window again.
+.PP
+A grammar's program gives the text of a language it does not have,
+such as a markdown file's fenced block of code, as one run,
+.BI ts/ lang\f1,
+or
+.BI ts/ lang / name
+for the run that the text takes when there is no program for
+.IR lang .
+.I Hl
+gives that text to
+.IR lang 's
+program, the grammar of the first rule whose
+.I name
+is
+.I lang
+or whose
+.B fence=
+pattern matches it, or else
+.BI /bin/ts/ lang
+if there is one,
+and puts the program's runs where the text is.
+So a block marked
+.B sh
+is colored as
+.BR bash .
 .PP
 Each grammar is a program,
 .IB tsdir / name
