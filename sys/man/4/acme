@@ -328,19 +328,6 @@ to `scroll' to display the new text.
 .TP
 .B show
 Guarantee at least some of the selected text is visible on the display.
-.TP
-.B unveil
-Cancel a
-.B veil
-message.
-.TP
-.B veil
-Send every key typed in the body, but the wheel's, to the
-.B event
-file as a
-.B KV
-event, with neither the text inserted nor the key interpreted:
-the arrows, Escape and the control keys go to the program, as a terminal's do.
 .RE
 .PD
 .TP
@@ -428,10 +415,6 @@ for text inserted to the tag,
 for a button 3 action in the body,
 .B l
 for a button 3 action in the tag,
-.B V
-for a key typed in a veiled body (see
-.B veil
-below),
 .B X
 for a button 2 action in the body, and
 .B x
@@ -565,11 +548,14 @@ and
 fail; ending the program is for whoever started it.
 .TP
 .B cons
-Keys typed in the body, after
+After
 .B rawon
 is written to
-.BR consctl ;
-while the body is drawn they are dropped before it.
+.BR consctl ,
+every key typed in the body but the wheel's is read here,
+with neither the text inserted nor the key interpreted:
+the arrows, Escape and the control keys go to the program, as a terminal's do.
+Before it, while the body is drawn, keys are dropped.
 Text written is added to the body.
 .TP
 .B consctl

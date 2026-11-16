@@ -315,7 +315,6 @@ struct Window
 	uchar	nopen[QMAX];
 	uchar	nomark;
 	uchar	noscroll;
-	uchar	noecho;
 	Range	wrselrange;
 	int		rdselfd;
 	Column	*col;
