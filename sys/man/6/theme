@@ -164,6 +164,21 @@ which controls take when not told otherwise, and which programs such as
 (see
 .IR factotum (4))
 name.
+.TP
+.IR sketch (1)
+.B back
+and
+.B text
+for its paper and ink, as
+.IR rio 's;
+.B sketchsel
+for what is picked,
+.B sketchpoint
+for points and constraints,
+.B sketchdim
+for dimmer marks, and
+.B sketchguide
+for guides.
 .SH FILES
 .TP
 .B /lib/theme
