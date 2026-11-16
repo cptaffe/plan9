@@ -196,9 +196,15 @@ for a king in check,
 .B chesscomment
 for comments, and
 .B chesserror
-for errors; its pieces are
+for errors;
+.BR chesswhite ,
+.BR chesswhiteedge ,
+.B chessblack
+and
+.B chessblackedge
+fill and edge its pieces, by default
 .BR body 's
-two colors, and its moves
+two colors, each piece edged in the other, and its moves
 .BR body 's,
 with
 .BR tagsel 's
