@@ -29,3 +29,10 @@ heading3	fg=000077
 heading4	fg=222266
 heading5	fg=333388
 heading6	fg=4444aa
+
+# sketch(1) and grapw(1): text and back are their ink and paper
+sketchsel	cc0000
+sketchpoint	0000cc
+sketchdim	777777
+sketchguide	bbbbbb
+grapsel	cc0000
