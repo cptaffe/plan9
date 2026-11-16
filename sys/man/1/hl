@@ -189,11 +189,44 @@ and
 is the name the grammar gives the node's place in its parent, or
 .LR - .
 .TP
+.BI "edit " "id q0 q1 n"
+followed by
+.I n
+bytes, which take the place of runes
+.I q0
+to
+.I q1
+of document
+.IR id 's
+text as the program keeps it.
+The program does not answer it.
+.TP
+.BI tree " id"
+with no text, answered by
+.BI delta " id m"
+and
+.I m
+bytes: what changed in the parse since the last answer to
+.BR tree ,
+as hunks (see below).
+.TP
+.BI check " id n"
+followed by
+.I n
+bytes, a text parsed alone and not kept; answered by
+.BI check " id k\f1,"
+where
+.I k
+counts the parse's error and missing nodes.
+.TP
 .BI tags " id n"
 followed by
 .I n
 bytes, the text of document
-.IR id ;
+.IR id ,
+or with no
+.I n
+the text as the program keeps it;
 answered by
 .BI tags " id m"
 and
@@ -249,6 +282,63 @@ which tree-sitter writes as
       arguments: (argument_list (number_literal))))))
 .EE
 .PP
+A
+.B delta
+answer is the last
+.B tree
+or
+.B delta
+answer brought up to date.
+Each line of that answer not in a hunk stays, with its start and end moved by the
+.BR edit s
+since, in order: an
+.B edit
+of
+.I q0
+to
+.I q1
+with
+.I k
+runes of new text moves a place before
+.I q0
+nowhere, a place after
+.I q1
+by
+.IR k \-( q1 \- q0 ),
+a start at
+.IR q1 ,
+or an end there if
+.I q0
+is less than
+.IR q1 ,
+the same way, and any other place to
+.IR q0 .
+So an insert at
+.I q0
+moves a node that starts there and does not lengthen one that ends there.
+A hunk is a line
+.IB "@ i k j"
+followed by
+.I j
+lines in
+.BR tree 's
+form, which take the place of the
+.I k
+lines from line
+.I i
+(from 0) of the last answer; hunks come in the order of
+.IR i .
+If the program does not have the text, as for an
+.B edit
+past its end, it answers
+.B tree
+and
+.B tags
+without text with
+.BI error " id " lost\f1,
+and wants the text again, as by
+.BI tree " id n"\f1.
+.PP
 Any program that speaks this, such as one for a small format written by hand, can stand in for one.
 .B /bin/ts/pic
 is one, for
@@ -258,7 +348,11 @@ It has no parse, and answers
 .B tree
 and
 .B tags
-with an error.
+with an error;
+.B edit
+and
+.B check
+are only for grammars' programs.
 .PP
 A grammar's program colors the captures of its query,
 .IB lang /highlights.scm\f1,
