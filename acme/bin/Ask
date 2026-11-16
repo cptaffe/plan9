@@ -1,0 +1,40 @@
+#!/bin/rc
+rfork e
+if(! ~ $#* 0 || ~ $#winid 0){
+	echo usage: Ask >[1=2]
+	exit usage
+}
+f=`{sed 1q /mnt/acme/$winid/tag | awk '{print $1}'}
+d=`{basename -d $f}
+fn nl { echo -n '#0,#'$1 >[1=3]; cat /mnt/acme/$winid/xdata | wc -l }
+{
+	echo -n 'addr=dot' >/mnt/acme/$winid/ctl
+	q=`{cat <[0=3]}
+	l0=`{nl $q(1)}
+	l1=$l0
+	if(! ~ $q(1) $q(2))
+		l1=`{nl `{echo $q(2) - 1 | hoc}}
+} <>[3]/mnt/acme/$winid/addr
+l0=`{echo $l0 + 1 | hoc}
+l1=`{echo $l1 + 1 | hoc}
+at=$f:$l0
+~ $l1 $l0 || at=$at,$l1
+fn sess { awk -v 'p='$d'/-sibyl.' 'index($6, p) == 1 && substr($6, length(p)+1) ~ /^[0-9]+$/ {print $1; exit}' /mnt/acme/index }
+w=`{sess}
+if(~ $#w 0){
+	@{ cd $d && win sibyl -i } &
+	for(i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20) if(~ $#w 0){
+		sleep 0.25
+		w=`{sess}
+	}
+	if(~ $#w 0){
+		echo Ask: no session window in $d >[1=2]
+		exit nosession
+	}
+}
+echo -n $at' ' >/mnt/acme/$w/body
+{
+	echo -n '$' >[1=3]
+	echo -n 'dot=addr' >/mnt/acme/$w/ctl
+} <>[3]/mnt/acme/$w/addr
+echo -n show >/mnt/acme/$w/ctl

@@ -14,5 +14,6 @@ cmd-k t	{/acme/bin/akey Type}
 cmd-k d	{/acme/bin/akey Diag}
 cmd-k f	{/acme/bin/akey Fmt}
 cmd-k c	{/acme/bin/akey Comp}
-# sibyl: an instruction for the selection, typed in the tag
-cmd-k s	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && echo -n ' |sibyl ' >/mnt/acme/$acmewin/tag}
+# sibyl: an instruction for the selection, typed in the tag; or the session, asked about it
+cmd-k e	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && echo -n ' |sibyl ' >/mnt/acme/$acmewin/tag}
+cmd-k s	{/acme/bin/akey Ask}
