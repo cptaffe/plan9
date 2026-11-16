@@ -3,6 +3,9 @@
 dag, Dag \- draw and edit a graph in dot
 .SH SYNOPSIS
 .B dag
+[
+.B -e
+]
 .I file
 .br
 .B Dag
@@ -20,7 +23,7 @@ lays it out, in a
 window.
 The
 .I file
-is the graph's text, a node or an edge to a line:
+is the graph's text, usually a node or an edge to a line:
 .IP
 .EX
 digraph {
@@ -46,8 +49,29 @@ if
 .B /bin/dot
 is not there.
 .PP
-The selection is a set of lines, those of the selected nodes and edges.
-A node's lines are those that name it alone, or, if none does, those of the edges it is in.
+.I Dag
+reads the text by
+.IR dot 's
+grammar, so a statement may span lines, a line may hold several, and comments, chains
+.RB ( "a -> b -> c" ),
+groups
+.RB ( "a -> {b c}" )
+and subgraphs are as
+.I dot
+reads them.
+Each node and edge drawn is the text of its statements:
+a node's are those that name it alone, or, if none does, the links of the edges it is in;
+an edge's is its link in its statement, or, in a strict graph, every link that names its two nodes.
+An edge of an undirected graph is told from its reverse as
+.I dot
+tells them.
+Deleting an edge in a chain splits the chain there, and deleting a node in a group removes its name
+from the group; the rest of the text stays as it was.
+While
+.I dot
+runs, Escape stops it, and the label of
+.IR dag 's
+window says so.
 .SS Mouse
 .TF button\ 3
 .TP
@@ -74,14 +98,14 @@ A click at nothing selects nothing.
 button 3
 A menu:
 .B delete
-deletes the selected lines, and a node's edges with it;
+deletes what is selected, and a node's edges with it;
 .B undo
 and
 .BR redo ;
 .B tred
-sends the graph through
+sends the whole graph through
 .IR tred ,
-which removes the edges another path implies;
+which removes the edges another path implies, and replaces the text with what it prints;
 .B write
 writes the file;
 .B exit
@@ -91,7 +115,7 @@ ends
 .SS Keys
 Delete and Backspace delete what is selected, and Escape selects nothing.
 Command-Z undoes, Command-Shift-Z redoes, Command-A selects every node and edge,
-Command-C copies the selected lines to the snarf buffer, and Command-S writes the file.
+Command-C copies the selection, as a graph of its own, to the snarf buffer, and Command-S writes the file.
 .PP
 Typing
 .BR | ,
@@ -101,33 +125,113 @@ or
 starts a command, shown at the bottom of the window; Return runs it and Escape drops it.
 It runs
 .IR rc (1)
-in the file's directory, as
-.IR acme (1)
-runs its commands on a selection, with dot the selected lines, or, if nothing is selected,
-the empty text before the graph's closing brace:
+in the file's directory.
+A command works on the selection as a graph of its own, of the file's kind
+.RB ( digraph
+or
+.BR graph ,
+and
+.B strict
+if the file is), holding the selected nodes and edges with their attributes,
+an edge of a chain or a group as an edge to itself:
+.IP
+.EX
+digraph {
+	c [color=red];
+	a -> b;
+}
+.EE
+.PP
 .B |cmd
-sends dot through
+sends that graph to
 .I cmd
-and puts what it prints in its place;
+and reads what it prints as the selection's new version:
+what it no longer holds is deleted from the text as
+.B delete
+deletes it, what is new is added after the selection, and an attribute that changed is edited where it is.
+Nothing else in the text changes.
+A command that reorders lines, such as
+.IR sort ,
+may move the graph's first and last lines;
+.I dag
+takes them out wherever they are.
 .B <cmd
-puts what
+reads what
 .I cmd
-prints in place of dot;
+prints in the same way, sending it nothing;
 .B >cmd
-sends dot to
+sends the selection to
 .IR cmd ,
 whose output goes to standard error.
-So
-.B "|sort -u"
-sorts the selected lines, and
-.B "<echo x"
-adds a node
-.BR x .
-With nothing selected,
+With nothing selected, the selection is an empty graph, so
 .B |cmd
-reads nothing; the menu's
+and
+.B <cmd
+add what
+.I cmd
+prints before the graph's closing brace, as
+.IR acme (1)
+puts a command's output at an empty dot.
+What the command prints is always written, whatever its exit status, as
+.IR acme (1)
+writes it; its standard error and a failing status go to
+.B +Errors
+in
+.IR Dag ,
+and to standard error and the window's last line in
+.IR dag .
+If what it prints is not a graph,
+.I dag
+does what Acme would: it deletes the selection and puts the output where the selection's first statement was.
+.PP
+When the text does not parse, as after such output or an edit by hand,
+.I dag
+keeps the last graph it drew, says
+.IR dot 's
+error and its line, and makes no edits from the drawing until the text parses again;
+Undo, in
+.I dag
+or in the
+.I Dag
+window's tag, brings the graph back.
+.SS Atoms
+With
+.BR -e ,
+.I dag
+opens no window: it reads commands from standard input, a line each, does them, and exits.
+.B node
+.I name
+and
+.B edge
+.I tail head
+.RI [ n ]
+select the nodes or edges so named (the
+.IR n th
+alone);
+.B clear
+selects nothing;
+.BR delete ,
+.BR add ,
+which adds a node, and
+.B add
+.I tail head
+do as the mouse does;
 .B tred
-is the way to send the whole graph through a command.
+is the menu's;
+a line beginning with
+.BR | ,
+.B <
+or
+.B >
+runs a command;
+.B undo
+undoes;
+.B dot
+prints the selection's dot, as
+.I Dag
+would set it, and
+.B print
+the text.
 .SS Dag
 .I Dag
 is
@@ -140,7 +244,10 @@ With no
 it draws the window it runs in,
 .BR $winid ;
 with one, or outside a window, it opens a new window on the file.
-An edit writes only the lines it changes, so the window's
+An edit is one write of only the text it changes, guarded by the window's
+.B seq
+.RI ( acme (4)),
+so the window's
 .BR Undo ,
 .B Redo
 and
@@ -148,9 +255,29 @@ and
 are Acme's, and
 .I Dag
 draws the graph again after any change to the text, Undo's too.
-Dot is the selection's lines:
+If the body changed since
 .I Dag
-selects what dot covers when it starts, and sets dot as the selection changes.
+last read it, the edit is not made:
+.I Dag
+says the file changed, reads the body again, and leaves dot.
+.I Dag
+selects what dot covers when it starts, and sets dot as the selection changes:
+to the selection's statements when they make one stretch of text,
+and otherwise to an empty dot at the first of them.
+.B Del
+and
+.B Delete
+are Acme's own, by the window's
+.B ctl
+.RB ( del
+and
+.BR delete ):
+.B Del
+on a window with unsaved changes says so in
+.B +Errors
+and leaves it, and a second deletes it.
+.I Dag
+ends when the window is gone.
 .PP
 .I Dag
 adds itself to the window's tag.
@@ -164,7 +291,8 @@ or
 is
 .IR dag 's,
 as if typed.
-Acme's
+.B Edit
+stays Acme's, on dot: so
 .B "Edit ,|tred"
 sends the whole body through
 .IR tred ,
@@ -180,12 +308,30 @@ and its
 is
 .BR Put .
 .SH EXAMPLES
-In a
-.I Dag
-window, remove the nodes no edge leaves:
+With part of a graph selected, remove the edges another path in that part implies:
 .IP
 .EX
-|gvpr -c 'N[outdegree==0]{delete(0,$)}'
+|tred
+.EE
+.PP
+Color the selected edges red; each one's attributes are edited where they are:
+.IP
+.EX
+|gvpr -c 'E{color="red"}'
+.EE
+.PP
+Remove repeated edges from the selection:
+.IP
+.EX
+|sort -u
+.EE
+.PP
+In a
+.I Dag
+window, remove the nodes no edge leaves, in the whole graph:
+.IP
+.EX
+Edit ,|gvpr -c 'N[outdegree==0]{delete(0,$)}'
 .EE
 .SH SOURCE
 plan9web's
@@ -205,12 +351,7 @@ Only
 .I dot
 lays the graph out, and dragging a node does not move it.
 .br
-.I Dag
-draws edges written with a subgraph,
-.BR "a -> {b c}" ,
-but cannot select them.
-.br
-It draws text in the window's font, not the graph's.
+Text is drawn in the window's font, not the graph's.
 .br
 In a
 .I Dag
@@ -219,3 +360,16 @@ window, Command-Z and Command-Shift-Z do nothing; the tag's
 and
 .B Redo
 work.
+.br
+Acme keeps one
+.B seq
+guard and one
+.B addr
+for a window, so another program that writes them at the same moment, as
+.IR hl
+does as it paints, can take
+.IR Dag 's
+guard or move its address.
+.br
+A long edit is written in pieces, one Undo step; an edit from elsewhere between the pieces
+leaves part of the rewrite in the body.

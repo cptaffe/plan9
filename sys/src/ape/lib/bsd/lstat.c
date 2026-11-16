@@ -16,8 +16,12 @@ symlink(const char *, const char *)
 }
 
 ssize_t
-readlink(const char *, char *, size_t)
+readlink(const char *name, char *, size_t)
 {
-	errno = EIO;
+	struct stat s;
+
+	if(stat(name, &s) < 0)
+		return -1;
+	errno = EINVAL;
 	return -1;
 }
