@@ -624,11 +624,9 @@ winparsestyle(Window *w, char *buf, int nbuf, int hasaddr, Range addr)
 void
 xfidstyleflush(Window *w, char *buf, int nbuf, int hasaddr, Range addr)
 {
-	if(buf == nil || nbuf == 0){
-		if(!hasaddr){
-			winclearstyle(w);
-			winframesync(w);
-		}
+	if((buf == nil || nbuf == 0) && !hasaddr){
+		winclearstyle(w);
+		winframesync(w);
 		return;
 	}
 	winparsestyle(w, buf, nbuf, hasaddr, addr);
