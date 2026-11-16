@@ -231,10 +231,12 @@ and
 files below, until the
 .B ctl
 file this was written to is closed.
-The body's text stays, and shows again then.
-A second
+The body's text is kept and shows again then.
+While the body is drawn,
 .B draw
-while the body is drawn fails.
+through another open
+.B ctl
+file fails.
 .TP
 .BI dump " command
 Set the command string to recreate the window from a dump file.
@@ -537,7 +539,7 @@ file like
 .B data
 except that reads stop at the end address.
 .PP
-The
+The window's
 .BR cons ,
 .BR consctl ,
 .BR cursor ,
@@ -547,41 +549,59 @@ and
 .B winname
 files are
 .IR rio (4)'s,
-for one window's body, so that a program that uses
+for its body, so that a program that uses
 .IR graphics (2),
 with them bound over
 .BR /dev ,
 draws in the body as in a window of
-.IR rio .
-.B Winname
-names an image the size of the body, and can be read only while the body is drawn (see
+.IR rio
+(see
 .B draw
 above).
-.B Mouse
-gives the mouse in the body as
-.IR rio 's
-does, and an
-.B r
-when the body moves, changes size, or is drawn again: the program then reads
-.B winname
-for its new image.
-After
-.B rawon
-is written to
-.BR consctl ,
-the keys typed in the body are read from
-.BR cons ;
-before it, they are dropped while the body is drawn.
-A write to
-.B cons
-is added to the body.
-.B Wctl
-gives the body's rectangle and whether it is current and visible; it cannot be written.
 When the window is deleted, reads of
 .B mouse
 and
 .B cons
 fail; ending the program is for whoever started it.
+.TP
+.B cons
+Keys typed in the body, after
+.B rawon
+is written to
+.BR consctl ;
+while the body is drawn they are dropped before it.
+Text written is added to the body.
+.TP
+.B consctl
+Takes
+.B rawon
+and
+.BR rawoff ,
+which count, as
+.IR rio 's
+do; closing it ends raw mode.
+.TP
+.B cursor
+The cursor shown over the drawn body, as
+.IR rio 's.
+.TP
+.B mouse
+The mouse in the drawn body, as
+.IR rio 's,
+with an
+.B r
+when the body moves or changes size, or is drawn again:
+the program then reads
+.B winname
+for its new image.
+.TP
+.B wctl
+The body's rectangle, and whether the window is current and the body visible.
+It cannot be written.
+.TP
+.B winname
+The name of an image the size of the body,
+which can be read only while the body is drawn.
 .SH SOURCE
 .B /sys/src/cmd/acme
 .SH SEE ALSO
