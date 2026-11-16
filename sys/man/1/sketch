@@ -536,6 +536,8 @@ also arm; if two arm it at once, a write can fail, and
 then asks for the text to be read again with
 .B Sketch
 twice.
+A long text is written in pieces, as one Undo;
+another program's edit between two pieces leaves part of it written.
 .br
 The thesis's instances, scalars and dimension lines, one-pass ordering,
 and constraint button are not built yet.
