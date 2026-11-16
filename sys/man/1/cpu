@@ -1,196 +1,147 @@
 .TH CPU 1
 .SH NAME
-cpu \- connection to CPU server
+cpu \- run a command on a Linux host, in this name space
 .SH SYNOPSIS
 .B cpu
 [
 .B -h
-.I server
-] [
-.B -u
-.I user
-] [
-.B -a
-.I auth-method
-] [
-.B -P
-.I patternfile
-] [
-.B -e
-.I encryption-hash-algs
-] [
-.B -k
-.I keypattern
+.I host
 ] [
 .B -c
 .I cmd args ...
 ]
-.PP
-.B cpu
-[
-.B -R
-]
 .SH DESCRIPTION
 .I Cpu
-starts an
-.IR rc (1)
-running on the
-.I server
-machine, or the machine named in the
+runs a command on
+.IR host ,
+or the host named in
 .B $cpu
-environment variable if there is no
+if there is no
 .B -h
-option.
-.IR Rc 's
-standard input, output, and error files will be
-.B /dev/cons
-in the name space where the
+option, a Linux machine that sees the name space
 .I cpu
-command was invoked.
-Normally,
-.I cpu
-is run in an
-.IR rio (1)
-window on a terminal, so
-.IR rc
-output goes to that window, and input comes from the keyboard
-when that window is current.
-.IR Rc 's
-current directory is
-the working directory of the
-.I cpu
-command itself.
+runs in, as Plan 9's cpu server does.
+The command's standard input, output and error are
+.IR cpu 's,
+and its exit status is
+.IR cpu 's.
+Its directory is
+.IR cpu 's
+working directory: the host's own, if it has one by that name,
+else this name space's, under
+.BR /mnt/term .
 .PP
-The name space for the new
-.I rc
-is an analogue of the name space where the
+With
+.BR -c ,
+the rest of the command line is run by the host's
+.IR sh .
+Without, the user's login shell runs on a pseudo-terminal,
 .I cpu
-command was invoked:
-it is the same except for architecture-dependent bindings such as
-.B /bin
-and the use of fast paths to file servers, if available.
-.PP
-If a
-.B -u
-argument is present,
-.I cpu
-uses the argument as the remote user id.
-.PP
-If a
-.B -c
-argument is present, the remainder of the command line is executed by
-.I rc
-on the server, and then
-.I cpu
-exits.
-.PP
-If a
-.B -P
-argument is present, the
-.I patternfile
-is passed to
-.IR exportfs (4)
-to control how much of the local name space will be exported to
-the remote system.
-.PP
-The
-.B -a
-command allows the user to specify the authentication mechanism used
-when connecting to the remote system.  The two possibilities for
-.I auth-method
-are:
-.TF netkey
-.TP
-.B p9
-This is the default.  Authentication is done using the standard Plan 9
-mechanisms, (see
-.IR authsrv (6)).
-No user interaction is required.
-.TP
-.B netkey
-Authentication is done using challenge/response and a hand held
-authenticator or the
-.I netkey
-program
+makes its own terminal raw, and the size is
+.IR ptty 's
 (see
-.IR passwd (1)).
-The user must encrypt the challenge and type the encryption
-back to
-.IR cpu .
-This is used if the local host is in a different protection domain than
-the server or if the user wants to log into the server as a different
-user.
-.PD
-.PP
-The
-.B -e
-option specifies an encryption and/or hash algorithm to
-use for the connection.  If both are specified, they must
-be space separated and comprise a single argument, so they
-must be quoted if in a shell command.  The default is
-.L rc4_256
-encryption and
-.L sha1
-hashing.  See
-.IR ssl (3)
-for details on possible algorithms.  The argument
-.L clear
-specifies no encryption algorithm and can be used to talk
-to older versions of the
-.I cpu
-service.
-.PP
-The
-.B -k
-flag specifies a key pattern to use to restrict the keys
-selected by the
-.I auth_proxy
-call used for authentication.
-.PP
-The name space is built by running
-.B /usr/$user/lib/profile
-with the root of the invoking name space bound to
-.BR /mnt/term .
-The
-.B service
-environment variable is set to
-.BR cpu ;
-the
-.B cputype
+.IR vt (1)),
+else
+.B $COLS
 and
-.B objtype
-environment variables reflect the server's architecture.
+.BR $LINES .
 .PP
-The
-.B -R
-flag causes
+A host is named in
+.BR $home/lib/cpu ,
+then
+.BR /lib/cpu ,
+files in the format of
+.IR ndb (6):
+.IP
+.EX
+cpu=build1 cmd="ssh build1"
+cpu=app cmd="ssh build1 docker exec -i app" ns=/lib/namespace.untrusted
+.EE
+.PP
+.B cmd
+is the host's transport, an
+.IR rc (1)
+command line that, given a command, runs it on the host
+with the transport's standard input and output:
+.IR ssh (1),
+or a container runtime's
+.BR "exec -i" .
+.PP
+The first
 .I cpu
-to run the server (remote) side of the protocol.
-It is run from service files such as
-.BR /bin/service/tcp17010 .
-.SH FILES
-The name space of the terminal side of the
-.I cpu
-command is mounted, via
-.IR exportfs (4),
-on the CPU side on directory
-.BR /mnt/term .
-The files such as
-.B /dev/cons
-are bound to their standard locations from there.
-.SH SOURCE
-.B /sys/src/cmd/cpu.c
-.SH SEE ALSO
-.IR rc (1) ,
-.IR rio (1) ,
+to a host starts its session.
+It runs the transport twice: once with
+.BR "u9cpu -n" ,
+to which
 .IR exportfs (4)
-.SH BUGS
-Binds and mounts done after the terminal
-.B lib/profile
-is run are not reflected in the new name space.
+serves the name space, and once with
+.BR "u9cpu -c -n" ,
+which serves the host's commands as Inferno's
+.IR cmd (3)
+does.
+The second is posted as
+.BI /srv/cpu. host ,
+and the session lasts until either ends.
+Later
+.I cpu
+commands to the host mount it on
+.BR /mnt/cpu ,
+in a name space of their own, and make their command by its
+.BR clone .
 .PP
-When using the
-.B -a
-option to `log in' as another user, be aware that
-resources in the local name space will be made
-available to that user.
+The session exports the name space of the
+.I cpu
+that started it, or, if the host has
+.BR ns= ,
+one made from that file by
+.I newns
+(see
+.IR auth (2)
+and
+.IR namespace (6)).
+.PP
+On the host,
+.I u9cpu
+makes the name space, in a user and mount name space of the host's,
+by FUSE: the host's root, with this name space at
+.B /mnt/term
+and its
+.BI /usr/ user
+at
+.BI /usr/ user\f1.
+A host with no FUSE refuses it, and
+.I cpu
+fails with the reason.
+.SH FILES
+.TF /srv/cpu.host
+.TP
+.B /lib/cpu
+hosts
+.TP
+.B $home/lib/cpu
+the user's hosts, searched first
+.TP
+.BI /srv/cpu. host
+a host's session
+.PD
+.SH SOURCE
+plan9web's
+.B src/cmd/cpu.c
+and
+.B src/u9cpu
+.SH SEE ALSO
+.IR ssh (1),
+.IR vt (1),
+.IR exportfs (4),
+.IR ndb (6)
+.SH BUGS
+The session sees the name space of the
+.I cpu
+that started it; binds and mounts made later, or in another name space, are not reflected.
+.PP
+A change in the window's size is not passed on.
+.PP
+An interrupt ends
+.BR "cpu -c" ,
+and its command is killed, not sent
+.BR SIGINT .
