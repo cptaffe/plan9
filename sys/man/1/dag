@@ -252,7 +252,12 @@ so the window's
 .B Redo
 and
 .B Put
-are Acme's, and
+are Acme's, as are Command-Z and Command-Shift-Z, which write
+.B undo
+and
+.B redo
+to the window's
+.BR ctl ;
 .I Dag
 draws the graph again after any change to the text, Undo's too.
 If the body changed since
@@ -352,14 +357,6 @@ Only
 lays the graph out, and dragging a node does not move it.
 .br
 Text is drawn in the window's font, not the graph's.
-.br
-In a
-.I Dag
-window, Command-Z and Command-Shift-Z do nothing; the tag's
-.B Undo
-and
-.B Redo
-work.
 .br
 Acme keeps one
 .B seq
