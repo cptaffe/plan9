@@ -1,0 +1,9 @@
+</$objtype/mkfile
+
+LIB=/$objtype/lib/libadraw.a
+OFILES=\
+	scroll.$O\
+
+HFILES=/sys/include/adraw.h
+
+</sys/src/cmd/mksyslib
