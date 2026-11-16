@@ -12,10 +12,16 @@ Search, srch \- find anything by part of it, in acme
 .I query ...
 ]
 .PP
+.B srch/diags
+.I root
+.br
 .B srch/files
 .I root
 .br
 .B srch/grep
+.I root pattern
+.br
+.B srch/symbols
 .I root pattern
 .br
 .B srch/windows
@@ -52,10 +58,19 @@ The sources are
 .B w
 (acme's windows),
 .B f
-(files) and
+(files),
 .B g
 (the lines of files, by
-.IR grep (1)).
+.IR grep (1)),
+.B s
+(the symbols the language servers of
+.IR lspfs (4)
+running for
+.I root
+give for the query) and
+.B d
+(the diagnostics they have for files under
+.IR root ).
 .B -s
 names the sources searched; with none, all.
 A query ending
@@ -149,7 +164,7 @@ binds Command-P and Command-Shift-F in
 .IP
 .EX
 cmd-p	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; Search -s wf}
-cmd-F	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; Search -s g}
+cmd-F	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; Search -s gs}
 .EE
 .PP
 Find a function's callers by grep alone, but not its tests:

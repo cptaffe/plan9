@@ -219,6 +219,25 @@ if a command is to run after it; or runs a bare command and gives
 .B Actcmd
 runs the action's command, once its edit is applied.
 A file that no client has open is read from disk, again for each question.
+.PP
+.B Wsyms
+and
+.B diags
+ask of a project.
+Write
+.B wsyms
+a file's name, a blank and a query, and read the symbols the file's server finds for the query
+in its project, a line each: a place, the kind of symbol, its name and, if the server says,
+.BI in " container"1.
+Given a directory's name in place of a file's, it asks every running server with a root under
+the directory or holding it; it waits for one still starting only if no other is up.
+The place of a symbol in a file that no client has open is the server's, and the file is not read.
+Write
+.B diags
+a file's or a directory's name, and read the diagnostics of the files under it, those a server
+sent for files no client has open too, as
+.IB file : line : col :1,
+the severity and the message, in the order of the files' names.
 .SS Documents
 A client opens its text by
 .BR docs/new :

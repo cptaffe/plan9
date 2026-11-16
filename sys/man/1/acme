@@ -464,6 +464,36 @@ and to set environment variables such as
 Search in body for occurrence of literal text indicated by the argument or,
 if none is given, by the selected text in the body.
 .TP
+.B Mount
+Mount a server in
+.IR acme 's
+own name space, as
+.IR mount (1)
+does:
+.B Mount
+.RB [ -abcC ]
+.I srvfile
+.I mtpt
+.RI [ spec ].
+The windows opened and the commands run after it see the mount;
+a command already running does not.
+.I Srvfile
+and
+.I mtpt
+are names in
+.IR acme 's
+name space; a relative name starts at the directory
+.I acme
+was started in.
+Errors go to the
+.B +Errors
+window.
+The file
+.B ns
+(see
+.IR acme (4))
+does the same for a program.
+.TP
 .B New
 Make new window.  With arguments, load the named files into windows.
 .TP
@@ -502,6 +532,18 @@ With no arguments, it prints the current value.
 .TP
 .B Undo
 Undo last textual change or set of changes.
+.TP
+.B Unmount
+Undo a
+.B Mount
+or a bind in
+.IR acme 's
+own name space, as
+.IR unmount (1)
+does:
+.B Unmount
+.RI [ new ]
+.IR mtpt .
 .TP
 .B Zerox
 Create a copy of the window containing most recently selected text.
@@ -797,3 +839,10 @@ the recreation of windows under control of external programs
 such as
 .I win
 is just to rerun the command; information may be lost.
+.PP
+.I Acme
+waits for a server
+.B Mount
+mounts, so a server that does not answer, or one that
+.I acme
+itself serves, hangs it.
