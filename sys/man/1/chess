@@ -414,7 +414,7 @@ and
 .B "|chess -a"
 to the tag, as words it does not have already.
 .B Chess
-there ends it, and the window shows its text, with
+there puts it to sleep: its engine stops, the window shows its text, with
 .B Chess
 and
 .B "|chess -a"
@@ -422,9 +422,25 @@ still in the tag and
 .B Play
 and
 .B Analysis
-gone;
+gone, and every command but
 .B Chess
-there again draws the board.
+is acme's;
+.B Chess
+there again wakes it, drawing the board with its engine and analysis as they were.
+.I Chess
+keeps the window's dump command
+.RB ( dumpbody
+in
+.IR acme (4))
+as
+.B Chess
+with its
+.B -A
+and
+.B -e
+as they are, so acme's
+.B Load
+brings the window back as it was.
 .B Play
 is
 .BR play ;
