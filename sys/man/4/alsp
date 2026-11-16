@@ -112,6 +112,24 @@ to
 does the same at once.
 .PP
 Writing
+.BI doc " winid"
+to
+.B ctl
+writes what
+.IR lspfs 's
+.B doc
+gives at the window's dot into the window
+.B +Doc
+of its file's directory, made if need be, as
+.I Doc
+does. While that window is open, each time the file's dot rests
+(acme's
+.B S
+line in the window's
+.BR log ),
+alsp writes what is at dot there, unless the answer is empty.
+.PP
+Writing
 .BI review " edit dir"
 to
 .B ctl
@@ -149,7 +167,11 @@ and
 list the places the word is used and implemented, each with its function, by
 .IR func (1);
 .I Doc
-gives the diagnostics on the line, then what the server says of the word;
+gives the diagnostics on the line, then what the server says of the word,
+in the window
+.B +Doc
+of the file's directory; while that window is open, it follows the file's dot,
+and shows what is at dot whenever dot rests;
 .I Comp
 lists the completions at dot;
 .I Syms
@@ -181,6 +203,7 @@ in its tag applies it, and runs the action's command if it has one.
 .TP
 .B /mnt/alsp/ctl
 .BI fmt " winid" \f1,
+.BI doc " winid" \f1,
 .BI review " edit dir" \f1,
 .BI apply " edit"
 .PD
