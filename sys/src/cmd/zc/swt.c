@@ -91,8 +91,13 @@ bitstore(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
 	v = convvtox(((vlong)1 << b->type->nbits) - 1, TLONG);
 	gopcode(OAND, nodconst(v), Z, n1);
 	gopcode(OAS, n1, Z, &nod);
-	if(nn != Z)
+	if(nn != Z) {
+		if(!typeu[b->type->etype] && b->type->nbits < 32) {
+			gopcode(OASHL, nodconst(32 - b->type->nbits), Z, n1);
+			gopcode(OASHR, nodconst(32 - b->type->nbits), Z, n1);
+		}
 		gopcode(OAS, n1, Z, nn);
+	}
 	sh = b->type->shift;
 	if(sh > 0)
 		gopcode(OASHL, nodconst(sh), Z, &nod);

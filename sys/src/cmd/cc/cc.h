@@ -545,6 +545,7 @@ void*	mysbrk(ulong);
  */
 int	yyparse(void);
 int	mpatov(char*, vlong*);
+double	ccstrtod(char*);
 
 /*
  *	lex.c
@@ -626,6 +627,7 @@ ulong	sign(Sym*);
 ulong	signature(Type*);
 void	sualign(Type*);
 void	sysvalign(Type*);
+int	negzero(Node*);
 void	tmerge(Type*, Sym*);
 void	walkparam(Node*, int);
 void	xdecl(int, Type*, Sym*);

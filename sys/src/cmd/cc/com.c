@@ -1030,21 +1030,12 @@ loop:
 		ccom(l);
 		ccom(r);
 		if(n->op == OASMOD || n->op == OASLMOD || n->op == OASDIV || n->op == OASLDIV)
-		if(r->op == OCONST){
-			if(!typefd[r->type->etype] && r->vconst == 0) {
-				if(n->op == OASMOD || n->op == OASLMOD)
-					diag(n, "modulo by zero");
-				else
-					diag(n, "divide by zero");
-				r->vconst = ~0;
-			}
-			if(typefd[r->type->etype] && r->fconst == 0.) {
-				if(n->op == OASMOD || n->op == OASLMOD)
-					diag(n, "modulo by zero");
-				else
-					diag(n, "divide by zero");
-				r->fconst = 1e10;
-			}
+		if(r->op == OCONST)
+		if(!typefd[r->type->etype] && r->vconst == 0) {
+			if(n->op == OASMOD || n->op == OASLMOD)
+				warn(n, "modulo by zero");
+			else
+				warn(n, "divide by zero");
 		}
 		if(n->op == OASLSHR || n->op == OASASHR || n->op == OASASHL)
 		if(r->op == OCONST) {
@@ -1149,7 +1140,7 @@ loop:
 	case OLMUL:
 		ccom(l);
 		t = vconst(l);
-		if(t == 0 && !side(r)) {
+		if(t == 0 && !side(r) && !typefd[n->type->etype]) {
 			*n = *l;
 			break;
 		}
@@ -1159,7 +1150,7 @@ loop:
 		}
 		ccom(r);
 		t = vconst(r);
-		if(t == 0 && !side(l)) {
+		if(t == 0 && !side(l) && !typefd[n->type->etype]) {
 			*n = *r;
 			break;
 		}
@@ -1172,16 +1163,16 @@ loop:
 	case ODIV:
 	case OLDIV:
 		ccom(l);
-		if(vconst(l) == 0 && !side(r)) {
+		if(vconst(l) == 0 && !side(r) && !typefd[n->type->etype]) {
 			*n = *l;
 			break;
 		}
 		ccom(r);
 		t = vconst(r);
 		if(t == 0) {
-			diag(n, "divide check");
-			*n = *r;
-			break;
+			if(!typefd[n->type->etype])
+				warn(n, "divide check");
+			goto common;
 		}
 		if(t == 1) {
 			*n = *l;
@@ -1209,13 +1200,17 @@ loop:
 	case OOR:
 	case OADD:
 		ccom(l);
-		if(vconst(l) == 0) {
+		if(vconst(l) == 0 && (!typefd[n->type->etype] || negzero(l))) {
 			*n = *r;
+			if(n->op == OCONST && !typefd[n->type->etype])
+				n->vconst = convvtox(n->vconst, n->type->etype);
 			goto loop;
 		}
 		ccom(r);
-		if(vconst(r) == 0) {
+		if(vconst(r) == 0 && (!typefd[n->type->etype] || negzero(r))) {
 			*n = *l;
+			if(n->op == OCONST && !typefd[n->type->etype])
+				n->vconst = convvtox(n->vconst, n->type->etype);
 			break;
 		}
 		goto commute;
@@ -1266,8 +1261,10 @@ loop:
 
 	case OANDAND:
 		ccom(l);
-		if(vconst(l) == 0) {
+		if(l->op == OCONST && !(typefd[l->type->etype] ? l->fconst != 0 : l->vconst != 0)) {
 			*n = *l;
+			n->type = types[TINT];
+			n->vconst = 0;
 			break;
 		}
 		ccom(r);
@@ -1275,8 +1272,9 @@ loop:
 
 	case OOROR:
 		ccom(l);
-		if(l->op == OCONST && l->vconst != 0) {
+		if(l->op == OCONST && (typefd[l->type->etype] ? l->fconst != 0 : l->vconst != 0)) {
 			*n = *l;
+			n->type = types[TINT];
 			n->vconst = 1;
 			break;
 		}

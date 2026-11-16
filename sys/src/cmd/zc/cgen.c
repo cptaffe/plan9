@@ -525,20 +525,18 @@ flatargs(Node *n, Node **av, int *nav)
 	av[(*nav)++] = n;
 }
 
-static Type*
-sutypeof(Type *t)
+static int
+sufield(Node *f)
 {
-	for(;;) {
-		if(t->etype == TARRAY) {
-			t = t->link;
-			continue;
-		}
-		if(t->etype == TSTRUCT || t->etype == TUNION) {
-			t = t->link;
-			continue;
-		}
-		return t;
-	}
+	long o;
+	Type *t;
+
+	t = sumember(f->type, &o);
+	if(o != 0 && f->op != ONAME && f->op != OINDREG)
+		return 0;
+	f->xoffset += o;
+	f->type = t;
+	return 1;
 }
 
 static int
@@ -599,7 +597,7 @@ gvaarg(Node *n, Node *nn)
 		gopcode(OADD, nodconst(4), Z, &lv);
 	} else {
 		if(typesu[mt->etype])
-			mt = sutypeof(mt);
+			mt = sumember(mt, nil);
 		a = talign(mt);
 		if(a > 4) {
 			gopcode(OADD, nodconst(a-1), Z, &lv);
@@ -626,7 +624,7 @@ gcall(Node *n, Node *nn, Node *sret)
 	Node *l, *av[NARG], tmp[NARG], ar[NARG], nod, nod1, nod2, fn, *sr;
 	Type *t, *pt[NARG];
 	int i, nav, nfix, va, nar, k;
-	long regs;
+	long regs, w;
 
 	l = n->left;
 	if(l->op == ONAME && l->sym != S && strcmp(l->sym->name, "__va_arg") == 0) {
@@ -728,12 +726,12 @@ gcall(Node *n, Node *nn, Node *sret)
 		} else {
 			if(typesu[av[i]->type->etype]) {
 				fn = *av[i];
-				if(fn.addable < INDEXED) {
+				if(fn.addable < INDEXED || !sufield(&fn)) {
 					regsalloc(&nod1, av[i]);
 					sugen(av[i], &nod1, av[i]->type->width);
 					fn = nod1;
+					sufield(&fn);
 				}
-				fn.type = sutypeof(fn.type);
 				av[i] = &fn;
 			}
 			curarg = align(curarg, av[i]->type, Aarg1);
@@ -778,12 +776,12 @@ gcall(Node *n, Node *nn, Node *sret)
 				continue;
 			}
 			fn = *av[i];
-			if(fn.addable < INDEXED) {
+			if(fn.addable < INDEXED || !sufield(&fn)) {
 				regsalloc(&nod1, av[i]);
 				sugen(av[i], &nod1, av[i]->type->width);
 				fn = nod1;
+				sufield(&fn);
 			}
-			fn.type = sutypeof(fn.type);
 			regalloc(&ar[nar], &fn, Z);
 			gmove(&fn, &ar[nar]);
 			argreg(&ar[nar], &ar[nar], nar >= 16, pt[i]);
@@ -834,12 +832,12 @@ gcall(Node *n, Node *nn, Node *sret)
 	cursafe = regs;
 	if(sr != Z) {
 		nod1 = *n;
-		nod1.type = sutypeof(n->type);
+		nod1.type = sumember(n->type, &w);
 		regret(&nod, &nod1);
 		regialloc(&nod2, sr, Z);
 		cgen(sr, &nod2);
 		nod2.op = OINDREG;
-		nod2.xoffset = 0;
+		nod2.xoffset = w;
 		nod2.type = nod1.type;
 		gmove(&nod, &nod2);
 		nod2.op = OREGISTER;
@@ -1199,6 +1197,8 @@ sugen(Node *n, Node *nn, long w)
 
 		r = n->left;
 		for(t = n->type->link; t != T; t = t->down) {
+			if(t->nbits && t->sym == S)
+				continue;
 			l = r;
 			if(r->op == OLIST) {
 				l = r->left;

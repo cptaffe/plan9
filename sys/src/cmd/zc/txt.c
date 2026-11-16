@@ -162,28 +162,49 @@ tclass(Type *t)
 	return 'R';
 }
 
-int
-sutype(Type *t)
+Type*
+sumember(Type *t, long *off)
 {
-	Type *l;
+	Type *l, *m;
+	long o;
 
+	o = 0;
 	for(;;) {
 		if(t->etype == TARRAY) {
 			if(t->link == T || t->width != t->link->width)
-				return -1;
+				return T;
 			t = t->link;
 			continue;
 		}
 		if(t->etype != TSTRUCT && t->etype != TUNION)
 			break;
-		l = t->link;
-		if(l == T || l->down != T)
-			return -1;
-		t = l;
+		m = T;
+		for(l = t->link; l != T; l = l->down) {
+			if(l->nbits && l->sym == S)
+				continue;
+			if(m != T)
+				return T;
+			m = l;
+		}
+		if(m == T || m->width != t->width)
+			return T;
+		o += m->offset;
+		t = m;
 	}
-	if(typechlvp[t->etype] || typefd[t->etype])
-		return t->etype;
-	return -1;
+	if(!typechlvp[t->etype] && !typefd[t->etype])
+		return T;
+	if(off != nil)
+		*off = o;
+	return t;
+}
+
+int
+sutype(Type *t)
+{
+	t = sumember(t, nil);
+	if(t == T)
+		return -1;
+	return t->etype;
 }
 
 int
@@ -233,6 +254,8 @@ talign(Type *t)
 	case TUNION:
 		m = 1;
 		for(l = t->link; l != T; l = l->down) {
+			if(l->nbits && l->sym == S)
+				continue;
 			a = talign(l);
 			if(a > m)
 				m = a;
@@ -591,6 +614,8 @@ gconst(Node *f, Node *t, int mem)
 			d = (float)d;
 		nod.fconst = d;
 	} else {
+		if(!mem && extop(tt) != AXXX)
+			tt = typeu[tt] ? TULONG : TLONG;
 		if(typefd[f->type->etype])
 			v = convftox(f->fconst, tt);
 		else
@@ -1088,12 +1113,13 @@ stop(int k)
 }
 
 static	long	retoff = -1;
+static	long	retsub;
 
 void
 gprologue(Sym *fs)
 {
 	Type *t, *r;
-	long o, off;
+	long o, off, sub;
 	int i, k;
 
 	r = thisfn->link;
@@ -1126,12 +1152,16 @@ gprologue(Sym *fs)
 		gpar(k);
 		if(typesu[t->etype] && sutype(t) < 0)
 			gcppar(i++, off, t->width);
-		else
+		else if(typesu[t->etype]) {
+			sumember(t, &sub);
+			gstpar(stop(k), i++, off + sub);
+		} else
 			gstpar(stop(k), i++, off);
 	}
 	if(typecmplx[r->etype] && sutype(r) >= 0) {
 		retoff = round(o, talign(r));
 		o = retoff + r->width;
+		sumember(r, &retsub);
 		nextpc();
 		p->as = AMOVW;
 		p->from.type = D_CONST;
@@ -1167,7 +1197,7 @@ gretval(void)
 		p->as = loadop(et);
 		p->from.type = D_OREG;
 		p->from.name = D_PARAM;
-		p->from.offset = retoff;
+		p->from.offset = retoff + retsub;
 		p->to.type = D_REG;
 		p->to.reg = rr;
 		return;
