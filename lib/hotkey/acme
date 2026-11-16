@@ -1,4 +1,18 @@
 cmd-s	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && echo put >/mnt/acme/$acmewin/ctl}
 cmd-a	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && cd /mnt/acme/$acmewin && {echo -n , >addr; echo -n 'dot=addr' >ctl} <[3]addr}
-cmd-p	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; Search -s wf}
-cmd-F	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; Search -s g}
+cmd-p	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; rfork n; bind -b /acme/bin/$cputype /bin; Search -s wf}
+cmd-F	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; rfork n; bind -b /acme/bin/$cputype /bin; Search -s g}
+# the language server, at dot in the window with the focus, as VS Code's keys where they fit
+f12	{/acme/bin/akey Def}
+cmd-.	{/acme/bin/akey Act}
+cmd-i	{/acme/bin/akey Doc}
+cmd-O	{/acme/bin/akey Syms}
+f2	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && echo -n ' Rename ' >/mnt/acme/$acmewin/tag}
+cmd-k r	{/acme/bin/akey Refs}
+cmd-k i	{/acme/bin/akey Impls}
+cmd-k t	{/acme/bin/akey Type}
+cmd-k d	{/acme/bin/akey Diag}
+cmd-k f	{/acme/bin/akey Fmt}
+cmd-k c	{/acme/bin/akey Comp}
+# sibyl: an instruction for the selection, typed in the tag
+cmd-k s	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && echo -n ' |sibyl ' >/mnt/acme/$acmewin/tag}
