@@ -251,6 +251,19 @@ files below, until the
 .B ctl
 file this was written to is closed.
 The body's text is kept and shows again then.
+.B Draw
+turns the tag's
+.BR Undo ,
+.B Redo
+and
+.B Put
+on, as
+.B menu
+does, even when a program holds the
+.B event
+file, so the tag follows the text under the drawing;
+.B nomenu
+after it turns them off.
 While the body is drawn,
 .B draw
 through another open
@@ -336,6 +349,16 @@ Equivalent to the
 .B Put
 interactive command with no arguments; accepts no arguments.
 .TP
+.B redo
+Equivalent to the
+.B Redo
+interactive command in this window's tag: it does again the change
+.B undo
+took back last, here and in the other windows changed with it,
+and the tag shows whether the file has changed since Put.
+With nothing to redo it does nothing.
+A program that draws the body takes its own redo key this way.
+.TP
 .B scroll
 Cancel a
 .B noscroll
@@ -347,6 +370,16 @@ to `scroll' to display the new text.
 .TP
 .B show
 Guarantee at least some of the selected text is visible on the display.
+.TP
+.B undo
+Equivalent to the
+.B Undo
+interactive command in this window's tag: it takes back the last change to the body,
+and the changes made with it in other windows, as
+.B Undo
+does.
+With nothing to undo it does nothing.
+A program that draws the body takes its own undo key this way.
 .RE
 .PD
 .TP

@@ -1068,6 +1068,23 @@ out:
 			err = wsysdraw(w, x->f);
 			if(err != nil)
 				break;
+			if(!w->isdir)
+				w->filemenu = TRUE;
+			settag = TRUE;
+			m = 4;
+		}else
+		if(strncmp(p, "undo", 4)==0 || strncmp(p, "redo", 4)==0){
+			winunlock(w);
+			qlock(&row.lk);
+			winlock(w, 'F');
+			if(w->col == nil){
+				qunlock(&row.lk);
+				err = Edel;
+				break;
+			}
+			wincommit(w, &w->body);
+			undo(&w->body, nil, nil, p[0]=='u', 0, nil, 0);
+			qunlock(&row.lk);
 			m = 4;
 		}else
 		{

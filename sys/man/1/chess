@@ -1,0 +1,424 @@
+.TH CHESS 1
+.SH NAME
+chess, Chess \- a board for a game of chess in PGN
+.SH SYNOPSIS
+.B chess
+[
+.B -e
+.I engine
+] [
+.B -t
+.I ms
+] [
+.I file
+]
+.br
+.B chess
+.B -s
+[
+.I file
+]
+.br
+.B chess
+.B -a
+[
+.B -e
+.I engine
+] [
+.B -t
+.I ms
+] [
+.B -f
+.I fen
+] [
+.I file
+]
+.br
+.B chess
+.B -d
+[
+.I file
+]
+.br
+.B chess
+.B -p
+.I depth
+[
+.I fen
+]
+.br
+.B Chess
+[
+.B -e
+.I engine
+] [
+.B -t
+.I ms
+] [
+.I file
+]
+.SH DESCRIPTION
+.I Chess
+shows a game of chess in a
+.IR rio (1)
+window: a board, and beside or under it the game's moves.
+The
+.I file
+is one game in PGN, the Portable Game Notation:
+tags such as
+\fB[White "Morphy"]\fR
+and the moves, with comments in braces,
+annotations such as
+.B $1
+and
+.BR !? ,
+and variations in parentheses.
+A
+.B FEN
+tag starts the game from that position.
+A file that does not exist starts as a game with PGN's seven tags and no moves.
+.PP
+The board shows the position after the move at or before dot.
+The list of moves marks the move at dot;
+button 1 there goes to a move,
+and a sweep selects a run of moves.
+.I Chess
+checks every move and writes each in standard algebraic notation (SAN),
+with a file, a rank or both where two pieces could make it,
+and
+.B +
+and
+.B #
+for check and mate.
+It needs no engine for that.
+.SS Mouse and keys
+Button 1 on a piece of the side to move marks the squares it can move to;
+button 1 on one of those squares makes the move.
+Dragging the piece there makes it too.
+A pawn that reaches the last rank shows the pieces it can become, to choose with button 1.
+A move made at the end of a line extends it.
+A move made at an earlier move opens a variation:
+.I chess
+writes it in parentheses, numbered, after the move it replaces.
+A move the game already has goes to that move instead.
+.PP
+Button 3 is a menu:
+.B flip
+turns the board,
+.B analysis
+and
+.B play
+turn those on and off,
+.B eval
+evaluates the moves selected,
+.B write
+writes the file, and
+.B exit
+ends
+.IR chess ,
+or says once that the file is not written.
+Over the board the mouse wheel steps back and forward a move;
+over the moves it scrolls them.
+.PP
+The left and right arrows step back and forward a move,
+up and down go to the variation before and after,
+Home goes to the start and End to the end of the line.
+.BR f ,
+.BR a ,
+.B p
+and
+.B e
+are
+.BR flip ,
+.BR analysis ,
+.B play
+and
+.BR eval ;
+Escape lets go of a piece.
+.SS Engine
+The
+.I engine
+is a command that
+.IR rc (1)
+runs in the background,
+speaking UCI, the Universal Chess Interface,
+on its standard input and output.
+.I Chess
+runs
+.BR $chessengine ,
+or without it
+.BR "pkg run weiss -c weiss" :
+Weiss, Terje Kirstihagen's engine, the
+.B weiss
+package (see
+.IR pkg (1)).
+With
+.B -e
+.B "''"
+there is none.
+.PP
+While
+.B analysis
+is on, the engine searches the position at dot.
+A bar left of the board shows how the game stands, white's share from white's side;
+an arrow shows the engine's best move; and the line under the board gives
+the evaluation, the depth, and the line of play it expects.
+.I Chess
+writes none of this to the game.
+A search stops after 30 seconds on one position.
+.PP
+.B Eval
+runs
+.B "chess -a"
+(below) on the moves selected, or the move at dot,
+from the position before them, and puts what it writes in their place,
+as acme does with a command, whether it succeeds or fails:
+an evaluation after each move, or, when it fails, the moves as they were.
+What it says on standard error, and a failing status, go to
+.IR chess 's
+standard error.
+.PP
+When the text no longer parses as PGN,
+the board stays as it last parsed, the line under it gives the error and its line,
+and the board takes no move until the text parses again,
+after an edit or
+.BR Undo .
+.PP
+In
+.BR play ,
+the engine plays the side to move: it moves now, and answers each move after
+by adding its own, in
+.I ms
+milliseconds.
+.B Play
+again stops it.
+Play hides the analysis.
+.SS Without a window
+With
+.BR -s ,
+.I chess
+reads the game from
+.I file
+or standard input and writes it in PGN's export form:
+spaces after move numbers, a black move numbered after a comment or variation,
+SAN as it writes it, and lines of at most 79 characters.
+An illegal move is an error, named with its line and column.
+.PP
+With
+.BR -a ,
+it reads a game, or moves alone, and writes it back with the engine's evaluation in a comment
+after each move, in variations too, but a mate:
+.B {+0.35}
+in pawns from white's side, after
+.I ms
+milliseconds on the position, 1000 if not told, or
+.B {#3}
+and
+.BR {#-3} ,
+a mate in three for white and for black.
+It replaces an evaluation already there.
+The moves start from the game's
+.B FEN
+tag, or
+.IR fen ,
+or the start.
+If they are not legal from there, or the engine fails or does not answer,
+.I chess
+writes its input back as it was, says why on standard error and fails,
+so in
+.IR acme (1)
+.B "|chess -a"
+on a selection, or
+.BR "Edit ,|chess -a" ,
+never loses a move.
+.PP
+With
+.BR -d ,
+it makes the moves on standard input, one a line, as button 1 does,
+starting from
+.IR file 's
+start, and writes the game.
+A move is in SAN or as its squares
+.RB ( e2e4 ,
+.BR e7e8q );
+.B <
+and
+.B >
+step back and forward,
+.B [
+and
+.B ]
+go to the variation before and after,
+.B ^
+to the start and
+.B $
+to the end of the line.
+.PP
+With
+.BR -p ,
+it counts the positions
+.I depth
+moves on from
+.I fen
+or the start (perft), to test its moves.
+.SS Chess
+.I Chess
+is
+.I chess
+in an
+.IR acme (1)
+window whose body is the game, as
+.IR Sketch 's
+is its picture.
+With no
+.IR file ,
+it draws the window it is run from,
+.BR $winid ;
+with one, or outside a window, it opens a new window,
+with the file's text if it exists.
+Dot is acme's: stepping through the game moves it,
+so the text shows the same move when
+.I Chess
+ends.
+.I Chess
+writes a move into the body as typing would,
+so
+.B Undo
+takes it back and
+.B Put
+saves it.
+When the body changes, by
+.BR Undo ,
+a pipe, or another program, the board follows it.
+.PP
+.I Chess
+adds
+.BR Chess ,
+.B Play
+and
+.B "|chess -a"
+to the tag, as words it does not have already.
+.B Chess
+there ends it, and the window shows its text, with
+.B Chess
+and
+.B "|chess -a"
+still in the tag and
+.B Play
+gone;
+.B Chess
+there again draws the board.
+.B Play
+is
+.BR play ;
+.BR "|chess -a" ,
+with arguments of its own if given, is
+.BR eval ,
+run from the position before the selection,
+with
+.B -e
+and
+.B -t
+passed on;
+and
+.B Flip
+and
+.B Analysis
+work too.
+Other commands are acme's: a
+.BR | ,
+.B <
+or
+.B >
+command works on the text at dot.
+Command-Z and Command-Shift-Z are acme's
+.B Undo
+and
+.BR Redo .
+.I Chess
+writes to the body only if no one else has changed it since it last read it;
+if someone has, it says the file changed, reads it again, and leaves dot where it was.
+.B Del
+is ctl's
+.BR del :
+on a modified window acme says so in
+.B +Errors
+and leaves it; a second
+.BR Del ,
+or
+.BR Delete ,
+deletes the window, ending
+.I Chess
+and the engine with it.
+A note that ends
+.IR Chess ,
+as
+.B Kill
+sends, ends the engine too.
+.SH EXAMPLES
+Evaluate a game's moves for half a second each:
+.IP
+.EX
+chess -a -t 500 game.pgn >evaluated.pgn
+.EE
+.PP
+Add Weiss to the name space and run it by name:
+.IP
+.EX
+pkg add weiss
+chessengine=weiss
+Chess game.pgn
+.EE
+.SH FILES
+.TF /lib/theme
+.TP
+.B /lib/theme
+colors:
+.B chesslight
+and
+.B chessdark
+for the squares,
+.B chesscomment
+for comments and
+.B chesserror
+for errors
+.SH SOURCE
+plan9web's
+.BR src/cmd/chess ,
+and for Weiss,
+.B src/weiss
+and
+.BR mk/pkg
+.SH "SEE ALSO"
+.IR acme (1),
+.IR pkg (1),
+.IR sketch (1)
+.br
+Steven J. Edwards,
+``Standard: Portable Game Notation Specification and Implementation Guide'', 1994.
+.br
+Stefan-Meyer Kahlen,
+``Description of the universal chess interface (UCI)'', 2004.
+.SH BUGS
+.I Chess
+reads only a file's first game.
+Null moves and Chess960 are not taken.
+.br
+Weiss searches on its one thread, as APE has one,
+and looks at its input every 2048 positions for
+.BR stop ,
+by the bytes waiting in a pipe:
+from a terminal it does not see
+.B stop
+until it has searched,
+and when its input ends while it searches with no limit, it goes on.
+.br
+Acme's guard on a window's writes is one for the window, which the next open of its body takes:
+another program that sets it at the same moment, as
+.IR hl (1)
+does as it colors, can make a write of
+.I Chess
+fail, or one of its own.
+A write longer than 4096 bytes goes in pieces, one
+.BR Undo ;
+an edit by another program between two pieces leaves part of the rewrite.
