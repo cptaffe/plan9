@@ -205,6 +205,15 @@ xfidlog(Window *w, char *op)
 	qunlock(&eventlog.lk);
 }
 
+static int
+isedit(Window *w, WinEditLog *l, char *s)
+{
+	if(l == &w->rdlog)
+		return s[1] == 'I' || s[1] == 'D';
+	return s[0] != 'S';
+}
+
+static WinEditLog*	logof(Xfid*, Window*);
 
 void
 xfidwinlogopen(Xfid *x, Window *w)
@@ -213,7 +222,7 @@ xfidwinlogopen(Xfid *x, Window *w)
 	int wantseq, i;
 	ulong lo;
 
-	l = &w->editlog;
+	l = logof(x, w);
 	wantseq = x->f->seq;
 
 	qlock(&l->lk);
@@ -228,7 +237,7 @@ xfidwinlogopen(Xfid *x, Window *w)
 		if(wantseq >= 0){
 			for(i=0; i<l->nev && l->evseq[i]<=wantseq; i++)
 				;
-			lo = l->nev > 0 ? l->evseq[0] - (l->ev[0][0] != 'S') : w->seq;
+			lo = l->nev > 0 ? l->evseq[0] - isedit(w, l, l->ev[0]) : w->seq;
 			if(wantseq < lo || wantseq > w->seq)
 				x->f->logmismatch = 1;
 			else
@@ -245,7 +254,7 @@ xfidwinlogclose(Xfid *x, Window *w)
 	int i;
 	WinEditLog *l;
 
-	l = &w->editlog;
+	l = logof(x, w);
 	qlock(&l->lk);
 	if(!l->closed){
 		for(i=0; i<l->nf; i++){
@@ -278,9 +287,11 @@ xfidwinlogread(Xfid *x, Window *w)
 {
 	Fcall fc;
 	int i, n;
-	WinEditLog *l = &w->editlog;
+	WinEditLog *l;
 	char *p;
 	vlong min;
+
+	l = logof(x, w);
 	memset(&fc, 0, sizeof fc);
 	if(x->f->logmismatch){
 		x->f->logmismatch = 0;
@@ -366,11 +377,10 @@ xfidwinlogread(Xfid *x, Window *w)
 	free(p);
 }
 
-void
-xfidwinlogflush(Xfid *x, Window *w)
+static void
+logflush(Xfid *x, WinEditLog *l)
 {
 	int i;
-	WinEditLog *l = &w->editlog;
 
 	qlock(&l->lk);
 	if(!l->closed){
@@ -383,6 +393,49 @@ xfidwinlogflush(Xfid *x, Window *w)
 		}
 	}
 	qunlock(&l->lk);
+}
+
+void
+xfidwinlogflush(Xfid *x, Window *w)
+{
+	logflush(x, &w->editlog);
+	logflush(x, &w->rdlog);
+}
+
+static WinEditLog*
+logof(Xfid *x, Window *w)
+{
+	if(FILE(x->f->qid) == QWrdevent)
+		return &w->rdlog;
+	return &w->editlog;
+}
+
+static void
+logappend(Window *w, WinEditLog *l, char *s)
+{
+	qlock(&l->lk);
+	if(l->nf == 0 || l->closed){
+		qunlock(&l->lk);
+		free(s);
+		return;
+	}
+	if(l->nev >= l->mev){
+		l->mev = l->mev ? l->mev*2 : 8;
+		l->ev = erealloc(l->ev, l->mev*sizeof l->ev[0]);
+		l->evseq = erealloc(l->evseq, l->mev*sizeof l->evseq[0]);
+	}
+	l->evseq[l->nev] = w->seq;
+	l->ev[l->nev++] = s;
+	if(l->r.l == nil)
+		l->r.l = &l->lk;
+	rwakeupall(&l->r);
+	qunlock(&l->lk);
+}
+
+void
+winrdevent(Window *w, int c1, char *s)
+{
+	logappend(w, &w->rdlog, smprint("%c%s", c1, s));
 }
 
 /*
@@ -446,11 +499,10 @@ winlogedit(Window *w, char op, ulong q0, ulong q1, Rune *r, int nr)
 	qunlock(&l->lk);
 }
 
-void
-winlogfree(Window *w)
+static void
+logfree(WinEditLog *l)
 {
 	int i;
-	WinEditLog *l = &w->editlog;
 
 	qlock(&l->lk);
 	l->closed = 1;
@@ -473,6 +525,13 @@ winlogfree(Window *w)
 	qunlock(&l->lk);
 }
 
+void
+winlogfree(Window *w)
+{
+	logfree(&w->editlog);
+	logfree(&w->rdlog);
+}
+
 /*
  * winlogdot - append S q0 q1 0 0, the body's dot, to the window's edit
  * log.  It is not an edit, so seq stays: a style written under the
@@ -483,6 +542,8 @@ void
 winlogdot(Window *w)
 {
 	WinEditLog *l = &w->editlog;
+
+	logappend(w, &w->rdlog, smprint("MS%ud %ud 0 0 \n", w->body.q0, w->body.q1));
 
 	qlock(&l->lk);
 	if(l->nf == 0 || l->closed){

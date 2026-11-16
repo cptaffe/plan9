@@ -478,6 +478,9 @@ file had not been open.
 .TP
 .B log
 gives what happens to the body, a line each, as it happens; a read blocks until there is one.
+It is kept while its readers move to
+.BR rdevent ,
+which replaces it.
 An insertion is
 .BI I " q0 q1 " "0 n text" \fR,
 the
@@ -508,6 +511,35 @@ After a write of a number to
 .BR seq ,
 the next open of
 .B log
+starts after that edit, or fails with
+.L "seq mismatch"
+if it is no longer kept.
+.TP
+.B rdevent
+A copy of the window's events, read only: every message the
+.B event
+file would give, in its format, whether or not a program holds
+.BR event ,
+and an
+.B MS
+message, as the
+.B S
+line of
+.BR log ,
+when the body's selection has stayed put.
+A read gives one message, and blocks until there is one.
+Any number of programs may read it, each from when it opened it;
+none writes anything back, and none holds up the window.
+A body
+.B I
+or
+.B D
+advances the window's
+.BR seq ,
+and after a write of a number to
+.BR seq ,
+the next open of
+.B rdevent
 starts after that edit, or fails with
 .L "seq mismatch"
 if it is no longer kept.

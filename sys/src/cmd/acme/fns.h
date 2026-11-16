@@ -122,6 +122,7 @@ char*	wsysdraw(Window*, Fid*);
 void	wsyscursorclose(Window*);
 void	wsysctlclose(Window*, Fid*);
 void	wsysscreen(void);
+void	winrdevent(Window*, int, char*);
 void	wsysdelete(Window*);
 int	wsysflush(Window*, int);
 char*	wsysopen(Window*, int);

@@ -31,6 +31,7 @@ enum
 	QWmouse,
 	QWwctl,
 	QWwinname,
+	QWrdevent,
 	QMAX,
 };
 
@@ -333,6 +334,7 @@ struct Window
 	WinStyleRun	*wruns;
 	int		nwruns;
 	WinEditLog	editlog;	/* per-window body edit notification log */
+	WinEditLog	rdlog;
 	Wsys	*wsys;
 	uint		dotq0;
 	uint		dotq1;

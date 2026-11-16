@@ -132,6 +132,7 @@ xfidopen(Xfid *x)
 		case QWxdata:
 		case QWstyle:
 		case QWlog:
+		case QWrdevent:
 			x->f->seq = w->wantseq;
 			w->wantseq = -1;
 			break;
@@ -162,6 +163,7 @@ xfidopen(Xfid *x)
 			}
 			break;
 		case QWlog:
+		case QWrdevent:
 			xfidwinlogopen(x, w);
 			break;
 		case QWstyle:
@@ -324,6 +326,7 @@ xfidclose(Xfid *x)
 			}
 			break;
 		case QWlog:
+		case QWrdevent:
 			xfidwinlogclose(x, w);
 			break;
 		case QWstyle:
@@ -457,6 +460,7 @@ xfidread(Xfid *x)
 		break;
 
 	case QWlog:
+	case QWrdevent:
 		xfidwinlogread(x, w);
 		break;
 
@@ -723,6 +727,7 @@ xfidwrite(Xfid *x)
 		break;
 
 	case QWlog:
+	case QWrdevent:
 		respond(x, &fc, Eperm);
 		break;
 

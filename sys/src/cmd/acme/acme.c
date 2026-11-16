@@ -327,7 +327,7 @@ enum
 static void
 dotcheck(Window *w, void*)
 {
-	if(w->editlog.nf == 0)
+	if(w->editlog.nf == 0 && w->rdlog.nf == 0)
 		return;
 	if(w->body.q0 != w->dotq0 || w->body.q1 != w->dotq1){
 		w->dotq0 = w->body.q0;
