@@ -1,0 +1,5 @@
+# The hosts cpu(1) runs commands on, one entry each; $home/lib/cpu is searched first.
+#
+# cpu=name cmd="transport" ns=file
+#	cmd: an rc command line that runs a command on the host on its standard input and output,
+#	as ssh name does; ns: a namespace(6) file the host's name space is made from
