@@ -9,5 +9,6 @@
 #
 # The user's services, network and mounted trees, which would give the commands what the user has.
 - ^/(srv|net|net\.alt|n)(/|$)
-# sibyl's own sessions, kept in $home/lib/sibyl/n: one session's text is not another's.
-- ^/usr/[^/]+/lib/sibyl/[0-9]+$
+# sibyl's own sessions, kept in $home/lib/sibyl/n, with their trees (n.tree) and questions: one
+# session's text is not another's.
+- ^/usr/[^/]+/lib/sibyl/[0-9]+($|\.)
