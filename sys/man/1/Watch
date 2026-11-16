@@ -1,0 +1,89 @@
+.TH WATCH 1
+.SH NAME
+Watch \- run a command again each time a file is Put, in acme
+.SH SYNOPSIS
+.B Watch
+[
+.B -r
+] [
+.I cmd ...
+]
+.SH DESCRIPTION
+.I Watch
+opens an
+.IR acme (1)
+window,
+.IB dir /+watch\f1,
+for the current directory
+.IR dir ,
+runs
+.I cmd
+there with
+.IR rc (1),
+and shows what it prints under a first line,
+.BI % " cmd"\f1.
+Each time a file in
+.I dir
+is written by
+.I acme
+(Put), it runs the command again, after stopping it if it is still running,
+and its output replaces the last.
+Several files written at once, as by
+.BR Putall ,
+make one run.
+With
+.BR -r ,
+a file in a directory below
+.I dir
+counts too.
+Without
+.IR cmd ,
+the command is
+.BR mk .
+.PP
+The first line may be edited: the next run is what it says.
+.B Get
+in the window's tag runs it now,
+.B Kill
+stops it, and
+.B Del
+ends
+.IR Watch .
+A command that fails says so on a last line,
+.BI "% exit " status\f1.
+Button 3 on a
+.IB file : line
+in the output opens it, as anywhere in
+.IR acme .
+.PP
+.I Watch
+is Russ Cox's, from
+.BR 9fans.net/go/acme/Watch ,
+in Plan 9 C.
+.SH EXAMPLES
+Run the tests whenever a source file is saved:
+.IP
+.EX
+Watch mk test
+.EE
+.PP
+Rebuild on devbox, over
+.IR ssh (1),
+when a file of its, mounted by
+.IR sshfs (4),
+is Put:
+.IP
+.EX
+cd /n/devbox/home/dev/sd
+Watch ssh devbox 'cd sd && cargo test -q'
+.EE
+.SH SOURCE
+plan9web's
+.B src/cmd/Watch.c
+.SH SEE ALSO
+.IR acme (1),
+.IR acme (4)
+.SH BUGS
+Only Puts by
+.I acme
+count: a file changed by another program does not start a run.
