@@ -34,6 +34,7 @@ extern char *strerror(int);
 extern size_t strlen(const char *);
 #if _POSIX_C_SOURCE >= 200809L || defined(_BSD_EXTENSION)
 extern size_t strnlen(const char *, size_t);
+extern char *strndup(const char *, size_t);
 #endif
 #if _POSIX_C_SOURCE >= 202405L || defined(_BSD_EXTENSION)
 extern void *memmem(const void *, size_t, const void *, size_t);

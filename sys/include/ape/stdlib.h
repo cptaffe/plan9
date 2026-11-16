@@ -53,6 +53,15 @@ extern void *reallocarray(void *, size_t, size_t);
 #endif
 #ifdef _SUSV2_SOURCE
 extern char *ptsname(int);	/* XSI: libbsd's, as <sys/pty.h> */
+extern double drand48(void);
+extern double erand48(unsigned short [3]);
+extern long lrand48(void);
+extern long nrand48(unsigned short [3]);
+extern long mrand48(void);
+extern long jrand48(unsigned short [3]);
+extern void srand48(long);
+extern unsigned short *seed48(unsigned short [3]);
+extern void lcong48(unsigned short [7]);
 #endif
 extern int system(const char *);
 extern void *bsearch(const void *, const void *, size_t, size_t, int (*)(const void *, const void *));
