@@ -158,6 +158,10 @@ extern int chroot(const char *);
 extern int fchdir(int);
 #endif
 extern int link(const char *, const char *);
+#if _POSIX_C_SOURCE >= 200112L || defined(_BSD_EXTENSION)
+extern int symlink(const char *, const char *);
+extern ssize_t readlink(const char *, char *, size_t);
+#endif
 extern char *getcwd(char *, size_t);
 extern int unlink(const char *);
 extern int rmdir(const char *);
