@@ -304,15 +304,24 @@ sends the whole text, and
 .B "Edit ,|cmd"
 changes it.
 .B Del
+and
+.B Delete
+go to the window's
+.B ctl
+as
+.B del
+and
+.BR delete ,
+so
+.B Del
 on a window changed since it was last written says
 .IB file " modified"
 and keeps the window and the drawing, as
 .IR acme 's
 .B Del
-does;
-a second
+does, and a second
 .BR Del ,
-or
+with no change between, or
 .BR Delete ,
 deletes the window, ending
 .I Grap
@@ -349,6 +358,10 @@ plan9web's
 .IR sketch (1),
 .IR acme (4)
 .SH BUGS
+.I Grap
+writes a rewrite of more than 4096 bytes in pieces, so an edit by something else between two pieces
+leaves part of the rewrite in the body.
+.br
 .I Acme
 guards a window's body for one program at a time:
 another program that guards its writes or reads of the same window, as
