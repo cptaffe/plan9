@@ -204,7 +204,7 @@ analysis also opens a window,
 .IB file +Analysis\f1,
 whose first line names the position at dot and the depth,
 and whose lines after it are the engine's three best lines, each its evaluation and its moves;
-button 2 on one plays its moves into the game from dot,
+button 2 on a move in one plays the line into the game from dot as far as that move, and on its evaluation the whole line,
 and turning analysis off, or ending
 .IR Chess ,
 deletes the window.
@@ -275,6 +275,12 @@ and
 .BR {#-3} ,
 a mate in three for white and for black.
 It replaces an evaluation already there.
+It marks a move that loses its side a fifth of its chances of winning with
+.BR ? ,
+and a third with
+.BR ?? ,
+the chances from the evaluations before and after the move, as lichess reckons them;
+a move with a mark already keeps it.
 The moves start from the game's
 .B FEN
 tag, or
