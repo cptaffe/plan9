@@ -304,11 +304,11 @@ sends the whole body through
 and
 .I Dag
 draws the result.
-The menu has no
+The menu's
 .B undo
-or
-.BR redo ,
-and its
+and
+.B redo
+are acme's, as Command-Z is, and its
 .B write
 is
 .BR Put .

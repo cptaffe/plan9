@@ -83,7 +83,10 @@ tag starts the game from that position.
 A file that does not exist starts as a game with PGN's seven tags and no moves.
 .PP
 The board shows the position after the move at or before the end of dot,
-so a selection of several moves, as Undo leaves, shows the last.
+so a selection of several moves, as Undo leaves, shows the last;
+when another program replaces the whole text, as
+.B "Edit ,|chess -a"
+does, the board keeps the move it showed.
 The list of moves marks the move at dot;
 button 1 there goes to a move,
 and a sweep selects a run of moves.
@@ -97,7 +100,8 @@ and
 for check and mate.
 It needs no engine for that.
 A square is never smaller than twice the font's height.
-In a window too short for that board, the board keeps its size and is cut off at its foot;
+In a window too narrow for that board, it is cut off at the right;
+in one too short, it keeps its size and is cut off at its foot;
 a scroll bar at the left, acme's, and the mouse wheel over the board move it,
 and the line under it stays.
 .SS Mouse and keys
@@ -161,7 +165,11 @@ and
 .B 0
 are castling's
 .BR O .
-Newline makes the one move a partial move can be, Backspace takes back a letter,
+Newline makes the one move a partial move can be, or the one it names in full, as
+.B oo
+when
+.B O-O-O
+is legal too; Backspace takes back a letter,
 and Escape forgets what was typed and lets go of a piece;
 .B ?
 is
@@ -198,6 +206,10 @@ an arrow shows the engine's best move; and the line under the board gives
 the evaluation, the depth, and the line of play it expects.
 .I Chess
 writes none of this to the game.
+.B hint
+in the menu, or the
+.B ?
+key, shows the same bar, arrow and line for the position at dot alone, until dot moves on.
 In
 .IR Chess ,
 analysis also opens a window,
@@ -208,10 +220,6 @@ button 2 on a move in one plays the line into the game from dot as far as that m
 and turning analysis off, or ending
 .IR Chess ,
 deletes the window.
-.B hint
-in the menu, or the
-.B ?
-key, does the same for the position at dot until dot moves on.
 A search stops after 30 seconds on one position.
 .PP
 .B Eval
@@ -275,9 +283,9 @@ and
 .BR {#-3} ,
 a mate in three for white and for black.
 It replaces an evaluation already there.
-It marks a move that loses its side a fifth of its chances of winning with
+It marks a move that costs its side 20 points of its chance of winning, out of 100, with
 .BR ? ,
-and a third with
+and 30 with
 .BR ?? ,
 the chances from the evaluations before and after the move, as lichess reckons them;
 a move with a mark already keeps it.
@@ -450,6 +458,18 @@ colors:
 and
 .B chessdark
 for the squares,
+.BR chesssel ,
+.BR chesslast ,
+.B chessarrow
+and
+.B chesscheck
+for the piece picked, the last move, the best move and a king in check,
+.BR chesswhite ,
+.BR chesswhiteedge ,
+.B chessblack
+and
+.B chessblackedge
+for the pieces,
 .B chesscomment
 for comments and
 .B chesserror
