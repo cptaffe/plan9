@@ -229,9 +229,14 @@ dot's line if dot is in the graph, else after the last row.
 selects what comes back.
 .TP
 .BI < cmd
-Put
+Replace the selected rows with
 .IR cmd 's
-output after the selected rows, or at the insertion point, and select it.
+output, as one block where the first of them was, as
+.IR acme 's
+.B <
+replaces a selection, or with nothing selected put it at the insertion point;
+.I Grap
+selects what comes in.
 .TP
 .BI > cmd
 Send the selected rows to
@@ -261,7 +266,7 @@ window's tag, with the outliers selected:
 |awk '$2 < 100'
 .EE
 .PP
-With every row selected (Command-A), sort them by x, and add squares after them:
+With every row selected (Command-A), sort them by x; then, with nothing selected, add squares:
 .IP
 .EX
 |sort -n
