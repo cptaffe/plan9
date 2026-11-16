@@ -238,6 +238,7 @@ struct WinEditLog {
   Rendez  r;
   vlong   start;      /* global offset of ev[0] */
   char  **ev;         /* queued event strings */
+  ulong  *evseq;      /* the window's seq after each: an S line keeps the seq before it */
   int     nev, mev;
   Fid   **f;          /* registered reader fids */
   int     nf, mf;
@@ -338,6 +339,9 @@ struct Window {
 
   WinEditLog editlog; /* per-window body edit notification log */
   Wsys *wsys;
+  uint dotq0, dotq1;  /* the body's dot as last seen, and how long it has stayed */
+  int dotage;
+  uint sentq0, sentq1; /* the dot last written to the edit log as an S line */
 };
 
 void wininit(Window *, Window *, Rectangle);
@@ -499,6 +503,7 @@ void xfidwinlogclose(Xfid *, Window *);
 void xfidwinlogread(Xfid *, Window *);
 void xfidwinlogflush(Xfid *, Window *);
 void winlogedit(Window *, char, ulong, ulong, Rune *, int);
+void winlogdot(Window *);
 void winlogfree(Window *);
 
 struct Reffont {

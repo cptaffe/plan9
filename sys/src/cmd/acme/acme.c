@@ -47,6 +47,7 @@ Command *command;
 
 void	shutdownthread(void*);
 void	dumpthread(void*);
+void	dotthread(void*);
 void	acmeerrorinit(void);
 void	readfile(Column*, char*);
 static int	shutdown(void*, char*);
@@ -278,6 +279,7 @@ threadmain(int argc, char *argv[])
 	threadcreate(waitthread, nil, STACK);
 	threadcreate(xfidallocthread, nil, STACK);
 	threadcreate(newwindowthread, nil, STACK);
+	threadcreate(dotthread, nil, STACK);
 	if(dumpfile)
 		threadcreate(dumpthread, nil, STACK);
 /*	threadcreate(shutdownthread, nil, STACK); */
@@ -330,6 +332,47 @@ char *oknotes[] ={
 };
 
 int	dumping;
+
+enum {
+	Dottick = 50,
+	Dotquiet = 150,	/* how long dot must stay before its S line */
+};
+
+static void
+dotcheck(Window *w, void*)
+{
+	if(w->editlog.nf == 0)
+		return;
+	if(w->body.q0 != w->dotq0 || w->body.q1 != w->dotq1){
+		w->dotq0 = w->body.q0;
+		w->dotq1 = w->body.q1;
+		w->dotage = 0;
+		return;
+	}
+	if(w->dotage < Dotquiet && (w->dotage += Dottick) >= Dotquiet
+	&& (w->dotq0 != w->sentq0 || w->dotq1 != w->sentq1))
+		winlogdot(w);
+}
+
+/*
+ * dotthread writes each followed window's dot to its edit log (acme(4)'s
+ * S line) once it has stayed put for Dotquiet, so a sweep is one line.
+ */
+void
+dotthread(void*)
+{
+	Timer *t;
+
+	threadsetname("dotthread");
+	for(;;){
+		t = timerstart(Dottick);
+		recvul(t->c);
+		timerstop(t);
+		qlock(&row.lk);
+		allwindows(dotcheck, nil);
+		qunlock(&row.lk);
+	}
+}
 
 enum {
 	Dumptick = 500,

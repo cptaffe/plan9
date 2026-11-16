@@ -225,6 +225,8 @@ xfidwinlogopen(Xfid *x, Window *w)
 {
 	WinEditLog *l = &w->editlog;
 	int wantseq = x->f->seq;	/* moved onto this fid by xfidopen */
+	int i;
+	ulong lo;
 
 	qlock(&l->lk);
 	if(!l->closed){
@@ -233,11 +235,21 @@ xfidwinlogopen(Xfid *x, Window *w)
 			l->f = erealloc(l->f, l->mf * sizeof l->f[0]);
 		}
 		l->f[l->nf++] = x->f;
+		w->dotage = 0;		/* a new reader is told where dot is */
+		w->sentq0 = w->sentq1 = ~0;
 		if(wantseq >= 0){
-			if((vlong)wantseq < l->start || wantseq > w->seq)
+			/*
+			 * An edit's line advances seq and an S line does not, so
+			 * the place after seq wantseq is the first line whose seq
+			 * is past it; seq before the first kept line is lo.
+			 */
+			for(i = 0; i < l->nev && l->evseq[i] <= wantseq; i++)
+				;
+			lo = l->nev > 0 ? l->evseq[0] - (l->ev[0][0] != 'S') : w->seq;
+			if(wantseq < lo || wantseq > w->seq)
 				x->f->logmismatch = 1;
 			else
-				x->f->logoff = wantseq;
+				x->f->logoff = l->start + i;
 		} else
 			x->f->logoff = l->start + l->nev;
 	}
@@ -401,6 +413,7 @@ xfidwinlogread(Xfid *x, Window *w)
 		l->nev -= n;
 		l->start += n;
 		memmove(l->ev, l->ev + n, l->nev * sizeof l->ev[0]);
+		memmove(l->evseq, l->evseq + n, l->nev * sizeof l->evseq[0]);
 	}
 
 	qunlock(&l->lk);
@@ -476,6 +489,7 @@ winlogedit(Window *w, char op, ulong q0, ulong q1, Rune *r, int nr)
 	if(l->nev >= l->mev){
 		l->mev = l->mev ? l->mev*2 : 8;
 		l->ev = erealloc(l->ev, l->mev * sizeof l->ev[0]);
+		l->evseq = erealloc(l->evseq, l->mev * sizeof l->evseq[0]);
 	}
 	/*
 	 * Limit inline text to EVENTSIZE runes, matching the event-file convention.
@@ -488,6 +502,7 @@ winlogedit(Window *w, char op, ulong q0, ulong q1, Rune *r, int nr)
 		entry = smprint("%c %lud %lud 0 %d %.*S\n", op, q0, q1, nr, nr, r);
 	else
 		entry = smprint("%c %lud %lud 0 0 \n", op, q0, q1);
+	l->evseq[l->nev] = w->seq;
 	l->ev[l->nev++] = entry;
 	if(l->r.l == nil)
 		l->r.l = &l->lk;
@@ -521,8 +536,41 @@ winlogfree(Window *w)
 	free(l->ev);
 	free(l->f);
 	free(l->read);
+	free(l->evseq);
+	l->evseq = nil;
 	l->ev   = nil; l->nev = l->mev = 0;
 	l->f    = nil; l->nf  = l->mf  = 0;
 	l->read = nil; l->nread = l->mread = 0;
+	qunlock(&l->lk);
+}
+
+/*
+ * winlogdot - append S q0 q1 0 0, the body's dot, to the window's edit
+ * log.  It is not an edit, so seq stays: a style written under the
+ * guard of the edit before it is still good.  dotthread calls it when
+ * dot has settled where it was not when last written.
+ */
+void
+winlogdot(Window *w)
+{
+	WinEditLog *l = &w->editlog;
+
+	qlock(&l->lk);
+	if(l->nf == 0 || l->closed){
+		qunlock(&l->lk);
+		return;
+	}
+	if(l->nev >= l->mev){
+		l->mev = l->mev ? l->mev*2 : 8;
+		l->ev = erealloc(l->ev, l->mev * sizeof l->ev[0]);
+		l->evseq = erealloc(l->evseq, l->mev * sizeof l->evseq[0]);
+	}
+	l->evseq[l->nev] = w->seq;
+	l->ev[l->nev++] = smprint("S %ud %ud 0 0 \n", w->body.q0, w->body.q1);
+	w->sentq0 = w->body.q0;
+	w->sentq1 = w->body.q1;
+	if(l->r.l == nil)
+		l->r.l = &l->lk;
+	rwakeupall(&l->r);
 	qunlock(&l->lk);
 }
