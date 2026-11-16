@@ -1,0 +1,106 @@
+.TH ADRAW 2
+.SH NAME
+scrollinit, scrolldraw, scrollmouse, scrollwid, scrollgap \- helpers for programs that draw an acme window
+.SH SYNOPSIS
+.ta \w'void 'u
+.B #include <u.h>
+.br
+.B #include <libc.h>
+.br
+.B #include <draw.h>
+.br
+.B #include <thread.h>
+.br
+.B #include <mouse.h>
+.br
+.B #include <adraw.h>
+.PP
+.ft L
+.nf
+typedef struct Scroll Scroll;
+struct Scroll
+{
+	Rectangle	r;
+	vlong	tot;
+	vlong	p0;
+	vlong	p1;
+	Image	*back;
+	Image	*bord;
+};
+.fi
+.PP
+.B
+void	scrollinit(Scroll *s)
+.PP
+.B
+void	scrolldraw(Image *dst, Scroll *s)
+.PP
+.B
+void	scrollmouse(Mousectl *mc, Scroll *s, void (*set)(Scroll *s, vlong p0, void *a), void *a)
+.PP
+.B
+int	scrollwid(void)
+.PP
+.B
+int	scrollgap(void)
+.SH DESCRIPTION
+.I Libadraw
+holds helpers for a program that draws the body of an
+.IR acme (1)
+window, as
+.IR chess (1)
+does.
+A program uses those it wants; none of them needs the others,
+and none opens a window or reads its events.
+.PP
+A
+.B Scroll
+is a scroll bar that looks and works as acme's own.
+.B r
+is where it is drawn,
+.B tot
+the size of what it scrolls, in any unit,
+and
+.B p0
+and
+.B p1
+the part of it that shows.
+.I Scrollinit
+gives it acme's colors from the theme
+.RI ( theme (6)):
+.BR body 's
+back for the part that shows and
+.B bodyborder
+for the rest.
+.I Scrolldraw
+draws it in
+.IR dst .
+.I Scrollwid
+and
+.I Scrollgap
+are acme's width for a scroll bar and the gap after it, scaled for the display.
+.PP
+.I Scrollmouse
+works the bar while a button pressed in it is held, as acme does:
+button 1 moves back and button 3 forward, by as much of what shows as the pointer is
+down the bar; button 2 moves to the place the pointer is at; and buttons 1 and 3 repeat
+while held, after a pause.
+Each time it moves,
+.I scrollmouse
+sets
+.B p0
+and
+.B p1
+and calls
+.IR set ,
+with
+.IR a ,
+to draw what shows from
+.BR p0 .
+The program moves for the mouse wheel itself.
+.SH SOURCE
+.B /sys/src/libadraw
+.SH SEE ALSO
+.IR acme (1),
+.IR chess (1),
+.IR theme (6)

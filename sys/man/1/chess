@@ -82,7 +82,8 @@ A
 tag starts the game from that position.
 A file that does not exist starts as a game with PGN's seven tags and no moves.
 .PP
-The board shows the position after the move at or before dot.
+The board shows the position after the move at or before the end of dot,
+so a selection of several moves, as Undo leaves, shows the last.
 The list of moves marks the move at dot;
 button 1 there goes to a move,
 and a sweep selects a run of moves.
@@ -95,6 +96,10 @@ and
 .B #
 for check and mate.
 It needs no engine for that.
+A square is never smaller than twice the font's height.
+In a window too short for that board, the board keeps its size and is cut off at its foot;
+a scroll bar at the left, acme's, and the mouse wheel over the board move it,
+and the line under it stays.
 .SS Mouse and keys
 Button 1 on a piece of the side to move marks the squares it can move to;
 button 1 on one of those squares makes the move.
@@ -124,7 +129,7 @@ writes the file, and
 ends
 .IR chess ,
 or says once that the file is not written.
-Over the board the mouse wheel steps back and forward a move;
+Over the board the mouse wheel steps back and forward a move, when the whole board shows;
 over the moves it scrolls them.
 .PP
 The left and right arrows step back and forward a move,
