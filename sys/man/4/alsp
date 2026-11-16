@@ -113,6 +113,16 @@ to
 .B ctl
 does the same at once.
 .PP
+Each window sends its edits to
+.I lspfs
+in order, from a process of its own, so a slow or silent server holds up only its own windows:
+.I alsp
+reads acme's events as they come, and the other windows go on.
+.I Alsp
+answers a write to
+.B ctl
+when it has done what the write asks, and the write holds up no other.
+.PP
 Writing
 .BI doc " winid"
 to
