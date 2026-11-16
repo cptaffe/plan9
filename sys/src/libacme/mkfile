@@ -1,0 +1,20 @@
+</$objtype/mkfile
+
+LIB=/$objtype/lib/libacme.a
+OFILES=\
+	acme.$O\
+	event.$O\
+	seq.$O\
+	thread.$O\
+	util.$O\
+
+HFILES=/sys/include/acme.h\
+	impl.h\
+
+UPDATE=\
+	mkfile\
+	$HFILES\
+	${OFILES:%.$O=%.c}\
+	${LIB:/$objtype/%=/386/%}\
+
+</sys/src/cmd/mksyslib
