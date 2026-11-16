@@ -121,7 +121,21 @@ The write returns when the GPU has done them and the bytes its
 messages asked for are in hand; reads of
 .B data
 then give those bytes, in the order asked, and an empty read after the last.
-An error names the message and fails the write; the messages after it are not done.
+An error names the message and fails the write:
+the messages after it are not done, nor any part of a message it leaves unfinished,
+and the next write starts afresh;
+the messages before it may have taken effect, in part or whole.
+.PP
+A message's bytes, after its letter and numbers, are at most 64 MiB;
+a larger buffer is written in several
+.B w
+messages.
+A write fails if its reads would leave more than 64 MiB unread,
+or its buffers, modules and pipelines would make more than 16384 in the session,
+or its buffers more than 2 GiB.
+A device has at most 32 sessions at once; opening
+.B clone
+when it has them fails.
 .SH EXAMPLES
 Add 1 to each of 64 integers, as in C:
 .IP
