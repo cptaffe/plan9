@@ -129,7 +129,6 @@ _exits(char *s)
 		;
 }
 
-static void (*notef)(void*, char*);
 static char notebuf[ERRMAX];
 static jmp_buf notej;
 static uvlong noteureg[8];
@@ -137,7 +136,6 @@ static uvlong noteureg[8];
 int
 notify(void (*f)(void*, char*))
 {
-	notef = f;
 	return neg(p9web·notify(f));
 }
 
@@ -155,12 +153,11 @@ p9web_note_buf(void)
 }
 
 EXPORT(p9web_note) int
-p9web_note(void)
+p9web_note(void (*f)(void*, char*))
 {
 	switch(setjmp(notej)){
 	case 0:
-		if(notef != nil)
-			(*notef)(noteureg, notebuf);
+		(*f)(noteureg, notebuf);
 		return 0;
 	case 2:
 		return 1;
