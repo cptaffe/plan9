@@ -1,8 +1,13 @@
 #!/bin/rc
-rfork e
+rfork ne
 . /lib/acme.rc
-if(~ $#winid 0){
-	echo usage: Act >[1=2]
+m=()
+if(~ $1 -m){
+	m=1
+	shift
+}
+if(! ~ $#* 0 || ~ $#winid 0){
+	echo usage: Act [-m] >[1=2]
 	exit usage
 }
 f=`{sed 1q /mnt/acme/$winid/tag | awk '{print $1}'}
@@ -18,24 +23,29 @@ if(! test -s $l){
 	exit none
 }
 names=`{awk -F'	' '{sub(/\*$/, "", $1); print $1}' $l}
+fn pick {
+	e=/tmp/lspact.$pid.$1
+	{ echo -n $f' '$1 >[1=0]; cat } <>/mnt/lsp/actdo >$e
+	if(grep -s '^ran ' $e){
+		cat $e >[1=2]
+		rm -f $e
+	}
+	if not if(! test -s $e){
+		echo $1: nothing to do >[1=2]
+		rm -f $e
+	}
+	if not
+		/acme/bin/lspshow $d/+Act $e $f $1 </dev/null >[3=] >[4=] &
+	windel sure
+}
 fn event {
 	switch($2){
 	case x X
-		if(~ $9 $names){
-			e=/tmp/lspact.$pid.$9
-			{ echo -n $f' '$9 >[1=0]; cat } <>/mnt/lsp/actdo >$e
-			if(grep -s '^ran ' $e){
-				cat $e >[1=2]
-				rm -f $e
-			}
-			if not if(! test -s $e){
-				echo $9: nothing to do >[1=2]
-				rm -f $e
-			}
-			if not
-				/acme/bin/lspshow $d/+Act $e $f $9 >[3=] &
-			windel sure
-		}
+		n=$9
+		if(~ $9 [1-9])
+			n=$names($9)
+		if(~ $n $names)
+			pick $n
 		if not
 			winwriteevent $*
 	case l L
@@ -44,7 +54,36 @@ fn event {
 }
 newwindow
 winname $d/+Act
-awk -F'	' '{printf "%-12s %s\n", $1, $2}' $l | mc | winwrite body
+awk -F'	' '{if(NR <= 9) n = NR; else n = " "; printf "%s %-12s %s\n", n, $1, $2}' $l | winwrite body
 rm -f $l
 winctl clean
-wineventloop
+if(~ $#m 0 || ! test -e /mnt/hotkey/mode){
+	wineventloop
+	exit
+}
+p=/tmp/lspact.$pid.p
+mkdir $p
+bind '#|' $p
+rm -f /srv/act.$user
+echo -n 3 >/srv/act.$user <>[3]$p/data1
+{
+	k=`{read}
+	while(! ~ $#k 0 && ! ~ $k quit){
+		switch($k){
+		case esc
+			windel sure
+		case [1-9]
+			n=$names($k)
+			if(! ~ $#n 0)
+				pick $n
+		}
+		k=`{read}
+	}
+} <$p/data &
+{
+	echo act >[1=4] >[2]/dev/null
+	wineventloop
+} >[4]/mnt/hotkey/mode
+echo quit >$p/data1
+unmount $p
+rm -f $p
