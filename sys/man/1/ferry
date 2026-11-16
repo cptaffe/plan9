@@ -1,0 +1,99 @@
+.TH FERRY 1
+.SH NAME
+ferry \- run a program on another system, shipped to it by a command
+.SH SYNOPSIS
+.B ferry
+.I cmd
+[
+.I arg ...
+]
+.B --
+.I prog
+[
+.I arg ...
+]
+.SH DESCRIPTION
+.I Ferry
+runs
+.I prog
+on the system that
+.I cmd
+reaches, with its standard input and output
+.IR ferry 's.
+.I Cmd
+is a command that, given one more argument,
+.BR sh ,
+runs a shell there on its own standard input and output:
+.IP
+.EX
+ferry ssh build1 -- u9cpu -n x
+ferry docker exec -i app -- u9cpu -n x
+.EE
+.PP
+The shell gives the system's name and processor, as
+.B uname -s
+and
+.B uname -m
+do, and
+.I ferry
+finds
+.I prog
+for them in
+.BI /sys/lib/ferry/ os / cputype /bin\f1,
+.I os
+and
+.I cputype
+in Plan 9's names:
+.BR linux ,
+.BR darwin
+or
+.BR freebsd ,
+and
+.BR amd64 ,
+.B arm64
+or
+.BR 386 .
+The other system keeps the program in
+.BR ${XDG_CACHE_HOME:-$HOME/.cache}/p9web ,
+named by its SHA-256 hash, and
+.I ferry
+sends it only if it is not there.
+Then the shell runs it, with the
+.IR arg s,
+and
+.I ferry
+passes on what it reads and writes until either side ends.
+.PP
+.I Ferry
+knows nothing of the programs it ships.
+.IR Cpu (1)
+runs its transport by
+.I ferry
+to ship
+.I u9cpu
+to a host.
+.SH FILES
+.TF /sys/lib/ferry/os/cputype/bin
+.TP
+.BI /sys/lib/ferry/ os / cputype /bin
+the programs
+.I ferry
+ships, bound there by packages: the
+.B u9cpu
+package's for
+.IR cpu (1)
+.PD
+.SH SOURCE
+plan9web's
+.B src/cmd/ferry.c
+.SH SEE ALSO
+.IR cpu (1),
+.IR pkg (1)
+.SH BUGS
+The other system needs
+.IR sh ,
+.IR uname ,
+.IR head
+.B -c
+and a writable home or
+.BR $XDG_CACHE_HOME .
