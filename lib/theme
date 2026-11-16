@@ -24,6 +24,15 @@ sketchpoint	6fb3f2
 sketchdim	7d8594
 sketchguide	343b48
 
+chesslight	8a97ab
+chessdark	4f6684
+chesssel	a98bd6
+chesslast	5d4c7c
+chessarrow	6fb3f2
+chesscheck	ff8a8a
+chesscomment	7d8594
+chesserror	ff8a8a
+
 # menus
 menuback	222833
 menuhigh	3b4a5e
