@@ -67,6 +67,14 @@ with the transport's standard input and output:
 or a container runtime's
 .BR "exec -i" .
 .PP
+.I Cpu
+needs the
+.B u9cpu
+package (see
+.IR pkg (1)),
+as
+.B ssh
+needs its own.
 The first
 .I cpu
 to a host starts its session.
@@ -135,6 +143,7 @@ and
 .B src/u9cpu
 .SH SEE ALSO
 .IR ferry (1),
+.IR pkg (1),
 .IR ssh (1),
 .IR vt (1),
 .IR exportfs (4),
