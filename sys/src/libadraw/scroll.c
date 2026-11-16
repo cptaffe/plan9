@@ -37,7 +37,7 @@ scrollinit(Scroll *s)
 	if((c = themelook("body")) != nil)
 		v = c->bg ? c->bg : c->col;
 	if(v == 0)
-		v = themecolor("back", 0xFFFFEAFF);
+		v = 0xFFFFEAFF;
 	s->back = col(v);
 	s->bord = col(themecolor("bodyborder", DYellowgreen));
 }

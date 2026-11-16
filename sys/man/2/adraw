@@ -69,7 +69,7 @@ the part of it that shows.
 gives it acme's colors from the theme
 .RI ( theme (6)):
 .BR body 's
-back for the part that shows and
+back, or acme's pale yellow, for the part that shows and
 .B bodyborder
 for the rest.
 .I Scrolldraw
