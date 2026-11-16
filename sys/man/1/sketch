@@ -449,13 +449,11 @@ with one, or outside a window, it opens a new window,
 with the file's text if it exists.
 .PP
 .I Sketch
-adds
-.B Draw
-to the window's tag.
-.B Draw
-shows the text, to edit as any other;
-.B Draw
-again reads it back and draws it, or says in
+adds itself to the window's tag.
+.B Sketch
+there ends it, and the window shows its text, to edit as any other;
+.B Sketch
+again draws it, or says in
 .B +Errors
 why it cannot.
 While the drawing shows,
@@ -477,8 +475,9 @@ text, running the command in the file's directory:
 what comes back replaces the selection where it was,
 keeping its names and the points it shares with the rest of the drawing.
 .B Del
-ends
-.IR Sketch .
+deletes the window, ending
+.I Sketch
+with it.
 .PP
 .I Rot
 and
