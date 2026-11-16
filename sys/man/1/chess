@@ -124,18 +124,34 @@ over the moves it scrolls them.
 The left and right arrows step back and forward a move,
 up and down go to the variation before and after,
 Home goes to the start and End to the end of the line.
-.BR f ,
-.BR a ,
-.B p
+Typing a move makes it, in SAN
+.RB ( e4 ,
+.BR Nf3 ,
+.BR exd5 ,
+.BR O-O ,
+.BR e8=Q ,
+with or without
+.BR x ,
+.B +
 and
-.B e
-are
-.BR flip ,
-.BR analysis ,
-.B play
+.BR = ),
+in squares
+.RB ( e2e4 ,
+.BR e7e8q ),
+or as a piece and its square
+.RB ( Nd2 ):
+as it is typed, the line under the board shows it and the board marks the moves it can still be,
+and once it is one move and complete,
+.I chess
+makes it.
+A capital letter is a piece and a small one a file, unless no move fits that way;
+.B o
 and
-.BR eval ;
-Escape lets go of a piece.
+.B 0
+are castling's
+.BR O .
+Newline makes the one move a partial move can be, Backspace takes back a letter,
+and Escape forgets what was typed and lets go of a piece.
 .SS Engine
 The
 .I engine
@@ -254,7 +270,12 @@ go to the variation before and after,
 .B ^
 to the start and
 .B $
-to the end of the line.
+to the end of the line;
+a line beginning with
+.B '
+types what follows it, as the keyboard does, and
+.B '
+alone types a newline.
 .PP
 With
 .BR -p ,
