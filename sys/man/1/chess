@@ -182,19 +182,56 @@ is a command that
 runs in the background,
 speaking UCI, the Universal Chess Interface,
 on its standard input and output.
+An engine is named in
+.BR /lib/chess/engines ,
+an
+.IR ndb (6)
+file read after
+.BR $home/lib/chess/engines ,
+a line each:
+.B engine=
+its name,
+.B cmd=
+the command, and every other attribute an option sent to it at its start, as
+.BI "setoption name " attr " value " value\f1.
+.B -e
+and
+.B $chessengine
+take a name or a command;
 .I Chess
 runs
 .BR $chessengine ,
 or without it
-.BR "pkg run weiss -c weiss" :
+.BR weiss :
 Weiss, Terje Kirstihagen's engine, the
 .B weiss
 package (see
 .IR pkg (1)).
+The file also names
+.BR leela ,
+.IR zero (1)
+searching with Leela's network, and
+.B maia1100
+to
+.BR maia1900 ,
+.I zero
+playing Maia's networks' own moves, as people of those ratings play.
 With
 .B -e
 .B "''"
 there is none.
+.PP
+.B Engine
+.I name
+in the tag, or
+.B engine
+in the menu, changes the engine for analysis, hints, play and eval alike.
+.B Engine
+alone says the engine and lists the names;
+with
+.B $chooser
+set, it runs that command instead, the names a line each on its standard input,
+and takes the line it writes as the name.
 .PP
 Analysis starts off, so the game is yours to think through first, or on with
 .BR -A .
@@ -450,7 +487,10 @@ chessengine=weiss
 Chess game.pgn
 .EE
 .SH FILES
-.TF /lib/theme
+.TF /lib/chess/engines
+.TP
+.B /lib/chess/engines
+the engines, by name
 .TP
 .B /lib/theme
 colors:
