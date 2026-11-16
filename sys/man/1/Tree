@@ -127,8 +127,11 @@ with
 for field names and the dim text, and
 .B function
 for definitions' names.
+Its window is always clean, so one
 .B Del
-ends it, and so does deleting the window it shows.
+deletes it and ends
+.IR Tree ,
+and so does deleting the window it shows.
 When that window takes a new name,
 .I Tree
 renames its own and takes the new name's grammar, or says there is none.
@@ -188,3 +191,7 @@ write of
 and its open can make that open fail, or take the guard
 .I Tree
 set.
+.PP
+.I Tree
+writes a change of the window's text in pieces that end where a rune does, as one Undo;
+an edit by another program between two pieces leaves part of the change written.
