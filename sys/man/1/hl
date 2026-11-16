@@ -95,6 +95,10 @@ forgets document
 .PD
 .PP
 Any program that speaks this, such as one for a small format written by hand, can stand in for one.
+.B /bin/ts/pic
+is one, for
+.IR pic (1)'s
+pictures: their words, labels, numbers, strings and comments.
 .PP
 A grammar's program colors the captures of its query,
 .IB lang /highlights.scm\f1,
@@ -138,9 +142,10 @@ a language's program
 .PD
 .SH SOURCE
 plan9web's
-.B src/cmd/hl.c
+.BR src/cmd/hl.c ,
+.B src/cmd/ts/ts.c
 and
-.BR src/cmd/ts/ts.c ;
+.BR src/cmd/ts/pic.c ;
 tree-sitter's runtime and grammars from
 .BR scripts/dl.sh ,
 and the queries and names from acme-treesitter
