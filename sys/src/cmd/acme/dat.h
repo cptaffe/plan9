@@ -247,6 +247,7 @@ struct WinEditLog
 	Rendez	r;
 	vlong	start;
 	char		**ev;
+	ulong	*evseq;
 	int		nev;
 	int		mev;
 	Fid		**f;
@@ -333,6 +334,11 @@ struct Window
 	int		nwruns;
 	WinEditLog	editlog;	/* per-window body edit notification log */
 	Wsys	*wsys;
+	uint		dotq0;
+	uint		dotq1;
+	int		dotage;
+	uint		sentq0;
+	uint		sentq1;
 };
 
 void	wininit(Window*, Window*, Rectangle);
@@ -500,6 +506,7 @@ void		xfidwinlogclose(Xfid*, Window*);
 void		xfidwinlogread(Xfid*, Window*);
 void		xfidwinlogflush(Xfid*, Window*);
 void	winlogedit(Window*, char, ulong, ulong, Rune *, int);
+void		winlogdot(Window*);
 void		winlogfree(Window*);
 
 struct Reffont

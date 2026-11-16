@@ -46,6 +46,7 @@ char		*fontnames[2] =
 Command *command;
 
 void	dumpthread(void*);
+void	dotthread(void*);
 
 void	acmeerrorinit(void);
 void	readfile(Column*, char*);
@@ -263,6 +264,7 @@ threadmain(int argc, char *argv[])
 	threadcreate(waitthread, nil, STACK);
 	threadcreate(xfidallocthread, nil, STACK);
 	threadcreate(newwindowthread, nil, STACK);
+	threadcreate(dotthread, nil, STACK);
 	if(dumpfile)
 		threadcreate(dumpthread, nil, STACK);
 
@@ -315,6 +317,44 @@ char *oknotes[] ={
 };
 
 int	dumping;
+
+enum
+{
+	Dottick = 50,
+	Dotquiet = 150,
+};
+
+static void
+dotcheck(Window *w, void*)
+{
+	if(w->editlog.nf == 0)
+		return;
+	if(w->body.q0 != w->dotq0 || w->body.q1 != w->dotq1){
+		w->dotq0 = w->body.q0;
+		w->dotq1 = w->body.q1;
+		w->dotage = 0;
+		return;
+	}
+	if(w->dotage < Dotquiet && (w->dotage += Dottick) >= Dotquiet
+	&& (w->dotq0 != w->sentq0 || w->dotq1 != w->sentq1))
+		winlogdot(w);
+}
+
+void
+dotthread(void*)
+{
+	Timer *t;
+
+	threadsetname("dotthread");
+	for(;;){
+		t = timerstart(Dottick);
+		recvul(t->c);
+		timerstop(t);
+		qlock(&row.lk);
+		allwindows(dotcheck, nil);
+		qunlock(&row.lk);
+	}
+}
 
 enum
 {

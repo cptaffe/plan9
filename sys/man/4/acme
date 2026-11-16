@@ -476,6 +476,57 @@ have been if the
 .B event
 file had not been open.
 .TP
+.B log
+gives what happens to the body, a line each, as it happens; a read blocks until there is one.
+An insertion is
+.BI I " q0 q1 " "0 n text" \fR,
+the
+.I n
+runes inserted at
+.IR q0 ,
+.I q1
+being
+.I q0
+plus their number
+.RI ( n
+and the text are 0 and empty when it is longer than an event's);
+a deletion is
+.BI D " q0 q1 " "0 0" \fR.
+Each advances the window's
+.BR seq .
+A line
+.BI S " q0 q1 " "0 0"
+says the body's selection is now
+.I q0
+to
+.IR q1 ,
+once it has stayed there a moment (so a sweep is one line), and when the file is opened;
+its addresses are in the text as the edits before it left it, and it does not advance
+.BR seq .
+A reader skips a line whose first letter it does not know, without counting it as an edit.
+After a write of a number to
+.BR seq ,
+the next open of
+.B log
+starts after that edit, or fails with
+.L "seq mismatch"
+if it is no longer kept.
+.TP
+.B seq
+Reading gives the number of edits made to the body while
+.B log
+was open.
+Writing a number guards the next open of
+.BR body ,
+.BR data ,
+.BR xdata ,
+.B style
+or
+.BR log :
+a read or write through it fails with
+.L "seq mismatch"
+if the body has been edited since, and one that edits moves the guard past its own edit.
+.TP
 .B style
 colours the body's text, in the format of
 .IR theme (6):

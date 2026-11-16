@@ -28,6 +28,7 @@ wininit(Window *w, Window *clone, Rectangle r)
 	w->tagexpand = TRUE;
 	w->body.w = w;
 	w->id = ++winid;
+	w->sentq0 = w->sentq1 = ~0;
 	incref(&w->ref);
 	if(globalincref)
 		incref(&w->ref);
