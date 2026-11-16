@@ -66,7 +66,8 @@ variables set to numbers, such as
 and
 .BR margin ,
 and rows of numbers, separated by spaces or commas, one to a line or several separated by
-.BR ; .
+.BR ; ;
+selecting a point selects its row, so rows that share a line are selected apart.
 A row of one number is a point whose x counts the rows; a row of several is an x
 and the y of a point for each of the rest.
 .I Grapw
@@ -105,7 +106,10 @@ a new x moves every point of the row.
 .I Grapw
 keeps a number the mouse moved less than 4 pixels along.
 A new number has as many decimals as a pixel is worth, and no more than its column has anywhere
-in the graph, so whole numbers stay whole.
+in the graph, so whole numbers stay whole;
+a number written with an exponent, such as
+.BR 2e-3 ,
+keeps one, with as many digits as a pixel is worth.
 Escape or another button takes the drag back.
 .TP
 button 3
@@ -126,7 +130,7 @@ or the x and y of the mouse in the frame.
 .TF Command-Shift-Z
 .TP
 .BR Delete ", Backspace"
-Delete the selected rows.
+Delete the selected rows, keeping what shares their lines.
 .TP
 .BR Command-Z ", control-Z"
 Undo; it keeps the last hundred changes.
@@ -136,7 +140,10 @@ Redo.
 .TP
 .BR Command-C ", control-C"
 Copy the selected rows to
-.BR /dev/snarf .
+.BR /dev/snarf ,
+as
+.IR Grap 's
+pipes send them.
 .TP
 .BR Command-X ", control-X"
 Copy, then delete.
@@ -172,9 +179,10 @@ with one, or outside a window, it opens a new window, with the file's text if it
 Each change writes only the lines it changed into the body, so
 .B Put
 saves it, and diffs stay small.
-Dot is the lines from the first selected row to the last,
-and the rows on dot's lines start selected;
-when the selection empties, dot becomes the point after the lines it covered.
+Dot is the selected rows' lines when they are one range of whole lines,
+and otherwise an empty dot at the first selected row;
+the rows on dot's lines start selected,
+and when the selection empties, dot becomes the point after what it covered.
 When something else changes the body, such as
 .B Edit
 or another program,
@@ -186,6 +194,14 @@ takes the change back;
 a body outside the subset ends the drawing and
 .I Grap
 says why.
+If the body changes while
+.I Grap
+writes a change of its own, as when a pipe's command is still running,
+.I Grap
+writes nothing, says
+.I file
+.BR "changed; try again" ,
+and reads the body again.
 .PP
 .I Grap
 adds itself to the tag.
@@ -211,49 +227,82 @@ and
 .B q
 end it as
 .B Grap
-does, and these commands run in the file's directory:
+does, and these commands run in the file's directory.
+They work on the selection as text:
+the selected rows, one to a line in the file's order, a row joined to another by
+.B ;
+on a line of its own.
+When the selection takes in rows of more than one series,
+each series' rows follow its
+.B draw
+or
+.B new
+line, as the file has it.
 .TP
 .BI | cmd
-Send the selected rows through
-.I cmd
-as one input.
-Its output replaces them as one block, where the first of them was;
-rows not selected stay where they are.
+Send the selection through
+.IR cmd .
+Its output is the selection's new version, read the same way:
+each series' rows in it replace that series' selected rows,
+as one block where the first of them was;
+.I Grap
+takes out a row the output leaves out, even from a line it shares by
+.BR ; ,
+and the rest of the file keeps its text, layout and order.
 With nothing selected, as with
 .IR acme 's
 .BR | ,
 .I cmd
-gets no input, and its output goes in at the insertion point:
+gets nothing, and its rows go in at the insertion point:
 dot's line if dot is in the graph, else after the last row.
 .I Grap
 selects what comes back.
 .TP
 .BI < cmd
-Replace the selected rows with
+Replace the selection with
 .IR cmd 's
-output, as one block where the first of them was, as
+output in the same way, as
 .IR acme 's
 .B <
-replaces a selection, or with nothing selected put it at the insertion point;
-.I Grap
-selects what comes in.
+replaces a selection, or with nothing selected put it at the insertion point.
 .TP
 .BI > cmd
-Send the selected rows to
+Send the selection to
 .IR cmd ,
 or nothing if none is selected, as
 .IR acme 's
 .B >
 does; its output goes to
 .BR +Errors .
+.PD
+.PP
+If
+.I cmd
+fails, or gives back a line that isn't a row or one of the selection's series lines,
+.I Grap
+changes nothing and says why.
+A rewrite is one change to the body, so
+.IR acme 's
+.B Undo
+takes it back.
 .IR Acme 's
+.B Edit
+works on dot as always:
 .B "Edit ,>cmd"
 sends the whole text, and
 .B "Edit ,|cmd"
 changes it.
-.PD
-.PP
 .B Del
+on a window changed since it was last written says
+.IB file " modified"
+and keeps the window and the drawing, as
+.IR acme 's
+.B Del
+does;
+a second
+.BR Del ,
+or
+.BR Delete ,
 deletes the window, ending
 .I Grap
 with it.
@@ -289,6 +338,14 @@ plan9web's
 .IR sketch (1),
 .IR acme (4)
 .SH BUGS
+.I Acme
+guards a window's body for one program at a time:
+another program that guards its writes or reads of the same window, as
+.IR hl (1)
+does, can take
+.IR Grap 's
+guard, so a change can be refused when nothing else changed the body.
+.br
 .I Grapw
 draws text in the screen's font, not troff's, so it loses sizes and most escapes,
 and it draws a mark other than a bullet, box, square, circle, star, plus, times, delta, dot, or tick
