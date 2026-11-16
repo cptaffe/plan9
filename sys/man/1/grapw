@@ -37,10 +37,7 @@ prints it.
 A file with no
 .B .G1
 is all graph; it prints through
-.B "{echo .G1; cat file; echo .G2} | grap"
-or
-.IR Grap 's
-.BR > .
+.BR "{echo .G1; cat file; echo .G2} | grap" .
 If
 .I file
 doesn't exist, the graph starts empty, and
@@ -176,7 +173,19 @@ Each change writes only the lines it changed into the body, so
 .B Put
 saves it, and diffs stay small.
 Dot is the lines from the first selected row to the last,
-and the rows on dot's lines start selected.
+and the rows on dot's lines start selected;
+when the selection empties, dot becomes the point after the lines it covered.
+When something else changes the body, such as
+.B Edit
+or another program,
+.I Grap
+reads it again, keeping selected the rows on lines that didn't change,
+and
+.B Undo
+takes the change back;
+a body outside the subset ends the drawing and
+.I Grap
+says why.
 .PP
 .I Grap
 adds itself to the tag.
@@ -205,33 +214,38 @@ end it as
 does, and these commands run in the file's directory:
 .TP
 .BI | cmd
-Send the selected rows, or with none selected every row, through
+Send the selected rows through
 .I cmd
 as one input.
 Its output replaces them as one block, where the first of them was;
 rows not selected stay where they are.
+With nothing selected, as with
+.IR acme 's
+.BR | ,
+.I cmd
+gets no input, and its output goes in at the insertion point:
+dot's line if dot is in the graph, else after the last row.
 .I Grap
 selects what comes back.
 .TP
 .BI < cmd
 Put
 .IR cmd 's
-output after the selected rows, or after the last row, and select it.
+output after the selected rows, or at the insertion point, and select it.
 .TP
 .BI > cmd
-Send the selected rows, or with none selected the whole text, to
+Send the selected rows to
 .IR cmd ,
-whose output goes to
+or nothing if none is selected, as
+.IR acme 's
+.B >
+does; its output goes to
 .BR +Errors .
-A text with no
-.B .G1
-goes between a
-.B .G1
-and a
-.BR .G2 ,
-so
-.B ">grap | pic | troff"
-prints it.
+.IR Acme 's
+.B "Edit ,>cmd"
+sends the whole text, and
+.B "Edit ,|cmd"
+changes it.
 .PD
 .PP
 .B Del
@@ -247,17 +261,19 @@ window's tag, with the outliers selected:
 |awk '$2 < 100'
 .EE
 .PP
-With nothing selected, sort the rows by x, and add squares:
+With every row selected (Command-A), sort them by x, and add squares after them:
 .IP
 .EX
 |sort -n
 <seq 10 | awk '{print $1, $1*$1}'
 .EE
 .PP
-Typeset the graph:
+Typeset the graph; the second line is for a graph with no
+.BR .G1 :
 .IP
 .EX
->grap | pic | troff >/tmp/graph.out
+Edit ,>grap | pic | troff >/tmp/graph.out
+Edit ,>{echo .G1; cat; echo .G2} | grap | pic | troff >/tmp/graph.out
 .EE
 .SH SOURCE
 plan9web's
@@ -272,9 +288,3 @@ plan9web's
 draws text in the screen's font, not troff's, so it loses sizes and most escapes,
 and it draws a mark other than a bullet, box, square, circle, star, plus, times, delta, dot, or tick
 as its text.
-.br
-.I Grap
-doesn't read again a body that something else changes while the graph shows;
-run
-.I Grap
-again.
