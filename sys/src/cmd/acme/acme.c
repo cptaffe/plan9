@@ -336,6 +336,7 @@ int	dumping;
 enum {
 	Dottick = 50,
 	Dotquiet = 150,	/* how long dot must stay before its S line */
+	Namequiet = 500,	/* how long a typed name must stay before it is logged */
 };
 
 static void
@@ -358,6 +359,17 @@ dotcheck(Window *w, void*)
  * dotthread writes each followed window's dot to its edit log (acme(4)'s
  * S line) once it has stayed put for Dotquiet, so a sweep is one line.
  */
+static void
+namecheck(Window *w, void*)
+{
+	if(w->nameage < 0)
+		return;
+	if((w->nameage += Dottick) >= Namequiet){
+		w->nameage = -1;
+		xfidlog(w, "name");
+	}
+}
+
 void
 dotthread(void*)
 {
@@ -370,6 +382,7 @@ dotthread(void*)
 		timerstop(t);
 		qlock(&row.lk);
 		allwindows(dotcheck, nil);
+		allwindows(namecheck, nil);
 		qunlock(&row.lk);
 	}
 }

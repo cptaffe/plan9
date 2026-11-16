@@ -341,6 +341,7 @@ struct Window {
   Wsys *wsys;
   uint dotq0, dotq1;  /* the body's dot as last seen, and how long it has stayed */
   int dotage;
+  int nameage;	/* how long since a typed rename not yet logged, or -1 */
   uint sentq0, sentq1; /* the dot last written to the edit log as an S line */
 };
 
