@@ -191,9 +191,15 @@ reads it again, keeping selected the rows on lines that didn't change,
 and
 .B Undo
 takes the change back;
-a body outside the subset ends the drawing and
+while the text is outside the subset,
 .I Grap
-says why.
+keeps showing the last drawing it could make, in a border, with the reason and its line,
+says the same in
+.BR +Errors ,
+and takes no edits of the drawing,
+until an edit or
+.B Undo
+makes the text one it can draw again.
 If the body changes while
 .I Grap
 writes a change of its own, as when a pipe's command is still running,
@@ -276,11 +282,16 @@ does; its output goes to
 .BR +Errors .
 .PD
 .PP
-If
-.I cmd
-fails, or gives back a line that isn't a row or one of the selection's series lines,
+As
+.IR acme 's
+pipes do,
 .I Grap
-changes nothing and says why.
+writes what
+.I cmd
+prints whatever its exit status, and a failing status goes to
+.BR +Errors .
+Output with a line that isn't a row or one of the selection's series lines
+takes the selected rows' place as it is, where the first of them was.
 A rewrite is one change to the body, so
 .IR acme 's
 .B Undo
