@@ -53,10 +53,14 @@ if(! test -e lib/pkg)
 # the packages the profile adds (pkg(1)): a name, a name and a hash, or a path, a line each
 git9
 !
-if(! test -e lib/hotkey/acme){
-	mkdir -p lib/hotkey
-	echo include acme.emacs >lib/hotkey/acme
-}
+mkdir -p lib/hotkey
+if(! test -e lib/hotkey/acme)
+	cat > lib/hotkey/acme <<!
+# to update: cp /usr/$user/lib/hotkey/acme /mnt/hotkey/rules
+
+include acme.emacs
+
+!
 if(! test -e README)
 	cat > README <<'!'
 # Welcome to Acme
@@ -90,6 +94,30 @@ window. Type a command at its end and press Return; Del interrupts it
 B2 on *New* makes a window, and B2 on *Put* saves a file. B3 on a file name, such
 as README, opens it, and B3 on a page name, such as acme(4), shows
 that manual page: the plumber sends them to Acme.
+
+## Keys
+
+| Key | Does |
+|---|---|
+| Cmd-S | Put: save the window |
+| Cmd-A | select the whole window |
+| Cmd-P | Search for a file or window |
+| Cmd-Shift-F | Search the files' text, by grep |
+| Cmd-B or F12 | Def: the definition of the word at the cursor |
+| Cmd-Shift-B | Refs: where it is used |
+| Cmd-I | Doc: its documentation, which follows the cursor |
+| Cmd-. | Act: the language server's fixes |
+| F2 | Rename: type the new name after it in the tag, then Esc and B2 |
+| Cmd-Shift-O | Syms: the file's functions and types |
+| Cmd-K, then R, I, T, D, F or C | Refs, Impls, Type, Diag, Fmt, Comp |
+| Cmd-K, then E | an instruction to sibyl for the selection, typed in the tag |
+| Cmd-K, then S | Ask: the selection's lines in the sibyl session, for a question |
+| Ctl-X Ctl-S, Ctl-X K | Emacs's: Put, and Del |
+
+The language server's keys work in a file that a server is set up for (lspfs(4)).
+They are the rules in /lib/hotkey/acme and /lib/hotkey/acme.emacs, which
+lib/hotkey/acme here includes. Add your own below that include line, where a key
+you bind replaces the one it clashes with; its first line updates them (hotkey(1)).
 
 ## Files
 
