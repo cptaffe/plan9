@@ -193,6 +193,16 @@ an arrow shows the engine's best move; and the line under the board gives
 the evaluation, the depth, and the line of play it expects.
 .I Chess
 writes none of this to the game.
+In
+.IR Chess ,
+analysis also opens a window,
+.IB file +Analysis\f1,
+whose first line names the position at dot and the depth,
+and whose lines after it are the engine's three best lines, each its evaluation and its moves;
+button 2 on one plays its moves into the game from dot,
+and turning analysis off, or ending
+.IR Chess ,
+deletes the window.
 .B hint
 in the menu, or the
 .B ?
