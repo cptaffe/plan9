@@ -1,0 +1,7 @@
+# Search(1)'s sources, one a line: a letter, a name, and static or query. A source is the
+# program /bin/srch/name, run as srch/name root [pattern]: a static one once, its lines then
+# filtered as the query is typed, a query one again at each pause in typing. $home/lib/search
+# is read in place of this file.
+w	windows	static
+f	files	static
+g	grep	query
