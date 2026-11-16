@@ -276,7 +276,7 @@ outcode1(tree *t, int eflag)
 
 	if(t==0)
 		return;
-	if(t->type!=NOT && t->type!=';')
+	if(t->type!=NOT && t->type!=';' && !(t->type=='&' && c0 && c0->type==NOT))
 		runq->iflast = 0;
 	switch(t->type){
 	default:
