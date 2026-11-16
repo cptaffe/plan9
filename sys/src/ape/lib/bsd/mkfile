@@ -18,6 +18,7 @@ OFILES=\
 	getpass.$O\
 	gethostname.$O\
 	getopt.$O\
+	getoptlong.$O\
 	getpeername.$O\
 	getprotobyname.$O\
 	getservbyaddr.$O\
