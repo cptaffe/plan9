@@ -46,6 +46,7 @@ void	indent(Text*, Text*, Text*, int, int, Rune*, int);
 void	xkill(Text*, Text*, Text*, int, int, Rune*, int);
 void	local(Text*, Text*, Text*, int, int, Rune*, int);
 void	look(Text*, Text*, Text*, int, int, Rune*, int);
+void	mountx(Text*, Text*, Text*, int, int, Rune*, int);
 void	newcol(Text*, Text*, Text*, int, int, Rune*, int);
 void	paste(Text*, Text*, Text*, int, int, Rune*, int);
 void	put(Text*, Text*, Text*, int, int, Rune*, int);
@@ -82,6 +83,7 @@ static Rune LKill[] = { 'K', 'i', 'l', 'l', 0 };
 static Rune LLoad[] = { 'L', 'o', 'a', 'd', 0 };
 static Rune LLocal[] = { 'L', 'o', 'c', 'a', 'l', 0 };
 static Rune LLook[] = { 'L', 'o', 'o', 'k', 0 };
+static Rune LMount[] = { 'M', 'o', 'u', 'n', 't', 0 };
 static Rune LNew[] = { 'N', 'e', 'w', 0 };
 static Rune LNewcol[] = { 'N', 'e', 'w', 'c', 'o', 'l', 0 };
 static Rune LPaste[] = { 'P', 'a', 's', 't', 'e', 0 };
@@ -93,6 +95,7 @@ static Rune LSnarf[] = { 'S', 'n', 'a', 'r', 'f', 0 };
 static Rune LSort[] = { 'S', 'o', 'r', 't', 0 };
 static Rune LTab[] = { 'T', 'a', 'b', 0 };
 static Rune LUndo[] = { 'U', 'n', 'd', 'o', 0 };
+static Rune LUnmount[] = { 'U', 'n', 'm', 'o', 'u', 'n', 't', 0 };
 static Rune LZerox[] = { 'Z', 'e', 'r', 'o', 'x', 0 };
 
 Exectab exectab[] = {
@@ -113,6 +116,7 @@ Exectab exectab[] = {
 	{ LLoad,		dump,	FALSE,	FALSE,	XXX		},
 	{ LLocal,		local,	FALSE,	XXX,		XXX		},
 	{ LLook,		look,		FALSE,	XXX,		XXX		},
+	{ LMount,		mountx,	FALSE,	TRUE,	XXX		},
 	{ LNew,		new,		FALSE,	XXX,		XXX		},
 	{ LNewcol,	newcol,	FALSE,	XXX,		XXX		},
 	{ LPaste,		paste,	TRUE,	TRUE,	XXX		},
@@ -124,6 +128,7 @@ Exectab exectab[] = {
 	{ LSort,		sort,		FALSE,	XXX,		XXX		},
 	{ LTab,		tab,		FALSE,	XXX,		XXX		},
 	{ LUndo,		undo,	FALSE,	TRUE,	XXX		},
+	{ LUnmount,	mountx,	FALSE,	FALSE,	XXX		},
 	{ LZerox,		zeroxx,	FALSE,	XXX,		XXX		},
 	{ nil, 			0,		0,		0,		0		}
 };
@@ -1013,6 +1018,29 @@ dump(Text *_0, Text *_1, Text *argt, int isdump, int _2, Rune *arg, int narg)
 	else
 		rowload(&row, name, FALSE);
 	free(name);
+}
+
+void
+mountx(Text *_0, Text *_1, Text *argt, int ismount, int _2, Rune *arg, int narg)
+{
+	char *a, *s, *err;
+
+	USED(_0);
+	USED(_1);
+	USED(_2);
+
+	if(narg)
+		a = runetobyte(arg, narg);
+	else
+		free(getbytearg(argt, FALSE, TRUE, &a));
+	s = smprint("%s %s", ismount ? "mount" : "unmount", a ? a : "");
+	err = nsline(s);
+	if(err != nil){
+		warning(nil, "%s\n", err);
+		free(err);
+	}
+	free(s);
+	free(a);
 }
 
 void

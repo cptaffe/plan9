@@ -5,3 +5,5 @@
 w	windows	static
 f	files	static
 g	grep	query
+s	symbols	query
+d	diags	static

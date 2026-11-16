@@ -663,6 +663,17 @@ xfidwrite(Xfid *x)
 		respond(x, &fc, nil);
 		break;
 
+	case Qns:
+		err = nswrite(x->fcall.data);
+		if(err != nil){
+			respond(x, &fc, err);
+			free(err);
+			break;
+		}
+		fc.count = x->fcall.count;
+		respond(x, &fc, nil);
+		break;
+
 	case Qeditout:
 	case QWeditout:
 		r = fullrunewrite(x, &nr);
