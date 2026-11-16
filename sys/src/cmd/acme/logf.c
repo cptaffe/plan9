@@ -208,9 +208,9 @@ xfidlog(Window *w, char *op)
 static int
 isedit(Window *w, WinEditLog *l, char *s)
 {
-	if(l == &w->rdlog)
-		return s[1] == 'I' || s[1] == 'D';
-	return s[0] != 'S';
+	USED(w);
+	USED(l);
+	return s[1] == 'I' || s[1] == 'D';
 }
 
 static WinEditLog*	logof(Xfid*, Window*);
@@ -270,18 +270,6 @@ xfidwinlogclose(Xfid *x, Window *w)
 	qunlock(&l->lk);
 }
 
-/*
- * xfidwinlogread - blocking read.
- *
- * Called by xfidread with the window locked.  We release the window
- * lock before blocking (same pattern as xfideventread) and re-acquire
- * it before returning so the caller's winunlock() is correctly paired.
- *
- * Lock ordering: the window lock is always acquired before l->lk
- * (matching textinsert/textdelete -> winlogedit).  Therefore we must
- * release the window lock BEFORE taking l->lk and re-acquire it AFTER
- * releasing l->lk to avoid an inversion deadlock.
- */
 void
 xfidwinlogread(Xfid *x, Window *w)
 {
@@ -398,16 +386,14 @@ logflush(Xfid *x, WinEditLog *l)
 void
 xfidwinlogflush(Xfid *x, Window *w)
 {
-	logflush(x, &w->editlog);
 	logflush(x, &w->rdlog);
 }
 
 static WinEditLog*
 logof(Xfid *x, Window *w)
 {
-	if(FILE(x->f->qid) == QWrdevent)
-		return &w->rdlog;
-	return &w->editlog;
+	USED(x);
+	return &w->rdlog;
 }
 
 static void
@@ -436,67 +422,6 @@ void
 winrdevent(Window *w, int c1, char *s)
 {
 	logappend(w, &w->rdlog, smprint("%c%s", c1, s));
-}
-
-/*
- * winlogedit - append one line to the window's edit log.
- * Called from textinsert/textdelete (tofile=1, Body only).
- *
- * Format matches the acme event file format (sans C1):
- *
- *   op 'I': I q0 q1 0 nr [text]\n
- *     q0     = rune position of insertion
- *     q1     = q0 + rune count
- *     nr     = rune count included in text field (0 if omitted)
- *     text   = nr runes as UTF-8, present only when nr > 0
- *              (nr == 0 when the insertion is larger than EVENTSIZE)
- *
- *   op 'D': D q0 q1 0 0 \n
- *     q0, q1 = [q0, q1) rune range deleted
- *
- * The window lock may or may not be held by the caller; this function
- * only takes l->lk, which is always acquired after the window lock
- * (never before), so there is no inversion.
- *
- * r/nr are the inserted runes (only used for op=='I').  Pass nil/0 for
- * op=='D' (the deleted text is gone by call time).
- */
-void
-winlogedit(Window *w, char op, ulong q0, ulong q1, Rune *r, int nr)
-{
-	WinEditLog *l = &w->editlog;
-	char *entry;
-
-	qlock(&l->lk);
-	w->seq++;
-	if(l->nf == 0 || l->closed){
-		if(l->nev == 0)
-			l->start = w->seq;
-		qunlock(&l->lk);
-		return;
-	}
-	if(l->nev >= l->mev){
-		l->mev = l->mev ? l->mev*2 : 8;
-		l->ev = erealloc(l->ev, l->mev * sizeof l->ev[0]);
-		l->evseq = erealloc(l->evseq, l->mev * sizeof l->evseq[0]);
-	}
-	/*
-	 * Limit inline text to EVENTSIZE runes, matching the event-file convention.
-	 * Entries larger than EVENTSIZE would exceed the bufio read-buffer used by
-	 * the Go log reader (4096 bytes), causing the 9P server to send more bytes
-	 * than the client's Tread.count and corrupting the stream.  When text is
-	 * omitted (nr==0 in the log line), the Go client falls back to ReadBody.
-	 */
-	if(op == 'I' && nr > 0 && nr <= EVENTSIZE && r != nil)
-		entry = smprint("%c %lud %lud 0 %d %.*S\n", op, q0, q1, nr, nr, r);
-	else
-		entry = smprint("%c %lud %lud 0 0 \n", op, q0, q1);
-	l->evseq[l->nev] = w->seq;
-	l->ev[l->nev++] = entry;
-	if(l->r.l == nil)
-		l->r.l = &l->lk;
-	rwakeupall(&l->r);
-	qunlock(&l->lk);
 }
 
 static void
@@ -528,39 +453,13 @@ logfree(WinEditLog *l)
 void
 winlogfree(Window *w)
 {
-	logfree(&w->editlog);
 	logfree(&w->rdlog);
 }
 
-/*
- * winlogdot - append S q0 q1 0 0, the body's dot, to the window's edit
- * log.  It is not an edit, so seq stays: a style written under the
- * guard of the edit before it is still good.  dotthread calls it when
- * dot has settled where it was not when last written.
- */
 void
 winlogdot(Window *w)
 {
-	WinEditLog *l = &w->editlog;
-
 	logappend(w, &w->rdlog, smprint("MS%ud %ud 0 0 \n", w->body.q0, w->body.q1));
-
-	qlock(&l->lk);
-	if(l->nf == 0 || l->closed){
-		qunlock(&l->lk);
-		return;
-	}
-	if(l->nev >= l->mev){
-		l->mev = l->mev ? l->mev*2 : 8;
-		l->ev = erealloc(l->ev, l->mev * sizeof l->ev[0]);
-		l->evseq = erealloc(l->evseq, l->mev * sizeof l->evseq[0]);
-	}
-	l->evseq[l->nev] = w->seq;
-	l->ev[l->nev++] = smprint("S %ud %ud 0 0 \n", w->body.q0, w->body.q1);
 	w->sentq0 = w->body.q0;
 	w->sentq1 = w->body.q1;
-	if(l->r.l == nil)
-		l->r.l = &l->lk;
-	rwakeupall(&l->r);
-	qunlock(&l->lk);
 }

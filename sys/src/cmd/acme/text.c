@@ -403,9 +403,8 @@ textinsert(Text *t, uint q0, Rune *r, uint n, int tofile)
 		frinsert(&t->fr, r, r+n, q0-t->org);
 	if(t->what == Body && t->w != nil && t->w->nwruns > 0)
 		winstyleinsert(t->w, q0, n);
-	/* notify per-window edit log readers */
 	if(t->what == Body && t->w != nil)
-		winlogedit(t->w, 'I', (ulong)q0, (ulong)(q0+n), r, (int)n);
+		t->w->seq++;
 	if(t->w){
 		c = 'i';
 		if(t->what == Body)
@@ -514,9 +513,8 @@ textdelete(Text *t, uint q0, uint q1, int tofile)
 	}
 	if(t->what == Body && t->w != nil && t->w->nwruns > 0)
 		winstyledelete(t->w, q0, q1);
-	/* notify per-window edit log readers */
 	if(t->what == Body && t->w != nil)
-		winlogedit(t->w, 'D', (ulong)q0, (ulong)q1, nil, 0);
+		t->w->seq++;
 	if(t->w){
 		c = 'd';
 		if(t->what == Body)
