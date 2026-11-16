@@ -40,19 +40,44 @@ for a language without
 every node starts open.
 .PP
 .I Tree
-follows the window, as
-.I hl
-does, by its
+follows the window by its
 .B rdevent
 file
-.RI ( acme (4)):
-after an edit it asks for the parse again, and the nodes still there stay open or closed as they were.
-It highlights the row of the node at the window's selection,
-or of the nearest open node that holds it.
+.RI ( acme (4)).
+It keeps the text, passes each insert and delete on to the grammar's program as an
+.BR edit ,
+and asks for a
+.BR delta ,
+so after an edit only what changed comes back, and the nodes still there stay open or closed as they were.
+When
+.B rdevent
+leaves an insert's text out, as it does for a long one, or the program has lost the text,
+.I Tree
+reads the window's body and starts again.
+.PP
+.I Tree
+highlights the row of the node at the window's selection.
+When the selection moves into a closed node,
+.I Tree
+opens the nodes down to it, and closes them again when the selection leaves them;
+a node opened or closed by hand stays so.
 .PP
 Button 1 on a triangle opens or closes its node.
 Button 1 on a row selects its node and sets the window's selection to the node's text, and shows it.
 The wheel scrolls.
+.PP
+Button 2 drags a row onto another, and the dragged node moves to just before that node,
+or after it in the row's lower half, among its siblings.
+Among the same siblings this reorders them, functions or statements or arguments,
+and the text between siblings, its commas, blank lines and indentation, stays in place.
+Onto another node, such as the
+.B if
+that holds a statement, the node leaves its siblings with the text that separated it,
+and goes in with the text that separates its new siblings, indented as they are,
+and with a semicolon if they end with one and it does not.
+.I Tree
+parses the result first, and refuses a move that would make more errors than there were,
+and says so.
 .PP
 .BI | cmd
 in
@@ -69,11 +94,15 @@ When the node's text has no newline at its end,
 drops one the command adds there.
 .PP
 .IR Tree 's
-own text is the outline, a row to a line, indented by tabs, with
+own text is its output, not something to edit: the outline, a row to a line.
+A row is a tab for each level below the top, then
 .L ▸
-and
+for a closed node,
 .L ▾
-for the triangles; its selection is the selected row, for programs that read it.
+for an open one or a blank for a leaf, a blank,
+the field name and a colon and blank if there is one, the type,
+and a blank and the row's text if it has some.
+Its selection is the selected row.
 Its colors are
 .IR theme (6)'s
 .B body
@@ -117,5 +146,9 @@ plan9web's
 .IR acme (4),
 .IR theme (6)
 .SH BUGS
-Each edit sends the whole text to the grammar's program and reads back every node,
-so a long file is slow to follow.
+A move works on text alone.
+A node that leaves an expression takes the operator before or after it along,
+and nothing takes its place: hoisting does not make a variable for it.
+After each edit
+.B tags
+runs over the whole text.
