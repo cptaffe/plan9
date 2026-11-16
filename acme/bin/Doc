@@ -1,2 +1,4 @@
 #!/bin/rc
+if(! ~ $#winid 0 && test -e /mnt/alsp/ctl && echo doc $winid >/mnt/alsp/ctl >[2]/dev/null)
+	exit
 exec lspq doc
