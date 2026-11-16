@@ -4,6 +4,9 @@ cmd-p	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; rfork n; bind -b /ac
 cmd-F	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; rfork n; bind -b /acme/bin/$cputype /bin; Search -s g}
 # the language server, at dot in the window with the focus, as VS Code's keys where they fit
 f12	{/acme/bin/akey Def}
+# and JetBrains's Cmd-B for the definition, with Cmd-Shift-B for the references
+cmd-b	{/acme/bin/akey Def}
+cmd-B	{/acme/bin/akey Refs}
 cmd-.	{/acme/bin/akey Act}
 cmd-i	{/acme/bin/akey Doc}
 cmd-O	{/acme/bin/akey Syms}

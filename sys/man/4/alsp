@@ -216,8 +216,10 @@ rules for
 .IR acme ,
 .BR /lib/hotkey/acme ,
 run them by key, at dot in the window with the focus:
-F12 is
+F12 or Cmd-B is
 .IR Def ,
+Cmd-Shift-B
+.IR Refs ,
 Cmd-. is
 .IR Act ,
 Cmd-I
