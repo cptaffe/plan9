@@ -19,7 +19,6 @@ fn event {
 	switch($2){
 	case x X
 		if(~ $9 Apply){
-			windoneevent $*
 			if(echo apply $edit >/mnt/alsp/ctl){
 				if(! ~ $#act 0 && grep -s '^command$' $edit)
 					{ echo -n $at' '$act >[1=0]; cat } <>/mnt/lsp/actcmd >[1=2]

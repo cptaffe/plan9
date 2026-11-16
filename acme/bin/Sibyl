@@ -117,16 +117,12 @@ fn event {
 		switch($9){
 		case New
 			new
-			windoneevent $*
 		case 'New '*
 			new `{echo $9 | sed 's/^New //'}
-			windoneevent $*
 		case Delete
 			delete
-			windoneevent $*
 		case Get
 			refresh
-			windoneevent $*
 		case *
 			winwriteevent $*
 		}
@@ -134,7 +130,6 @@ fn event {
 		n=`{lineat $4}
 		if(~ $#n 1){
 			open $n
-			windoneevent $*
 		}
 		if not
 			winwriteevent $*

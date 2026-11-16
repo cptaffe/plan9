@@ -405,11 +405,13 @@ winlogedit(Window *w, char op, ulong q0, ulong q1, Rune *r, int nr)
 	char *entry;
 
 	qlock(&l->lk);
+	w->seq++;
 	if(l->nf == 0 || l->closed){
+		if(l->nev == 0)
+			l->start = w->seq;
 		qunlock(&l->lk);
 		return;
 	}
-	w->seq++;	/* only advance when a log entry is actually written */
 	if(l->nev >= l->mev){
 		l->mev = l->mev ? l->mev*2 : 8;
 		l->ev = erealloc(l->ev, l->mev * sizeof l->ev[0]);

@@ -241,22 +241,6 @@ void		textsetselect(Text*, uint, uint);
 void		textshow(Text*, uint, uint, int);
 void		texttype(Text*, Rune);
 
-/*
- * WinEvRing — shared event ring buffer for a window.
- *
- * Events are stored as: [uint size][owner byte][text (size-1 bytes, ends \n)]
- * All positions (base, tail, Fid.ev*) are monotonically increasing file
- * offsets.  To access position P: buf[P - base].  The buffer grows on
- * demand; GC compacts it once all readers have advanced past the front.
- */
-typedef	struct	WinEvRing WinEvRing;
-struct WinEvRing
-{
-	char	*buf;	/* raw bytes */
-	int	cap;	/* allocated capacity */
-	vlong	base;	/* file offset of buf[0] */
-	vlong	tail;	/* file offset of next write */
-};
 struct WinEditLog
 {
 	QLock	lk;
@@ -318,8 +302,9 @@ struct Window
 	Range	wrselrange;
 	int		rdselfd;
 	Column	*col;
-	WinEvRing	evring;	/* shared event ring buffer */
-	Fid	*eventhead;	/* newest reader (pipeline head); nil if none */
+	Xfid		*eventx;
+	char		*events;
+	int		nevents;
 	int		owner;
 	int		maxlines;
 	Dirlist	**dlp;
@@ -465,12 +450,6 @@ struct Fid
 	Window	*w;
 	Dirtab	*dir;
 	Fid		*next;
-	Fid	*eventnext;	/* next reader toward acme (lower priority) */
-	vlong	evhead;	/* oldest unacknowledged event position in ring */
-	vlong	evread;	/* next position to deliver to this reader */
-	vlong	evlimit;	/* permission boundary: may read up to here */
-	Xfid	*eventx;	/* Xfid blocked waiting for events, or nil */
-	int	evfollow;	/* records still to follow the last command written back */
 	Mntdir	*mntdir;
 	int		nrpart;
 	uchar	rpart[UTFmax];

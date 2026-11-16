@@ -388,7 +388,6 @@ execevent(Window *w, Event *e, int (*command)(Window*, char*))
 		if(e->flag & 1)
 			fprint(w->event, "%c%c%d %d\n", e->c1, e->c2, e->q0, e->q1);
 		else{	/* send text to main window */
-			windoneevent(w, e);
 			len = strlen(s);
 			if(len>0 && s[len-1]!='\n' && s[len-1]!='\004'){
 				if(!needfree){
@@ -403,8 +402,7 @@ execevent(Window *w, Event *e, int (*command)(Window*, char*))
 			}
 			sendit(s);
 		}
-	}else
-		windoneevent(w, e);
+	}
 	if(needfree)
 		free(s);
 }

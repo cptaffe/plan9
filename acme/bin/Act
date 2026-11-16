@@ -22,7 +22,6 @@ fn event {
 	switch($2){
 	case x X
 		if(~ $9 $names){
-			windoneevent $*
 			e=/tmp/lspact.$pid.$9
 			{ echo -n $f' '$9 >[1=0]; cat } <>/mnt/lsp/actdo >$e
 			if(grep -s '^ran ' $e){

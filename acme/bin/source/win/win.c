@@ -217,12 +217,6 @@ winwriteevent(Window *w, Event *e)
 	fprint(w->event, "%c%c%d %d\n", e->c1, e->c2, e->q0, e->q1);
 }
 
-void
-windoneevent(Window *w, Event *e)
-{
-	fprint(w->event, "%c%c%d %d 0 0 \n", e->c1, e->c2, e->q0, e->q1);
-}
-
 static int
 nrunes(char *s, int nb)
 {

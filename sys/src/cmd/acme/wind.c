@@ -329,7 +329,7 @@ winclose(Window *w)
 		for(i=0; i<w->nincl; i++)
 			free(w->incl[i]);
 		free(w->incl);
-		free(w->evring.buf);
+		free(w->events);
 		winlogfree(w);
 		winclearstyle(w);
 		free(w->wsys);
@@ -340,16 +340,15 @@ winclose(Window *w)
 void
 windelete(Window *w)
 {
-	Fid *f;
 	Xfid *x;
 
-	/* Wake every blocked event reader so they can return "window shut down". */
-	for(f = w->eventhead; f != nil; f = f->eventnext){
-		x = f->eventx;
-		if(x != nil){
-			f->eventx = nil;
-			sendp(x->c, nil);
-		}
+	x = w->eventx;
+	if(x){
+		w->nevents = 0;
+		free(w->events);
+		w->events = nil;
+		w->eventx = nil;
+		sendp(x->c, nil);	/* wake him up */
 	}
 	winlogfree(w);
 	wsysdelete(w);
@@ -694,11 +693,9 @@ winctlprint(Window *w, char *buf, int fonts)
 void
 winevent(Window *w, char *fmt, ...)
 {
+	int n;
 	char *b;
-	int n, recsize, used;
-	char *p;
-	uint sz;
-	Fid *f;
+	Xfid *x;
 	va_list arg;
 
 	if(w->nopen[QWevent] == 0)
@@ -711,33 +708,14 @@ winevent(Window *w, char *fmt, ...)
 	if(b == nil)
 		error("vsmprint failed");
 	n = strlen(b);
-
-	/*
-	 * Append record: [uint size][owner byte][n event bytes]
-	 * size = 1 + n (owner + text); total record = 4 + 1 + n bytes.
-	 */
-	sz = 1 + n;
-	recsize = 4 + sz;
-	used = (int)(w->evring.tail - w->evring.base);
-	if(used + recsize > w->evring.cap){
-		w->evring.cap = used + recsize + 8192;
-		w->evring.buf = erealloc(w->evring.buf, w->evring.cap);
-	}
-	p = w->evring.buf + used;
-	memmove(p, &sz, 4); p += 4;
-	*p++ = (char)w->owner;
-	memmove(p, b, n);
+	w->events = erealloc(w->events, w->nevents+1+n);
+	w->events[w->nevents++] = w->owner;
+	memmove(w->events+w->nevents, b, n);
 	free(b);
-	w->evring.tail += recsize;
-
-	/* Notify the head reader (most-recently-opened; highest priority). */
-	f = w->eventhead;
-	if(f != nil){
-		f->evlimit = w->evring.tail;
-		if(f->eventx != nil){
-			Xfid *x = f->eventx;
-			f->eventx = nil;
-			sendp(x->c, nil);
-		}
+	w->nevents += n;
+	x = w->eventx;
+	if(x){
+		w->eventx = nil;
+		sendp(x->c, nil);
 	}
 }
