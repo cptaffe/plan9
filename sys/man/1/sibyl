@@ -45,7 +45,10 @@ sibyl, Sibyl, Review, quibble \- a programmer's assistant for Acme
 is a coding agent that Acme drives through files: its sessions are those of
 .BR /mnt/sibyl ,
 served by
-.IR sibylfs ,
+.IR sibylfs (4),
+which
+.I acmestart
+mounts before Acme starts,
 and the model's one tool, rc, is run by
 .I sibylrun
 as
@@ -245,7 +248,12 @@ is, bound to session
 .IR n ,
 which must be open as
 .BR "sibyl -i" :
-the text on standard input is sent to the session as a turn of its own, an aside on
+the text on standard input is a question on the session's
+.BR ask ,
+whose number is in
+.BI $home/lib/sibyl/ n .session1;
+.B sibyl -i
+answers it by sending it as a turn of its own, an aside on
 .B data
 that the session's other readers pass over, and the answer is printed.
 The session's window and transcript show the question and its answer as any turn.
@@ -260,6 +268,13 @@ transcript
 .BI $home/lib/sibyl/ n .tree
 its copy's changes, the shadow of
 .IR cowfs (4)
+.TP
+.BI $home/lib/sibyl/ n .session
+the number of its
+.IR sibylfs (4)
+session while
+.B sibyl -i
+runs
 .TP
 .BI $home/lib/sibyl/ n .tree/.cow/fed
 what
@@ -294,8 +309,31 @@ and
 .SH SEE ALSO
 .IR acme (1),
 .IR cowfs (4),
+.IR sibylfs (4),
 .IR searchfs (4)
 .SH BUGS
+Outside
+.IR acmestart ,
+in
+.IR rio (1)
+say,
+.I sibyl
+with no
+.B /mnt/sibyl
+mounts
+.BR /srv/sibyl ,
+posting a
+.I sibylfs
+there first if there is none, and so trusts whatever the user's processes posted by that
+name; so do
+.B /srv/search
+for
+.IR searchfs (4),
+and
+.BI /srv/sibyl. n .tree
+for the session's
+.IR cowfs (4).
+.PP
 .I Review
 watches the copy once a second.
 A paragraph the agent changes loses your edits to its hunks, though not your lines.
