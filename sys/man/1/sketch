@@ -17,6 +17,21 @@ sketch \- draw with constraints, after Sutherland's Sketchpad
 [
 .I file
 ]
+.br
+.B Sketch
+[
+.I file
+]
+.br
+.B rot
+[
+.I degrees
+]
+.br
+.B scale
+[
+.I factor
+]
 .SH DESCRIPTION
 .I Sketch
 is Ivan Sutherland's Sketchpad (1963) for a
@@ -414,11 +429,73 @@ The log begins with
 and
 .BR dpi ,
 names each thing it points at as the drawing will, and gives every move of a drag.
+.SS Sketch
+.I Sketch
+is
+.I sketch
+in an
+.IR acme (1)
+window, whose body is the drawing: the text under it is the picture's
+.IR pic (1),
+rewritten after each change, so
+.B Put
+saves it.
+With no
+.IR file ,
+.I Sketch
+draws the window it is run from,
+.BR $winid ;
+with one, or outside a window, it opens a new window,
+with the file's text if it exists.
+.PP
+.I Sketch
+adds
+.B Draw
+to the window's tag.
+.B Draw
+shows the text, to edit as any other;
+.B Draw
+again reads it back and draws it, or says in
+.B +Errors
+why it cannot.
+While the drawing shows,
+.B Undo
+and
+.B Redo
+are
+.IR sketch 's,
+and a command beginning with
+.BR | ,
+.B <
+or
+.B >
+pipes the selection as
+.IR acme (1)
+does a selection of text, but as its
+.I pic
+text, running the command in the file's directory:
+what comes back replaces the selection where it was,
+keeping its names and the points it shares with the rest of the drawing.
+.B Del
+ends
+.IR Sketch .
+.PP
+.I Rot
+and
+.I scale
+are such commands: they turn a picture's points about their middle,
+90° if not told, and scale them, twice if not told.
 .SH FILES
 .TF /lib/font/hershey/futural.jhf
 .TP
 .B /lib/sketch
 the definitions
+.TP
+.B /sys/lib/sketch/xf.awk
+.I rot
+and
+.IR scale 's
+program
 .TP
 .B /lib/font/hershey/futural.jhf
 the stroke font for text
@@ -426,8 +503,12 @@ the stroke font for text
 .SH SOURCE
 plan9web's
 .B src/cmd/sketch
+and
+.BR rc/bin/rot ,
+.B rc/bin/scale
 .SH "SEE ALSO"
-.IR pic (1)
+.IR pic (1),
+.IR acme (4)
 .br
 Ivan E. Sutherland,
 ``Sketchpad: A man-machine graphical communication system'',
