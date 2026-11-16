@@ -1068,6 +1068,9 @@ out:
 			err = wsysdraw(w, x->f);
 			if(err != nil)
 				break;
+			if(!w->isdir)
+				w->filemenu = TRUE;
+			settag = TRUE;
 			m = 4;
 		}else
 		{
