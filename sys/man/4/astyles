@@ -160,7 +160,7 @@ so each layer's runs keep their colors.
 .SS Edits
 .I Astyles
 follows each window's edits in its
-.B log
+.B rdevent
 file.
 A layer's runs move with text inserted or deleted before them,
 and a run grows to cover text typed inside it, until its program writes the layer again.
