@@ -4,6 +4,10 @@ if(! ~ $#* 1 2 || ~ $#winid 0){
 	echo usage: lspq kind [arg] >[1=2]
 	exit usage
 }
+if(! test -e /mnt/lsp/$1){
+	echo 'no language server: lspfs(4) is not mounted on /mnt/lsp' >[1=2]
+	exit nolsp
+}
 f=`{sed 1q /mnt/acme/$winid/tag | awk '{print $1}'}
 {
 	echo -n 'addr=dot' >/mnt/acme/$winid/ctl
