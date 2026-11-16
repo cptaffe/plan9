@@ -753,12 +753,6 @@ texttype(Text *t, Rune r)
 	rp = &r;
 	if(t->w && t->what==Body && wsyskey(t->w, r))
 		return;
-	/* veil: every key but the wheel's goes to the event file, uninterpreted */
-	if(t->w && t->w->noecho && t->what==Body && r!=Kscrolloneup && r!=Kscrollonedown){
-		typecommit(t);
-		winevent(t->w, "%c%d %d 0 %d %.*S\n", 'V', t->q0, t->q0+nr, nr, nr, rp);
-		return;
-	}
 	switch(r){
 	case Kleft:
 		typecommit(t);
@@ -900,7 +894,6 @@ texttype(Text *t, Rune r)
 		filemark(t->file);
 	}
 	/* cut/paste must be done after the seq++/filemark */
-	/* TODO: veil: paste should not insert */
 	switch(r){
 	case 0x18:	/* ^X: cut */
 		typecommit(t);

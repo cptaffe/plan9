@@ -1223,15 +1223,6 @@ out:
 			w->noscroll = FALSE;
 			m = 6;
 		}else
-		if(strncmp(p, "veil", 4) == 0){	/* stop displaying keyboard input */
-			w->noecho = TRUE;
-			settag = TRUE;
-			m = 4;
-		}else
-		if(strncmp(p, "unveil", 6) == 0){	/* display keyboard input */
-			w->noecho = FALSE;
-			m = 6;
-		}else
 		if(strncmp(p, "draw", 4)==0 && (p[4]==0 || p[4]=='\n')){
 			err = wsysdraw(w, x->f);
 			if(err != nil)
