@@ -142,35 +142,6 @@ write it to
 For more control, open
 .BR /dev/new/ctl
 and use the interface described below.
-.TP
-.B ns
-is write-only, for its owner.
-Each line written to it is a line of
-.IR namespace (6),
-one of
-.IP
-.EX
-mount \fR[\fP-abcC\fR]\fP \fIsrvfile mtpt \fR[\fPspec\fR]\fP
-bind \fR[\fP-abcC\fR]\fP \fInew old\fP
-unmount \fR[\fP\fInew\fR]\fP \fIold\fP
-.EE
-.IP
-which
-.I acme
-does in its own name space, as its
-.B Mount
-and
-.B Unmount
-commands do
-(see
-.IR acme (1)).
-Commands run after the write see the change; those already running do not.
-Lines starting with
-.B #
-are ignored.
-A line that is not one of the three, or whose call fails,
-fails the write with the error,
-and the lines after it are not done.
 .LP
 .PP
 Each
@@ -700,5 +671,4 @@ which can be read only while the body is drawn.
 .IR acme (1),
 .IR rio (4),
 .IR cons (3),
-.IR namespace (6),
 .IR theme (6).

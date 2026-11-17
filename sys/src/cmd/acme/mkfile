@@ -16,7 +16,6 @@ OFILES=\
 	file.$O\
 	fsys.$O\
 	look.$O\
-	ns.$O\
 	logf.$O\
 	regx.$O\
 	rows.$O\
