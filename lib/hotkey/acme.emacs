@@ -1,7 +1,7 @@
 include acme
 ctl-x ctl-s	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && echo put >/mnt/acme/$acmewin/ctl}
 ctl-x k	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && echo del >/mnt/acme/$acmewin/ctl}
-ctl-x h	{echo cmd-a >/mnt/hotkey/send}
+ctl-x h	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && cd /mnt/acme/$acmewin && {echo -n , >addr; echo -n 'dot=addr' >ctl} <[3]addr}
 ctl-x u	{echo ctl-z >/mnt/hotkey/send}
 ctl-_	{echo ctl-z >/mnt/hotkey/send}
 ctl-f	{echo right >/mnt/hotkey/send}
