@@ -739,6 +739,23 @@ after the text and the line
 .BR (reloaded) ,
 rather than in a new one.
 .PP
+.I Win
+is
+.B win dumb
+.RI [ command ]:
+.I dumb
+stands between
+.I win
+and the command, dropping a Unix program's terminal escapes and keeping its progress
+lines to one each, and sets
+.B TERM
+to
+.BR dumb .
+The window
+.B acmestart
+opens is a
+.IR Win .
+.PP
 .I Awd
 loads the tag line of its window with the directory in which it's running, suffixed
 .BI - label

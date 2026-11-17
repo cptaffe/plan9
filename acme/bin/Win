@@ -1,0 +1,4 @@
+#!/bin/rc
+# Win [cmd ...]: win with dumb between it and cmd, rc -i if none, so a Unix program's
+# escapes are dropped and its progress lines kept to one; win alone has no filter.
+exec win dumb $*
