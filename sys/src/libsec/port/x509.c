@@ -2058,25 +2058,43 @@ asn1mpint(Elem *e)
 	return nil;
 }
 
-static mpint*
-pkcs1pad(Bytes *b, mpint *modulus)
+mpint*
+pkcs1padbuf(uchar *buf, int len, mpint *modulus, int blocktype)
 {
-	int n = (mpsignif(modulus)+7)/8;
-	int pm1, i;
+	int i, n, pad;
 	uchar *p;
 	mpint *mp;
 
-	pm1 = n - 1 - b->len;
-	p = (uchar*)emalloc(n);
-	p[0] = 0;
-	p[1] = 1;
-	for(i = 2; i < pm1; i++)
-		p[i] = 0xFF;
-	p[pm1] = 0;
-	memcpy(&p[pm1+1], b->data, b->len);
+	n = (mpsignif(modulus)-1)/8;
+	pad = n - 2 - len;
+	if(pad < 8){
+		werrstr("rsa modulus too small");
+		return nil;
+	}
+	if((p = malloc(n)) == nil)
+		return nil;
+	p[0] = blocktype;
+	switch(blocktype){
+	default:
+	case 1:
+		memset(p+1, 0xFF, pad);
+		break;
+	case 2:
+		for(i=1; i <= pad; i++)
+			p[i] = 1 + nfastrand(255);
+		break;
+	}
+	p[1+pad] = 0;
+	memmove(p+2+pad, buf, len);
 	mp = betomp(p, n, nil);
 	free(p);
 	return mp;
+}
+
+static mpint*
+pkcs1pad(Bytes *b, mpint *modulus)
+{
+	return pkcs1padbuf(b->data, b->len, modulus, 1);
 }
 
 RSApriv*
@@ -2530,6 +2548,45 @@ errret:
 	return key;
 }
 
+int
+asn1encodedigest(DigestState* (*fun)(uchar*, ulong, uchar*, DigestState*), uchar *digest, uchar *buf, int len)
+{
+	static struct { int alg; int dlen; } da[] = {
+		ALG_md5, MD5dlen,
+		ALG_sha1, SHA1dlen,
+		ALG_sha256, SHA2_256dlen,
+		ALG_sha384, SHA2_384dlen,
+		ALG_sha512, SHA2_512dlen,
+		ALG_sha224, SHA2_224dlen,
+	};
+	Bytes *b;
+	Elem e;
+	int i, n;
+
+	for(i = 0; i < nelem(da); i++)
+		if(digestalg[da[i].alg] == fun)
+			break;
+	if(i == nelem(da)){
+		werrstr("unknown digest");
+		return -1;
+	}
+	e = mkseq(
+		mkel(mkalg(da[i].alg),
+		mkel(mkoctet(digest, da[i].dlen),
+		nil)));
+	n = -1;
+	if(encode(e, &b) == ASN_OK){
+		if(b->len <= len){
+			n = b->len;
+			memmove(buf, b->data, n);
+		}else
+			werrstr("digest buffer too short");
+		freebytes(b);
+	}
+	freevalfields(&e.val);
+	return n;
+}
+
 uchar*
 X509gen(RSApriv *priv, char *subj, ulong valid[2], int *certlen)
 {
@@ -2578,6 +2635,8 @@ X509gen(RSApriv *priv, char *subj, ulong valid[2], int *certlen)
 		goto errret;
 	pkcs1 = pkcs1pad(sigbytes, pk->n);
 	freebytes(sigbytes);
+	if(pkcs1 == nil)
+		goto errret;
 	rsadecrypt(priv, pkcs1, pkcs1);
 	buflen = mptobe(pkcs1, nil, 0, &buf);
 	mpfree(pkcs1);
@@ -2638,6 +2697,8 @@ X509req(RSApriv *priv, char *subj, int *certlen)
 		goto errret;
 	pkcs1 = pkcs1pad(sigbytes, pk->n);
 	freebytes(sigbytes);
+	if(pkcs1 == nil)
+		goto errret;
 	rsadecrypt(priv, pkcs1, pkcs1);
 	buflen = mptobe(pkcs1, nil, 0, &buf);
 	mpfree(pkcs1);

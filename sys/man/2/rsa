@@ -1,9 +1,11 @@
 .TH RSA 2
 .SH NAME
 asn1dump,
+asn1encodedigest,
 asn1toRSApub,
 asn1toRSApriv,
 decodePEM,
+pkcs1padbuf,
 rsadecrypt,
 rsaencrypt,
 rsagen,
@@ -76,6 +78,15 @@ uchar*	X509req(RSApriv *priv, char *subj, int *certlen);
 .PP
 .B
 char*	X509verify(uchar *cert, int ncert, RSApub *pk)
+.PP
+.B
+int	asn1encodedigest(DigestState* (*fun)(uchar*, ulong, uchar*, DigestState*),
+.br
+.B
+		uchar *digest, uchar *buf, int len)
+.PP
+.B
+mpint*	pkcs1padbuf(uchar *buf, int len, mpint *modulus, int blocktype)
 .DT
 .SH DESCRIPTION
 RSA is a public key encryption algorithm.  The owner of a key publishes
@@ -222,6 +233,50 @@ If not nil,
 is set to the first character beyond the
 .I type
 section.
+.PP
+.I Asn1encodedigest
+writes into
+.I buf
+the PKCS #1 DigestInfo for
+.IR digest ,
+made by
+.IR fun ,
+one of
+.IR md5 ,
+.IR sha1 ,
+.IR sha2_224 ,
+.IR sha2_256 ,
+.IR sha2_384
+and
+.I sha2_512
+in
+.IR sechash (2).
+It returns the encoding's length, or \-1 if
+.I fun
+is not one of these or
+.I len
+is too short.
+.PP
+.I Pkcs1padbuf
+pads the
+.I len
+bytes at
+.I buf
+as PKCS #1 v1.5 block type
+.I blocktype
+for
+.IR modulus :
+1, for a signature, pads with 0xFF bytes,
+and 2, for encryption, with random nonzero bytes.
+It returns the padded block as an
+.BR mpint ,
+or nil if the modulus is too small.
+To sign,
+.I rsadecrypt
+the result of
+.I pkcs1padbuf
+on the result of
+.IR asn1encodedigest .
 .SH SOURCE
 .B /sys/src/libsec
 .SH SEE ALSO

@@ -9,7 +9,8 @@
  *
  * all numbers are hexadecimal biginits parsable with strtomp.
  *
- * Sign (PKCS #1 using hash=sha1 or hash=md5)
+ * Sign (PKCS #1 using hash=sha1, md5, sha256 or sha512,
+ * from the start attributes, else the key's, else sha1)
  *	write hash(msg)
  *	read signature(hash(msg))
  *
@@ -50,9 +51,23 @@ struct State
 	Key *key;
 	mpint *digest;
 	int sigresp;
+	char *hash;
 };
 
-static mpint* mkdigest(RSApub *key, char *hashalg, uchar *hash, uint dlen);
+typedef struct Hash Hash;
+struct Hash
+{
+	char *name;
+	DigestState *(*fun)(uchar*, ulong, uchar*, DigestState*);
+	int dlen;
+};
+
+static Hash hashes[] = {
+	"sha1",	sha1,	SHA1dlen,
+	"md5",	md5,	MD5dlen,
+	"sha256",	sha2_256,	SHA2_256dlen,
+	"sha512",	sha2_512,	SHA2_512dlen,
+};
 
 static RSApriv*
 readrsapriv(Key *k)
@@ -92,7 +107,7 @@ rsainit(Proto*, Fsstate *fss)
 {
 	Keyinfo ki;
 	State *s;
-	char *role;
+	char *role, *a;
 
 	if((role = _strfindattr(fss->attr, "role")) == nil)
 		return failure(fss, "rsa role not specified");
@@ -106,6 +121,10 @@ rsainit(Proto*, Fsstate *fss)
 		return failure(fss, "rsa role %s unimplemented", role);
 
 	s = emalloc(sizeof *s);
+	if((a = _strfindattr(fss->attr, "hash")) != nil){
+		s->hash = estrdup(a);
+		fss->attr = _delattr(fss->attr, "hash");
+	}
 	fss->phasename = phasenames;
 	fss->maxphase = Maxphase;
 	fss->ps = s;
@@ -186,6 +205,8 @@ rsawrite(Fsstate *fss, void *va, uint n)
 	State *s;
 	char *hash;
 	int dlen;
+	Hash *h;
+	uchar asn1[128];
 
 	s = fss->ps;
 	switch(fss->phase){
@@ -211,21 +232,24 @@ rsawrite(Fsstate *fss, void *va, uint n)
 		return RpcOk;
 	case SNeedHash:
 	case VNeedHash:
-		/* get hash type from key */
-		hash = _strfindattr(s->key->attr, "hash");
+		hash = s->hash;
+		if(hash == nil)
+			hash = _strfindattr(s->key->attr, "hash");
 		if(hash == nil)
 			hash = "sha1";
-		if(strcmp(hash, "sha1") == 0)
-			dlen = SHA1dlen;
-		else if(strcmp(hash, "md5") == 0)
-			dlen = MD5dlen;
-		else
+		for(h = hashes; h < hashes+nelem(hashes); h++)
+			if(strcmp(hash, h->name) == 0)
+				break;
+		if(h == hashes+nelem(hashes))
 			return failure(fss, "unknown hash function %s", hash);
-		if(n != dlen)
+		if(n != h->dlen)
 			return failure(fss, "hash length %d should be %d",
-				n, dlen);
+				n, h->dlen);
+		dlen = asn1encodedigest(h->fun, va, asn1, sizeof asn1);
+		if(dlen < 0)
+			return failure(fss, nil);
 		priv = s->key->priv;
-		s->digest = mkdigest(&priv->pub, hash, (uchar *)va, n);
+		s->digest = pkcs1padbuf(asn1, dlen, priv->pub.n, 1);
 		if(s->digest == nil)
 			return failure(fss, nil);
 		if(fss->phase == VNeedHash)
@@ -257,6 +281,7 @@ rsaclose(Fsstate *fss)
 		mpfree(s->resp);
 	if(s->digest)
 		mpfree(s->digest);
+	free(s->hash);
 	free(s);
 }
 
@@ -287,116 +312,3 @@ Proto rsa = {
 .addkey=	rsaaddkey,
 .closekey=	rsaclosekey,
 };
-
-/*
- * Simple ASN.1 encodings.
- * Lengths < 128 are encoded as 1-bytes constants,
- * making our life easy.
- */
-
-/*
- * Hash OIDs
- *
- * SHA1 = 1.3.14.3.2.26
- * MDx = 1.2.840.113549.2.x
- */
-#define O0(a,b)	((a)*40+(b))
-#define O2(x)	\
-	(((x)>> 7)&0x7F)|0x80, \
-	((x)&0x7F)
-#define O3(x)	\
-	(((x)>>14)&0x7F)|0x80, \
-	(((x)>> 7)&0x7F)|0x80, \
-	((x)&0x7F)
-uchar oidsha1[] = { O0(1, 3), 14, 3, 2, 26 };
-uchar oidmd2[] = { O0(1, 2), O2(840), O3(113549), 2, 2 };
-uchar oidmd5[] = { O0(1, 2), O2(840), O3(113549), 2, 5 };
-
-/*
- *	DigestInfo ::= SEQUENCE {
- *		digestAlgorithm AlgorithmIdentifier,
- *		digest OCTET STRING
- *	}
- *
- * except that OpenSSL seems to sign
- *
- *	DigestInfo ::= SEQUENCE {
- *		SEQUENCE{ digestAlgorithm AlgorithmIdentifier, NULL }
- *		digest OCTET STRING
- *	}
- *
- * instead.  Sigh.
- */
-static int
-mkasn1(uchar *asn1, char *alg, uchar *d, uint dlen)
-{
-	uchar *obj, *p;
-	uint olen;
-
-	if(strcmp(alg, "sha1") == 0){
-		obj = oidsha1;
-		olen = sizeof(oidsha1);
-	}else if(strcmp(alg, "md5") == 0){
-		obj = oidmd5;
-		olen = sizeof(oidmd5);
-	}else{
-		sysfatal("bad alg in mkasn1");
-		return -1;
-	}
-
-	p = asn1;
-	*p++ = 0x30;		/* sequence */
-	p++;
-
-	*p++ = 0x30;		/* another sequence */
-	p++;
-
-	*p++ = 0x06;		/* object id */
-	*p++ = olen;
-	memmove(p, obj, olen);
-	p += olen;
-
-	*p++ = 0x05;		/* null */
-	*p++ = 0;
-
-	asn1[3] = p - (asn1+4);	/* end of inner sequence */
-
-	*p++ = 0x04;		/* octet string */
-	*p++ = dlen;
-	memmove(p, d, dlen);
-	p += dlen;
-
-	asn1[1] = p - (asn1+2);	/* end of outer sequence */
-	return p - asn1;
-}
-
-static mpint*
-mkdigest(RSApub *key, char *hashalg, uchar *hash, uint dlen)
-{
-	mpint *m;
-	uchar asn1[512], *buf;
-	int len, n, pad;
-
-	/*
-	 * Create ASN.1
-	 */
-	n = mkasn1(asn1, hashalg, hash, dlen);
-
-	/*
-	 * PKCS#1 padding
-	 */
-	len = (mpsignif(key->n)+7)/8 - 1;
-	if(len < n+2){
-		werrstr("rsa key too short");
-		return nil;
-	}
-	pad = len - (n+2);
-	buf = emalloc(len);
-	buf[0] = 0x01;
-	memset(buf+1, 0xFF, pad);
-	buf[1+pad] = 0x00;
-	memmove(buf+1+pad+1, asn1, n);
-	m = betomp(buf, len, nil);
-	free(buf);
-	return m;
-}
