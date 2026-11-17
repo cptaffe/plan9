@@ -329,6 +329,26 @@ attribute set to
 .BR sshserve ,
 or
 .BR tls .
+A
+.B role=sign
+or
+.B role=verify
+conversation takes a hash of the message,
+made by the function named by the
+.B hash
+attribute:
+.BR sha1 ,
+.BR md5 ,
+.BR sha256
+or
+.BR sha512 .
+The attribute is taken from the
+.B start
+request, else from the key, else it is
+.BR sha1 .
+The one in
+.B start
+does not take part in choosing the key.
 .PP
 .B Wpapsk
 requires a key with

@@ -288,6 +288,9 @@ uchar*		X509gen(RSApriv *priv, char *subj, ulong valid[2], int *certlen);
 uchar*		X509req(RSApriv *priv, char *subj, int *certlen);
 char*		X509verify(uchar *cert, int ncert, RSApub *pk);
 void		X509dump(uchar *cert, int ncert);
+mpint*		pkcs1padbuf(uchar *buf, int len, mpint *modulus, int blocktype);
+int		asn1encodedigest(DigestState* (*fun)(uchar*, ulong, uchar*, DigestState*),
+			uchar *digest, uchar *buf, int len);
 
 /*
  * elgamal
