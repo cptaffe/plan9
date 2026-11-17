@@ -46,7 +46,6 @@ void	indent(Text*, Text*, Text*, int, int, Rune*, int);
 void	xkill(Text*, Text*, Text*, int, int, Rune*, int);
 void	local(Text*, Text*, Text*, int, int, Rune*, int);
 void	look(Text*, Text*, Text*, int, int, Rune*, int);
-void	mountx(Text*, Text*, Text*, int, int, Rune*, int);
 void	newcol(Text*, Text*, Text*, int, int, Rune*, int);
 void	paste(Text*, Text*, Text*, int, int, Rune*, int);
 void	put(Text*, Text*, Text*, int, int, Rune*, int);
@@ -66,38 +65,6 @@ struct Exectab
 	int		flag2;
 };
 
-static Rune LAbort[] = { 'A', 'b', 'o', 'r', 't', 0 };
-static Rune LCut[] = { 'C', 'u', 't', 0 };
-static Rune LDel[] = { 'D', 'e', 'l', 0 };
-static Rune LDelcol[] = { 'D', 'e', 'l', 'c', 'o', 'l', 0 };
-static Rune LDelete[] = { 'D', 'e', 'l', 'e', 't', 'e', 0 };
-static Rune LDump[] = { 'D', 'u', 'm', 'p', 0 };
-static Rune LEdit[] = { 'E', 'd', 'i', 't', 0 };
-static Rune LExit[] = { 'E', 'x', 'i', 't', 0 };
-static Rune LFont[] = { 'F', 'o', 'n', 't', 0 };
-static Rune LGet[] = { 'G', 'e', 't', 0 };
-static Rune LID[] = { 'I', 'D', 0 };
-static Rune LIncl[] = { 'I', 'n', 'c', 'l', 0 };
-static Rune LIndent[] = { 'I', 'n', 'd', 'e', 'n', 't', 0 };
-static Rune LKill[] = { 'K', 'i', 'l', 'l', 0 };
-static Rune LLoad[] = { 'L', 'o', 'a', 'd', 0 };
-static Rune LLocal[] = { 'L', 'o', 'c', 'a', 'l', 0 };
-static Rune LLook[] = { 'L', 'o', 'o', 'k', 0 };
-static Rune LMount[] = { 'M', 'o', 'u', 'n', 't', 0 };
-static Rune LNew[] = { 'N', 'e', 'w', 0 };
-static Rune LNewcol[] = { 'N', 'e', 'w', 'c', 'o', 'l', 0 };
-static Rune LPaste[] = { 'P', 'a', 's', 't', 'e', 0 };
-static Rune LPut[] = { 'P', 'u', 't', 0 };
-static Rune LPutall[] = { 'P', 'u', 't', 'a', 'l', 'l', 0 };
-static Rune LRedo[] = { 'R', 'e', 'd', 'o', 0 };
-static Rune LSend[] = { 'S', 'e', 'n', 'd', 0 };
-static Rune LSnarf[] = { 'S', 'n', 'a', 'r', 'f', 0 };
-static Rune LSort[] = { 'S', 'o', 'r', 't', 0 };
-static Rune LTab[] = { 'T', 'a', 'b', 0 };
-static Rune LUndo[] = { 'U', 'n', 'd', 'o', 0 };
-static Rune LUnmount[] = { 'U', 'n', 'm', 'o', 'u', 'n', 't', 0 };
-static Rune LZerox[] = { 'Z', 'e', 'r', 'o', 'x', 0 };
-
 Exectab exectab[] = {
 	{ L"Abort",	doabort,	FALSE,	XXX,		XXX		},
 	{ L"Cut",		cut,		TRUE,	TRUE,	TRUE	},
@@ -116,8 +83,7 @@ Exectab exectab[] = {
 	{ L"Load",		dump,	FALSE,	FALSE,	XXX		},
 	{ L"Local",		local,	FALSE,	XXX,		XXX		},
 	{ L"Look",		look,		FALSE,	XXX,		XXX		},
-	{ LMount,		mountx,	FALSE,	TRUE,	XXX		},
-	{ LNew,		new,		FALSE,	XXX,		XXX		},
+	{ L"New",		new,		FALSE,	XXX,		XXX		},
 	{ L"Newcol",	newcol,	FALSE,	XXX,		XXX		},
 	{ L"Paste",		paste,	TRUE,	TRUE,	XXX		},
 	{ L"Put",		put,		FALSE,	XXX,		XXX		},
@@ -128,7 +94,6 @@ Exectab exectab[] = {
 	{ L"Sort",		sort,		FALSE,	XXX,		XXX		},
 	{ L"Tab",		tab,		FALSE,	XXX,		XXX		},
 	{ L"Undo",		undo,	FALSE,	TRUE,	XXX		},
-	{ LUnmount,	mountx,	FALSE,	FALSE,	XXX		},
 	{ L"Zerox",	zeroxx,	FALSE,	XXX,		XXX		},
 	{ nil, 			nil,		0,		0,		0		},
 };
@@ -950,29 +915,6 @@ dump(Text *, Text *, Text *argt, int isdump, int, Rune *arg, int narg)
 	else
 		rowload(&row, name, FALSE);
 	free(name);
-}
-
-void
-mountx(Text *_0, Text *_1, Text *argt, int ismount, int _2, Rune *arg, int narg)
-{
-	char *a, *s, *err;
-
-	USED(_0);
-	USED(_1);
-	USED(_2);
-
-	if(narg)
-		a = runetobyte(arg, narg);
-	else
-		free(getbytearg(argt, FALSE, TRUE, &a));
-	s = smprint("%s %s", ismount ? "mount" : "unmount", a ? a : "");
-	err = nsline(s);
-	if(err != nil){
-		warning(nil, "%s\n", err);
-		free(err);
-	}
-	free(s);
-	free(a);
 }
 
 void
