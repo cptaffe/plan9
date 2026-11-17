@@ -90,8 +90,6 @@ int		isregexc(int);
 void *emalloc(uint);
 void *erealloc(void*, uint);
 char	*estrdup(char*);
-char*	nsline(char*);
-char*	nswrite(char*);
 Range		address(uint, Text*, Range, Range, void*, uint, uint, int (*)(void*, uint),  int*, uint*, int);
 int		rxexecute(Text*, Rune*, uint, uint, Rangeset*);
 int		rxbexecute(Text*, uint, Rangeset*);
