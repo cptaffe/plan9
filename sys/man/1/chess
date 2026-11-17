@@ -232,6 +232,18 @@ with
 .B $chooser
 set, it runs that command instead, the names a line each on its standard input,
 and takes the line it writes as the name.
+.BR /acme/bin/Choose ,
+.B chooser=Choose
+in the environment, is one:
+it lists its standard input in a window, a line each and numbered,
+and writes the line picked by button 2 on it, or with
+.IR hotkey (1)'s
+.B choose
+mode in
+.BR /lib/hotkey/acme ,
+by its number; esc or
+.B Del
+picks none.
 .PP
 Analysis starts off, so the game is yours to think through first, or on with
 .BR -A .

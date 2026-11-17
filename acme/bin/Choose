@@ -1,0 +1,78 @@
+#!/bin/rc
+# Choose [title]: the lines of standard input in an acme window, numbered; the one picked, by
+# button 2 or, with hotkey, its number, is written on standard output; esc, or Del, picks none.
+rfork ne
+. /lib/acme.rc
+t=+Choose
+if(! ~ $#* 0)
+	t=$1
+c=/tmp/choose.$pid
+cat >$c.in
+if(! test -s $c.in){
+	rm -f $c.in
+	exit none
+}
+oifs=$ifs
+ifs='
+'
+names=`{cat $c.in}
+ifs=$oifs
+fn pick {
+	echo $1 >$c.out
+	windel sure
+}
+fn event {
+	switch($2){
+	case x X
+		n=$9
+		if(~ $9 [1-9])
+			n=$names($9)
+		if(~ $#n 1 && ~ $n $names)
+			pick $n
+		if not
+			winwriteevent $*
+	case l L
+		winwriteevent $*
+	}
+}
+newwindow
+winname `{pwd}^/$t
+awk '{if(NR <= 9) n = NR; else n = " "; printf "%s %s\n", n, $0}' $c.in | winwrite body
+winctl clean
+if(test -e /mnt/hotkey/mode){
+	p=$c.p
+	mkdir $p
+	bind '#|' $p
+	rm -f /srv/choose.$user
+	echo -n 3 >/srv/choose.$user <>[3]$p/data1
+	{
+		k=`{read}
+		while(! ~ $#k 0 && ! ~ $k quit){
+			switch($k){
+			case esc
+				windel sure
+			case [1-9]
+				n=$names($k)
+				if(~ $#n 1)
+					pick $n
+			}
+			k=`{read}
+		}
+	} <$p/data &
+	{
+		echo choose >[1=4] >[2]/dev/null
+		wineventloop
+	} >[4]/mnt/hotkey/mode
+	echo quit >$p/data1
+	unmount $p
+	rm -rf $p
+}
+if not
+	wineventloop
+if(test -s $c.out){
+	cat $c.out
+	rm -f $c.in $c.out
+	exit
+}
+rm -f $c.in $c.out
+exit none
