@@ -254,6 +254,7 @@ analysis also opens a window,
 whose first line names the position at dot and the depth,
 and whose lines after it are the engine's three best lines, each its evaluation and its moves;
 button 2 on a move in one plays the line into the game from dot as far as that move, and on its evaluation the whole line,
+button 3 there shows the board as far as that move without writing it, until a key, a click or dot moves it back,
 and turning analysis off, or ending
 .IR Chess ,
 deletes the window.
