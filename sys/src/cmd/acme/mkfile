@@ -15,9 +15,8 @@ OFILES=\
 	exec.$O\
 	file.$O\
 	fsys.$O\
-	look.$O\
-	ns.$O\
 	logf.$O\
+	look.$O\
 	regx.$O\
 	rows.$O\
 	scrl.$O\
