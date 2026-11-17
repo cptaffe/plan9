@@ -672,3 +672,20 @@ which can be read only while the body is drawn.
 .IR rio (4),
 .IR cons (3),
 .IR theme (6).
+.SH BUGS
+A window's
+.B addr
+and the guard written to its
+.B seq
+belong to the window, not to the file that set them, so one program's write to either,
+between another's and its use, moves the other's.
+.IR Astyles (4)
+sets
+.B addr
+for each partial write of
+.BR style :
+an edit by
+.B addr
+and
+.B data
+while the window's styles change can land in the wrong place.
