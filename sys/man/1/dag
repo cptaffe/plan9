@@ -97,18 +97,18 @@ A click at nothing selects nothing.
 .TP
 button 3
 A menu:
-.B delete
-deletes what is selected, and a node's edges with it;
-.B undo
+.B Erase
+erases what is selected, and a node's edges with it;
+.B Undo
 and
-.BR redo ;
-.B tred
+.BR Redo ;
+.B Tred
 sends the whole graph through
 .IR tred ,
 which removes the edges another path implies, and replaces the text with what it prints;
-.B write
+.B Write
 writes the file;
-.B exit
+.B Exit
 ends
 .IR dag .
 .PD
@@ -305,13 +305,21 @@ and
 .I Dag
 draws the result.
 The menu's
-.B undo
+.B Undo
 and
-.B redo
+.B Redo
 are acme's, as Command-Z is, and its
-.B write
+.B Write
 is
-.BR Put .
+.BR Put ;
+its
+.BR Erase ,
+.B Tred
+and
+.B Exit
+are
+.IR Dag 's
+in the tag too.
 .SH EXAMPLES
 With part of a graph selected, remove the edges another path in that part implies:
 .IP

@@ -117,19 +117,21 @@ writes it in parentheses, numbered, after the move it replaces.
 A move the game already has goes to that move instead.
 .PP
 Button 3 is a menu:
-.B flip
+.B Flip
 turns the board,
-.B hint
+.B Hint
 shows the engine's best move in this position alone,
-.B analysis
+.B Analysis
 and
-.B play
+.B Play
 turn those on and off,
-.B eval
+.B Eval
 evaluates the moves selected,
-.B write
+.B Engine
+says the engine,
+.B Write
 writes the file, and
-.B exit
+.B Exit
 ends
 .IR chess ,
 or says once that the file is not written.
@@ -224,7 +226,7 @@ there is none.
 .B Engine
 .I name
 in the tag, or
-.B engine
+.B Engine
 in the menu, changes the engine for analysis, hints, play and eval alike.
 .B Engine
 alone says the engine and lists the names;
@@ -255,7 +257,7 @@ an arrow shows the engine's best move; and the line under the board gives
 the evaluation, the depth, and the line of play it expects.
 .I Chess
 writes none of this to the game.
-.B hint
+.B Hint
 in the menu, or the
 .B ?
 key, shows the same bar, arrow and line for the position at dot alone, until dot moves on.
