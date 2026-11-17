@@ -32,3 +32,15 @@ mode act
 8	{test -e /srv/act.$user && echo 8 >>/srv/act.$user}
 9	{test -e /srv/act.$user && echo 9 >>/srv/act.$user}
 esc	{test -e /srv/act.$user && echo esc >>/srv/act.$user}
+# +Choose's lines while Choose has the window, as Act's: 1 to 9 picks one, esc picks none
+mode choose
+1	{test -e /srv/choose.$user && echo 1 >>/srv/choose.$user}
+2	{test -e /srv/choose.$user && echo 2 >>/srv/choose.$user}
+3	{test -e /srv/choose.$user && echo 3 >>/srv/choose.$user}
+4	{test -e /srv/choose.$user && echo 4 >>/srv/choose.$user}
+5	{test -e /srv/choose.$user && echo 5 >>/srv/choose.$user}
+6	{test -e /srv/choose.$user && echo 6 >>/srv/choose.$user}
+7	{test -e /srv/choose.$user && echo 7 >>/srv/choose.$user}
+8	{test -e /srv/choose.$user && echo 8 >>/srv/choose.$user}
+9	{test -e /srv/choose.$user && echo 9 >>/srv/choose.$user}
+esc	{test -e /srv/choose.$user && echo esc >>/srv/choose.$user}
