@@ -186,7 +186,11 @@ The menu:
 .B Exit
 and
 .BR More… ,
-which makes the next button 3 show every command, named as here but capitalized, and the
+which makes the next button 3 show every command, named as here but capitalized,
+.BR Prune ,
+which deletes the points no line or arc uses,
+.BR Points ,
+which shows or hides the points, and the
 definitions, as
 .BR "Copy par" .
 Its commands act on what the mouse was at when the button went down;
@@ -276,7 +280,7 @@ size with it.
 changes to turning.
 .TP
 .B x
-Delete what is here, and what depends on it.
+Erase what is here, and what depends on it.
 .TP
 .B h
 Make the line here horizontal or vertical, whichever is nearer.
@@ -479,6 +483,9 @@ does a selection of text, but as its
 text, running the command in the file's directory:
 what comes back replaces the selection where it was,
 keeping its names and the points it shares with the rest of the drawing.
+The menu's commands are
+.IR Sketch 's
+in the tag too, acting on what the mouse was last at in the drawing.
 .B Del
 deletes the window, ending
 .I Sketch

@@ -218,10 +218,9 @@ again draws it, or says in
 .B +Errors
 why it cannot.
 While the graph shows,
-.B Undo
-and
-.B Redo
-are
+.BR Undo ,
+.BR Redo
+and the menu's other commands are
 .IR grapw 's,
 .B Write
 and
