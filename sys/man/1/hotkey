@@ -152,10 +152,6 @@ A key the mode does not bind turns the mode off and is then handled as with no m
 it passes through, or starts or finishes a rule for no mode.
 A key that breaks off a sequence of the mode's keys turns the mode off too,
 and is discarded with them, as with no mode on.
-Keys typed by
-.B send
-are matched in the same way,
-so a mode's rule that sends a key the mode does not bind ends the mode.
 .PP
 Commands run in
 .IR hotkey 's
@@ -215,7 +211,8 @@ Opening the file without truncating it and writing nothing
 leaves the rules as they are.
 .TP
 .B send
-Writing key names, separated by blanks, types those keys.
+Writing key names, separated by blanks, types those keys
+past the rules: they go to the program as they are, and leave the mode as it is.
 An unknown name fails the write and types nothing.
 .PD
 .PP
@@ -293,7 +290,8 @@ user rules
 .B /lib/hotkey/rio
 the Mac's Command keys as control keys:
 Command-C, V, X and Z become control-C, V, X and Z,
-and Command-Shift-Z becomes control-R
+and Command-Shift-Z becomes control-R;
+control-C, typed, becomes Delete, the interrupt
 .TP
 .B /lib/hotkey/acme
 Acme's keys, with the mode
@@ -320,9 +318,4 @@ plan9web's
 .IR rio (1),
 .IR plumber (4)
 .SH BUGS
-.I Hotkey
-matches keys typed by
-.B send
-against the rules, so a rule that sends its own keys runs forever.
-.br
 Rules cannot name keys that send nothing, such as Alt alone.
