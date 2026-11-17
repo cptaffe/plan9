@@ -201,3 +201,12 @@ plan9web's
 .IR acme (1),
 .IR acme (4),
 .IR theme (6)
+.SH BUGS
+A partial write of a window's styles sets acme's
+.B addr
+for the window, which a program editing the window by
+.B addr
+and
+.B data
+may have just set; see
+.IR acme (4).
