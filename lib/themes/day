@@ -30,17 +30,6 @@ heading4	fg=222266
 heading5	fg=333388
 heading6	fg=4444aa
 
-# huh(1)'s marks and Bits' bands of bits a rune, as background tints
-huh	bg=fde4b4
-huhspike	bg=f6b0b0
-bits0	bg=eef4f8
-bits1	bg=e4f0ec
-bits2	bg=ecf2d8
-bits3	bg=faf0c4
-bits4	bg=fbe0b8
-bits5	bg=f8ccb4
-bits6	bg=f2b0b8
-
 chesslight	d2e0e6
 chessdark	8aa4b4
 chesssel	000099
