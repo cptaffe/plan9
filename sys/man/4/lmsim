@@ -1,0 +1,333 @@
+.TH LMSIM 4
+.SH NAME
+lmsim, tlm \- a model of bytes served as lmfs's files, for tests
+.SH SYNOPSIS
+.B lmsim
+[
+.B -D
+] [
+.B -m
+.I mtpt
+] [
+.B -s
+.I srvname
+]
+.PP
+.B lmsim -t
+.I file ...
+.PP
+.B tlm
+[
+.I dir
+]
+.SH DESCRIPTION
+.I Lmsim
+serves the files of
+.IR lmfs ,
+the server of a language model that
+.IR bits (1)
+and the tools built on it read,
+on
+.I mtpt
+.RB ( /mnt/lm
+by default), and posts itself as
+.BI /srv/ srvname
+if
+.B -s
+is given.
+Its model is small and its own: it counts bytes after the two bytes before them,
+trained on the tree's documents,
+and its tokens are bytes.
+It needs no download and no GPU, and gives the same answers every time,
+so a test can mount it where
+.I lmfs
+would be and check exact results.
+.PP
+The tree has the layout of
+.BR /net :
+.TF clone
+.TP
+.B models
+The models, one a line:
+.I lmsim
+has one,
+.BR ngram .
+.TP
+.B clone
+Opening it makes a session,
+.IR n ,
+a directory beside it; a read gives
+.IR n .
+The open is the session's
+.BR ctl ,
+and the session ends when no file of it is open.
+.TP
+.IB n /ctl
+Settings, one a line, as a name and a value.
+A read gives
+.BR model ,
+.BR backend ,
+.BR ctx ,
+.B sha256
+(the model's table),
+.B device
+(where it runs),
+.B maxctx
+(the longest
+.B ctx
+the model takes),
+.B scored
+(how many tokens the model has scored, in every session, not counting those the cache gave),
+and
+.IR lmsim 's
+own
+.BR stall ,
+.B slow
+and
+.BR fail .
+A client should find a setting by its name.
+.TP
+.IB n /data
+A text's bits.
+.TP
+.IB n /top
+The model's likeliest tokens at a place in a text.
+.TP
+.IB n /embed
+A vector for a span of a text.
+.TP
+.IB n /freq
+Each token's slot in the model's frequencies, and the token in a slot, for
+.IR lmz .
+.PD
+.PP
+Each of
+.BR data ,
+.B top
+and
+.B embed
+is a request and its answer on one open, as
+.IR factotum (4)'s
+.B rpc
+is.
+Open it for reading and writing, write the request in as many writes as it takes,
+then read.
+The first read starts the work, and reads give the answer as it comes, in order,
+and end when it does.
+A write after the first read is an error: a new request needs a new open.
+Closing the file drops whatever work is left.
+.PP
+A request to
+.B data
+is a text, and its answer a line for each token:
+.IP
+.I "q0 q1 bits rank"
+.LP
+.I Q0
+and
+.I q1
+are rune offsets into the text, so they serve as
+.IR acme (1)
+addresses;
+.I bits
+is the token's surprisal,
+.if t \-log\d\s-22\s+2\u\fIp\fP,
+.if n -log2 p,
+to two places, and
+.I rank
+is where the token stood among the model's guesses, 1 for the likeliest.
+.I Lmsim
+joins a token that ends inside a rune with the next until a rune ends, and gives the joined
+tokens one line, with the sum of their bits and the largest of their ranks.
+Since
+.IR lmsim 's
+tokens are bytes, each of its lines is one rune.
+The lines tile the text: each starts where the last ended, the first at 0 and the last
+at the text's length in runes.
+.PP
+A request to
+.B top
+is a line,
+.I "q k\fR,"
+then the text.
+The answer is the model's
+.I k
+likeliest tokens for the token at rune offset
+.I q
+(or the token after the text, if
+.I q
+is its length), a line each, likeliest first:
+the token's bits, a space, and the token in double quotes, with
+.BR \en ,
+.BR \et ,
+.BR \e" ,
+.B \e\e
+and
+.BI \ex hh
+for any other byte that is not printable ASCII.
+.PP
+A request to
+.B embed
+is a line,
+.I "q0 q1\fR,"
+then the text.
+The answer is one line of 64 numbers, a vector of unit length for the span,
+counted from the byte n-grams, up to three bytes, in the span and, at half the weight,
+in the 16 bytes on either side of it.
+Spans with the same bytes near them get the same vector.
+It stands in for a model's vector, and knows nothing of meaning.
+.PP
+.B Freq
+takes several rounds on one open, and its reads go in order, whatever their offsets.
+Each block starts with no context.
+A token's frequencies are the model's distribution on a scale of
+.if t 2\u\s-224\s+2\d,
+.if n 2^24,
+each at least 1, as
+.IR lmq (2)
+quantizes it.
+To encode, write
+.BI encode " n\fR,"
+then each of the
+.I n
+blocks as a line of its length in bytes and then its bytes.
+For each block, as soon as its bytes are in, the answer gives a line of its token count and
+then a line for each token,
+.I "start width\fR,"
+its slot.
+To decode, write
+.BI decode " n\fR,"
+for 1 to 256 blocks; then, at each step, a line of
+.I n
+values, each a slot value below
+.if t 2\u\s-224\s+2\d
+.if n 2^24
+or
+.B -
+for a block that has ended.
+The answer to a step is
+.I n
+lines, each the token in that slot, its bytes in hex, then its
+.I "start width\fR,"
+or
+.B -
+for a block that has ended.
+Closing the file ends the set.
+.PP
+.I Lmsim
+scores a text in parts, as
+.I lmfs
+does.
+A part ends after a token where a hash of the last 8 tokens is 0 modulo 1024,
+and is at least 256 tokens long and at most 4096, so a text's parts come from its tokens alone.
+The hash is FNV-1a over each token's 32-bit number, low byte first, then MurmurHash3's
+32-bit finalizer.
+The model sees each part with the
+.B ctx
+tokens before it (512 by default) and no others,
+and keeps each part's scores by a SHA-256 hash of its tokens, those before it, the model,
+the backend and
+.BR ctx ,
+for 8 million tokens.
+A text seen before, or a part an edit did not reach, costs nothing.
+.PP
+These messages to
+.B ctl
+set the session's settings:
+.TF backend\ \fIname\fP
+.TP
+.BI model " name"
+the model, one of
+.BR models .
+.TP
+.BI backend " name"
+.B float
+or
+.BR exact ;
+.IR lmsim 's
+answers are the same with either, but neither shares the other's cache.
+.TP
+.BI ctx " n"
+the context of each part, 0 to
+.BR maxctx .
+.PD
+.LP
+These act on every session, for tests of a client when
+.I lmfs
+is slow or gone:
+.TF slow\ \fIms\fP
+.TP
+.B stall
+answers wait.
+.TP
+.BI slow " ms"
+each part the model scores, and each block or step of
+.BR freq ,
+takes
+.I ms
+more milliseconds.
+.TP
+.B fail
+answers and writes fail.
+.TP
+.B go
+ends all three.
+.PD
+.PP
+.B Lmsim -t
+writes the model's table, as C, from the bytes of the files it names;
+.B src/cmd/lmsim/tab.c
+is its output for the tree's
+.BR doc/*.md .
+.PP
+.I Tlm
+checks a server of these files, mounted at
+.I dir
+.RB ( /mnt/lm ),
+and prints a line for each check, then
+.B all ok
+or the count that failed.
+It checks that a session after many requests and a fresh one give a text the same answer;
+that the lines of a text with multibyte runes and a broken rune tile it;
+that an answer is its own open's when a new request comes while the first is scoring;
+that a close drops a request's work, a text seen before costs nothing, and an edit costs
+less than the text;
+.BR top 's
+order and its bits against
+.BR data 's;
+that
+.B embed
+gives one vector for one span;
+that
+.BR freq 's
+encoding, decoded with the start of each slot or its last value, gives the blocks back
+byte for byte, and that a close drops its work;
+and the errors.
+It uses
+.BR slow ,
+.B stall
+and
+.B fail
+where the server takes them.
+.SH EXAMPLES
+.EX
+% lmsim
+% echo the cat sat on the mat. | bits
+0 1 3.97 3
+1 2 1.94 1
+\&...
+% tlm
+.EE
+.SH SOURCE
+.B src/cmd/lmsim
+.br
+.B src/cmd/test/tlm.c
+.SH SEE ALSO
+.IR bits (1),
+.IR segment (1),
+.IR lmq (2),
+.B doc/words.md
+.SH BUGS
+A model of bytes sees two bytes back: it finds a misspelling surprising, and a sentence
+on another subject only when its letters are unusual, and repetition from far back
+costs it as much as anything new.
