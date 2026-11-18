@@ -119,6 +119,7 @@ void	winframesync(Window*);
 void	winparsestyle(Window*, char*, int, int, Range);
 void	xfidstyleflush(Window*, char*, int, int, Range);
 char*	winstyleprint(Window*);
+int	isdrawn(Window*);
 int	wsysmouse(Text*, Mouse*);
 int	wsyskey(Window*, Rune);
 void	wsysresize(Window*);
