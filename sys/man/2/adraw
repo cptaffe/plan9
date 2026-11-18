@@ -1,6 +1,6 @@
 .TH ADRAW 2
 .SH NAME
-scrollinit, scrolldraw, scrollmouse, scrollwid, scrollgap \- helpers for programs that draw an acme window
+scrollinit, scrolldraw, scrollmouse, scrollwid, scrollgap, tagopen, tagclose, tagctl, tagwrite, tagmread, tagreadevent, tagwriteevent, tagpipe \- helpers for acme-like graphical programs
 .SH SYNOPSIS
 .ta \w'void 'u
 .B #include <u.h>
@@ -12,6 +12,10 @@ scrollinit, scrolldraw, scrollmouse, scrollwid, scrollgap \- helpers for program
 .B #include <thread.h>
 .br
 .B #include <mouse.h>
+.br
+.B #include <keyboard.h>
+.br
+.B #include <acme.h>
 .br
 .B #include <adraw.h>
 .PP
@@ -43,13 +47,50 @@ int	scrollwid(void)
 .PP
 .B
 int	scrollgap(void)
+.PP
+.ft L
+.nf
+typedef struct Tag Tag;
+struct Tag
+{
+	Channel	*c;
+	Mousectl	*mc;
+	Keyboardctl	*kc;
+	Rectangle	body;
+	\fI...\fP
+};
+.fi
+.PP
+.B
+Tag*	tagopen(Mousectl *mc, Keyboardctl *kc, char *name)
+.PP
+.B
+void	tagclose(Tag *t)
+.PP
+.B
+int	tagctl(Tag *t, char *fmt, ...)
+.PP
+.B
+int	tagwrite(Tag *t, char *file, void *buf, int n)
+.PP
+.B
+char*	tagmread(Tag *t, char *file)
+.PP
+.B
+int	tagreadevent(Tag *t, Event *e)
+.PP
+.B
+int	tagwriteevent(Tag *t, Event *e)
+.PP
+.B
+char*	tagpipe(Tag *t, char *cmd, char *in)
 .SH DESCRIPTION
 .I Libadraw
-holds helpers for a program that draws the body of an
+holds helpers for a graphical program that looks and works as
 .IR acme (1)
-window, as
+does, in a window of its own, as
 .IR chess (1)
-does.
+is to.
 A program uses those it wants; none of them needs the others,
 and none opens a window or reads its events.
 .PP
@@ -98,9 +139,305 @@ with
 to draw what shows from
 .BR p0 .
 The program moves for the mouse wheel itself.
+.SS Tags
+A
+.B Tag
+is a tag drawn and worked as acme's, at the top of a program's window, for a program
+that draws what acme can't. The tag's text and its selection are the tag's, as acme's are
+acme's, and the program learns of what the user does in it by events, as an
+.IR acme (4)
+client does, with the calls and the
+.B Event
+of
+.IR acme (2).
+Its calls are those a file server of tags would serve, and
+.I tagpipe
+is a library function either way;
+the text below names the files as they would be, in
+.BR /mnt/adraw/ n.
+.PP
+.I Tagopen
+opens a tag on the program's window,
+.BR screen ,
+with the mouse and keyboard
+.I mc
+and
+.IR kc
+the program has made, and the text
+.I name
+and then
+.BR "Del Snarf |" ,
+where the program adds its words, as acme's clients do.
+From then on the tag reads
+.I mc
+and
+.IR kc ,
+keeps what falls on it, the mouse in it and the keys while the pointer was last in it,
+and hands the rest on
+.B t->mc
+and
+.BR t->kc ,
+which the program reads as it would its own, and which a server's window would give it as
+.B /dev/mouse
+and
+.BR /dev/cons .
+The tag also takes rio's resizes: it calls
+.I getwindow
+(see
+.IR graphics (2)),
+draws itself again, sets
+.BR body ,
+the part of the window under the tag that is the program's, and sends on
+.BR t->mc->resizec ,
+on which the program draws its body again.
+The tag sets
+.B body
+before
+.I tagopen
+returns, and changes too when the tag's lines do.
+The tag draws in acme's tag colors from the theme
+.RI ( theme (6)).
+The program doesn't call
+.I getwindow
+itself, which would draw over the tag, and draws from a proc other than the one that
+opened the tag only with the display locked
+.RI ( lockdisplay
+in
+.IR graphics (2)).
+A gesture, from the press of a button to the release of the last, belongs to where it
+began: one begun in the body goes to the program even where it passes over the tag, and
+the program sees the pointer move over the tag with no button down.
+The program may call the tag's functions from any proc: edits of the tag that come while
+the user is working in it wait until the gesture ends.
+.I Tagclose
+stops the tag: it no longer reads the mouse and keyboard, frees what it drew with, and
+refuses later calls.
+.PP
+In the tag, as in acme's: button 1 selects, a double click selects a word or the text between
+brackets or quotes, and the 1-2 and 1-3 chords cut and paste by
+.BR /dev/snarf ,
+which acme shares;
+typing replaces the selection, backspace and control-U and -W erase, control-A and -E
+go to the ends of the line, control-X, -C and -V cut, copy and paste, Escape selects what the user
+typed since the last click, or cuts the selection, and control-F completes a file name, as
+.IR complete (2)
+does for acme.
+The down arrow and a newline show all the tag's lines, and the up arrow or the wheel one.
+The square at the tag's left works as acme's on its window, by rio's
+.B wctl
+.RI ( rio (4)),
+each time within rio's screen as it is then, border and all, in a rectangle rio's
+.B goodrect
+takes, and with what rio refuses reported:
+a click of button 1 makes the window taller by acme's step, until it fills the screen's height,
+button 1 dragged moves it, once, where the button comes up,
+button 2 gives it the screen's height, and button 3 makes it fill the screen, as near as rio
+allows, and then gives it back.
+.PP
+.I Tagreadevent
+reads the next event, as
+.I winreadevent
+does an acme window's
+.B event
+file, and fills
+.IR e ;
+it returns 1, or 0 when the tag has closed.
+The channel
+.B t->c
+carries the events too, as
+.BR Event* ,
+which the program frees, for a program that waits on several channels;
+it is the tag's
+.B event
+file.
+An event is acme's
+.RI ( acme (4)):
+.B c1
+is
+.B M
+for the mouse and
+.B K
+for the keyboard,
+.B c2
+is
+.B x
+for button 2, to execute, and
+.B l
+for button 3, to look,
+in the tag's text as acme's lowercase letters are;
+.B q0
+and
+.B q1
+are the expansion, as acme's, and
+.B oq0
+and
+.B oq1
+what was clicked or swept;
+.B flag
+is acme's: 1 for a word of the tag's own, 2 for an expansion, 4 for a look at a file's name,
+8 for a 2-1 chord, whose argument may be empty, as acme's; and
+.B text
+is the text, with
+.BR arg ,
+on a 2-1 chord, the tag's selection, expanded.
+A look at a file's name gives its full name, from the tag's directory, with any address after it.
+Control-Z and control-R typed in the tag are
+.B Kx
+events of
+.B Undo
+and
+.BR Redo .
+.PP
+The program does what it will with an event, or gives it back with
+.IR tagwriteevent ,
+as an acme client writes an event back, for the tag's own:
+.TP
+.BR Snarf ", " Cut ", " Paste
+on the tag's text;
+.TP
+.B Kill
+stops the commands the tag started that still run, those named in its argument, or every one;
+.TP
+.B Del
+closes the tag, sends nil on
+.BR t->c ,
+and posts
+.B hangup
+to the program's note group, as rio does when it deletes a window;
+.TP
+.BR Put ", " Undo ", " Redo
+nothing: they are the program's;
+.TP
+.BR | cmd ", " < cmd ", " > cmd
+a complaint that there is no selection, for the selection is the program's, which runs them on
+it itself, by
+.IR tagpipe ;
+.TP
+a look
+sends the plumber the text, or the word around the click with its
+.B click
+attribute, from the tag's directory, as acme does
+.RI ( plumb (2));
+.TP
+anything else
+runs in
+.IR rc (1),
+in the tag's directory, as
+.BI "rc -c '" "text arg" '\fR.
+.PP
+While a command the tag started, by rc or
+.IR tagpipe ,
+runs, its name is in the tag after the bar, as acme shows its running commands in its row's
+tag, and
+.B Kill
+takes that name; the name goes when the command exits.
+The tag's directory is that of the file named first in the tag, else the program's.
+What the tag runs has acme's
+.B $winid
+and
+.B $%
+and
+.B $samfile
+when the program has given the tag a window of acme's, and its output goes to
+.BR /mnt/acme/cons ,
+acme's
+.BR +Errors ,
+when there is one, as when the program came from acme, and else to the program's standard error.
+.PP
+.I Tagctl
+writes control messages, one a line, as acme's
+.B ctl
+file takes them, and is the tag's
+.B ctl
+file:
+.TP
+.BI name " path"
+makes
+.I path
+the tag's first word;
+.TP
+.BR clean ", " dirty
+clear and set the mark in the square;
+.TP
+.B cleartag
+takes out the text after the tag's bar;
+.TP
+.B del
+closes the tag, as
+.B Del
+does but with no
+.BR hangup ;
+.TP
+.BI winid " n"
+gives what the tag runs acme's window
+.IR n :
+.B $winid
+is
+.I n
+and
+.B $%
+and
+.B $samfile
+the name in
+.BI /mnt/acme/ n /tag \fR.
+.PP
+.I Tagwrite
+with
+.I file
+.B tag
+adds
+.I buf
+to the end of the tag's text, as a write of acme's
+.B tag
+file does, and
+.I tagmread
+of
+.B tag
+returns the text, in memory the caller frees; they are the tag's
+.B tag
+file.
+.PP
+.I Tagpipe
+runs
+.BI "rc -c" " cmd"
+as the tag runs a command, with
+.IR in ,
+or nothing when it is nil, on its standard input, and returns its standard output,
+in memory the caller frees, or nil if it can't run it.
+Its standard error is that of the tag's commands, and
+.B Kill
+stops it.
+It waits, as
+.I sysrun
+in
+.IR acme (2)
+does:
+a program calls it from a proc of its own to go on drawing meanwhile, and runs its own
+.BR | ,
+.B <
+and
+.B >
+by it.
 .SH SOURCE
 .B /sys/src/libadraw
 .SH SEE ALSO
 .IR acme (1),
 .IR chess (1),
+.IR rio (1),
+.IR acme (2),
+.IR complete (2),
+.IR plumb (2),
+.IR acme (4),
+.IR rio (4),
 .IR theme (6)
+.SH BUGS
+The tag doesn't yet have acme's expansion of
+.B <file>
+to an included file's name or its matching of HTML tags on a double click.
+.PP
+rio won't take a window as large as its screen, so button 3 leaves out the bottom row.
+.PP
+The screen the square keeps the window in is the one
+.B /dev/draw/winname
+names; for a rio running in another rio's window, which isn't that, the square's
+rectangles are wrong.

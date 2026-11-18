@@ -3,7 +3,9 @@
 LIB=/$objtype/lib/libadraw.a
 OFILES=\
 	scroll.$O\
+	tag.$O\
 
-HFILES=/sys/include/adraw.h
+HFILES=/sys/include/adraw.h\
+	impl.h\
 
 </sys/src/cmd/mksyslib

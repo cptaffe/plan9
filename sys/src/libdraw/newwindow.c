@@ -18,6 +18,7 @@ newwindow(char *str)
 	if(fd < 0)
 		return -1;
 	rfork(RFNAMEG);
+	unmount("/mnt/acme", "/dev");
 	if(str)
 		snprint(buf, sizeof buf, "new %s", str);
 	else
