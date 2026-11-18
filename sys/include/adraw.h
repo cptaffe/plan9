@@ -18,3 +18,26 @@ int	scrollgap(void);
 void	scrollinit(Scroll*);
 void	scrolldraw(Image*, Scroll*);
 void	scrollmouse(Mousectl*, Scroll*, void (*)(Scroll*, vlong, void*), void*);
+
+typedef struct Tag Tag;
+typedef struct Event Event;
+typedef struct Keyboardctl Keyboardctl;
+
+struct Tag
+{
+	Channel	*c;
+	Mousectl	*mc;
+	Keyboardctl	*kc;
+	Rectangle	body;
+
+	struct Tagx	*x;
+};
+
+Tag*	tagopen(Mousectl*, Keyboardctl*, char*);
+void	tagclose(Tag*);
+int	tagctl(Tag*, char*, ...);
+int	tagwrite(Tag*, char*, void*, int);
+char*	tagmread(Tag*, char*);
+int	tagreadevent(Tag*, Event*);
+int	tagwriteevent(Tag*, Event*);
+char*	tagpipe(Tag*, char*, char*);
