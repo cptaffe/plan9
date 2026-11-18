@@ -1,0 +1,6 @@
+plain	/lib/font/bit/IBMPlexSans/12a/font,/lib/font/bit/IBMPlexSans/24a/font
+bold	/lib/font/bit/IBMPlexSans-Bold/12a/font,/lib/font/bit/IBMPlexSans-Bold/24a/font
+italic	/lib/font/bit/IBMPlexSans-Italic/12a/font,/lib/font/bit/IBMPlexSans-Italic/24a/font
+bolditalic	/lib/font/bit/IBMPlexSans-BoldItalic/12a/font,/lib/font/bit/IBMPlexSans-BoldItalic/24a/font
+mono	/lib/font/bit/IBMPlexMono/12a/font,/lib/font/bit/IBMPlexMono/24a/font
+head	/lib/font/bit/IBMPlexSans-Bold/16a/font,/lib/font/bit/IBMPlexSans-Bold/32a/font
