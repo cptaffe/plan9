@@ -70,7 +70,7 @@ mtx_timedlock(mtx_t *m, const struct timespec *t)
 int
 thrd_create(thrd_t *t, thrd_start_t f, void *arg)
 {
-	return thrd_nomem;
+	return thrd_error;
 }
 
 thrd_t thrd_current(void) { return pthread_self(); }

@@ -37,6 +37,9 @@ struct AESstate
 };
 
 /* block ciphers */
+#ifdef __cplusplus
+extern "C" {
+#endif
 void	aes_encrypt(ulong rk[], int Nr, uchar pt[16], uchar ct[16]);
 void	aes_decrypt(ulong rk[], int Nr, uchar ct[16], uchar pt[16]);
 
@@ -410,4 +413,7 @@ int	okThumbprint(uchar *sha1, Thumbprint *ok);
 uchar	*readcert(char *filename, int *pcertlen);
 PEMChain*readcertchain(char *filename);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
