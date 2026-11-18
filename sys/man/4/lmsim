@@ -18,6 +18,15 @@ lmsim, tlm \- a model of bytes served as lmfs's files, for tests
 .PP
 .B tlm
 [
+.B -s
+.I srvname
+] [
+.B -t
+.I secs
+] [
+.B -z
+.BR small | large
+] [
 .I dir
 ]
 .SH DESCRIPTION
@@ -34,7 +43,11 @@ by default), and posts itself as
 .BI /srv/ srvname
 if
 .B -s
-is given.
+is given; with
+.B -s
+and no
+.BR -m ,
+it posts itself and mounts nowhere.
 Its model is small and its own: it counts bytes after the two bytes before them,
 trained on the tree's documents,
 and its tokens are bytes.
@@ -82,7 +95,19 @@ and
 .B settings
 (the settings that change
 .BR freq 's
-slots, as one string to the end of the line),
+slots, as one string to the end of the line:
+.B model
+and
+.BR repeat ,
+since a block has no context and
+.B ctx
+changes nothing in it),
+.B digits
+(the places of
+.BR data 's
+and
+.BR top 's
+bits),
 and
 .IR lmsim 's
 own
@@ -121,7 +146,10 @@ then read.
 The first read starts the work, and reads give the answer as it comes, in order,
 and end when it does.
 A write after the first read is an error: a new request needs a new open.
-Closing the file drops whatever work is left.
+Closing the file drops whatever work is left; a clunk sent while a read is outstanding, which
+Plan 9's kernel never does, since it flushes the read first, takes effect when lmsim answers
+the read.
+A request is at most 16 MB.
 .PP
 A request to
 .B data
@@ -232,6 +260,11 @@ or
 .B -
 for a block that has ended.
 Closing the file ends the set.
+.I Lmsim
+keeps at most 16 MB of input it has not yet taken, and 1 MB of answer not yet read before it
+waits; a write past the first while the answer waits unread fails with
+.BR "read the answer first" ,
+and a decoded set is at most 16 MB.
 A step with the wrong number of values, a value out of range, or a value for a block given
 .B -
 before, is an error, and
@@ -276,6 +309,13 @@ answers are the same with either, but neither shares the other's cache.
 .BI ctx " n"
 the context of each part, 0 to
 .BR maxctx .
+.TP
+.BI digits " n"
+the places of
+.BR data 's
+and
+.BR top 's
+bits, 0 to 17, 2 by default; tests that need the model's exact numbers take 17.
 .PD
 .LP
 These act on every session, for tests of a client when
@@ -355,7 +395,31 @@ that
 and
 .B fail
 in one session hold and fail another's requests;
+that
+.B repeat
+changes
+.BR freq 's
+slots and is in the cache key, and that every slot at a block's start is the rule's, exactly, by
+.B digits
+17;
+with
+.BR -s ,
+that a raw client's read and clunk of the same file, under
+.B slow
+and under
+.BR stall ,
+leave the server answering;
 and the errors.
+Each operation fails after
+.I secs
+seconds (30).
+.B -z small
+sizes the texts for a real model on a slow machine: a few hundred tokens each, a few small
+blocks to a set, and a long encode of about 1000 tokens, against which a short request may
+take twice what it takes alone; the checks are the same.
+.B -z large
+(the default) sizes them for
+.IR lmsim .
 It uses
 .BR slow ,
 .BR stall ,
