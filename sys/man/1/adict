@@ -1,0 +1,108 @@
+.TH ADICT 1
+.SH NAME
+adict, aword \- look up words in Acme
+.SH SYNOPSIS
+.B adict
+[
+.B -d
+.I dictname
+]
+[
+.I pattern
+]
+.br
+.B aword
+[
+.I winid
+]
+.SH DESCRIPTION
+.I Adict
+runs
+.IR dict (7)
+in Acme's windows.
+With a
+.IR pattern ,
+a regular expression matched against the headwords as
+.I dict
+matches them,
+it looks the pattern up in
+.IR dictname ,
+.B pgw
+unless
+.B -d
+says otherwise.
+One entry opens a window named
+.BI adict/ dictname / pattern
+with the entry and the words
+.B Prev
+and
+.BR Next ,
+which show the entries before and after it;
+more than one opens a window of their headwords, numbered, and button 3 on a number shows that entry.
+Button 3 on a word in an entry looks the word up in a new window.
+With no
+.IR pattern ,
+.I adict
+opens a window that lists the dictionaries, and button 3 on one opens a window for it.
+In a window's name, each byte of the pattern that is not a letter or a digit is
+.LR _ ,
+and the name keeps the first 20 bytes.
+.PP
+.I Aword
+prints the text of dot in Acme's window
+.IR winid ,
+.B $winid
+by default.
+When dot is empty, it prints the word around dot instead: the runes on dot's line that are
+neither space nor punctuation, with an apostrophe or a hyphen inside the word kept and one
+at its edges taken away, so
+.L don't
+and
+.L well-known
+stay whole and
+.L ‘well-known’
+loses its quotes.
+.I Aword
+reads the window through its
+.BR addr ,
+.B ctl
+and
+.B xdata
+files
+.RI ( acme (4)).
+.PP
+In Acme,
+.IR hotkey (1)'s
+Cmd-K W, in
+.BR /lib/hotkey/acme ,
+runs
+.I adict
+on
+.IR aword 's
+word in the window with the focus,
+.BR $acmewin .
+It quotes the word's regular expression characters, so dict matches the word literally, and does
+nothing for a selection of more than one word or line, one with a
+.LR / ,
+or a word of more than 64 runes.
+.SH FILES
+.TF /lib/hotkey/acme
+.TP
+.B /lib/dict
+the dictionaries
+.TP
+.B /lib/hotkey/acme
+Cmd-K W
+.SH SOURCE
+.B /acme/bin/source/adict
+.br
+.B /acme/bin/aword
+.SH "SEE ALSO"
+.IR dict (7),
+.IR acme (1),
+.IR hotkey (1)
+.SH BUGS
+.I Dict
+ends a pattern at its first
+.LR / ,
+so adict cannot look up a word with one.

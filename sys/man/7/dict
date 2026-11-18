@@ -31,9 +31,18 @@ The options are
 .TP
 .BI -d " dictname"
 Use the given dictionary.
-The default is
+The default is the first one present of
 .BR oed ,
-the second edition of the Oxford English Dictionary.
+the second edition of the Oxford English Dictionary,
+.BR ahd ,
+and
+.BR pgw ;
+p9web has
+.BR pgw ,
+Webster's dictionary of 1913, and
+.BR roget ,
+Roget's Thesaurus of 1911, so its default is
+.BR pgw .
 A list of available dictionaries is printed by option
 .BR -d? .
 .TP
@@ -143,10 +152,23 @@ Otherwise, the default command is the previous command.
 .br
 .B /lib/dict/oed2index
 .br
+.B /lib/dict/pgw
+.br
+.B /lib/dict/pgwindex
+.br
+.B /lib/dict/roget
+.br
+.B /lib/dict/rogetindex
+.br
+.B /lib/dict/README.pgw
+.br
+.B /lib/dict/README.roget
+.br
 Other files in
 .BR /lib .
 .SH "SEE ALSO"
-.IR regexp (6)
+.IR regexp (6),
+.IR adict (1)
 .SH SOURCE
 .B /sys/src/cmd/dict
 .SH BUGS

@@ -1,4 +1,13 @@
-To get the Project Gutenberg Roget's thesaurus use
+roget and rogetindex, which dict -d roget reads, are Roget's Thesaurus
+of 1911, from Project Gutenberg's text (https://www.gutenberg.org/),
+with dict's index. They carry neither Project Gutenberg's license nor
+its name. MICRA, Inc., who made the text from the 1911 edition, makes
+no proprietary claims on it.
+
+p9web's scripts/dl.sh reads them by 9P from 9p.io's copy of Plan 9's
+sources, extra/roget, and checks their SHA-256.
+
+On Plan 9, to get them from sources use
 
 	9fs sources
 	cp /n/sources/extra/roget/* /lib/dict
