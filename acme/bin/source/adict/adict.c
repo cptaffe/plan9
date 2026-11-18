@@ -13,7 +13,7 @@ enum
 char *prog = "adict";
 char *lprog = "/bin/adict";
 char *xprog  = "/bin/dict";
-char *dict, *pattern, *curaddr[MAXMATCH], *curone, *args[6], *cbuf, buffer[256];
+char *dict, *pattern, *curaddr[MAXMATCH], *curone, buffer[256];
 char abuffer[80], fbuffer[80], pbuffer[80];
 int curindex, count, Eopen, Mopen;
 Win Mwin, Ewin, Dwin;
@@ -33,17 +33,6 @@ usage(void)
 
 int mainstacksize = STACK;
 
-char*
-cmd(char *fmt, ...)
-{
-	va_list a;
-
-	free(cbuf);
-	va_start(a, fmt);
-	cbuf = vsmprint(fmt, a);
-	va_end(a);
-	return cbuf;
-}
 
 void
 threadmain(int argc, char** argv)
@@ -90,7 +79,7 @@ procrexec(char *xprog, ...)
 	Channel *c;
 	va_list va;
 	int i;
-	char *p;
+	char *p, *args[7];
 
 	pipe(fpipe);
 	va_start(va, xprog);
@@ -121,7 +110,7 @@ getaddr(char *pattern)
 
 	int fd, i;
 	Biobuf inbuf;
-	char *bufptr;
+	char *bufptr, *q;
 char *obuf;
 
 	if (pattern == nil) {
@@ -131,7 +120,9 @@ char *obuf;
 		return 0;
 	}
 
-	fd = procrexec(xprog, "-d", dict, "-c", cmd("/%s/A", pattern), nil);
+	q = smprint("/%s/A", pattern);
+	fd = procrexec(xprog, "-d", dict, "-c", q, nil);
+	free(q);
 	Binit(&inbuf, fd, OREAD);
 	i = 0;
 	curindex = 0;
@@ -159,10 +150,12 @@ getpattern(char *addr)
 {
 	/* Get the pattern corresponding to an absolute address.*/
 	int fd, n;
-	char *res, *t;
+	char *res, *t, *q;
 
 	res = nil;
-	fd = procrexec(xprog, "-d", dict, "-c", cmd("%sh", addr), nil);
+	q = smprint("%sh", addr);
+	fd = procrexec(xprog, "-d", dict, "-c", q, nil);
+	free(q);
 	if ((n = read(fd, pbuffer, sizeof pbuffer - 1)) < 0)
 		fprint(2, "Error in getting addres from dict.\n");
 	else {
@@ -189,10 +182,12 @@ chgaddr(int dir)
 	/* Increment or decrement the current address (curone). */
 
 	int fd, n;
-	char *res, *t;
+	char *res, *t, *q;
 
 	res = nil;
-	fd = procrexec(xprog, "-d", dict, "-c", cmd("%s%ca", curone, dir < 0? '-': '+'), nil);
+	q = smprint("%s%ca", curone, dir < 0? '-': '+');
+	fd = procrexec(xprog, "-d", dict, "-c", q, nil);
+	free(q);
 	if ((n = read(fd, abuffer, sizeof abuffer - 1)) < 0)
 		fprint(2, "Error in getting addres from dict.\n");
 	else {
@@ -237,7 +232,7 @@ dispentry(Win *cwin)
 	/* Display the current selection in window. */
 
 	int fd, nb;
-	char buf[BUFSIZE];
+	char buf[BUFSIZE], *q;
 
 	if (curone == nil) {
 		if (pattern != nil) {
@@ -247,7 +242,9 @@ dispentry(Win *cwin)
 		}
 		return;
 	}
-	fd = procrexec(xprog, "-d", dict, "-c", cmd("%sp", curone), nil);
+	q = smprint("%sp", curone);
+	fd = procrexec(xprog, "-d", dict, "-c", q, nil);
+	free(q);
 	wreplace(cwin, "0,$","",0);	/* Clear window */
 	while ((nb = read(fd, buf, BUFSIZE)) > 0) {
 		wwritebody(cwin, buf, nb);
@@ -262,9 +259,11 @@ dispmatches(Win *cwin)
 	/* Display the current matches. */
 
 	int fd, nb;
-	char buf[BUFSIZE];
+	char buf[BUFSIZE], *q;
 
-	fd = procrexec(xprog, "-d", dict, "-c", cmd("/%s/H", pattern), nil);
+	q = smprint("/%s/H", pattern);
+	fd = procrexec(xprog, "-d", dict, "-c", q, nil);
+	free(q);
 	while ((nb = read(fd, buf, BUFSIZE)) > 0)
 		wwritebody(cwin, buf, nb);
 	close(fd);
@@ -284,18 +283,20 @@ format(char *s)
 		*t = 0;
 		return t;
 	}
-	strecpy(t, t+sizeof fbuffer, s);
 	h = t;
-	while (*t != 0) {
-		if (!(((*t >= 'a') && (*t <= 'z')) ||
-		    ((*t >= 'A') && (*t <= 'Z')) ||
-		    ((*t >= '0') && (*t <= '9'))))
-			*t = '_';
-		t++;
+	for (; *s != 0 && t < fbuffer+sizeof fbuffer-1; s++) {
+		if (*s == '\\')
+			continue;
+		if (!(((*s >= 'a') && (*s <= 'z')) ||
+		    ((*s >= 'A') && (*s <= 'Z')) ||
+		    ((*s >= '0') && (*s <= '9'))))
+			*t++ = '_';
+		else
+			*t++ = *s;
 	}
+	*t = 0;
 	if (strlen(h) > MAXTAG)
 		h[MAXTAG] = 0;
-	if (strcmp(s,h) == 0) return s;
 	return h;
 }
 
@@ -506,7 +507,7 @@ void
 handle(Win *w, int wintype)
 {
 	Event e, e2, ea, etoss;
-	char *s, *t, buf[256];
+	char *s, *t, *args[6], buf[256];
 	int tmp, na;
 
 	while (True) {
@@ -569,8 +570,9 @@ handle(Win *w, int wintype)
 				args[0] = lprog;
 				args[1] = "-d";
 				args[2] = dict;
-				args[3] = buf;
-				args[4] = nil;
+				args[3] = "--";
+				args[4] = buf;
+				args[5] = nil;
 				procpexec(lprog, args); /* New adict with chosen pattern. */
 			}
 			if (wintype == Matchwin) {
