@@ -188,7 +188,7 @@ DigestState*	aes(uchar*, ulong, uchar*, DigestState*);
 DigestState*	hmac_x(uchar *p, ulong len, uchar *key, ulong klen,
 			uchar *digest, DigestState *s,
 			DigestState*(*x)(uchar*, ulong, uchar*, DigestState*),
-			int xlen);
+			int xlen, int B);
 DigestState*	hmac_md5(uchar*, ulong, uchar*, ulong, uchar*, DigestState*);
 DigestState*	hmac_sha1(uchar*, ulong, uchar*, ulong, uchar*, DigestState*);
 DigestState*	hmac_sha2_224(uchar*, ulong, uchar*, ulong, uchar*, DigestState*);
@@ -287,6 +287,7 @@ PEMChain*	decodepemchain(char *s, char *type);
 uchar*		X509gen(RSApriv *priv, char *subj, ulong valid[2], int *certlen);
 uchar*		X509req(RSApriv *priv, char *subj, int *certlen);
 char*		X509verify(uchar *cert, int ncert, RSApub *pk);
+char*		X509rsaverifydigest(uchar *sig, int siglen, uchar *edigest, int edigestlen, RSApub *pk);
 void		X509dump(uchar *cert, int ncert);
 mpint*		pkcs1padbuf(uchar *buf, int len, mpint *modulus, int blocktype);
 int		asn1encodedigest(DigestState* (*fun)(uchar*, ulong, uchar*, DigestState*),

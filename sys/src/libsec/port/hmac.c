@@ -4,23 +4,25 @@
 /* rfc2104 */
 DigestState*
 hmac_x(uchar *p, ulong len, uchar *key, ulong klen, uchar *digest, DigestState *s,
-	DigestState*(*x)(uchar*, ulong, uchar*, DigestState*), int xlen)
+	DigestState*(*x)(uchar*, ulong, uchar*, DigestState*), int xlen, int B)
 {
 	int i;
-	uchar pad[Hmacblksz+1], innerdigest[256];
+	uchar pad[144], innerdigest[256];
 
-	if(xlen > sizeof(innerdigest))
-		return nil;
-	if(klen > Hmacblksz)
-		return nil;
+	if(xlen > sizeof(innerdigest) || B > sizeof(pad) || xlen > B)
+		abort();
+	if(klen > B){
+		(*x)(key, klen, innerdigest, nil);
+		key = innerdigest;
+		klen = xlen;
+	}
 
 	/* first time through */
 	if(s == nil || s->seeded == 0){
-		memset(pad, 0x36, Hmacblksz);
-		pad[Hmacblksz] = 0;
+		memset(pad, 0x36, B);
 		for(i = 0; i < klen; i++)
 			pad[i] ^= key[i];
-		s = (*x)(pad, Hmacblksz, nil, s);
+		s = (*x)(pad, B, nil, s);
 		if(s == nil)
 			return nil;
 	}
@@ -30,12 +32,11 @@ hmac_x(uchar *p, ulong len, uchar *key, ulong klen, uchar *digest, DigestState *
 		return s;
 
 	/* last time through */
-	memset(pad, 0x5c, Hmacblksz);
-	pad[Hmacblksz] = 0;
+	memset(pad, 0x5c, B);
 	for(i = 0; i < klen; i++)
 		pad[i] ^= key[i];
 	(*x)(nil, 0, innerdigest, s);
-	s = (*x)(pad, Hmacblksz, nil, nil);
+	s = (*x)(pad, B, nil, nil);
 	(*x)(innerdigest, xlen, digest, s);
 	return nil;
 }

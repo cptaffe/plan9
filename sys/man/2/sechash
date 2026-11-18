@@ -60,7 +60,7 @@ DS*	aes(uchar *data, ulong dlen, uchar *digest, DS *state)
 .Ti
 DS*	poly1305(uchar *p, ulong len, uchar *key, ulong klen, uchar *digest, DS *state)
 .Ti
-DS*	hmac_x(uchar *p, ulong len, uchar *key, ulong klen, uchar *digest, DS *s, DS*(*x)(uchar*, ulong, uchar*, DS*), int xlen)
+DS*	hmac_x(uchar *p, ulong len, uchar *key, ulong klen, uchar *digest, DS *s, DS*(*x)(uchar*, ulong, uchar*, DS*), int xlen, int B)
 .Ti
 DS*	hmac_md5(uchar *data, ulong dlen, uchar *key, ulong klen, uchar *digest, DS *state)
 .Ti
@@ -155,6 +155,17 @@ These routines all call
 internally, but
 .I hmac_x
 is not intended for general use.
+Its
+.I B
+is the block size of the hash
+.IR x :
+64 bytes for MD5, SHA-1, SHA-224 and SHA-256,
+and 128 for SHA-384 and SHA-512.
+A key longer than
+.I B
+is hashed by
+.I x
+first, as RFC 2104 says.
 IR poly1305 ,
 is a one-time authenticator designed by D. J. Bernstein. It takes a 32-byte
 one-time key and a message and produces a 16-byte tag.

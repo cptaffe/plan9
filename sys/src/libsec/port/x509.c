@@ -2153,58 +2153,69 @@ digest_certinfo(Bytes *cert, DigestFun digestfun, uchar *digest)
 	(*digestfun)(info, infolen, digest, nil);
 }
 
-static char*
-verify_signature(Bytes* signature, RSApub *pk, uchar *edigest, Elem **psigalg)
+char*
+X509rsaverifydigest(uchar *sig, int siglen, uchar *edigest, int edigestlen, RSApub *pk)
 {
-	Elem e;
-	Elist *el;
-	Bytes *digest;
-	uchar *pkcs1buf, *buf;
-	int buflen;
-	mpint *pkcs1;
-	int nlen;
+	static struct { DigestFun fun; int len; } da[] = {
+		md5, MD5dlen,
+		sha1, SHA1dlen,
+		sha2_224, SHA2_224dlen,
+		sha2_256, SHA2_256dlen,
+		sha2_384, SHA2_384dlen,
+		sha2_512, SHA2_512dlen,
+	};
+	uchar buf[128];
+	int i, n;
+	mpint *x, *em;
 	char *err;
 
+	for(i = 0; i < nelem(da); i++)
+		if(da[i].len == edigestlen)
+			break;
+	if(i == nelem(da))
+		return "unknown digest";
+	/* rfc8017 8.2.2 */
+	if(siglen != (mpsignif(pk->n)+7)/8)
+		return "bad signature length";
+	n = asn1encodedigest(da[i].fun, edigest, buf, sizeof buf);
+	if(n < 0)
+		return "unknown digest";
+	em = pkcs1padbuf(buf, n, pk->n, 1);
+	if(em == nil)
+		return "rsa modulus too small";
 	err = nil;
-	pkcs1buf = nil;
-
-	/* one less than the byte length of the modulus */
-	nlen = (mpsignif(pk->n)-1)/8;
-
-	/* see 9.2.1 of rfc2437 */
-	pkcs1 = betomp(signature->data, signature->len, nil);
-	mpexp(pkcs1, pk->ek, pk->n, pkcs1);
-	buflen = mptobe(pkcs1, nil, 0, &pkcs1buf);
-	buf = pkcs1buf;
-	if(buflen != nlen || buf[0] != 1) {
-		err = "expected 1";
-		goto end;
+	x = betomp(sig, siglen, nil);
+	if(mpcmp(x, pk->n) >= 0)
+		err = "signature not less than modulus";
+	else{
+		mpexp(x, pk->ek, pk->n, x);
+		if(mpcmp(x, em) != 0)
+			err = "digests did not match";
 	}
-	buf++;
-	while(buf[0] == 0xff)
-		buf++;
-	if(buf[0] != 0) {
-		err = "expected 0";
-		goto end;
-	}
-	buf++;
-	buflen -= buf-pkcs1buf;
-	if(decode(buf, buflen, &e) != ASN_OK || !is_seq(&e, &el) || elistlen(el) != 2 ||
-			!is_octetstring(&el->tl->hd, &digest)) {
-		err = "signature parse error";
-		goto end;
-	}
-	*psigalg = &el->hd;
-	if(memcmp(digest->data, edigest, digest->len) == 0)
-		goto end;
-	err = "digests did not match";
-
-end:
-	if(pkcs1 != nil)
-		mpfree(pkcs1);
-	if(pkcs1buf != nil)
-		free(pkcs1buf);
+	mpfree(x);
+	mpfree(em);
 	return err;
+}
+
+static char*
+verify_signature(Bytes* signature, RSApub *pk, int alg, uchar *edigest)
+{
+	int n;
+
+	switch(alg){
+	case ALG_sha256WithRSAEncryption:
+		n = SHA2_256dlen;
+		break;
+	case ALG_sha384WithRSAEncryption:
+		n = SHA2_384dlen;
+		break;
+	case ALG_sha512WithRSAEncryption:
+		n = SHA2_512dlen;
+		break;
+	default:
+		return "unsupported signature algorithm";
+	}
+	return X509rsaverifydigest(signature->data, signature->len, edigest, n, pk);
 }
 
 RSApub*
@@ -2328,8 +2339,7 @@ X509verify(uchar *cert, int ncert, RSApub *pk)
 	char *e;
 	Bytes *b;
 	CertX509 *c;
-	uchar digest[SHA1dlen];
-	Elem *sigalg;
+	uchar digest[SHA2_512dlen];
 
 	b = makebytes(cert, ncert);
 	c = decode_cert(b);
@@ -2338,7 +2348,7 @@ X509verify(uchar *cert, int ncert, RSApub *pk)
 	freebytes(b);
 	if(c == nil)
 		return "cannot decode cert";
-	e = verify_signature(c->signature, pk, digest, &sigalg);
+	e = verify_signature(c->signature, pk, c->signature_alg, digest);
 	freecert(c);
 	return e;
 }
@@ -2813,8 +2823,7 @@ X509dump(uchar *cert, int ncert)
 	Bytes *b;
 	CertX509 *c;
 	RSApub *pk;
-	uchar digest[SHA1dlen];
-	Elem *sigalg;
+	uchar digest[SHA2_512dlen];
 
 	print("begin X509dump\n");
 	b = makebytes(cert, ncert);
@@ -2835,13 +2844,9 @@ X509dump(uchar *cert, int ncert)
 	print("pubkey e=%B n(%d)=%B\n", pk->ek, mpsignif(pk->n), pk->n);
 
 	print("sigalg=%d digest=%.*H\n", c->signature_alg, SHA2_256dlen, digest);
-	e = verify_signature(c->signature, pk, digest, &sigalg);
-	if(e==nil){
+	e = verify_signature(c->signature, pk, c->signature_alg, digest);
+	if(e==nil)
 		e = "nil (meaning ok)";
-		print("sigalg=\n");
-		if(sigalg)
-			edump(*sigalg);
-	}
 	print("self-signed verify_signature returns: %s\n", e);
 
 	rsapubfree(pk);

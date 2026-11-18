@@ -17,6 +17,7 @@ rsapubfree,
 RSApubtoasn1,
 X509toRSApub,
 X509gen,
+X509rsaverifydigest,
 X509verify \- RSA encryption algorithm
 .SH SYNOPSIS
 .B #include <u.h>
@@ -78,6 +79,9 @@ uchar*	X509req(RSApriv *priv, char *subj, int *certlen);
 .PP
 .B
 char*	X509verify(uchar *cert, int ncert, RSApub *pk)
+.PP
+.B
+char*	X509rsaverifydigest(uchar *sig, int siglen, uchar *edigest, int edigestlen, RSApub *pk)
 .PP
 .B
 int	asn1encodedigest(DigestState* (*fun)(uchar*, ulong, uchar*, DigestState*),
@@ -168,8 +172,24 @@ certificates signed by a known trusted key
 (in a single step, without certificate chains),
 .I X509verify
 checks the signature on
-.IR cert .
+.IR cert ,
+which must be RSA with SHA-256, SHA-384 or SHA-512,
+as Go's crypto/x509 requires.
 It returns nil if successful, else an error string.
+.PP
+.I X509rsaverifydigest
+checks a PKCS #1 v1.5 signature
+.I sig
+of the digest
+.IR edigest ,
+whose length
+.I edigestlen
+names the hash: MD5, SHA-1, SHA-224, SHA-256, SHA-384 or SHA-512.
+As RFC 8017 says, the signature must be as long as the modulus and less than it,
+and the padded DigestInfo it holds must be the one
+.I edigest
+makes, whole.
+It returns nil if the signature is good, else an error string.
 .PP
 .I X509gen
 creates a self-signed X.509 certificate, given an RSA keypair
