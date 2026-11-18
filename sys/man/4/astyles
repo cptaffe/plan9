@@ -133,7 +133,10 @@ and makes one with
 .B new
 if it has none.
 .SS Stacking
-Where layers' runs overlap, the higher layer's run shows.
+Where layers' runs overlap, the higher layer's run shows, color by color:
+the text takes the highest run's text color, and the background the highest run's background,
+so a run that gives only a background over a keyword keeps the keyword's text color.
+A run takes its colors from its layer's lines, or else from the theme.
 The first of
 .B $home/lib/astyles
 and
@@ -156,7 +159,23 @@ Where two layers give one name different colors,
 .I astyles
 writes one under the name with its layer's number added
 .RB ( keyword.3 ),
-so each layer's runs keep their colors.
+so each layer's runs keep their colors;
+a color made from two layers', as under
+.BR Stacking ,
+has
+.B .m
+and a number added.
+.PP
+A color in a layer's lines may have two more hexadecimal digits,
+.IR rrggbbaa ,
+its opacity:
+.I astyles
+blends it over the color beneath, the next layer's, or else the theme's
+.B body
+or acme's own, and writes acme the opaque result.
+The theme's colors are six digits, as
+.IR theme (6)
+has them.
 .SS Edits
 .I Astyles
 follows each window's edits in its
