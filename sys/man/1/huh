@@ -30,6 +30,15 @@ Huh, Bits \- mark the surprising parts of an acme window's text
 .B -m
 .I lmdir
 ] [
+.B -t
+.I bpc
+] [
+.B -s
+.I bits
+] [
+.B -r
+.I rank
+] [
 .B -p
 .I penalty
 ] [
@@ -63,6 +72,13 @@ there, as
 .B lm
 posts it, since acme runs a command in acme's own namespace.
 Each is meant to be run from the window's tag.
+One of them follows a window at a time: one that starts on a window whose
+.I astyles
+layers already include
+.B huh
+or
+.B bits
+deletes its own layer and exits.
 .I Huh
 marks the parts that cost the most, where something new or something wrong is going on;
 .I Bits
