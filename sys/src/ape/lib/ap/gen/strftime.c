@@ -11,6 +11,7 @@ static char *mon[12] = {"January", "February", "March", "April", "May", "June",
 static char *ampm[2] = {"AM", "PM"};
 
 static int jan1(int);
+static int isoweek(const struct tm *, int *);
 static char *strval(char *, char *, char **, int, int);
 static char *dval(char *, char *, int, int);
 extern void _tzone(int);	/* plan9/ctime.c's */
@@ -40,7 +41,7 @@ strftime(char *s, size_t maxsize, const char *format, const struct tm *t)
 				sp = strval(sp, se, mon, t->tm_mon, 12);
 				break;
 			case 'c':
-				sp += strftime(sp, se-sp, "%a %b %d %H:%M:%S %Y", t);
+				sp += strftime(sp, se-sp, "%a %b %e %H:%M:%S %Y", t);
 				break;
 			case 'd':
 				sp = dval(sp, se, t->tm_mday, 2);
@@ -76,6 +77,17 @@ strftime(char *s, size_t maxsize, const char *format, const struct tm *t)
 				break;
 			case 'T':
 				sp += strftime(sp, se-sp, "%H:%M:%S", t);
+				break;
+			case 'V':
+				sp = dval(sp, se, isoweek(t, &i), 2);
+				break;
+			case 'G':
+				isoweek(t, &i);
+				sp = dval(sp, se, i, 4);
+				break;
+			case 'g':
+				isoweek(t, &i);
+				sp = dval(sp, se, i%100, 2);
 				break;
 			case 'u':
 				sp = dval(sp, se, t->tm_wday == 0? 7: t->tm_wday, 1);
@@ -133,7 +145,7 @@ strftime(char *s, size_t maxsize, const char *format, const struct tm *t)
 				sp = dval(sp, se, i, 2);
 				break;
 			case 'x':
-				sp += strftime(sp, se-sp, "%a %b %d, %Y", t);
+				sp += strftime(sp, se-sp, "%m/%d/%y", t);
 				break;
 			case 'X':
 				sp += strftime(sp, se-sp, "%H:%M:%S", t);
@@ -234,4 +246,34 @@ jan1(int yr)
 		d += 3;
 
 	return(d%7);
+}
+
+static int
+p(int y)
+{
+	return (y + y/4 - y/100 + y/400) % 7;
+}
+
+static int
+weeks(int y)
+{
+	return p(y) == 4 || p(y-1) == 3? 53: 52;
+}
+
+static int
+isoweek(const struct tm *t, int *year)
+{
+	int w, y;
+
+	y = t->tm_year + 1900;
+	w = (t->tm_yday + 1 - (t->tm_wday == 0? 7: t->tm_wday) + 10) / 7;
+	if(w < 1){
+		y--;
+		w = weeks(y);
+	}else if(w > weeks(y)){
+		y++;
+		w = 1;
+	}
+	*year = y;
+	return w;
 }

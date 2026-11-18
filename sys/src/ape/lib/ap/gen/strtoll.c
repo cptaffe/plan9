@@ -10,7 +10,7 @@ long long
 strtoll(const char *nptr, char **endptr, int base)
 {
 	char *p;
-	long long n, nn, m;
+	unsigned long long n, lim;
 	int c, ovfl, v, neg, ndig;
 
 	p = nptr;
@@ -68,7 +68,7 @@ strtoll(const char *nptr, char **endptr, int base)
 	/*
 	 * Non-empty sequence of digits
 	 */
-	m = VLONG_MAX/base;
+	lim = neg? (unsigned long long)VLONG_MAX+1: VLONG_MAX;
 	for(;; p++,ndig++) {
 		c = *p;
 		v = base;
@@ -82,12 +82,10 @@ strtoll(const char *nptr, char **endptr, int base)
 			v = c - 'A' + 10;
 		if(v >= base)
 			break;
-		if(n > m)
+		if(n > (lim - v)/base)
 			ovfl = 1;
-		nn = n*base + v;
-		if(nn < n)
-			ovfl = 1;
-		n = nn;
+		else
+			n = n*base + v;
 	}
 
 Return:
@@ -102,6 +100,6 @@ Return:
 		return VLONG_MAX;
 	}
 	if(neg)
-		return -n;
+		return n? -(long long)(n-1) - 1: 0;
 	return n;
 }
