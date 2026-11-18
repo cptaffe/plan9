@@ -86,3 +86,14 @@ heading3	fg=8cc4f5
 heading4	fg=a6cdf0
 heading5	fg=b6c6d8
 heading6	fg=98a2b0
+
+# huh(1)'s marks and Bits' bands of bits a rune, as background tints
+huh	bg=3e3520
+huhspike	bg=6a2a32
+bits0	bg=1c2229
+bits1	bg=1e292d
+bits2	bg=222f2a
+bits3	bg=333524
+bits4	bg=43361f
+bits5	bg=4f2d22
+bits6	bg=5c2230
