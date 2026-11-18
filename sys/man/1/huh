@@ -144,12 +144,11 @@ Button 1 on the strip selects its token in the text's window and shows it;
 button 1 on a bar, its paragraph's start.
 Button 3 shows the token's alternatives, as below.
 .PP
-The program takes the window's events: acme gives them to the program that opened
+The program reaches the window's files through
+.IR acme (2).
+It takes the window's events by reading the window's
 .B event
-last, so a window that
-.IR win (1)
-or another program reads is taken from it, and that program has its events again when
-the program ends.
+file, whoever else reads it.
 Of the window's events:
 .TF Bits
 .TP
@@ -258,7 +257,9 @@ Huh Bits
 .IR acme (1),
 .IR bits (1),
 .IR segment (1),
+.IR acme (2),
 .IR acme (4),
+.IR amux (4),
 .IR astyles (4),
 .IR lmsim (4),
 .IR theme (6),
@@ -285,3 +286,21 @@ colors text, the colors of the layers under it, such as
 do not show, until runs can name several styles.
 .PP
 A command with a chorded argument loses the argument when written back.
+.PP
+On acme alone, a window that
+.IR win (1)
+or another program reads gets no events after the program ends: acme keeps one reader of
+.BR event ,
+and the program's read takes the other's place.
+Giving the window back waits on
+.IR acme (2)
+opening sessions of
+.IR amux (4),
+on
+.IR amux 's
+chain of the sessions that read
+.BR event ,
+and on
+.I win
+reading through
+.IR acme (2).
