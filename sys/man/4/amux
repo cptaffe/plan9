@@ -124,6 +124,23 @@ a write of
 replaces the styles at the session's address, as acme's does after a write of acme's;
 otherwise it replaces the window's styles, whatever another session's address.
 .TP
+.B event
+gives the window's events, in
+.IR acme (4)'s
+format, and the sessions holding it form a chain, the newest first.
+An execute or a look, with the events that follow it, goes to the newest;
+writing it back, as
+.B Mx
+.I "q0 q1"
+names it, passes it to the next, and from the last to acme, which does its default.
+A line that names no event the session was given goes to acme.
+Inserts and deletes go to every session holding
+.BR event .
+Closing it leaves the chain.
+Acme's own
+.B event
+is open while any session holds one.
+.TP
 .B ctl
 finds its messages as acme does, and handles
 .BR addr=dot ,
@@ -139,7 +156,6 @@ and passes every other message to acme's.
 .PP
 The other files pass to acme's.
 Reads of
-.BR event ,
 .BR rdevent ,
 .BR cons ,
 .B mouse
@@ -181,9 +197,12 @@ or opens its guarded files directly, around
 .IR amux ,
 can still come between a session's steps, as any program can on acme.
 .br
-The
+A program that opens acme's
 .B event
-file of a session is acme's: two sessions reading it share its one stream.
+directly, around
+.IR amux ,
+splits its one stream with
+.IR amux .
 .br
 .I Amux
 does every session's work on acme in one loop, so a ctl message acme is slow over, such as
