@@ -28,9 +28,10 @@ and reads as
 The session lasts while any of its files is open.
 Each session has a WebGPU device of its own, with the adapter's limits
 and those of the features
-.B shader-f16
-and
+.BR shader-f16 ,
 .B subgroups
+and
+.B chromium-experimental-subgroup-matrix
 that the adapter has,
 and its buffers, shader modules and pipelines are its own.
 .PP
@@ -50,9 +51,13 @@ then, where the adapter says them,
 .B subgroupMinSize
 and
 .BR subgroupMaxSize ;
+a line
+.B subgroupMatrix
+for each of the adapter's subgroup matrix shapes, with its component type, its result's type
+and its M, N and K, where the device has that feature;
 then a line
 .B features
-naming those of the two features the device has,
+naming the features that the adapter has and each session's device asks for,
 and a line
 .B wgsl
 naming the WGSL language features the browser has, such as
