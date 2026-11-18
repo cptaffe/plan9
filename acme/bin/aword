@@ -25,16 +25,25 @@ cd /mnt/acme/$winid || exit nowin
 	}
 	cat xdata | awk -v 'q='$a(1) -v 'l='$l(1) '
 	function w(c) {
-		return c != "" && c !~ /[ \t\n]/ && index(p, c) == 0
+		return c != "" && index(sp, c) == 0 && index(p, c) == 0
 	}
 	function j(c) {
 		return c == "''" || c == "’" || c == "-"
 	}
 	BEGIN {
-		p = "!\"#$%&()*+,./:;<=>?@[\\]^_`{|}~“”‘«»‹›—–…·¡¿"
+		sp = " \t\n   　"
+		o = "([{‘“«‹„‚「『〈《【〔（［｛"
+		c = ")]}‘“”»›」』〉》】〕）］｝"
+		p = o c "!\"#$%&*+,./:;<=>?@\\^_`|~—–‒―…·•¡¿、。，．！？：；"
 	}
 	NR == 1 {
 		i = q - l
+		if(!w(substr($0, i, 1)))
+			while(substr($0, i + 1, 1) != "" && index(o, substr($0, i + 1, 1)))
+				i++
+		if(!w(substr($0, i, 1)) && !w(substr($0, i + 1, 1)))
+			while(i > 0 && index(c, substr($0, i, 1)))
+				i--
 		k = i + 1
 		while(i > 0 && w(substr($0, i, 1)))
 			i--
