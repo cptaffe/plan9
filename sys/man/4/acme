@@ -269,6 +269,9 @@ While the body is drawn,
 through another open
 .B ctl
 file fails.
+The column's layout counts a drawn body as full:
+a window put on it splits it where it lands,
+and new and growing windows take their room from text windows first.
 .TP
 .BI dump " command
 Set the command string to recreate the window from a dump file.

@@ -54,6 +54,12 @@ wsysof(Window *w)
 	return w->wsys;
 }
 
+int
+isdrawn(Window *w)
+{
+	return w->wsys!=nil && w->wsys->on;
+}
+
 static Rectangle
 bodyr(Window *w)
 {
