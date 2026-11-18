@@ -50,7 +50,9 @@ struct State
 	int off;
 	Key *key;
 	mpint *digest;
-	int sigresp;
+	uchar hashed[SHA2_512dlen];
+	int nhashed;
+	char *sigresp;
 	char *hash;
 };
 
@@ -190,7 +192,7 @@ rsaread(Fsstate *fss, void *va, uint *n)
 		fss->phase = Established;
 		return RpcOk;
 	case VHaveResp:
-		*n = snprint(va, *n, "%s", s->sigresp == 0? "ok":
+		*n = snprint(va, *n, "%s", s->sigresp == nil? "ok":
 			"signature does not verify");
 		fss->phase = Established;
 		return RpcOk;
@@ -201,7 +203,7 @@ static int
 rsawrite(Fsstate *fss, void *va, uint n)
 {
 	RSApriv *priv;
-	mpint *m, *mm;
+	mpint *m;
 	State *s;
 	char *hash;
 	int dlen;
@@ -245,6 +247,12 @@ rsawrite(Fsstate *fss, void *va, uint n)
 		if(n != h->dlen)
 			return failure(fss, "hash length %d should be %d",
 				n, h->dlen);
+		memmove(s->hashed, va, n);
+		s->nhashed = n;
+		if(fss->phase == VNeedHash){
+			fss->phase = VNeedSig;
+			return RpcOk;
+		}
 		dlen = asn1encodedigest(h->fun, va, asn1, sizeof asn1);
 		if(dlen < 0)
 			return failure(fss, nil);
@@ -252,18 +260,11 @@ rsawrite(Fsstate *fss, void *va, uint n)
 		s->digest = pkcs1padbuf(asn1, dlen, priv->pub.n, 1);
 		if(s->digest == nil)
 			return failure(fss, nil);
-		if(fss->phase == VNeedHash)
-			fss->phase = VNeedSig;
-		else
-			fss->phase = SHaveResp;
+		fss->phase = SHaveResp;
 		return RpcOk;
 	case VNeedSig:
 		priv = s->key->priv;
-		m = betomp((uchar*)va, n, nil);
-		mm = rsaencrypt(&priv->pub, m, nil);
-		s->sigresp = mpcmp(s->digest, mm);
-		mpfree(m);
-		mpfree(mm);
+		s->sigresp = X509rsaverifydigest(va, n, s->hashed, s->nhashed, &priv->pub);
 		fss->phase = VHaveResp;
 		return RpcOk;
 	}

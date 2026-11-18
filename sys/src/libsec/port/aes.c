@@ -416,7 +416,7 @@ DigestState*
 hmac_aes(uchar *p, ulong len, uchar *key, ulong klen, uchar *digest,
 	DigestState *s)
 {
-	return hmac_x(p, len, key, klen, digest, s, aes, AESdlen);
+	return hmac_x(p, len, key, klen, digest, s, aes, AESdlen, 64);
 }
 
 
