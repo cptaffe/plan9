@@ -77,7 +77,7 @@ xfidflush(Xfid *x)
 	int i, j;
 	Window *w;
 	Column *c;
-	Xfid *wx, **xp;
+	Xfid *wx;
 
 	xfidlogflush(x);
 
@@ -94,14 +94,14 @@ xfidflush(Xfid *x)
 				winunlock(w);
 				goto out;
 			}
-			for(xp = &w->eventx; (wx = *xp) != nil; xp = &wx->evnext)
-				if(wx->fcall.tag == x->fcall.oldtag){
-					*xp = wx->evnext;
-					wx->flushed = TRUE;
-					sendp(wx->c, nil);
-					winunlock(w);
-					goto out;
-				}
+			wx = w->eventx;
+			if(wx!=nil && wx->fcall.tag==x->fcall.oldtag){
+				w->eventx = nil;
+				wx->flushed = TRUE;
+				sendp(wx->c, nil);
+				winunlock(w);
+				goto out;
+			}
 			winunlock(w);
 		}
 	}
@@ -154,8 +154,6 @@ xfidopen(Xfid *x)
 		case QWctl:
 			break;
 		case QWevent:
-			x->f->evnext = w->evfid;
-			w->evfid = x->f;
 			if(w->nopen[q]++ == 0){
 				if(!w->isdir && w->col!=nil){
 					w->filemenu = FALSE;
@@ -281,7 +279,6 @@ xfidclose(Xfid *x)
 	Window *w;
 	int q;
 	Text *t;
-	Fid **fp;
 
 	w = x->f->w;
 	x->f->busy = FALSE;
@@ -313,13 +310,7 @@ xfidclose(Xfid *x)
 		case QWseq:
 			--w->nopen[q];
 			break;
-		case QWevent:
-			for(fp = &w->evfid; *fp != nil; fp = &(*fp)->evnext)
-				if(*fp == x->f){
-					*fp = x->f->evnext;
-					break;
-				}
-			winwakeevent(w);
+		case QWevent:	/* BUG: do we need to shut down Xfid? */
 			if(--w->nopen[q] == 0){
 				if(!w->isdir && w->col!=nil){
 					w->filemenu = TRUE;
@@ -1277,21 +1268,21 @@ xfideventread(Xfid *x, Window *w)
 {
 	Fcall fc;
 	char *b;
-	int n;
+	int i, n;
 
+	i = 0;
 	x->flushed = FALSE;
-	while(w->nevents == 0 || w->evfid != x->f){
-		if(w->evshut){
-			respond(x, &fc, "window shut down");
+	while(w->nevents == 0){
+		if(i){
+			if(!x->flushed)
+				respond(x, &fc, "window shut down");
 			return;
 		}
-		x->evnext = w->eventx;
 		w->eventx = x;
 		winunlock(w);
 		recvp(x->c);
 		winlock(w, 'F');
-		if(x->flushed)
-			return;
+		i++;
 	}
 
 	n = w->nevents;
