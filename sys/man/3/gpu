@@ -26,7 +26,12 @@ makes a session, a directory
 and reads as
 .IR n .
 The session lasts while any of its files is open.
-Each session has a WebGPU device of its own, with the adapter's limits,
+Each session has a WebGPU device of its own, with the adapter's limits
+and those of the features
+.B shader-f16
+and
+.B subgroups
+that the adapter has,
 and its buffers, shader modules and pipelines are its own.
 .PP
 Reading
@@ -41,6 +46,19 @@ then the limits that matter for computing, a line for each with its value, such 
 .EX
 	maxStorageBufferBindingSize 4294967292
 .EE
+then, where the adapter says them,
+.B subgroupMinSize
+and
+.BR subgroupMaxSize ;
+then a line
+.B features
+naming those of the two features the device has,
+and a line
+.B wgsl
+naming the WGSL language features the browser has, such as
+.BR packed_4x8_integer_dot_product .
+A shader that uses a feature enables it, as in
+.BR "enable f16;" .
 Where there is no WebGPU, in Node or in a browser without it,
 .B ctl
 reads
