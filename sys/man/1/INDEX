@@ -297,6 +297,7 @@ ssh1 ssh1
 ssh2 ssh2
 start stop
 stop stop
+sticky sticky
 strings strings
 strip strip
 md5sum sum

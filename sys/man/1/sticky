@@ -1,0 +1,177 @@
+.TH STICKY 1
+.SH NAME
+sticky \- notes in small colored windows, and Markdown shown styled
+.SH SYNOPSIS
+.B sticky
+[
+.B -n
+] [
+.B -c
+.I color
+] [
+.I file
+]
+.SH DESCRIPTION
+.I Sticky
+keeps notes, as the Mac's Stickies does, each in a small
+.IR rio (1)
+window of its own with a pastel background and an acme-like tag
+.RI ( adraw (2)).
+With no arguments it opens every note, each where it was last, in its color;
+with
+.B -n
+it makes a new one, as the tag's
+.B New
+does.
+A note is the file
+.BI $home/lib/sticky/ n .md\fR,
+its text in Markdown, so that it reads well in
+.IR acme (1),
+with its color and its window's rectangle in
+.IB n .meta
+beside it.
+Sticky saves a note a moment after each change and when its window goes;
+there is no
+.BR Put .
+.B Del
+closes the window and keeps the note, unless it is empty;
+.B Delete
+removes the note, and asks for a second click if the note has text.
+.PP
+A note's text edits as an acme window's body does:
+button 1 selects, a double click selects a word or the text between brackets or quotes,
+the 1-2 and 1-3 chords cut and paste by
+.BR /dev/snarf ,
+button 2 executes, and button 3 looks, as in
+.IR acme (1).
+Executed text that is not sticky's own runs in
+.IR rc (1),
+as the tag runs it, and
+.BI | cmd\fR,
+.BI < cmd
+and
+.BI > cmd
+act on the note's selection.
+A look sends the text to the plumber, or a link's address for a link,
+and else finds the text's next occurrence in the note.
+Typing replaces the selection;
+backspace and control-U and -W erase,
+control-A and -E go to the ends of the line,
+the arrows move,
+Esc selects what was just typed or cuts the selection,
+control-X, -C and -V cut, copy and paste,
+and control-Z and -R undo and redo the note,
+as do
+.B Undo
+and
+.B Redo
+and the same keys typed in the tag.
+.PP
+A double click inside the selection makes it larger:
+from a word to its sentence, to its paragraph, list item, quote or code block,
+to the section under its heading, and to the whole note.
+.B Shrink
+gives back the selection it grew from.
+.PP
+A selection is of the Markdown:
+what
+.BR Snarf ,
+.BR Cut ,
+.BI | cmd
+and
+.BI > cmd
+get has its markers, and what
+.B Paste
+and
+.BI < cmd
+put in is Markdown, so styles go between notes and to and from acme.
+Sticky takes a typed character as itself, and escapes with a backslash one that Markdown
+would take as a marker.
+.PP
+.BR Bold ,
+.BR Italic ,
+.BR Underline ,
+.B Highlight
+and
+.B Strike
+in the tag turn their style on for the selection, or off if all of it has it already;
+with no selection, they set the style of what you type next.
+Under
+.IR rio (1)
+the Mac's Command-B, -I and -U do the first three.
+.B Color
+.I name
+gives the note a color:
+.BR yellow ,
+.BR blue ,
+.BR green ,
+.BR pink ,
+.B purple
+or
+.BR gray ,
+or
+.BI # rrggbb\fR;
+.B Color
+alone goes to the next.
+The tag takes a darker shade of the note's color, and in a dark theme
+.RI ( theme (6))
+the note is the color darkened.
+.PP
+In Markdown,
+.B **bold**
+is bold,
+.B *italic*
+italic,
+.B <u>underline</u>
+underlined,
+.B ==highlight==
+highlighted and
+.B ~~strike~~
+struck through.
+Sticky also shows headings, lists, quotes, code spans and fenced blocks,
+rules and links, with the markers it shows by style hidden;
+what it doesn't show stays as text.
+The markers of what holds the selection show, faint: a span's around it,
+a link's address, and a heading's, list item's or quote's at the left of its line.
+.B Source
+shows the Markdown as it is, and again as styled.
+.PP
+Given a
+.IR file ,
+or run from the tag of an acme window on a file whose name ends in
+.BR .md ,
+.I sticky
+shows that file.
+When there is an acme, it shows the acme window's body, opening a window for the file if
+there is none:
+each edit in sticky is the smallest change to the window's Markdown, one Undo,
+and edits in acme show in sticky as you make them.
+.BR Undo ,
+.B Redo
+and
+.B Put
+are acme's, and the tag is dirty as the window is.
+Sticky ends when acme deletes the window.
+With no acme, sticky edits the file itself, and
+.B Put
+writes it.
+.SH FILES
+.TF $home/lib/sticky/*.meta
+.TP
+.B $home/lib/sticky/*.md
+the notes
+.TP
+.B $home/lib/sticky/*.meta
+each note's color and rectangle
+.SH SOURCE
+plan9web's
+.B src/cmd/sticky
+.SH SEE ALSO
+.IR acme (1),
+.IR rio (1),
+.IR adraw (2),
+.IR theme (6)
+.SH BUGS
+A style marker spans one line: sticky marks a selection over lines line by line.
+.PP
+Cutting and pasting within one note keeps the styles; elsewhere only the text goes.
