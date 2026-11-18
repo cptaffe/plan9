@@ -26,7 +26,7 @@ strftime(char *s, size_t maxsize, const char *format, const struct tm *t)
 	for(fp=(char *)format; *fp && sp<se; fp++){
 		if(*fp != '%')
 			*sp++ = *fp;
-		else switch(*++fp){
+		else switch(*++fp == 'E' || *fp == 'O'? *++fp: *fp){
 			case 'a':
 				sp = strval(sp, se, awday, t->tm_wday, 7);
 				break;
@@ -44,6 +44,41 @@ strftime(char *s, size_t maxsize, const char *format, const struct tm *t)
 				break;
 			case 'd':
 				sp = dval(sp, se, t->tm_mday, 2);
+				break;
+			case 'e':
+				sp = dval(sp, se, t->tm_mday, 2);
+				if(sp-2 >= s && sp[-2] == '0')
+					sp[-2] = ' ';
+				break;
+			case 'C':
+				sp = dval(sp, se, (t->tm_year+1900)/100, 2);
+				break;
+			case 'D':
+				sp += strftime(sp, se-sp, "%m/%d/%y", t);
+				break;
+			case 'F':
+				sp += strftime(sp, se-sp, "%Y-%m-%d", t);
+				break;
+			case 'h':
+				sp = strval(sp, se, amon, t->tm_mon, 12);
+				break;
+			case 'n':
+				*sp++ = '\n';
+				break;
+			case 't':
+				*sp++ = '\t';
+				break;
+			case 'r':
+				sp += strftime(sp, se-sp, "%I:%M:%S %p", t);
+				break;
+			case 'R':
+				sp += strftime(sp, se-sp, "%H:%M", t);
+				break;
+			case 'T':
+				sp += strftime(sp, se-sp, "%H:%M:%S", t);
+				break;
+			case 'u':
+				sp = dval(sp, se, t->tm_wday == 0? 7: t->tm_wday, 1);
 				break;
 			case 'H':
 				sp = dval(sp, se, t->tm_hour, 2);

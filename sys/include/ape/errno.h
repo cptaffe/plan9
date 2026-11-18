@@ -3,6 +3,7 @@
 #pragma lib "/$M/lib/ape/libap.a"
 
 extern int errno;
+#define errno errno
 
 #define EDOM	1000
 #define ERANGE	1001
