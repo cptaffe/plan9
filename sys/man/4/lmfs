@@ -86,8 +86,10 @@ for 8 million tokens.
 The engine keeps the model's state for the parts it scored last: a transformer's keys and
 values, or a recurrent model's state every 256 tokens, so an edit inside a part scores again
 only from the edit.
-It decodes in blocks of 256 tokens at fixed places, so a part's bits do not depend on what
-it decoded before.
+It decodes in blocks of 64 tokens at fixed places, so a part's bits do not depend on what
+it decoded before, and
+.B data
+gives a part's lines a block at a time, as the model scores them.
 A byte that is not UTF-8 is its byte's token.
 .B Embed
 gives the model's last hidden state, the mean over the span's tokens, of unit length.
