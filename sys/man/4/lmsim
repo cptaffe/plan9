@@ -79,12 +79,18 @@ the model takes),
 .B scored
 (how many tokens the model has scored, in every session, not counting those the cache gave),
 and
+.B settings
+(the settings that change
+.BR freq 's
+slots, as one string to the end of the line),
+and
 .IR lmsim 's
 own
 .BR stall ,
-.B slow
+.BR slow ,
+.B fail
 and
-.BR fail .
+.BR repeat .
 A client should find a setting by its name.
 .TP
 .IB n /data
@@ -178,14 +184,27 @@ Spans with the same bytes near them get the same vector.
 It stands in for a model's vector, and knows nothing of meaning.
 .PP
 .B Freq
-takes several rounds on one open, and its reads go in order, whatever their offsets.
+takes several rounds on one open.
+Its reads follow the file's offset, which on one open counts the bytes written and the bytes
+read, so a read again at an earlier offset gives the same bytes, and an offset before what
+.I lmsim
+still keeps is an error.
 Each block starts with no context.
-A token's frequencies are the model's distribution on a scale of
-.if t 2\u\s-224\s+2\d,
-.if n 2^24,
-each at least 1, as
-.IR lmq (2)
-quantizes it.
+A token's frequency is its share of the model's distribution on a scale of
+.if t 2\u\s-224\s+2\d:
+.if n 2^24:
+with each token's weight
+.I w
+its probability times
+.if t 2\u\s-231\s+2\d,
+.if n 2^31,
+in whole numbers, a token's frequency is 1 more than
+.I w
+times
+.if t 2\u\s-224\s+2\d\-256
+.if n 2^24-256
+over the weights' sum, rounded down, and the likeliest token, the first if there are several,
+takes what is left.
 To encode, write
 .BI encode " n\fR,"
 then each of the
@@ -213,6 +232,11 @@ or
 .B -
 for a block that has ended.
 Closing the file ends the set.
+A step with the wrong number of values, a value out of range, or a value for a block given
+.B -
+before, is an error, and
+.I lmsim
+answers none of it.
 .PP
 .I Lmsim
 scores a text in parts, as
@@ -226,8 +250,10 @@ The model sees each part with the
 .B ctx
 tokens before it (512 by default) and no others,
 and keeps each part's scores by a SHA-256 hash of its tokens, those before it, the model,
-the backend and
-.BR ctx ,
+the backend,
+.B ctx
+and
+.BR repeat ,
 for 8 million tokens.
 A text seen before, or a part an edit did not reach, costs nothing.
 .PP
@@ -265,13 +291,26 @@ each part the model scores, and each block or step of
 .BR freq ,
 takes
 .I ms
-more milliseconds.
+more milliseconds; a new
+.B slow
+applies to the waits under way.
 .TP
 .B fail
 answers and writes fail.
 .TP
 .B go
 ends all three.
+.PD
+.LP
+And this changes the model, for tests of what context does:
+.TF repeat\ \fIn\fP
+.TP
+.BI repeat " n"
+after the last
+.I n
+bytes, the model gives 15/16 of its weight to the byte that followed their last
+occurrence in the part and its context, so text repeated within the context costs few bits.
+0, the default, turns it off.
 .PD
 .PP
 .B Lmsim -t
@@ -290,24 +329,39 @@ or the count that failed.
 It checks that a session after many requests and a fresh one give a text the same answer;
 that the lines of a text with multibyte runes and a broken rune tile it;
 that an answer is its own open's when a new request comes while the first is scoring;
-that a close drops a request's work, a text seen before costs nothing, and an edit costs
-less than the text;
+that a close drops a request's work, a text seen before costs nothing, an edit costs
+at most three parts, and a change of
+.B ctx
+or
+.B backend
+misses the cache;
+that a passage repeated far back costs less with a long
+.B ctx
+than with none;
+that a short request in one session gets its answer at once while another encodes a long block;
 .BR top 's
 order and its bits against
 .BR data 's;
 that
 .B embed
-gives one vector for one span;
+gives one vector for one span and different ones for different spans;
 that
 .BR freq 's
 encoding, decoded with the start of each slot or its last value, gives the blocks back
-byte for byte, and that a close drops its work;
-and the errors.
-It uses
-.BR slow ,
+byte for byte, that every byte's slot at the start of a block tiles the scale, the likeliest
+widest, that a read again at its offset gives the same bytes, and that a close drops its work;
+that
 .B stall
 and
 .B fail
+in one session hold and fail another's requests;
+and the errors.
+It uses
+.BR slow ,
+.BR stall ,
+.B fail
+and
+.B repeat
 where the server takes them.
 .SH EXAMPLES
 .EX
@@ -325,9 +379,10 @@ where the server takes them.
 .SH SEE ALSO
 .IR bits (1),
 .IR segment (1),
-.IR lmq (2),
 .B doc/words.md
 .SH BUGS
 A model of bytes sees two bytes back: it finds a misspelling surprising, and a sentence
-on another subject only when its letters are unusual, and repetition from far back
+on another subject only when its letters are unusual, and, without
+.BR repeat ,
+repetition from far back
 costs it as much as anything new.
