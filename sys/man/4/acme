@@ -445,6 +445,8 @@ which behave normally) have no immediate effect on the window;
 it is expected that the program reading the
 .B event
 file will interpret them.
+When several programs have the file open, the one that opened it last reads the events,
+and the others' reads wait until it closes the file, then go on with the events it left.
 The messages have a fixed format:
 a character indicating the origin or cause of the action,
 a character indicating the type of the action,
