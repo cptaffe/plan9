@@ -199,25 +199,31 @@ the command, and every other attribute an option sent to it at its start, as
 .B -e
 and
 .B $chessengine
-take a name or a command;
-.I Chess
-runs
-.BR $chessengine ,
-or without it
-.BR weiss :
+take a name or a command.
+Without either,
+.I chess
+runs the first engine the files name, a user's own first,
+so a user's file makes its first entry the default;
+.B /lib/chess/engines
+names
+.B maia1500
+first:
+.IR zero (1)
+playing the moves of Maia's network for players rated 1500.
+The file also names
+.BR maia1100
+to
+.BR maia1900 ,
+as people of those ratings play;
+.BR leela ,
+.I zero
+searching with Leela's network;
+and
+.BR weiss ,
 Weiss, Terje Kirstihagen's engine, the
 .B weiss
 package (see
 .IR pkg (1)).
-The file also names
-.BR leela ,
-.IR zero (1)
-searching with Leela's network, and
-.B maia1100
-to
-.BR maia1900 ,
-.I zero
-playing Maia's networks' own moves, as people of those ratings play.
 With
 .B -e
 .B "''"

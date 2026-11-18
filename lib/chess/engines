@@ -1,13 +1,14 @@
 # chess(1)'s engines: Engine name, chess -e name or $chessengine=name runs cmd, and sends each other
 # attribute to it as a UCI option, setoption name attr value value. $home/lib/chess/engines is read
-# first. Every option zero's play depends on is here, not left to its defaults.
+# first. The first engine named, the user's own first, is the default, which $chessengine and -e
+# override. Every option zero's play depends on is here, not left to its defaults.
+engine=maia1500 cmd=zero Network=/lib/nn/maia1500.pb.gz Nodes=1
 engine=weiss cmd="pkg run weiss -c weiss"
 engine=leela cmd=zero Network=/lib/nn/703810.pb.gz Nodes=0
 engine=maia1100 cmd=zero Network=/lib/nn/maia1100.pb.gz Nodes=1
 engine=maia1200 cmd=zero Network=/lib/nn/maia1200.pb.gz Nodes=1
 engine=maia1300 cmd=zero Network=/lib/nn/maia1300.pb.gz Nodes=1
 engine=maia1400 cmd=zero Network=/lib/nn/maia1400.pb.gz Nodes=1
-engine=maia1500 cmd=zero Network=/lib/nn/maia1500.pb.gz Nodes=1
 engine=maia1600 cmd=zero Network=/lib/nn/maia1600.pb.gz Nodes=1
 engine=maia1700 cmd=zero Network=/lib/nn/maia1700.pb.gz Nodes=1
 engine=maia1800 cmd=zero Network=/lib/nn/maia1800.pb.gz Nodes=1
