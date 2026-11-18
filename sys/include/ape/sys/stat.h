@@ -39,7 +39,7 @@ struct	stat {
 #define	st_ctime	st_ctim.tv_sec
 
 #define	S__MASK		     0170000
-#ifdef _RESEARCH_SOURCE
+#if defined(_RESEARCH_SOURCE) || _POSIX_C_SOURCE >= 200112L
 #define S_ISLNK(m)	(((m)&S__MASK) == 0120000)
 #endif
 #define S_ISREG(m)	(((m)&S__MASK) == 0100000)
@@ -77,6 +77,11 @@ struct	stat {
 #define S_ISTXT	S_ISVTX
 #endif
 
+#if _POSIX_C_SOURCE >= 200809L
+#define UTIME_NOW	((1L<<30)-1)
+#define UTIME_OMIT	((1L<<30)-2)
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -87,6 +92,10 @@ extern int mkfifo(const char *, mode_t);
 extern int stat(const char *, struct stat *);
 #if _POSIX_C_SOURCE >= 200809L
 extern int fstatat(int, const char *, struct stat *, int);
+extern int fchmodat(int, const char *, mode_t, int);
+extern int mkdirat(int, const char *, mode_t);
+extern int utimensat(int, const char *, const struct timespec [2], int);
+extern int futimens(int, const struct timespec [2]);
 #endif
 extern int fstat(int, struct stat *);
 extern int chmod(const char *, mode_t);
@@ -96,7 +105,7 @@ extern int fchmod(int, mode_t);
 
 #ifdef _BSD_EXTENSION
 #pragma lib "/$M/lib/ape/libbsd.a"
-extern int	lstat(char *, struct stat *);
+extern int	lstat(const char *, struct stat *);
 extern int	symlink(const char *, const char *);
 extern ssize_t	readlink(const char *, char *, size_t);
 #endif

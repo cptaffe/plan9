@@ -10,6 +10,24 @@
 #define LC_MONETARY	3
 #define LC_NUMERIC	4
 #define LC_TIME		5
+#ifdef _POSIX_SOURCE
+#define LC_MESSAGES	6
+#endif
+
+#if _POSIX_C_SOURCE >= 200809L
+#ifndef _LOCALE_T
+#define _LOCALE_T
+typedef struct __locale *locale_t;
+#endif
+#define LC_COLLATE_MASK	(1<<LC_COLLATE)
+#define LC_CTYPE_MASK	(1<<LC_CTYPE)
+#define LC_MONETARY_MASK	(1<<LC_MONETARY)
+#define LC_NUMERIC_MASK	(1<<LC_NUMERIC)
+#define LC_TIME_MASK	(1<<LC_TIME)
+#define LC_MESSAGES_MASK	(1<<LC_MESSAGES)
+#define LC_ALL_MASK	(LC_COLLATE_MASK|LC_CTYPE_MASK|LC_MONETARY_MASK|LC_NUMERIC_MASK|LC_TIME_MASK|LC_MESSAGES_MASK)
+#define LC_GLOBAL_LOCALE	((locale_t)-1)
+#endif
 
 struct lconv {
 	char *decimal_point;
@@ -46,6 +64,12 @@ extern "C" {
 
 extern char *setlocale(int, const char *);
 extern struct lconv *localeconv(void);
+#if _POSIX_C_SOURCE >= 200809L
+extern locale_t newlocale(int, const char *, locale_t);
+extern locale_t duplocale(locale_t);
+extern void freelocale(locale_t);
+extern locale_t uselocale(locale_t);
+#endif
 
 #ifdef __cplusplus
 }

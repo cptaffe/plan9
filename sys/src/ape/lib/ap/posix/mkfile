@@ -8,6 +8,7 @@ OFILES=\
 	getpwent.$O\
 	langinfo.$O\
 	locale.$O\
+	locale_l.$O\
 	mkfifo.$O\
 	pathconf.$O\
 	setenv.$O\

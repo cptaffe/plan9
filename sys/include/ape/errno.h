@@ -91,6 +91,9 @@ extern int errno;
 #define ENOTSUP	EOPNOTSUPP
 #define EDQUOT	68
 #define ESTALE	69
+#ifdef _BSD_EXTENSION
+#define ELAST	69
+#endif
 
 #endif /* _POSIX_SOURCE */
 
