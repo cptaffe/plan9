@@ -31,15 +31,14 @@ The options are
 .TP
 .BI -d " dictname"
 Use the given dictionary.
-The default is the first one present of
+The default is the first present of those that
+.B -d?
+lists, in its order, which starts with
 .BR oed ,
-the second edition of the Oxford English Dictionary,
-.BR ahd ,
-and
-.BR pgw ;
+the second edition of the Oxford English Dictionary;
 p9web has
 .BR pgw ,
-Webster's dictionary of 1913, and
+Webster's Dictionary of 1913, and
 .BR roget ,
 Roget's Thesaurus of 1911, so its default is
 .BR pgw .

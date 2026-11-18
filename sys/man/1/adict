@@ -38,7 +38,13 @@ with the entry and the words
 and
 .BR Next ,
 which show the entries before and after it;
-more than one opens a window of their headwords, numbered, and button 3 on a number shows that entry.
+more than one opens a window of their headwords, numbered, and button 3 on a number opens a window
+with that entry and
+.BR Nmatch ,
+which shows the next of the entries that matched, as well as
+.B Prev
+and
+.BR Next .
 Button 3 on a word in an entry looks the word up in a new window.
 With no
 .IR pattern ,
@@ -62,6 +68,9 @@ and
 stay whole and
 .L ‘well-known’
 loses its quotes.
+With dot just before an opening quote or bracket, or just after a closing one, it prints the
+word beside it.
+A no-break space is a space.
 .I Aword
 reads the window through its
 .BR addr ,
