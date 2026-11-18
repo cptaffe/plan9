@@ -342,13 +342,16 @@ winclose(Window *w)
 void
 windelete(Window *w)
 {
-	w->evshut = TRUE;
-	if(w->eventx){
+	Xfid *x;
+
+	x = w->eventx;
+	if(x){
 		w->nevents = 0;
 		free(w->events);
 		w->events = nil;
+		w->eventx = nil;
+		sendp(x->c, nil);	/* wake him up */
 	}
-	winwakeevent(w);
 
 	/*
 	 * Wake every blocked <winid>/log reader.  winlogfree sets l->closed=1
@@ -723,6 +726,7 @@ winevent(Window *w, char *fmt, ...)
 {
 	int n;
 	char *b;
+	Xfid *x;
 	va_list arg;
 
 	if(w->nopen[QWevent] == 0 && w->rdlog.nf == 0)
@@ -745,16 +749,9 @@ winevent(Window *w, char *fmt, ...)
 	memmove(w->events+w->nevents, b, n);
 	free(b);
 	w->nevents += n;
-	winwakeevent(w);
-}
-
-void
-winwakeevent(Window *w)
-{
-	Xfid *x;
-
-	while((x = w->eventx) != nil){
-		w->eventx = x->evnext;
+	x = w->eventx;
+	if(x){
+		w->eventx = nil;
 		sendp(x->c, nil);
 	}
 }

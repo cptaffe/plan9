@@ -303,8 +303,6 @@ struct Window {
   int rdselfd;
   Column *col;
   Xfid *eventx;
-  Fid *evfid;
-  uchar evshut;
   char *events;
   int nevents;
   int owner;
@@ -363,7 +361,6 @@ void windelete(Window *);
 int winclean(Window *, int);
 void windirfree(Window *);
 void winevent(Window *, char *, ...);
-void winwakeevent(Window *);
 void winmousebut(Window *);
 void winaddincl(Window *, Rune *, int);
 void wincleartag(Window *);
@@ -456,7 +453,6 @@ struct Fid {
   Window *w;
   Dirtab *dir;
   Fid *next;
-  Fid *evnext;
   /* event pipeline fields (valid when this fid has QWevent open) */
   Mntdir *mntdir;
   int nrpart;
@@ -483,7 +479,6 @@ struct Xfid {
   Fid *f;
   uchar *buf;
   int flushed;
-  Xfid *evnext;
 };
 
 void xfidctl(void *);
