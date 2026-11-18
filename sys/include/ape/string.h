@@ -58,4 +58,23 @@ extern char *strtok_r(char *, const char *, char **);
 }
 #endif
 
+#if _POSIX_C_SOURCE >= 200809L
+#ifndef _LOCALE_T
+#define _LOCALE_T
+typedef struct __locale *locale_t;
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern int strcoll_l(const char *, const char *, locale_t);
+extern size_t strxfrm_l(char *, const char *, size_t, locale_t);
+extern char *strerror_l(int, locale_t);
+
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 #endif

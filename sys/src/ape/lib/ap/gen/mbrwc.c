@@ -9,7 +9,7 @@
  * long, a surrogate or a rune past Runemax is an error, EILSEQ.
  * A state holds the bytes of a rune not yet whole.
  */
-static mbstate_t mbrlenstate, mbrtowcstate, wcrtombstate, mbsrstate, wcsrstate;
+static mbstate_t mbrlenstate, mbrtowcstate, wcrtombstate, mbsrstate, wcsrstate, mbsnrstate, wcsnrstate;
 
 static size_t
 bad(mbstate_t *ps)
@@ -205,5 +205,83 @@ wcsrtombs(char *dst, const wchar_t **src, size_t len, mbstate_t *ps)
 		n += k;
 	}
 	*src = w;
+	return n;
+}
+
+size_t
+mbsnrtowcs(wchar_t *dst, const char **src, size_t nms, size_t len, mbstate_t *ps)
+{
+	const char *s, *e;
+	size_t i, k, m;
+	wchar_t c;
+
+	if(ps == 0)
+		ps = &mbsnrstate;
+	s = *src;
+	e = s + nms;
+	for(i = 0; (dst == 0 || i < len) && s < e; i++){
+		for(m = 0; m < UTFmax && s+m < e && s[m]; m++)
+			;
+		k = mbrtowc(&c, s, m < UTFmax && s+m < e? m+1: m, ps);
+		if(k == (size_t)-1){
+			if(dst)
+				*src = s;
+			return k;
+		}
+		if(k == (size_t)-2){
+			s = e;
+			break;
+		}
+		if(dst)
+			dst[i] = c;
+		if(c == 0){
+			if(dst)
+				*src = 0;
+			return i;
+		}
+		s += k;
+	}
+	if(dst)
+		*src = s;
+	return i;
+}
+
+size_t
+wcsnrtombs(char *dst, const wchar_t **src, size_t nwc, size_t len, mbstate_t *ps)
+{
+	char buf[UTFmax];
+	const wchar_t *w, *e;
+	size_t n, k;
+
+	if(ps == 0)
+		ps = &wcsnrstate;
+	w = *src;
+	e = w + nwc;
+	for(n = 0; w < e; w++){
+		k = wcrtomb(buf, *w, ps);
+		if(k == (size_t)-1){
+			if(dst)
+				*src = w;
+			return k;
+		}
+		if(*w == 0){
+			if(dst){
+				if(n < len)
+					dst[n] = 0;
+				else
+					break;
+				*src = 0;
+			}
+			return n;
+		}
+		if(dst){
+			if(n+k > len)
+				break;
+			memmove(dst+n, buf, k);
+		}
+		n += k;
+	}
+	if(dst)
+		*src = w;
 	return n;
 }
