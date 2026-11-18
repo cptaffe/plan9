@@ -135,8 +135,27 @@ freefont(Font *f)
 	}
 	freeimage(f->cacheimage);
 	free(f->name);
+	free(f->namespec);
 	free(f->cache);
 	free(f->subf);
 	free(f->sub);
+
+	if(f->ondisplaylist){
+		f->ondisplaylist = 0;
+		if(f->next)
+			f->next->prev = f->prev;
+		else
+			f->display->lastfont = f->prev;
+		if(f->prev)
+			f->prev->next = f->next;
+		else
+			f->display->firstfont = f->next;
+	}
+
+	if(f->lodpi != f)
+		freefont(f->lodpi);
+	if(f->hidpi != f)
+		freefont(f->hidpi);
+
 	free(f);
 }

@@ -171,6 +171,34 @@ Sticky ends when acme deletes the window.
 With no acme, sticky edits the file itself, and
 .B Put
 writes it.
+.PP
+Sticky draws its text in the fonts that
+.B $home/lib/sticky/fonts
+names, or
+.B /lib/sticky/fonts
+if there is no such file.
+Each line is a face and a font, as
+.IR openfont (2)
+takes it:
+.BR plain ,
+.BR bold ,
+.BR italic ,
+.BR bolditalic ,
+.B mono
+for code, and
+.B head
+for headings of levels 1 and 2.
+A face not named, or whose font does not open, is drawn as
+.B plain
+is, or as
+.B bold
+is for
+.BR bolditalic ;
+.B plain
+and
+.B mono
+fall back to
+.BR $font .
 .SH FILES
 .TF $home/lib/sticky/*.meta
 .TP
@@ -179,6 +207,11 @@ the notes; riostart opens them at boot, and termrc keeps them when it empties a 
 .TP
 .B $home/lib/sticky/*.meta
 each note's color and rectangle
+.TP
+.B /lib/sticky/fonts
+the faces, which
+.B $home/lib/sticky/fonts
+replaces
 .SH SOURCE
 plan9web's
 .B src/cmd/sticky
