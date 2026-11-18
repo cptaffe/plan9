@@ -196,7 +196,10 @@ before
 .I tagopen
 returns, and changes too when the tag's lines do.
 The tag draws in acme's tag colors from the theme
-.RI ( theme (6)).
+.RI ( theme (6)),
+read when it opens, or in those its
+.B ctl
+gives.
 The program doesn't call
 .I getwindow
 itself, which would draw over the tag, and draws from a proc other than the one that
@@ -367,6 +370,23 @@ closes the tag, as
 .B Del
 does but with no
 .BR hangup ;
+.TP
+.BI color " bg fg"
+draws the tag at once in
+.I bg
+with text in
+.IR fg ,
+each
+.BI # rrggbb\fR:
+the selection and the border are
+.I bg
+mixed toward
+.IR fg ,
+and what B2 and B3 sweep
+.I bg
+mixed with acme's red and green;
+.B color
+alone goes back to the theme's colors;
 .TP
 .BI winid " n"
 gives what the tag runs acme's window

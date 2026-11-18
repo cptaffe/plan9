@@ -66,6 +66,75 @@ themecols(Image **cols)
 }
 
 static int
+hexcol(char *s, ulong *v)
+{
+	char *e;
+
+	if(*s == '#')
+		s++;
+	if(strlen(s) != 6)
+		return 0;
+	*v = strtoul(s, &e, 16)<<8 | 0xFF;
+	return *e == 0;
+}
+
+static ulong
+mix(ulong a, ulong b, int pct)
+{
+	ulong r, g, bl;
+
+	r = (((a>>24)&0xFF)*(100-pct) + ((b>>24)&0xFF)*pct)/100;
+	g = (((a>>16)&0xFF)*(100-pct) + ((b>>16)&0xFF)*pct)/100;
+	bl = (((a>>8)&0xFF)*(100-pct) + ((b>>8)&0xFF)*pct)/100;
+	return r<<24 | g<<16 | bl<<8 | 0xFF;
+}
+
+static int
+colorargs(char *s, ulong *bg, ulong *fg)
+{
+	char *f[3], *b;
+	int n, ok;
+
+	b = strdup(s);
+	n = tokenize(b, f, nelem(f));
+	ok = n == 0 || (n == 2 && hexcol(f[0], bg) && hexcol(f[1], fg));
+	free(b);
+	return ok ? n : -1;
+}
+
+static void
+setcolors(Tagx *t, char *s)
+{
+	Image *cols[NCOL];
+	ulong bg, fg, b2, b3;
+	int i;
+
+	if(colorargs(s, &bg, &fg) == 2){
+		cols[BACK] = colimage(bg);
+		cols[HIGH] = colimage(mix(bg, fg, 11));
+		cols[BORD] = colimage(mix(bg, fg, 24));
+		cols[TEXT] = colimage(fg);
+		cols[HTEXT] = colimage(fg);
+		b2 = mix(bg, 0xAA0000FF, 45);
+		b3 = mix(bg, 0x006600FF, 45);
+	}else{
+		themecols(cols);
+		b2 = themecolor("but2", 0xAA0000FF);
+		b3 = themecolor("but3", 0x006600FF);
+	}
+	for(i=0; i<NCOL; i++)
+		if(t->f->cols[i] != display->black && t->f->cols[i] != display->white)
+			freeimage(t->f->cols[i]);
+	memmove(t->f->cols, cols, sizeof cols);
+	frinittick(t->f);
+	freeimage(t->but2);
+	freeimage(t->but3);
+	t->but2 = colimage(b2);
+	t->but3 = colimage(b3);
+	layout(t, 1);
+}
+
+static int
 isalnum(Rune c)
 {
 	if(c <= ' ')
@@ -1809,8 +1878,11 @@ setname(Tagx *t, char *name)
 static int
 okctl(char *s)
 {
+	ulong bg, fg;
+
 	return strncmp(s, "name ", 5) == 0 || strcmp(s, "clean") == 0 || strcmp(s, "dirty") == 0
-		|| strcmp(s, "cleartag") == 0 || strcmp(s, "del") == 0 || strncmp(s, "winid ", 6) == 0;
+		|| strcmp(s, "cleartag") == 0 || strcmp(s, "del") == 0 || strncmp(s, "winid ", 6) == 0
+		|| (strncmp(s, "color", 5) == 0 && (s[5] == 0 || s[5] == ' ') && colorargs(s+5, &bg, &fg) >= 0);
 }
 
 static void
@@ -1833,6 +1905,8 @@ ctl1(Tagx *t, char *s)
 		del(t, 0);
 	else if(strncmp(s, "winid ", 6) == 0)
 		t->winid = atoi(s+6);
+	else if(strncmp(s, "color", 5) == 0)
+		setcolors(t, s+5);
 }
 
 static uint
