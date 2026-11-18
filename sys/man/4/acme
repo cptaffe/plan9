@@ -196,11 +196,21 @@ is always appended; the file offset is ignored.
 .B ctl
 may be read to recover the five numbers as held in the
 .B index
-file, described above, plus seven more fields: the width of the
+file, described above, plus eight more fields: the width of the
 window in pixels, the name of the font used in the window,
 the width of a tab character in pixels, whether there is anything to undo
-and to redo (1 or 0), the number of lines the body shows, and the width
-of the digit 0 in pixels, a column's width in a fixed-width font.
+and to redo (1 or 0), the number of lines the body shows, the width
+of the digit 0 in pixels, a column's width in a fixed-width font,
+and how many times the window's
+.B event
+file is open.
+A program that would take over a window, such as one named by
+.BR $winid ,
+should leave one whose
+.B event
+file is open, as
+.IR win 's
+is, to its owner.
 Text messages may be written to
 .B ctl
 to affect the window.

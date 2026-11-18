@@ -243,7 +243,9 @@ With no
 .IR file ,
 it draws the window it runs in,
 .BR $winid ;
-with one, or outside a window, it opens a new window on the file.
+with one, outside a window, or in a window whose events another program reads, as in
+.IR win ,
+it opens a new window on the file.
 An edit is one write of only the text it changes, guarded by the window's
 .B seq
 .RI ( acme (4)),
