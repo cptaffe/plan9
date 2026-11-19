@@ -165,6 +165,28 @@ Operating System Interface standard (POSIX, 1003.1-1990, ISO 9945-1).
 In order to access the POSIX routines, source programs should
 define the preprocessor constant
 .BR _POSIX_SOURCE .
+.PP
+On wasm, POSIX threads
+.RB ( pthread_create )
+and C11's
+.RB ( thrd_create )
+are processes that share the program's memory
+.RB ( rfork(RFPROC|RFMEM) ,
+see
+.IR fork (2)),
+each with a fiber of its own,
+as
+.IR thread (2)'s
+procs are.
+One runs at a time.
+A thread runs until it makes a system call that waits,
+or waits for a mutex, a condition variable or a join,
+or calls
+.I sched_yield
+or
+.IR nanosleep ;
+then another may run.
+A program with threads is rewritten by asyncify at those calls.
 .SH FILES
 .TF /$objtype/lib/ape/libap.a
 .TP
@@ -203,3 +225,17 @@ handlers are only minimally implemented.
 always fails, because Plan 9 doesn't support multiple links to a file.
 The functions related to setting effective user and group ids
 cannot be implemented because the concept doesn't exist in Plan 9.
+.PP
+No thread is preempted: one that spins on a variable another thread sets,
+with no call that waits and no
+.IR sched_yield ,
+never lets that thread run, and hangs.
+.I Errno
+and the stdio buffers are the process's, not each thread's:
+read
+.I errno
+before the next call that may wait.
+A program with threads cannot
+.IR fork ;
+.I posix_spawn
+works.
