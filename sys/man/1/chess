@@ -9,6 +9,9 @@ chess, Chess \- a board for a game of chess in PGN
 .B -e
 .I engine
 ] [
+.B -E
+.I engine
+] [
 .B -t
 .I ms
 ] [
@@ -24,7 +27,7 @@ chess, Chess \- a board for a game of chess in PGN
 .B chess
 .B -a
 [
-.B -e
+.B -E
 .I engine
 ] [
 .B -t
@@ -56,6 +59,9 @@ chess, Chess \- a board for a game of chess in PGN
 .B -e
 .I engine
 ] [
+.B -E
+.I engine
+] [
 .B -t
 .I ms
 ] [
@@ -66,6 +72,27 @@ chess, Chess \- a board for a game of chess in PGN
 shows a game of chess in a
 .IR rio (1)
 window: a board, and beside or under it the game's moves.
+The window has a tag, as an
+.IR acme (1)
+window does:
+the file's name, then
+.BR Put ,
+.BR Play ,
+.BR Replay ,
+.BR Analysis ,
+.B Engine
+and
+.BR "|chess -a" .
+Button 2 there runs a word as the menu's does, with its arguments if given;
+.B Put
+writes the file,
+.B Del
+ends
+.I chess
+as
+.B Exit
+does, and the rest is the tag's own, as in
+.IR adraw (2).
 The
 .I file
 is one game in PGN, the Portable Game Notation:
@@ -81,6 +108,10 @@ A
 .B FEN
 tag starts the game from that position.
 A file that does not exist starts as a game with PGN's seven tags and no moves.
+Moves after a game's
+.BR * ,
+with no tags between, are the game's,
+so moves pasted at the end of a new game follow on from its start.
 .PP
 The board shows the position after the move at or before the end of dot,
 so a selection of several moves, as Undo leaves, shows the last;
@@ -173,6 +204,8 @@ when
 .B O-O-O
 is legal too; Backspace takes back a letter,
 and Escape forgets what was typed and lets go of a piece;
+any key, or a button on the board, stops
+.BR Replay ;
 .B ?
 is
 .BR hint .
@@ -196,13 +229,26 @@ its name,
 .B cmd=
 the command, and every other attribute an option sent to it at its start, as
 .BI "setoption name " attr " value " value\f1.
+It has two engines:
+the engine that plays and gives hints,
 .B -e
-and
-.B $chessengine
-take a name or a command.
-Without either,
+or
+.BR $chess ,
+and the engine that analyses,
+.B -E
+or
+.BR $chessa ,
+which is the first unless set.
+Each takes a name or a command.
+When the two differ,
 .I chess
-runs the first engine the files name, a user's own first,
+runs both, each its own process.
+Without
+.B -e
+or
+.BR $chess ,
+.I chess
+plays with the first engine the files name, a user's own first,
 so a user's file makes its first entry the default;
 .B /lib/chess/engines
 names
@@ -228,14 +274,27 @@ With
 .B -e
 .B "''"
 there is none.
+A new user's
+.B lib/profile
+sets
+.B chessa=leela
+for the strongest analysis.
+.B $chessengine
+is read where
+.B $chess
+is not set, for now.
 .PP
 .B Engine
 .I name
 in the tag, or
 .B Engine
-in the menu, changes the engine for analysis, hints, play and eval alike.
+in the menu, changes the engine that plays, gives hints and evaluates,
+and the analysis's too unless that was set apart.
+.B Analysis
+.I name
+sets the analysis's engine and turns analysis on.
 .B Engine
-alone says the engine and lists the names;
+alone says the two engines and lists the names;
 with
 .B $chooser
 set, it runs that command instead, the names a line each on its standard input,
@@ -257,7 +316,7 @@ Analysis starts off, so the game is yours to think through first, or on with
 .BR -A .
 While
 .B analysis
-is on, the engine searches the position at dot.
+is on, the analysis's engine searches the position at dot.
 A bar left of the board shows how the game stands, white's share from white's side;
 an arrow shows the engine's best move; and the line under the board gives
 the evaluation, the depth, and the line of play it expects.
@@ -305,6 +364,30 @@ by adding its own, in
 milliseconds.
 .B Play
 again stops it.
+.B "Play both"
+has the engine play both sides, move after move, until the game ends or
+.B Play
+stops it;
+.B "Play both"
+.I white
+.I black
+names an engine for each, and
+.B "Play both"
+.I engine
+one for both.
+An engine that exits stops play and says so under the board.
+.PP
+.B Replay
+steps forward a move each second, or every
+.I ms
+milliseconds with
+.B Replay
+.IR ms ,
+from dot to the end of the line,
+the board, bar, arrow and analysis following each move as the right arrow's would;
+.B Replay
+again, a key, or a button on the board stops it.
+.PP
 A game ends at checkmate, stalemate, a position neither side can mate from,
 the fifth time a position comes again, or 75 moves without a capture or a pawn's move;
 in play, also the third time or after 50.
@@ -330,7 +413,7 @@ An illegal move is an error, named with its line and column.
 .PP
 With
 .BR -a ,
-it reads a game, or moves alone, and writes it back with the engine's evaluation in a comment
+it reads a game, or moves alone, and writes it back with the analysis's engine's evaluation in a comment
 after each move, in variations too, but a mate:
 .B {+0.35}
 in pawns from white's side, after
@@ -340,6 +423,11 @@ milliseconds on the position, 1000 if not told, or
 and
 .BR {#-3} ,
 a mate in three for white and for black.
+For now
+.B -e
+names that engine too, where
+.B -E
+is not given.
 It replaces an evaluation already there.
 It marks a move that costs its side 20 points of its chance of winning, out of 100, with
 .BR ? ,
@@ -456,22 +544,26 @@ in
 as
 .B Chess
 with its
-.B -A
+.BR -A ,
+.B -E
 and
 .B -e
 as they are, so acme's
 .B Load
 brings the window back as it was.
-.B Play
-is
-.BR play ;
+.BR Play ,
+.BR "Play both" ,
+.BR Replay ,
+.B Analysis
+.I name
+and
+.B Engine
+are as in a window of its own;
 .BR "|chess -a" ,
 with arguments of its own if given, is
 .BR eval ,
 run from the position before the selection,
-with
-.B -e
-and
+with the analysis's engine and
 .B -t
 passed on;
 and
@@ -516,12 +608,20 @@ Evaluate a game's moves for half a second each:
 chess -a -t 500 game.pgn >evaluated.pgn
 .EE
 .PP
-Add Weiss to the name space and run it by name:
+Add Weiss to the name space and play it by name, with Leela analysing:
 .IP
 .EX
 pkg add weiss
-chessengine=weiss
-Chess game.pgn
+chess=weiss
+chessa=leela
+Chess -A game.pgn
+.EE
+.PP
+Watch two of Maia's networks play each other, in the tag of
+.IR Chess :
+.IP
+.EX
+Play both maia1100 maia1900
 .EE
 .SH FILES
 .TF /lib/chess/engines
