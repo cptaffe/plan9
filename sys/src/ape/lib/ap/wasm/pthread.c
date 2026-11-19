@@ -60,21 +60,6 @@ _thrget(pthread_t id)
 	return _thr[id-2];
 }
 
-void
-_thrwait(Waiter **q, Waiter *w)
-{
-	Waiter **l;
-
-	w->fiber = p9web_fiber_self();
-	w->woken = 0;
-	w->next = NULL;
-	for(l = q; *l != NULL; l = &(*l)->next)
-		;
-	*l = w;
-	while(!w->woken)
-		p9web_fiber_block();
-}
-
 static void
 unwait(Waiter **q, Waiter *w)
 {
@@ -85,6 +70,53 @@ unwait(Waiter **q, Waiter *w)
 			*l = w->next;
 			return;
 		}
+}
+
+void
+_thrleave(Thr *t)
+{
+	Waiter **q, *w;
+
+	if((q = t->q) == NULL)
+		return;
+	w = t->w;
+	t->q = NULL;
+	t->w = NULL;
+	if(w->woken)
+		_thrwake(q);
+	else
+		unwait(q, w);
+}
+
+static Thr*
+enqueue(Waiter **q, Waiter *w)
+{
+	Thr *t;
+	Waiter **l;
+
+	t = _thrself();
+	_thrleave(t);
+	w->fiber = p9web_fiber_self();
+	w->woken = 0;
+	w->next = NULL;
+	for(l = q; *l != NULL; l = &(*l)->next)
+		;
+	*l = w;
+	t->q = q;
+	t->w = w;
+	return t;
+}
+
+void
+_thrwait(Waiter **q, Waiter *w)
+{
+	Thr *t;
+
+	t = enqueue(q, w);
+	while(!w->woken)
+		p9web_fiber_block();
+	t->q = NULL;
+	t->w = NULL;
 }
 
 int
@@ -114,22 +146,21 @@ static int
 timedwait(Waiter **q, Waiter *w, const struct timespec *t)
 {
 	struct timespec ms = {0, 1000000};
-	Waiter **l;
+	Thr *s;
 
-	w->fiber = p9web_fiber_self();
-	w->woken = 0;
 	w->timed = 1;
-	w->next = NULL;
-	for(l = q; *l != NULL; l = &(*l)->next)
-		;
-	*l = w;
+	s = enqueue(q, w);
 	while(!w->woken){
 		if(past(t)){
 			unwait(q, w);
+			s->q = NULL;
+			s->w = NULL;
 			return ETIMEDOUT;
 		}
 		nanosleep(&ms, NULL);
 	}
+	s->q = NULL;
+	s->w = NULL;
 	return 0;
 }
 
@@ -221,6 +252,7 @@ pthread_exit(void *r)
 	struct timespec ms = {0, 1000000};
 
 	t = _thrself();
+	_thrleave(t);
 	_doatthrexits();
 	dtors(t);
 	if(t == &_thrmain){
