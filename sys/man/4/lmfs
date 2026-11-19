@@ -69,9 +69,22 @@ another session's open, read or
 It loads a model once, for every session that names it.
 .I Bytes
 .RB ( -b ,
-1 GB by default)
-is what the engine may give the model, its caches and its scratch; the engine keeps
-as many sequences as fit, and at least one.
+3 GB by default, of wasm32's 4)
+is one bound for every engine's model, caches and scratch, as the engine measures its heap:
+a model that would pass it fails to load, and its sessions' reads fail with the reason, which
+.B ctl
+gives as
+.BR error .
+An engine keeps as many sequences as fit, and fails if none does.
+.I Lmfs
+holds 64 MB of requests' text at most, and a write past that fails, and keeps 1 MB of a
+request's answer unread before its work waits.
+An engine that fails to load is not started again for 2 seconds, then 4, up to a minute.
+A session's
+.B ctx
+has an engine of its own, and a model's engine for another
+.B ctx
+ends when its work does.
 .PP
 .I Lmfs
 cuts a text into parts as
@@ -121,6 +134,8 @@ A read gives the
 as
 .B loading
 until the engine has loaded the model.
+.PP
+The packages are downloads: Granite-4.0-H-350M is 366 MB and Qwen3-0.6B 639 MB.
 .SH EXAMPLES
 .EX
 % pkg add qwen3-0.6b
