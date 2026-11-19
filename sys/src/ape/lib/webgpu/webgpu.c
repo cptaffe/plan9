@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <limits.h>
 #include <signal.h>
 #include <sys/time.h>
 #include <webgpu/webgpu.h>
@@ -42,6 +43,7 @@ struct Pend
 	uint64_t	off;
 	size_t	n;
 	uint64_t	seq;
+	uint64_t	fut;
 	size_t	got;
 	uchar	t[4];
 };
@@ -59,8 +61,8 @@ struct Fut
 	uint64_t	id;
 	int	kind;
 	int	sent;
-	int	ok;
-	int	bad;
+	int	idle;
+	char	why[256];
 	uint64_t	want;
 	uint64_t	nsub;
 	WGPUBuffer	b;
@@ -115,6 +117,8 @@ struct WGPUBufferImpl
 	uint64_t	size;
 	WGPUBufferUsage	usage;
 	uchar	*shadow;
+	char	*why;
+	uint64_t	last;
 	int	gone;
 };
 struct WGPUShaderModuleImpl { int ref; Gpu *g; uint32_t id; };
@@ -125,6 +129,7 @@ struct WGPUBindGroupImpl
 	int	ref;
 	uint32_t	group;
 	int	n;
+	int	bad;
 	Ent	*e;
 };
 struct WGPUCommandEncoderImpl
@@ -263,7 +268,7 @@ fail(Gpu *g, char *s)
 	WGPUDevice d;
 	WGPUUncapturedErrorCallbackInfo *u;
 
-	if(g->err[0] == 0)
+	if(s != g->err)
 		snprintf(g->err, sizeof g->err, "%s", s);
 	d = g->dev;
 	if(d == NULL)
@@ -301,15 +306,25 @@ inside(Gpu *g, char *what, uint64_t off, uint64_t n, uint64_t size)
 }
 
 static void
-syserr(Gpu *g)
+errtext(char *e, size_t n)
 {
-	char e[256], t[256];
+	char t[256];
 
 	e[0] = 0;
-	_ERRSTR(e, sizeof e);
-	strcpy(t, e);
+	_ERRSTR(e, n);
+	snprintf(t, sizeof t, "%s", e);
 	_ERRSTR(t, sizeof t);
-	fail(g, e[0] != 0 ? e : "webgpu: i/o error");
+	if(e[0] == 0)
+		snprintf(e, n, "i/o error");
+}
+
+static void
+syserr(Gpu *g)
+{
+	char e[256];
+
+	errtext(e, sizeof e);
+	failf(g, "data", e);
 }
 
 static int
@@ -390,6 +405,24 @@ pop(Gpu *g)
 	free(p);
 }
 
+static void
+pendfail(Gpu *g, Pend *p, char *why)
+{
+	Fut *f;
+
+	failf(g, "data", why);
+	if(p->b != NULL){
+		if(p->b->why == NULL){
+			p->b->why = emalloc(strlen(g->err)+1);
+			strcpy(p->b->why, g->err);
+		}
+		return;
+	}
+	f = &g->fut[p->fut % Nfut];
+	if(f->id == p->fut && f->kind == Fdone && f->why[0] == 0)
+		snprintf(f->why, sizeof f->why, "%s", g->err);
+}
+
 static int
 drain(Gpu *g, uint64_t want, long ms)
 {
@@ -398,26 +431,33 @@ drain(Gpu *g, uint64_t want, long ms)
 	size_t n;
 	long k;
 	int r;
+	char e[256];
 
 	r = 0;
+	rang = 0;
 	if(ms >= 0)
 		arm(ms > 0 ? ms : 1);
 	while((p = g->ph) != NULL && p->seq <= want){
 		d = p->b != NULL ? p->b->shadow+p->off : p->t;
 		n = p->b != NULL ? p->n : 4;
 		while(p->got < n){
-			k = read(g->fd, d+p->got, n-p->got);
-			if(k < 0 && errno == EINTR && rang){
+			if(rang){
 				r = 1;
 				goto out;
 			}
+			k = read(g->fd, d+p->got, n-p->got);
 			if(k < 0 && errno == EINTR)
 				continue;
-			if(k <= 0){
-				syserr(g);
-				while(g->ph != NULL)
+			if(k < 0){
+				errtext(e, sizeof e);
+				pendfail(g, p, e);
+				break;
+			}
+			if(k == 0){
+				while(g->ph != NULL){
+					pendfail(g, g->ph, "no more to read");
 					pop(g);
-				r = -1;
+				}
 				goto out;
 			}
 			p->got += k;
@@ -649,56 +689,80 @@ future(Gpu *g, int kind, Fut **fp)
 	return r;
 }
 
-static int
-complete(Gpu *g, Fut *f, long ms)
+static void
+send1(Gpu *g, Fut *f)
 {
 	uint32_t v;
 	Pend **t;
-	int ok, r;
 
-	if(f->kind == Fdone && !f->sent && !g->busy){
-		if(f->done.callback != NULL)
-			f->done.callback(WGPUQueueWorkDoneStatus_Success, sv(""),
-				f->done.userdata1, f->done.userdata2);
-		f->kind = 0;
-		return 0;
+	if(f->sent)
+		return;
+	f->sent = 1;
+	if(f->why[0] != 0)
+		return;
+	if(f->kind == Fdone && !g->busy){
+		f->idle = 1;
+		return;
 	}
-	r = 0;
-	if(f->bad)
-		f->ok = 0;
-	else{
-		if(!f->sent){
-			t = g->pt;
-			if(f->kind == Fdone){
-				v = ++g->tags;
-				gmsg(g, 'F', &v, 1, NULL, 0);
-				*g->pt = emalloc(sizeof(Pend));
-				(*g->pt)->seq = ++g->seq;
-				g->pt = &(*g->pt)->next;
-			}
-			f->ok = submit(g, t) == 0;
-			f->want = g->seq;
-			f->nsub = g->nsub;
-			f->sent = 1;
-		}
-		r = drain(g, f->want, ms);
-		if(r == 1)
-			return 1;
-		if(f->kind == Fdone && g->nsub == f->nsub)
-			g->busy = 0;
+	t = g->pt;
+	if(f->kind == Fdone){
+		v = ++g->tags;
+		gmsg(g, 'F', &v, 1, NULL, 0);
+		*g->pt = emalloc(sizeof(Pend));
+		(*g->pt)->seq = ++g->seq;
+		(*g->pt)->fut = f->id;
+		g->pt = &(*g->pt)->next;
 	}
-	ok = f->ok && r == 0 && g->err[0] == 0;
+	if(submit(g, t) < 0)
+		snprintf(f->why, sizeof f->why, "%s", g->err);
+	f->want = f->kind == Fmap ? f->b->last : g->seq;
+	f->nsub = g->nsub;
+}
+
+static int
+ready(Gpu *g, Fut *f)
+{
+	return f->why[0] != 0 || f->idle || g->ph == NULL || g->ph->seq > f->want;
+}
+
+static void
+finish(Gpu *g, Fut *f)
+{
+	WGPUBuffer b;
+	int ok;
+
 	if(f->kind == Fmap){
+		b = f->b;
+		if(f->why[0] == 0 && b->why != NULL)
+			snprintf(f->why, sizeof f->why, "%s", b->why);
+		free(b->why);
+		b->why = NULL;
+		ok = f->why[0] == 0;
 		if(f->map.callback != NULL)
 			f->map.callback(ok ? WGPUMapAsyncStatus_Success : WGPUMapAsyncStatus_Error,
-				sv(ok ? "" : g->err), f->map.userdata1, f->map.userdata2);
-		bufrelease(f->b);
-	}else if(f->done.callback != NULL)
-		f->done.callback(ok ? WGPUQueueWorkDoneStatus_Success
-			: WGPUQueueWorkDoneStatus_Error,
-			sv(ok ? "" : g->err), f->done.userdata1, f->done.userdata2);
+				sv(f->why), f->map.userdata1, f->map.userdata2);
+		bufrelease(b);
+	}else{
+		if(!f->idle && g->nsub == f->nsub)
+			g->busy = 0;
+		ok = f->why[0] == 0;
+		if(f->done.callback != NULL)
+			f->done.callback(ok ? WGPUQueueWorkDoneStatus_Success
+				: WGPUQueueWorkDoneStatus_Error,
+				sv(f->why), f->done.userdata1, f->done.userdata2);
+	}
 	f->kind = 0;
-	return 0;
+}
+
+static Fut*
+waited(Gpu *g, WGPUFuture w)
+{
+	Fut *f;
+
+	if(g == NULL || w.id == 0)
+		return NULL;
+	f = &g->fut[w.id % Nfut];
+	return f->id == w.id && f->kind != 0 ? f : NULL;
 }
 
 WGPUInstance
@@ -784,25 +848,41 @@ wgpuInstanceHasWGSLLanguageFeature(WGPUInstance i, WGPUWGSLLanguageFeatureName f
 WGPUWaitStatus
 wgpuInstanceWaitAny(WGPUInstance i, size_t n, WGPUFutureWaitInfo *w, uint64_t timeout)
 {
-	Fut *f;
+	Gpu *g;
+	Fut *f, *first;
 	size_t k;
 	long ms;
 	int done;
 
-	ms = timeout == UINT64_MAX ? -1 : (long)(timeout/1000000 + (timeout%1000000 != 0));
+	g = i->g;
+	ms = timeout == UINT64_MAX ? -1 : timeout/1000000 >= LONG_MAX/2 ? LONG_MAX/2
+		: (long)(timeout/1000000 + (timeout%1000000 != 0));
 	done = 0;
+	first = NULL;
 	for(k = 0; k < n; k++){
-		w[k].completed = 1;
-		if(i->g == NULL || w[k].future.id == 0){
+		w[k].completed = 0;
+		if((f = waited(g, w[k].future)) == NULL){
+			w[k].completed = 1;
 			done++;
 			continue;
 		}
-		f = &i->g->fut[w[k].future.id % Nfut];
-		if(f->id == w[k].future.id && f->kind != 0 && complete(i->g, f, ms) == 1)
-			w[k].completed = 0;
-		else
-			done++;
+		send1(g, f);
+		if(!ready(g, f) && (first == NULL || f->want < first->want))
+			first = f;
 	}
+	if(first != NULL && done == 0){
+		for(k = 0; k < n; k++)
+			if((f = waited(g, w[k].future)) != NULL && ready(g, f))
+				break;
+		if(k == n && drain(g, first->want, ms) == 1)
+			return WGPUWaitStatus_TimedOut;
+	}
+	for(k = 0; k < n; k++)
+		if((f = waited(g, w[k].future)) != NULL && ready(g, f)){
+			finish(g, f);
+			w[k].completed = 1;
+			done++;
+		}
 	return done > 0 || n == 0 ? WGPUWaitStatus_Success : WGPUWaitStatus_TimedOut;
 }
 
@@ -1108,6 +1188,7 @@ bufrelease(WGPUBuffer b)
 		return;
 	wgpuBufferDestroy(b);
 	free(b->shadow);
+	free(b->why);
 	free(b);
 }
 
@@ -1137,11 +1218,11 @@ wgpuBufferMapAsync(WGPUBuffer b, WGPUMapMode mode, size_t off, size_t n,
 	f->map = cb;
 	if(n == WGPU_WHOLE_MAP_SIZE)
 		n = off <= b->size ? b->size-off : 0;
-	if(b->shadow == NULL){
+	if(b->shadow == NULL)
 		failf(b->g, "map", "not a mappable buffer");
-		f->bad = 1;
-	}else if(!inside(b->g, "map", off, n, b->size))
-		f->bad = 1;
+	else if(inside(b->g, "map", off, n, b->size))
+		return r;
+	snprintf(f->why, sizeof f->why, "%s", b->g->err);
 	return r;
 }
 
@@ -1167,6 +1248,8 @@ wgpuBufferUnmap(WGPUBuffer b)
 	if(b->id == 0 || b->shadow == NULL)
 		return;
 	bufwrite(b->g, b, 0, b->shadow, b->size);
+	if(b->usage & Map)
+		return;
 	free(b->shadow);
 	b->shadow = NULL;
 }
@@ -1307,14 +1390,18 @@ wgpuDeviceCreateBindGroup(WGPUDevice d, WGPUBindGroupDescriptor const *desc)
 		g->e[i].off = desc->entries[i].offset;
 		g->e[i].size = desc->entries[i].size;
 		if(g->e[i].b == NULL){
-			fail(d->g, "webgpu: bind group: an entry with no buffer");
+			failf(d->g, "bind group", "an entry with no buffer");
+			g->bad = 1;
 			continue;
 		}
 		g->e[i].b->ref++;
-		if(g->e[i].size != WGPU_WHOLE_SIZE)
-			inside(d->g, "bind group", g->e[i].off, g->e[i].size, g->e[i].b->size);
-		else if(g->e[i].off > g->e[i].b->size)
+		if(g->e[i].size != WGPU_WHOLE_SIZE){
+			if(!inside(d->g, "bind group", g->e[i].off, g->e[i].size, g->e[i].b->size))
+				g->bad = 1;
+		}else if(g->e[i].off > g->e[i].b->size){
 			failf(d->g, "bind group", "past the end");
+			g->bad = 1;
+		}
 	}
 	return g;
 }
@@ -1503,6 +1590,11 @@ wgpuComputePassEncoderDispatchWorkgroups(WGPUComputePassEncoder p, uint32_t x, u
 		fail(e->g, "webgpu: a dispatch with no pipeline");
 		return;
 	}
+	for(i = 0; i < Ngroup; i++)
+		if(p->bg[i] != NULL && p->bg[i]->bad){
+			failf(e->g, "dispatch", "an invalid bind group");
+			return;
+		}
 	refpipe(&e->r, p->p);
 	n = 0;
 	for(i = 0; i < Ngroup; i++)
@@ -1576,8 +1668,11 @@ wgpuQueueSubmit(WGPUQueue q, size_t n, WGPUCommandBuffer const *cs)
 			c->pt = &c->ph;
 		}
 	}
-	for(p = *t; p != NULL; p = p->next)
+	for(p = *t; p != NULL; p = p->next){
 		p->seq = ++g->seq;
+		if(p->b != NULL)
+			p->b->last = p->seq;
+	}
 	g->busy = 1;
 	submit(g, t);
 }
