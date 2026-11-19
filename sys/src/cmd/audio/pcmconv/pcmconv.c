@@ -36,7 +36,7 @@ main(int argc, char *argv[])
 	Pcmdesc i, o;
 	Pcmconv *c;
 	vlong l;
-	int n;
+	int n, m;
 
 	i = pcmdescdef;
 	o = pcmdescdef;
@@ -72,11 +72,9 @@ main(int argc, char *argv[])
 			sysfatal("read: %r");
 		if(l > 0)
 			l -= n;
-		n = pcmconv(c, ibuf, obuf, n);
-		if(n > 0){
-			if(write(1, obuf, n) != n)
-				sysfatal("write: %r");
-		}
+		m = pcmconv(c, ibuf, obuf, n);
+		if(m > 0 && write(1, obuf, m) != m)
+			sysfatal("write: %r");
 		if(n == 0)
 			break;
 	}

@@ -133,7 +133,8 @@ makes a conversion from the stream
 describes to the one
 .I out
 describes.
-It returns nil and sets the error string if either has no channels, or if
+It returns nil and sets the error string if either has no channels or no rate,
+if one rate is more than 64 times the other, or if
 .I out
 is a-law or µ-law, which it cannot write.
 .I Freepcmconv
@@ -150,6 +151,9 @@ It returns the number of bytes it wrote.
 It keeps a partial frame at the end of
 .I in
 and converts it with the next call's bytes.
+Resampling holds back the last few frames until the filter has the frames after them.
+A call with no bytes ends the stream: it writes the frames held back, as if silence followed,
+drops a partial frame it keeps, and starts the conversion over, so the next call begins a new stream.
 If the two streams are the same, it copies the bytes.
 Otherwise it reads each sample to an integer, adds dither if the output has fewer bits
 and the input fewer than 32,
@@ -163,10 +167,11 @@ gives the most bytes
 .I pcmconv
 can write when it is given at most
 .I insz
-bytes, with the partial frame it may hold from its last call.
+bytes, with the partial frame it may hold from its last call,
+and when it is given no bytes.
 It returns \-1 and sets the error string if
 .I insz
-is less than a frame of the input.
+is negative.
 .SS Memory
 The library expects the program to provide two allocation routines,
 .I emalloc

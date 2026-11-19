@@ -47,6 +47,7 @@ enum {
 	One	= 1<<Np,
 	Fcopy	= 1<<0,
 	Nin	= 2048,
+	Maxratio	= 64,
 };
 
 #define MAXINT	((int)(~0UL>>1))
@@ -167,12 +168,6 @@ resample(Chan *c, int *x, int *y, int count)
 		if(count > 0)
 			memmove(y, x, count*sizeof(int));
 		return y+count;
-	}
-
-	if(count == 0){
-		/* stuff zeros to drain last samples out */
-		while(c->ix < 2*c->wx)
-			c->x[c->ix++] = 0;
 	}
 
 	do {
@@ -539,6 +534,15 @@ allocpcmconv(Pcmdesc *i, Pcmdesc *o)
 		return nil;
 	}
 
+	if(i->rate < 1 || o->rate < 1){
+		werrstr("invalid rate: %d", i->rate < 1 ? i->rate : o->rate);
+		return nil;
+	}
+	if((vlong)i->rate > (vlong)o->rate*Maxratio || (vlong)o->rate > (vlong)i->rate*Maxratio){
+		werrstr("rates %d and %d more than %d times apart", i->rate, o->rate, Maxratio);
+		return nil;
+	}
+
 	c = emalloc(sizeof(*c) + i->channels*sizeof(Chan) + i->framesz);
 	memcpy(&c->idesc, i, sizeof(*i));
 	memcpy(&c->odesc, o, sizeof(*o));
@@ -606,57 +610,95 @@ freepcmconv(Pcmconv *c)
 	free(c);
 }
 
+static void
+get(Pcmconv *c, int *x, uchar *in, int k, int n)
+{
+	Pcmdesc *i;
+
+	i = &c->idesc;
+	if(in == nil){
+		memset(x, 0, n*sizeof x[0]);
+		return;
+	}
+	c->iconv(x, in + k*((i->bits+7)/8), i->bits, i->framesz, n);
+	c->prnd = dither(x, i->abits, c->odesc.abits, n, c->prnd);
+}
+
+static int
+step(Pcmconv *c, uchar *in, uchar *out, int n)
+{
+	Pcmdesc *i, *o;
+	int k, m;
+
+	i = &c->idesc;
+	o = &c->odesc;
+	if(in != nil && i->channels > o->channels){
+		c->iconv(c->in, in, i->bits, i->framesz, n);
+		for(k=1; k<i->channels; k++){
+			c->iconv(c->out, in + k*((i->bits+7)/8), i->bits, i->framesz, n);
+			mixin(c->in, c->out, n);
+		}
+		c->prnd = dither(c->in, i->abits, o->abits, n, c->prnd);
+	}else
+		get(c, c->in, in, 0, n);
+	m = resample(&c->ch[0], c->in, c->out, n) - c->out;
+	if(m > 0)
+		c->oconv(c->out, out, o->bits, o->framesz, m);
+	if(i->channels == o->channels){
+		for(k=1; k<i->channels; k++){
+			get(c, c->in, in, k, n);
+			resample(&c->ch[k], c->in, c->out, n);
+			if(m > 0)
+				c->oconv(c->out, out + k*((o->bits+7)/8), o->bits, o->framesz, m);
+		}
+	}else if(m > 0){
+		for(k=1; k<o->channels; k++)
+			c->oconv(c->out, out + k*((o->bits+7)/8), o->bits, o->framesz, m);
+	}
+	return m > 0 ? m * o->framesz : 0;
+}
+
 static int
 conv(Pcmconv *c, uchar *in, uchar *out0, int insz)
 {
 	uchar *out;
-	Pcmdesc *i, *o;
-	int k, n, m, nin;
+	int n, nin;
 
-	i = &c->idesc;
-	o = &c->odesc;
 	out = out0;
-
-	nin = insz / i->framesz;
-	for(;;){
+	nin = insz / c->idesc.framesz;
+	while(nin > 0){
 		if((n = nin) > Nin)
 			n = Nin;
 		nin -= n;
-
-		c->iconv(c->in, in, i->bits, i->framesz, n);
-		if(i->channels > o->channels){
-			for(k=1; k<i->channels; k++){
-				c->iconv(c->out, in + k*((i->bits+7)/8), i->bits, i->framesz, n);
-				mixin(c->in, c->out, n);
-			}
-		}
-		c->prnd = dither(c->in, i->abits, o->abits, n, c->prnd);
-		m = resample(&c->ch[0], c->in, c->out, n) - c->out;
-		if(m < 1){
-			if(n == 0)
-				break;
-		} else
-			c->oconv(c->out, out, o->bits, o->framesz, m);
-		if(i->channels == o->channels){
-			for(k=1; k<i->channels; k++){
-				c->iconv(c->in, in + k*((i->bits+7)/8), i->bits, i->framesz, n);
-				c->prnd = dither(c->in, i->abits, o->abits, n, c->prnd);
-				resample(&c->ch[k], c->in, c->out, n);
-				if(m > 0)
-					c->oconv(c->out, out + k*((o->bits+7)/8), o->bits, o->framesz, m);
-			}
-		} else if(m > 0){
-			for(k=1; k<o->channels; k++)
-				c->oconv(c->out, out + k*((o->bits+7)/8), o->bits, o->framesz, m);
-		}
-		if(m > 0)
-			out += m * o->framesz;
-		if(nin == 0)
-			break;
-		in += n * i->framesz;
+		out += step(c, in, out, n);
+		in += n * c->idesc.framesz;
 	}
+	return out - out0;
+}
 
-	return out - (uchar*)out0;
+static int
+drain(Pcmconv *c, uchar *out0)
+{
+	uchar *out;
+	Chan *ch;
+	int k, n, nz;
+
+	out = out0;
+	for(nz = c->ch[0].wx; nz > 0; nz -= n){
+		if((n = nz) > Nin)
+			n = Nin;
+		out += step(c, nil, out, n);
+	}
+	for(k=0; k < c->idesc.channels; k++){
+		ch = &c->ch[k];
+		if(ch->x == nil)
+			continue;
+		memset(ch->x, 0, ch->nx*sizeof ch->x[0]);
+		ch->ix = ch->wx;
+		ch->t = ch->ix<<Np;
+	}
+	c->nbuf = 0;
+	return out - out0;
 }
 
 int
@@ -664,16 +706,17 @@ pcmconv(Pcmconv *c, void *in0, void *out0, int insz)
 {
 	uchar *in, *out;
 	Pcmdesc *i;
-	int n, sz;
+	int n;
 
 	if(c->flags & Fcopy){
 		memmove(out0, in0, insz);
 		return insz;
 	}
+	if(insz == 0)
+		return drain(c, out0);
 	i = &c->idesc;
 	in = in0;
 	out = out0;
-	sz = insz;
 	if(c->nbuf > 0){
 		n = i->framesz - c->nbuf;
 		if(n > insz)
@@ -690,8 +733,7 @@ pcmconv(Pcmconv *c, void *in0, void *out0, int insz)
 
 	n = insz % i->framesz;
 	insz -= n;
-	if(insz > 0 || sz == 0)
-		out += conv(c, in, out, insz);
+	out += conv(c, in, out, insz);
 	if(n > 0){
 		memcpy(c->buf, in+insz, n);
 		c->nbuf += n;
@@ -706,19 +748,25 @@ pcmratio(Pcmconv *c, int insz)
 	uvlong n;
 	int fsz;
 
+	if(insz < 0){
+		werrstr("invalid buffer size: %d", insz);
+		return -1;
+	}
 	fsz = c->idesc.framesz;
-	if(insz < fsz)
-		goto Bad;
 	n = ((uvlong)insz + fsz-1)/fsz;
+	if(n < c->ch[0].wx)
+		n = c->ch[0].wx;
 	if(c->ch[0].ρ != One){
-		if(c->ch[0].tΔ == 0)
-			goto Bad;
+		if(c->ch[0].tΔ == 0){
+			werrstr("rates %d and %d too far apart", c->idesc.rate, c->odesc.rate);
+			return -1;
+		}
 		n = ((n<<Np) + c->ch[0].tΔ-1) / c->ch[0].tΔ;
 	}
 	n *= c->odesc.framesz;
-	if(n <= MAXINT)
-		return n;
-Bad:
-	werrstr("invalid buffer size: %d", insz);
-	return -1;
+	if(n > MAXINT){
+		werrstr("invalid buffer size: %d", insz);
+		return -1;
+	}
+	return n;
 }
