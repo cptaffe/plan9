@@ -122,6 +122,7 @@ extern int sigaction(int, const struct sigaction *, struct sigaction *);
 extern int sigprocmask(int, sigset_t *, sigset_t *);
 extern int sigpending(sigset_t *);
 extern int sigsuspend(const sigset_t *);
+extern int pthread_kill(int, int);
 
 #ifdef __cplusplus
 }

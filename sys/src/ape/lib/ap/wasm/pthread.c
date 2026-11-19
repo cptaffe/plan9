@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <signal.h>
 #include "../stdio/iolib.h"
 #include "thr.h"
 
@@ -142,6 +143,20 @@ int
 pthread_equal(pthread_t a, pthread_t b)
 {
 	return a == b;
+}
+
+int
+_thrsignal(pthread_t id, int sig)
+{
+	Thr *t;
+
+	if((t = _thrget(id)) == NULL || t->done)
+		return ESRCH;
+	if(sig == 0)
+		return 0;
+	if(t == &_thrmain)
+		return kill(getpid(), sig) < 0? errno: 0;
+	return kill(t->pid, sig) < 0? errno: 0;
 }
 
 int

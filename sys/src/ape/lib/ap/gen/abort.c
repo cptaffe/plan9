@@ -5,5 +5,5 @@
 void
 abort(void)
 {
-	kill(getpid(), SIGABRT);
+	raise(SIGABRT);
 }

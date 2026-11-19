@@ -219,6 +219,7 @@ copystart(void *v)
 	int i;
 
 	c = v;
+	_grouppid = 0;
 	if(_muxsid == -1) {
 		_RFORK(RFNOTEG);
 		_muxsid = getpgrp();
@@ -422,6 +423,7 @@ timerstart(void *v)
 	int i;
 
 	(void)v;
+	_grouppid = 0;
 	setpgid(getpid(), _muxsid);
 	_NOTIFY(timerhandler);
 	for(i=0; i<OPEN_MAX; i++)

@@ -1,6 +1,7 @@
 enum {
 	Thrstack = 512*1024,
 	Thrabuf = 256*1024,
+	Nsig = 30,
 };
 
 typedef struct Waiter Waiter;
@@ -15,6 +16,7 @@ typedef struct Thr Thr;
 struct Thr {
 	pthread_t id;
 	int fiber;
+	int pid;
 	int done;
 	int detached;
 	void *ret;
@@ -35,9 +37,13 @@ extern Thr *_thrself(void);
 extern Thr *_thrget(pthread_t);
 extern void _thrwait(Waiter **, Waiter *);
 extern int _thrwake(Waiter **);
+extern int _thrsignal(pthread_t, int);
+extern int (*_thrkill)(pthread_t, int);
 extern void _thrfree(Thr *);
 extern int _thrlockfile(FILE *, int);
 extern void _thrunlockfile(FILE *);
 extern int (*_lockfile)(FILE *, int);
 extern void (*_unlockfile)(FILE *);
-extern int (*_inthread)(void);
+extern int (*_thrdie)(char*);
+extern pid_t _grouppid;
+extern pid_t _getpid(void);

@@ -204,6 +204,24 @@ and a maximum of 4 GB, and then clears the memory's shared flag and its maximum.
 That is safe because a program's threads are fibers in its one instance, which share no
 memory with another, and atomic instructions are valid on unshared memory;
 the step is there because WebKit fails to make many shared memories with a large maximum at once.
+.PP
+A thread's process has its own pid and, made with
+.BR RFNOTEG ,
+its own note group, but to POSIX the threads are one process:
+.I getpid
+gives the first thread's pid in every thread,
+a
+.I kill
+of it and an interrupt reach the first thread,
+and
+.I raise
+and
+.I abort
+post the note to the calling thread's own process, whose handler runs there.
+.I Pthread_kill
+posts it to the thread's.
+A note whose default action ends the process ends the program,
+from any thread, with the note as its status.
 .SH FILES
 .TF /$objtype/lib/ape/libap.a
 .TP
