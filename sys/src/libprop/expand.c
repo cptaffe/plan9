@@ -106,7 +106,7 @@ body(Src *s, char **g, char *p, int depth, Fmt *f)
 		case '?':
 			if(stop)
 				break;
-			span(s);
+			span(s, nil);
 			if(coin(s, 50))
 				one(s, g, p, depth, f);
 			endspan(s);
@@ -143,8 +143,7 @@ sym(Src *s, char **g, char *name, int n, int depth, Fmt *f)
 		sysfatal("expand: no rule for %.*s", n, name);
 	if(depth < Deepest)
 		discard(s);
-	span(s);
-	_proptag(s, g[first]);
+	span(s, _propintern(name, n));
 	k = 0;
 	if(na > 1 && depth > 0)
 		k = pick(s, nil, na);

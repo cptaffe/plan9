@@ -8,7 +8,7 @@ uvlong	choose(Src*, uvlong);
 int	coin(Src*, int);
 int	pick(Src*, int*, int);
 int	more(Src*);
-void	span(Src*);
+void	span(Src*, char*);
 void	endspan(Src*);
 void	discard(Src*);
 void	note(Src*, char*, ...);
