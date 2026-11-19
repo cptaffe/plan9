@@ -27,6 +27,8 @@ OFILES=\
 	procfork9.$O\
 	rforkfn9.$O\
 	profile.$O\
+	pthread.$O\
+	pthreadcreate.$O\
 	rforkfn.$O\
 	rint.$O\
 	setjmp.$O\

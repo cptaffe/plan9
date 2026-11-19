@@ -2,6 +2,13 @@
 #include <errno.h>
 #include <sched.h>
 #include <time.h>
+#include <stdlib.h>
+
+typedef struct Start Start;
+struct Start {
+	thrd_start_t f;
+	void *arg;
+};
 
 static int
 ret(int e)
@@ -67,10 +74,31 @@ mtx_timedlock(mtx_t *m, const struct timespec *t)
 	return ret(e);
 }
 
+static void*
+tstart(void *v)
+{
+	Start s;
+
+	s = *(Start*)v;
+	free(v);
+	return (void*)(long)s.f(s.arg);
+}
+
 int
 thrd_create(thrd_t *t, thrd_start_t f, void *arg)
 {
-	return thrd_error;
+	Start *s;
+	int e;
+
+	if((s = malloc(sizeof *s)) == NULL)
+		return thrd_nomem;
+	s->f = f;
+	s->arg = arg;
+	if((e = pthread_create(t, NULL, tstart, s)) != 0){
+		free(s);
+		return e == ENOMEM? thrd_nomem: thrd_error;
+	}
+	return thrd_success;
 }
 
 thrd_t thrd_current(void) { return pthread_self(); }
@@ -86,7 +114,14 @@ thrd_exit(int r)
 int
 thrd_join(thrd_t t, int *r)
 {
-	return ret(pthread_join(t, NULL));
+	void *v;
+	int e;
+
+	if((e = pthread_join(t, &v)) != 0)
+		return ret(e);
+	if(r != NULL)
+		*r = (int)(long)v;
+	return thrd_success;
 }
 
 int
