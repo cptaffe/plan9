@@ -216,6 +216,29 @@ to draw characters from the font.
 .I Openfont
 does the same, but reads the description
 from the named file.
+The name
+.B *default*
+is a font of the display's default subfont.
+A name
+.IB n * name
+is
+.I name
+with each pixel drawn as
+.I n
+by
+.I n
+pixels.
+On a display of
+.B DefaultDPI*3/2
+dpi or more,
+.I openfont
+and
+.I getwindow
+use for a name
+.IB x , y
+the font
+.IR y ,
+and for any other name the font pixel-doubled.
 .I Freefont
 frees a font.
 The convention for naming font files is:

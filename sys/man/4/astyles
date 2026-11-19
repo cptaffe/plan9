@@ -164,7 +164,7 @@ a color made from two layers', as under
 .BR Stacking ,
 has
 .B .m
-and a number added.
+and a number added, when its name has another color in the window.
 .PP
 A color in a layer's lines may have two more hexadecimal digits,
 .IR rrggbbaa ,
@@ -172,7 +172,8 @@ its opacity:
 .I astyles
 blends it over the color beneath, the next layer's, or else the theme's
 .B body
-or acme's own, and writes acme the opaque result.
+or acme's own, and writes acme the opaque result;
+reading the layer gives the color as written.
 The theme's colors are six digits, as
 .IR theme (6)
 has them.

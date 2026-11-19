@@ -2,38 +2,84 @@
 #include <libc.h>
 #include <draw.h>
 
+int
+parsefontscale(char *name, char **base)
+{
+	char *p;
+	int scale;
+
+	p = name;
+	scale = 0;
+	while('0' <= *p && *p <= '9'){
+		scale = scale*10 + *p - '0';
+		p++;
+	}
+	if(*p == '*' && scale > 0)
+		*base = p+1;
+	else{
+		*base = name;
+		scale = 1;
+	}
+	return scale;
+}
+
+static char*
+readfile(char *name)
+{
+	enum { HUNK = 8*1024, };
+	int f, n, r;
+	char *s, *p;
+
+	n = 0;
+	r = -1;
+	if((s = malloc(HUNK)) != nil){
+		if((f = open(name, OREAD|OCEXEC)) >= 0){
+			while((r = read(f, s+n, HUNK)) > 0){
+				n += r;
+				r = -1;
+				if((p = realloc(s, n+HUNK)) == nil)
+					break;
+				s = p;
+			}
+			close(f);
+		}
+	}
+	if(r < 0 || (p = realloc(s, n+1)) == nil){
+		free(s);
+		return nil;
+	}
+	p[n] = 0;
+	return p;
+}
+
 static Font*
 openfont1(Display *d, char *name)
 {
 	Font *fnt;
-	int fd, i, n;
-	char *buf;
-	Dir *dir;
+	Subfont *df;
+	char *buf, *fname;
+	int scale;
 
-	fd = open(name, OREAD);
-	if(fd < 0)
-		return 0;
-
-	dir = dirfstat(fd);
-	if(dir == nil){
-    Err0:
-		close(fd);
-		return 0;
-	}
-	n = dir->length;
-	free(dir);
-	buf = malloc(n+1);
-	if(buf == 0)
-		goto Err0;
-	buf[n] = 0;
-	i = read(fd, buf, n);
-	close(fd);
-	if(i != n){
-		free(buf);
-		return 0;
+	scale = parsefontscale(name, &fname);
+	if(strcmp(fname, "*default*") == 0){
+		if(d == nil || (df = d->defaultsubfont) == nil){
+			werrstr("openfont: no default subfont");
+			return nil;
+		}
+		buf = smprint("%d %d\n0 %d\t%s\n", df->height, df->ascent, df->n-1, fname);
+	}else
+		buf = readfile(fname);
+	if(buf == nil){
+		werrstr("openfont: %r");
+		return nil;
 	}
 	fnt = buildfont(d, buf, name);
 	free(buf);
+	if(fnt != nil && scale != 1){
+		fnt->scale = scale;
+		fnt->height *= scale;
+		fnt->ascent *= scale;
+	}
 	return fnt;
 }
 
@@ -70,16 +116,18 @@ swapfont(Font *targ, Font **oldp, Font **newp)
 	*newp = old;
 }
 
-/* hidpiname is the font at twice the dpi: y of a name x,y; else none */
+/* hidpiname is the font at twice the dpi: y of a name x,y; else x pixel-doubled */
 static char*
 hidpiname(Font *f)
 {
-	char *p;
+	char *p, *base;
+	int scale;
 
 	p = strchr(f->namespec, ',');
 	if(p != nil)
 		return strdup(p+1);
-	return nil;
+	scale = parsefontscale(f->name, &base);
+	return smprint("%d*%s", scale*2, base);
 }
 
 void

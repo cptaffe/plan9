@@ -17,6 +17,7 @@ mkfont(Subfont *subfont, Rune min)
 	memset(font, 0, sizeof(Font));
 	font->display = subfont->bits->display;
 	font->name = strdup("<synthetic>");
+	font->scale = 1;
 	font->ncache = NFCACHE+NFLOOK;
 	font->nsubf = NFSUBF;
 	font->cache = malloc(font->ncache * sizeof(font->cache[0]));
