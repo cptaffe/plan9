@@ -1,0 +1,195 @@
+.TH PCM 2
+.SH NAME
+pcmdescdef, mkpcmdesc, pcmdescfmt, allocpcmconv, freepcmconv, pcmconv, pcmratio \- convert PCM audio
+.SH SYNOPSIS
+.ta \w'Pcmconv* 'u
+.B #include <u.h>
+.br
+.B #include <libc.h>
+.br
+.B #include <pcm.h>
+.PP
+.EX
+.ta 6n +\w'Rune 'u
+typedef struct Pcmdesc Pcmdesc;
+struct Pcmdesc
+{
+	int	rate;
+	int	channels;
+	int	framesz;
+	int	abits;
+	int	bits;
+	Rune	fmt;
+};
+.EE
+.ta \w'Pcmconv* 'u
+.PP
+.B
+Pcmdesc	pcmdescdef;
+.PP
+.B
+int	mkpcmdesc(char *f, Pcmdesc *d)
+.PP
+.B
+int	pcmdescfmt(Fmt *f)
+.PP
+.B
+Pcmconv*	allocpcmconv(Pcmdesc *in, Pcmdesc *out)
+.PP
+.B
+void	freepcmconv(Pcmconv *c)
+.PP
+.B
+int	pcmconv(Pcmconv *c, void *in, void *out, int insz)
+.PP
+.B
+int	pcmratio(Pcmconv *c, int insz)
+.PP
+.B
+void*	emalloc(ulong n)
+.PP
+.B
+void*	erealloc(void *p, ulong n)
+.SH DESCRIPTION
+These routines convert a stream of PCM samples from one format, rate and number of channels
+to another, as
+.IR audio (1)'s
+.I pcmconv
+and
+.I mixfs
+do.
+.PP
+A
+.B Pcmdesc
+describes a stream.
+It has
+.I rate
+frames a second, a frame holds a sample for each of its
+.I channels
+in
+.I framesz
+bytes.
+.I Bits
+is the size of a sample in bits, and
+.I fmt
+its format.
+.I Abits
+is the number of bits a sample has after the conversion reads it:
+.I bits
+for an integer, 16 for a-law and µ-law, and 32 for a float.
+.PP
+.I Mkpcmdesc
+fills
+.I d
+from the string
+.IR f ,
+in the form that
+.IR audio (1)
+gives for
+.IR pcmconv 's
+.B -i
+and
+.BR -o ,
+such as
+.BR s16c2r44100 .
+The letters
+.BR s ,
+.BR u ,
+.BR S ,
+.BR U ,
+.BR f ,
+.B a
+and
+.B µ
+(or
+.BR m )
+name the format, and the number after it the bits;
+.B c
+gives the channels and
+.B r
+the rate.
+A float has 32 or 64 bits, a-law and µ-law 8, and an integer 1 to 32.
+.I Mkpcmdesc
+returns 0, or \-1 if the string is not a format, and sets the error string.
+.I Pcmdescdef
+is
+.BR s16c2r44100 ,
+16-bit signed little-endian stereo at 44100 Hz.
+.PP
+.I Pcmdescfmt
+is a
+.IR print (2)
+verb that prints a
+.BR Pcmdesc ,
+passed by value, in the form
+.I mkpcmdesc
+reads.
+Install it with
+.IR fmtinstall .
+.PP
+.I Allocpcmconv
+makes a conversion from the stream
+.I in
+describes to the one
+.I out
+describes.
+It returns nil and sets the error string if either has no channels or no rate,
+if one rate is more than 64 times the other, or if
+.I out
+is a-law or µ-law, which it cannot write.
+.I Freepcmconv
+frees a conversion.
+.PP
+.I Pcmconv
+converts
+.I insz
+bytes from
+.I in
+and writes the result to
+.IR out .
+It returns the number of bytes it wrote.
+It keeps a partial frame at the end of
+.I in
+and converts it with the next call's bytes.
+Resampling holds back the last few frames until the filter has the frames after them.
+A call with no bytes ends the stream: it writes the frames held back, as if silence followed,
+drops a partial frame it keeps, and starts the conversion over, so the next call begins a new stream.
+If the two streams are the same, it copies the bytes.
+Otherwise it reads each sample to an integer, adds dither if the output has fewer bits
+and the input fewer than 32,
+resamples with a filter if the rates differ, and writes the output's format.
+If the input has more channels than the output, it mixes them all and writes the mix to each
+output channel.
+If it has fewer, it writes its first channel to each output channel.
+.PP
+.I Pcmratio
+gives the most bytes
+.I pcmconv
+can write when it is given at most
+.I insz
+bytes, with the partial frame it may hold from its last call,
+and when it is given no bytes.
+It returns \-1 and sets the error string if
+.I insz
+is negative.
+.SS Memory
+The library expects the program to provide two allocation routines,
+.I emalloc
+and
+.IR erealloc .
+They are
+.IR malloc (2)'s
+and
+.IR realloc ,
+except that they do not return if memory runs out, and
+.I emalloc
+sets the memory it returns to zero.
+The library gets all its memory from them, and
+.I freepcmconv
+gives it back with
+.IR free .
+.SH SOURCE
+.B /sys/src/libpcm
+.SH SEE ALSO
+.IR audio (1),
+.IR audio (3)

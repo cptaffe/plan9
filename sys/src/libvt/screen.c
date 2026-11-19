@@ -3,15 +3,25 @@
 #include <vt.h>
 #include "impl.h"
 
+char*
+_vtstrdup(char *s)
+{
+	char *t;
+
+	t = emalloc(strlen(s)+1);
+	strcpy(t, s);
+	return t;
+}
+
 static Vtline*
 newlines(int cols, int rows)
 {
 	Vtline *l;
 	int i;
 
-	l = mallocz(rows*sizeof l[0], 1);
+	l = emalloc(rows*sizeof l[0]);
 	for(i = 0; i < rows; i++)
-		l[i].c = mallocz(cols*sizeof(Vtcell), 1);
+		l[i].c = emalloc(cols*sizeof(Vtcell));
 	return l;
 }
 
@@ -106,7 +116,7 @@ gone(Vt *vt, Vtline *l)
 	r = &p->ring[(p->head+p->ngone) % Vgone];
 	p->ngone++;
 	if(r->c == nil)
-		r->c = mallocz(vt->cols*sizeof(Vtcell), 1);
+		r->c = emalloc(vt->cols*sizeof(Vtcell));
 	c = r->c;
 	r->c = l->c;
 	r->wrapped = l->wrapped;
@@ -146,7 +156,7 @@ damage(Vt *vt, int top, int bot, int n)
 	}
 	if(p->nscroll == p->ascroll){
 		p->ascroll = p->ascroll ? 2*p->ascroll : 16;
-		p->scroll = realloc(p->scroll, p->ascroll*sizeof p->scroll[0]);
+		p->scroll = erealloc(p->scroll, p->ascroll*sizeof p->scroll[0]);
 	}
 	s = &p->scroll[p->nscroll++];
 	s->top = top;
@@ -200,17 +210,17 @@ vtnew(int cols, int rows)
 		cols = 1;
 	if(rows < 1)
 		rows = 1;
-	vt = mallocz(sizeof *vt, 1);
-	p = mallocz(sizeof *p, 1);
+	vt = emalloc(sizeof *vt);
+	p = emalloc(sizeof *p);
 	vt->priv = p;
 	vt->cols = cols;
 	vt->rows = rows;
 	p->main = newlines(cols, rows);
 	p->alt = newlines(cols, rows);
-	p->dirty = mallocz(rows, 1);
-	p->tabs = mallocz(cols, 1);
+	p->dirty = emalloc(rows);
+	p->tabs = emalloc(cols);
 	vt->line = p->main;
-	vt->title = strdup("");
+	vt->title = _vtstrdup("");
 	vtreset(vt);
 	return vt;
 }
@@ -333,7 +343,7 @@ vtresize(Vt *vt, int cols, int rows)
 	}
 	for(i = 0; i < Vgone; i++)
 		if(p->ring[i].c != nil){
-			p->ring[i].c = realloc(p->ring[i].c, cols*sizeof(Vtcell));
+			p->ring[i].c = erealloc(p->ring[i].c, cols*sizeof(Vtcell));
 			if(cols > vt->cols)
 				_vtblank(vt, p->ring[i].c+vt->cols, cols-vt->cols);
 		}
@@ -343,11 +353,11 @@ vtresize(Vt *vt, int cols, int rows)
 	oc = vt->cols;
 	vt->cols = cols;
 	vt->rows = rows;
-	p->tabs = realloc(p->tabs, cols);
+	p->tabs = erealloc(p->tabs, cols);
 	if(cols > oc)
 		deftabs(vt, oc);
 	free(p->dirty);
-	p->dirty = mallocz(rows, 1);
+	p->dirty = emalloc(rows);
 	p->nscroll = 0;
 	p->top = 0;
 	p->bot = rows;

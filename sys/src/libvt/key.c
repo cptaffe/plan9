@@ -34,6 +34,13 @@ static struct {
 	{KF|12,	'~', 24},
 };
 
+static int
+small(void)
+{
+	werrstr("buffer too small");
+	return -1;
+}
+
 int
 vtkey(Vt *vt, int key, char *buf, int n)
 {
@@ -77,7 +84,7 @@ vtkey(Vt *vt, int key, char *buf, int n)
 		len += runetochar(s+len, &r);
 	}
 	if(len > n)
-		return -1;
+		return small();
 	memmove(buf, s, len);
 	return len;
 }
@@ -92,7 +99,7 @@ vtpaste(Vt *vt, char *s, long len, char *buf, long n)
 	o = 0;
 	if(b){
 		if(n < 6)
-			return -1;
+			return small();
 		memmove(buf, "\033[200~", 6);
 		o = 6;
 	}
@@ -100,12 +107,12 @@ vtpaste(Vt *vt, char *s, long len, char *buf, long n)
 		if(b && s[i] == 0x1B)
 			continue;
 		if(o >= n)
-			return -1;
+			return small();
 		buf[o++] = s[i] == '\n' ? '\r' : s[i];
 	}
 	if(b){
 		if(o+6 > n)
-			return -1;
+			return small();
 		memmove(buf+o, "\033[201~", 6);
 		o += 6;
 	}
@@ -159,7 +166,7 @@ vtmouse(Vt *vt, int but, int x, int y, int press, char *buf, int n)
 		len = snprint(s, sizeof s, "\033[M%c%c%c", 32+b, 33+x, 33+y);
 	}
 	if(len > n)
-		return -1;
+		return small();
 	memmove(buf, s, len);
 	return len;
 }
@@ -170,7 +177,7 @@ vtfocus(Vt *vt, int in, char *buf, int n)
 	if(!(vt->mode & Mfocus))
 		return 0;
 	if(n < 3)
-		return -1;
+		return small();
 	memmove(buf, in ? "\033[I" : "\033[O", 3);
 	return 3;
 }

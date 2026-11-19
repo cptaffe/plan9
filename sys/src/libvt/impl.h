@@ -95,3 +95,4 @@ void	_vttouch(Vt*, int);
 void	_vttouchall(Vt*);
 void	_vtscroll(Vt*, int, int, int, int);
 void	_vtsoftreset(Vt*);
+char*	_vtstrdup(char*);
