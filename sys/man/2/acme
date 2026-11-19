@@ -228,8 +228,24 @@ set, until
 or
 .I winfree
 closes them.
-Closing them ends the window's session, if it has one;
-a later use makes a new session, whose
+It opens each file once, under a lock, so procs that share a
+.B Win
+may use its files first in any order.
+Closing them ends the window's session, if it has one,
+unless something else still holds a file of it:
+a file descriptor from
+.IR winfd ,
+.I winopenfd
+or
+.IR winseqopen ,
+a bind of the directory
+.I winpath
+gives, or a command
+.I pipetowin
+or
+.I pipewinto
+runs.
+A later use makes a new session, whose
 .B addr
 starts at
 .BR #0,#0 ,
@@ -287,6 +303,7 @@ so the lines of a write that start with either go to acme's own
 .B ctl
 for the window, in their order among the others,
 and the library keeps that file open while it keeps the window's files.
+A write that fails partway leaves the messages before the failure done.
 .I Winname
 sets the window's name to
 .I fmt\fR, \fP...
@@ -603,7 +620,10 @@ of these types, uses them in place of the library's, and so does the library.
 .PP
 The other functions that use a window's file call
 .I sysfatal
-when they cannot open it, as plan9port's do.
+when they cannot open it, as plan9port's do;
+but after
+.IR winclosefiles ,
+if the window's session cannot be made again, they fail, returning \-1 or nil.
 .SH SOURCE
 .B /sys/src/libacme
 .SH SEE ALSO

@@ -6,6 +6,8 @@
 
 static Win *windows;
 static Win *last;
+static QLock fdlk;
+static QLock sesslk;
 QLock _winseqlk;
 
 Win*
@@ -27,8 +29,10 @@ newwin(void)
 		werrstr("new/ctl: malformed message: %s", buf);
 		return nil;
 	}
-	if((w = openwin(id, fd)) == nil)
+	if((w = openwin(id, fd)) == nil){
+		write(fd, "delete", 6);
 		close(fd);
+	}
 	return w;
 }
 
@@ -36,26 +40,32 @@ static int
 sess(Win *w)
 {
 	char buf[64];
-	int n;
+	int n, r;
 
+	qlock(&sesslk);
+	r = 0;
 	if(w->dir[0] != 0)
-		return 0;
+		goto Out;
 	snprint(buf, sizeof buf, "/mnt/amux/%d", w->id);
 	if(access(buf, AEXIST) < 0){
 		snprint(w->dir, sizeof w->dir, "/mnt/acme/%d", w->id);
-		return 0;
+		goto Out;
 	}
+	r = -1;
 	snprint(buf, sizeof buf, "/mnt/amux/%d/clone", w->id);
 	if((w->clone = open(buf, ORDWR|OCEXEC)) < 0)
-		return -1;
+		goto Out;
 	if((n = read(w->clone, buf, sizeof buf-1)) <= 0){
 		close(w->clone);
 		w->clone = -1;
-		return -1;
+		goto Out;
 	}
 	buf[n] = 0;
 	snprint(w->dir, sizeof w->dir, "/mnt/amux/%d/%d", w->id, atoi(buf));
-	return 0;
+	r = 0;
+Out:
+	qunlock(&sesslk);
+	return r;
 }
 
 char*
@@ -82,6 +92,7 @@ openwin(int id, int ctl)
 	Win *w;
 
 	w = emalloc(sizeof *w);
+	memset(w, 0, sizeof *w);
 	w->id = id;
 	w->clone = w->actl = -1;
 	if(sess(w) < 0){
@@ -213,15 +224,18 @@ _winfd(Win *w, char *name)
 int
 _wfid(Win *w, char *name)
 {
-	int *fd;
+	int *fd, r;
 
 	fd = _winfd(w, name);
-	if(*fd < 0){
+	qlock(&fdlk);
+	if(*fd < 0 && sess(w) == 0){
 		*fd = _winopen(w, name, (strcmp(name, "rdevent") == 0 ? OREAD : ORDWR)|OCEXEC);
 		if(*fd < 0)
 			sysfatal("open %s/%s: %r", w->dir, name);
 	}
-	return *fd;
+	r = *fd;
+	qunlock(&fdlk);
+	return r;
 }
 
 int
