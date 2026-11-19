@@ -289,20 +289,17 @@ model of bytes; the real model's scores over the tree's text will set them.
 .PP
 A command with a chorded argument loses the argument when written back.
 .PP
-On acme alone, a window that
+On acme alone, without
+.IR amux (4),
+a window that
 .IR win (1)
 or another program reads gets no events after the program ends: acme keeps one reader of
 .BR event ,
 and the program's read takes the other's place.
-Giving the window back waits on
-.IR acme (2)
-opening sessions of
-.IR amux (4),
-on
-.IR amux 's
-chain of the sessions that read
-.BR event ,
-and on
-.I win
-reading through
-.IR acme (2).
+Under
+.IR amux ,
+Huh and Bits leave a window whose
+.B event
+another session holds, as
+.IR win 's
+does.
