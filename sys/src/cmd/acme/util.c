@@ -431,6 +431,14 @@ erealloc(void *p, uint n)
 	return p;
 }
 
+static int
+blank(Window *w)
+{
+	if(isdrawn(w))
+		return 0;
+	return w->body.fr.maxlines-w->body.fr.nlines;
+}
+
 /*
  * Heuristic city.
  */
@@ -438,7 +446,7 @@ Window*
 makenewwindow(Text *t)
 {
 	Column *c;
-	Window *w, *bigw, *emptyw;
+	Window *w, *bigw, *bigt, *emptyw;
 	Text *emptyb;
 	int i, y, el;
 
@@ -454,28 +462,33 @@ makenewwindow(Text *t)
 		c = row.col[row.ncol-1];
 	}
 	activecol = c;
-	if(t==nil || t->w==nil || c->nw==0)
+	if(c->nw==0 || (t==nil || t->w==nil) && !isdrawn(c->w[c->nw-1]))
 		return coladd(c, nil, nil, -1);
 
 	/* find biggest window and biggest blank spot */
 	emptyw = c->w[0];
 	bigw = emptyw;
-	for(i=1; i<c->nw; i++){
+	bigt = nil;
+	for(i=0; i<c->nw; i++){
 		w = c->w[i];
 		/* use >= to choose one near bottom of screen */
 		if(w->body.fr.maxlines >= bigw->body.fr.maxlines)
 			bigw = w;
-		if(w->body.fr.maxlines-w->body.fr.nlines >= emptyw->body.fr.maxlines-emptyw->body.fr.nlines)
+		if(!isdrawn(w) && (bigt==nil || w->body.fr.maxlines >= bigt->body.fr.maxlines))
+			bigt = w;
+		if(blank(w) >= blank(emptyw))
 			emptyw = w;
 	}
 	emptyb = &emptyw->body;
-	el = emptyb->fr.maxlines-emptyb->fr.nlines;
+	el = blank(emptyw);
 	/* if empty space is big, use it */
 	if(el>15 || (el>3 && el>(bigw->body.fr.maxlines-1)/2))
 		y = emptyb->fr.r.min.y+emptyb->fr.nlines*font->height;
 	else{
+		if(isdrawn(bigw) && bigt!=nil && Dy(bigt->r)>2*Dy(bigw->r)/3)
+			bigw = bigt;
 		/* if this window is in column and isn't much smaller, split it */
-		if(t->col==c && Dy(t->w->r)>2*Dy(bigw->r)/3)
+		if(t!=nil && t->w!=nil && t->col==c && Dy(t->w->r)>2*Dy(bigw->r)/3)
 			bigw = t->w;
 		y = (bigw->r.min.y + bigw->r.max.y)/2;
 	}

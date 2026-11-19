@@ -103,7 +103,9 @@ coladd(Column *c, Window *w, Window *clone, int y)
 		draw(screen, r, textcols[BACK], nil, ZP);
 		r1 = r;
 		y = min(y, ymax-(v->tag.fr.font->height*v->taglines+v->body.fr.font->height+Border+1));
-		r1.max.y = min(y, v->body.fr.r.min.y+v->body.fr.nlines*v->body.fr.font->height);
+		if(!isdrawn(v))
+			y = min(y, v->body.fr.r.min.y+v->body.fr.nlines*v->body.fr.font->height);
+		r1.max.y = y;
 		r1.min.y = winresize(v, r1, FALSE, FALSE);
 		r1.max.y = r1.min.y+Border;
 		draw(screen, r1, colrule, nil, ZP);
@@ -322,7 +324,7 @@ void
 colgrow(Column *c, Window *w, int but)
 {
 	Rectangle r, cr;
-	int i, j, k, l, y1, y2, *nl, *ny, tot, nnl, onl, dnl, h;
+	int i, j, k, l, d, y1, y2, *nl, *ny, tot, nnl, onl, dnl, h;
 	Window *v;
 
 	for(i=0; i<c->nw; i++)
@@ -377,10 +379,11 @@ colgrow(Column *c, Window *w, int but)
 		nnl = 2;
 	dnl = nnl - onl;
 	/* compute new #lines for each window */
+	for(d=0; d<2; d++)
 	for(k=1; k<c->nw; k++){
 		/* prune from later window */
 		j = i+k;
-		if(j<c->nw && nl[j]){
+		if(j<c->nw && nl[j] && isdrawn(c->w[j])==d){
 			l = min(dnl, max(1, nl[j]/2));
 			nl[j] -= l;
 			nl[i] += l;
@@ -388,7 +391,7 @@ colgrow(Column *c, Window *w, int but)
 		}
 		/* prune from earlier window */
 		j = i-k;
-		if(j>=0 && nl[j]){
+		if(j>=0 && nl[j] && isdrawn(c->w[j])==d){
 			l = min(dnl, max(1, nl[j]/2));
 			nl[j] -= l;
 			nl[i] += l;

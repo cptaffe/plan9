@@ -61,7 +61,7 @@ enum
 	Displaybufsize	= 8000,
 	ICOSSCALE	= 1024,
 	Borderwidth =	4,
-	DefaultDPI	= 133,	/* over this, sizes in pixels scale: scalesize */
+	DefaultDPI	= 116,	/* over this, sizes in pixels scale: scalesize; plan9port's 133 at 110 for its 96 */
 };
 
 enum
@@ -313,6 +313,7 @@ struct Font
 	int		maxdepth;	/* maximum depth of all loaded subfonts */
 	int		ncache;	/* size of cache */
 	int		nsubf;	/* size of subfont list */
+	int		scale;	/* pixel scaling to apply */
 	Cacheinfo	*cache;
 	Cachesubf	*subf;
 	Cachefont	**sub;	/* as read from file */
@@ -508,6 +509,7 @@ extern int	runestringnwidth(Font*, Rune*, int);
 extern Point	strsubfontwidth(Subfont*, char*);
 extern int	loadchar(Font*, Rune, Cacheinfo*, int, int, char**);
 extern char*	subfontname(char*, char*, int);
+extern int	parsefontscale(char*, char**);
 extern Subfont*	_getsubfont(Display*, char*);
 extern Subfont*	getdefont(Display*);
 extern void		lockdisplay(Display*);

@@ -8,6 +8,7 @@ typedef	struct	Prog	Prog;
 typedef	struct	Sym	Sym;
 typedef	struct	Sig	Sig;
 typedef	struct	Buf	Buf;
+typedef	struct	Rel	Rel;
 
 #define	P	((Prog*)0)
 #define	S	((Sym*)0)
@@ -26,6 +27,7 @@ enum
 	SIMPORT,
 	SWASM,
 	SLINK,
+	SUNDEF,
 
 	LABEL	= 1<<0,
 	ARGV	= 1<<1,
@@ -74,6 +76,7 @@ enum
 	WI32CONST	= 0x41,
 	WI64CONST	= 0x42,
 	WF64CONST	= 0x44,
+	WI32EQ	= 0x46,
 	WI32NE	= 0x47,
 	WI32ADD	= 0x6a,
 	WI32SUB	= 0x6b,
@@ -105,6 +108,8 @@ struct	Prog
 	Adr	to;
 	Prog*	link;
 	Prog*	cond;
+	Prog**	tab;
+	int	ntab;
 	long	line;
 	int	lab;
 	int	sig;
@@ -134,15 +139,39 @@ struct	Sym
 	int	fidx;
 	int	tidx;
 	int	sig;
+	int	ridx;
 	int	dver;
 	long	frame;
 	long	pframe;
 	char*	file;
 	Prog*	text;
+	Prog*	decl;
 	Prog*	data;
 	Prog*	edata;
 	Sym*	hash;
 	Sym*	next;
+};
+
+struct	Rel
+{
+	int	type;
+	long	off;
+	Sym*	sym;
+	Sym*	in;
+	long	idx;
+	long	add;
+};
+
+enum
+{
+	RFUNC	= 0,
+	RTABSLEB	= 1,
+	RTABI32	= 2,
+	RMEMSLEB	= 4,
+	RMEMI32	= 5,
+	RTYPE	= 6,
+	RGLOBAL	= 7,
+	RTAG	= 10,
 };
 
 struct	Buf
@@ -164,6 +193,9 @@ extern	long	stacksize;
 extern	char*	entry;
 extern	char**	exports;
 extern	int	nexport;
+extern	int	rflag;
+extern	Rel*	rels;
+extern	int	nrel;
 extern	Sym*	cursym;
 extern	int	debug[128];
 extern	char*	anames[];
@@ -185,6 +217,10 @@ int	issetjmp(Prog*);
 char*	impmod(Sym*, char**);
 void	gencode(Sym*, Buf*);
 long	symaddr(Sym*);
+int	isfunc(Sym*);
+void	addrel(int, long, Sym*, Sym*, long, long);
+void	bpad(Buf*, vlong);
+void	asmr(void);
 
 void	bput(Buf*, int);
 void	bputs(Buf*, void*, long);

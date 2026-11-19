@@ -478,22 +478,6 @@ acmeerrorinit(void)
 
 	if(pipe(pfd) < 0)
 		error("can't create pipe");
-#if 0
-	sprint(acmeerrorfile, "/srv/acme.%s.%d", getuser(), mainpid);
-	fd = create(acmeerrorfile, OWRITE, 0666);
-	if(fd < 0){
-		remove(acmeerrorfile);
-  		fd = create(acmeerrorfile, OWRITE, 0666);
-		if(fd < 0)
-			error("can't create acmeerror file");
-	}
-	sprint(buf, "%d", pfd[0]);
-	write(fd, buf, strlen(buf));
-	close(fd);
-	/* reopen pfd[1] close on exec */
-	sprint(buf, "/fd/%d", pfd[1]);
-	errorfd = open(buf, OREAD|OCEXEC);
-#endif
 	/* reopen pfd[1] close on exec */
 	sprint(buf, "/fd/%d", pfd[0]);
 	erroutfd = open(buf, ORDWR|OCEXEC);

@@ -1,0 +1,520 @@
+.TH PROP 2
+.SH NAME
+choose, coin, pick, more, span, endspan, discard, note, forall, propargs, propexits, expand, mutate, srcbytes, runprop, srcfree \- generative tests
+.SH SYNOPSIS
+.ta \w'uvlong 'u
+.B #include <u.h>
+.br
+.B #include <libc.h>
+.br
+.B #include <prop.h>
+.PP
+.B
+typedef char *Prop(Src *s, void *a)
+.PP
+.B
+uvlong	choose(Src *s, uvlong n)
+.PP
+.B
+int	coin(Src *s, int pct)
+.PP
+.B
+int	pick(Src *s, int *w, int nw)
+.PP
+.B
+int	more(Src *s)
+.PP
+.B
+void	span(Src *s, char *tag)
+.PP
+.B
+void	endspan(Src *s)
+.PP
+.B
+void	discard(Src *s)
+.PP
+.B
+void	note(Src *s, char *fmt, ...)
+.PP
+.B
+void	propargs(int argc, char **argv)
+.PP
+.B
+int	forall(char *name, Prop *p, void *a)
+.PP
+.B
+void	propexits(void)
+.PP
+.B
+char*	expand(Src *s, char **g, char *start, int depth)
+.PP
+.B
+char*	mutate(Src *s, char **c, int nc)
+.PP
+.B
+Src*	srcbytes(uchar *b, long n)
+.PP
+.B
+char*	runprop(Src *s, Prop *p, void *a)
+.PP
+.B
+void	srcfree(Src *s)
+.PP
+.B
+void*	emalloc(ulong n)
+.PP
+.B
+void*	erealloc(void *p, ulong n)
+.SH DESCRIPTION
+These routines test a property of a program on many inputs, and when one fails,
+make it as small as they can before they show it.
+A property is a function,
+.IR Prop ,
+that makes an input and checks the program on it.
+It returns nil when the property holds, and otherwise a string that says what went wrong,
+which the library does not free.
+.PP
+A property makes its input from the choices that a source,
+.IR s ,
+gives it.
+A choice is a number from 0 to a bound, and 0 is the simplest.
+A source gives random choices, or replays the choices a test gives it, and records each choice.
+To shrink a failing input, the library changes the recorded choices, never the values made from them,
+and runs the property again.
+So the library can make at random, replay and shrink any input that these routines make,
+or that ordinary C makes on top of them.
+The simpler choice should make the simpler input: the first of the alternatives, the shorter list,
+the smaller number.
+.SS Choices
+.I Choose
+gives a choice from 0 to
+.IR n \-1;
+an
+.I n
+of 0 allows any
+.BR uvlong .
+At random, it gives 0,
+.IR n \-1
+and small numbers more often than others.
+.I Coin
+gives 1 with a chance of
+.I pct
+percent, and 0 otherwise.
+.I Pick
+gives an index from 0 to
+.IR nw \-1,
+at random by the weights
+.IR w ,
+or evenly if
+.I w
+is nil.
+.PP
+.I More
+says whether a sequence gets one more element.
+When it gives 1, it begins a span that holds its own choice, and the caller ends the span with
+.I endspan
+once it has made the element:
+.IP
+.EX
+while(more(s)){
+	v[n++] = choose(s, 100);
+	endspan(s);
+}
+.EE
+.PP
+At random, sequences get longer over the runs of
+.IR forall .
+.I Span
+and
+.I endspan
+mark the choices that make one part of an input, such as an operation and its arguments,
+so the shrinker can delete the part whole or swap it with the part beside it.
+Spans nest.
+When the property returns, the library ends any span left open.
+The
+.I tag
+names the kind of part, such as
+.B block
+or
+.BR expr ;
+the shrinker puts in place of a span a span with the same tag inside it,
+so a recursive generator's nested part can take its parent's place.
+The library compares tags by their text.
+A nil
+.I tag
+marks a span that is never replaced.
+The span that
+.I more
+begins has the tag
+.BR more ,
+and
+.IR expand 's
+have their symbols' names.
+.PP
+.I Discard
+says the input does not apply.
+It ends the run at once, with a
+.I longjmp
+(see
+.IR setjmp (2));
+.I forall
+does not count the run, and makes another input.
+Memory the property allocated is not freed.
+.I Note
+formats a line, as
+.IR print (2)
+does, and keeps it with the run; a failing case shows its notes.
+.SS Running
+.I Forall
+runs the property
+.I p
+with its argument
+.I a
+on 100 random inputs.
+If one fails, it shrinks the input, prints the property's name and string, its notes,
+and a command that replays the case, and returns \-1.
+If all pass, it prints nothing and returns 0.
+It also fails if it discards more than ten times the number of runs, plus 100.
+.PP
+.I Propargs
+takes a test program's arguments.
+Each other argument names a property to run; with none,
+.I forall
+runs every property.
+The options are:
+.TP
+.BI -n " runs"
+Run each property on
+.I runs
+random inputs.
+.TP
+.BI -s " seed"
+Start the random choices from
+.IR seed .
+A run with the same seed and properties gives the same inputs.
+By default the seed is random, and a failure shows it.
+.TP
+.BI -r " choices"
+Replay
+.IR choices ,
+numbers separated by blanks, once, and do not shrink.
+If the argument holds anything else, it names a file that holds the numbers.
+.TP
+.BI -b " file"
+Take the choices from the bytes of
+.IR file ,
+as
+.I srcbytes
+does, and shrink the input if it fails.
+.TP
+.BI -R " file"
+Before the random inputs, replay each case that
+.I file
+holds for the property, and shrink and show those that still fail;
+if one fails, make no random inputs.
+A line of the file is a property's name and its choices.
+.I Forall
+adds the choices of each failure it shows to the file, if the file does not hold them,
+and makes the file if it does not exist.
+.TP
+.B -f
+Run each input in a child process
+(see
+.IR fork (2)).
+A child that dies, by a fault, a
+.IR sysfatal ,
+an
+.I exits
+or a note, fails with the message of its wait record
+(see
+.IR wait (2)),
+less the program's name and process id,
+and that failure shrinks like any other.
+.TP
+.BI -t " ms"
+Fail an input that runs for more than
+.I ms
+milliseconds: post the note
+.B timeout
+to its child, and kill it if it has not ended
+.I ms
+milliseconds later.
+The failure reads
+.BR "timed out after" " \fIms\fP " ms .
+.B -t
+implies
+.BR -f .
+.TP
+.B -v
+Print a line for each property that passes.
+.PD
+.PP
+With
+.B -f
+a seed gives the same inputs as without it, but each run costs a
+.IR fork .
+.PP
+.I Propexits
+exits with the status
+.B fail
+if a property failed, and with an empty status otherwise.
+.PP
+.I Propargs
+catches the note
+.BR interrupt .
+After one,
+.I forall
+ends the property's runs or its shrinking at the next input,
+shows the least failing case it has found, or says it found none,
+and exits with the status
+.BR interrupted .
+A second interrupt ends the program at once.
+.PP
+A failure reads:
+.IP
+.EX
+sortdup: sort lost an element
+	in: 0 0
+	out: 0
+	found by run 2 with -s 1; 4 shrinks in 49 runs
+	tprop -r '1 0 1 0 0' sortdup
+.EE
+.PP
+The last line is the shrunk input's choices, as the property read them.
+The shrinker keeps any failure, so the shrunk case can fail in another way than the case first found;
+if its string differs, a line
+.B first failure:
+gives the first.
+On a replay, choices past the end are 0, and a choice that is not below its bound is 0.
+.SS Shrinking
+The shrinker keeps a change only if the property still fails and the new choices are simpler:
+fewer, or as many and smaller at the first place they differ.
+It tries these changes in order, and starts again until none applies or it has run the
+property 20000 times:
+deleting each span;
+deleting each run of 8, 4, 2 and then 1 choices;
+putting in place of each tagged span a span with the same tag inside it;
+lowering each choice, to 0 or else by halves;
+lowering together the choices that are equal;
+swapping neighboring choices that are out of order, and neighboring spans;
+and moving an amount from a choice to one of the next four.
+.SS Inputs
+.I Expand
+makes text from the grammar
+.IR g ,
+starting at the symbol
+.IR start ,
+and returns it in memory the caller frees.
+.I G
+is a nil-terminated array of rules.
+A rule is a symbol, a tab, and one alternative; a symbol's alternatives are its rules,
+in order, and
+.I expand
+picks a rule given twice twice as often.
+In an alternative,
+.BI < sym >
+is the symbol
+.IR sym ,
+and
+.BI [ set ]
+is one rune from
+.IR set ,
+which may hold ranges such as
+.BR a-z .
+After either,
+.B *
+gives any number of them,
+.B +
+for one or more, or
+.B ?
+for one or none.
+A backslash quotes the next character, and any other character stands for itself.
+Each symbol expanded is a span, and each element of a repetition is a span of its own.
+Below
+.I depth
+symbols, a symbol takes its first alternative and repeats no symbol,
+so the first alternative of each symbol must not lead back to it.
+.PP
+.I Mutate
+makes text from the examples
+.IR c ,
+an array of
+.I nc
+strings.
+It picks an example, takes a window of it, and then makes any number of edits:
+cutting a range, putting in a character, copying a piece of an example in, or copying a piece of
+the text itself.
+It returns the text in memory the caller frees.
+At random the window is mostly the whole example; it shrinks to the shortest window
+of the first example that still fails, with the fewest edits.
+The edits work on bytes, and put in only tabs, newlines, and printable ASCII.
+.SS Other sources
+.I Srcbytes
+makes a source that takes its choices from the
+.I n
+bytes at
+.IR b ,
+as a coverage-guided fuzzer gives them.
+A choice with the bound
+.I n
+takes as few bytes as hold
+.IR n \-1,
+high byte first, modulo
+.IR n ;
+past the end, the bytes are 0.
+.I Runprop
+runs
+.I p
+once on the choices of
+.IR s ,
+from the start, and returns the property's string if it fails, or nil if it passes or discards.
+.I Srcfree
+frees a source.
+.SS Memory
+The library expects the program to provide two allocation routines,
+.I emalloc
+and
+.IR erealloc .
+They are
+.IR malloc (2)'s
+and
+.IR realloc ,
+except that they do not return if memory runs out, and
+.I emalloc
+sets the memory it returns to zero.
+.SH EXAMPLES
+Check a sort on lists of numbers; the notes show the case.
+.IP
+.EX
+char*
+sorts(Src *s, void*)
+{
+	uvlong v[1000];
+	int i, n;
+
+	for(n = 0; n < nelem(v) && more(s); n++){
+		v[n] = choose(s, 100);
+		endspan(s);
+	}
+	mysort(v, n);
+	for(i = 1; i < n; i++)
+		if(v[i-1] > v[i])
+			return "out of order";
+	return nil;
+}
+
+void
+main(int argc, char **argv)
+{
+	propargs(argc, argv);
+	forall("sorts", sorts, nil);
+	propexits();
+}
+.EE
+.PP
+Compare a program with a model: draw a sequence of operations, each a span with its arguments,
+apply each to the queue and to an array, and compare them after each.
+The shrinker deletes the operations that do not matter.
+.IP
+.EX
+while(more(s)){
+	switch(pick(s, nil, 2)){
+	case 0:
+		x = choose(s, 10);
+		note(s, "put %llud", x);
+		qput(q, x);
+		m[n++] = x;
+		break;
+	case 1:
+		note(s, "get");
+		if(n > 0 && qget(q) != m[h++])
+			return "get gave the wrong value";
+		break;
+	}
+	endspan(s);
+	if(qlen(q) != n-h)
+		return "wrong length";
+}
+.EE
+.PP
+A round trip prints a value made from choices and parses it back:
+.IP
+.EX
+v = mkval(s);
+t = smprint("%V", v);
+note(s, "%s", t);
+if(!eqval(parseval(t), v))
+	return "parse of print differs";
+.EE
+.PP
+A differential test gives the same input to two programs that should agree, such as
+an incremental parse and a whole one.
+Make expressions from a grammar and compare two evaluators:
+.IP
+.EX
+char *g[] = {
+	"e	<n>",
+	"e	(<e>)",
+	"e	<e>+<e>",
+	"e	<e>*<e>",
+	"n	[0-9]+",
+	nil
+};
+
+t = expand(s, g, "e", 8);
+note(s, "%s", t);
+if(eval1(t) != eval2(t))
+	return "the evaluators differ";
+.EE
+.PP
+Drive a property from a fuzzer:
+.IP
+.EX
+int
+LLVMFuzzerTestOneInput(uchar *b, long n)
+{
+	Src *s;
+
+	s = srcbytes(b, n);
+	if(runprop(s, sorts, nil) != nil)
+		abort();
+	srcfree(s);
+	return 0;
+}
+.EE
+.PP
+and shrink what it finds with
+.BI -b " file" \fR.
+.SH SOURCE
+.B /sys/src/libprop
+.SH SEE ALSO
+.I /sys/src/cmd/test/tprop.c
+in plan9web, which holds a property for each pass,
+.br
+David R. MacIver and Alastair F. Donaldson,
+``Test-Case Reduction via Test-Case Generation: Insights from the Hypothesis Reducer'',
+ECOOP 2020,
+.br
+Koen Claessen and John Hughes,
+``QuickCheck: a lightweight tool for random testing of Haskell programs'',
+ICFP 2000.
+.SH DIAGNOSTICS
+.I Propargs
+ends the program with
+.I sysfatal
+if it cannot read the
+.B -R
+file, or a line of it is not a name and numbers;
+.I forall
+does the same if a
+.I fork
+or
+.I pipe
+fails.
+.SH BUGS
+Without
+.BR -f ,
+a property that crashes ends the program, and one that never returns is not shrunk.
+The shrinker can stop at a case that no one change makes simpler, though a smaller one exists.
+APE has no
+.IR prop.h .
