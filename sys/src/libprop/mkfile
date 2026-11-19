@@ -4,6 +4,7 @@ LIB=/$objtype/lib/libprop.a
 OFILES=\
 	check.$O\
 	expand.$O\
+	fork.$O\
 	mutate.$O\
 	src.$O\
 

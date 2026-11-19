@@ -1,0 +1,392 @@
+.TH MD 2
+.SH NAME
+mdparse, mdedit, mdfree, mdroot, mddown, mdnext, mdup, mdseek, mdcurcopy, mdcurfree, mddef, mdentity \- parse Markdown into a tree over its source
+.SH SYNOPSIS
+.ta \w'Md*\ \ \ 'u
+.B #include <u.h>
+.br
+.B #include <libc.h>
+.br
+.B #include <md.h>
+.PP
+.B
+Md*	mdparse(char *s, ulong n, int ext)
+.PP
+.B
+Md*	mdedit(Md *m, char *s, ulong n, ulong q0, ulong q1, ulong nq1)
+.PP
+.B
+void	mdfree(Md *m)
+.PP
+.B
+void	mdroot(Md *m, Mdcur *c)
+.PP
+.B
+int	mddown(Mdcur *c)
+.PP
+.B
+int	mdnext(Mdcur *c)
+.PP
+.B
+int	mdup(Mdcur *c)
+.PP
+.B
+int	mdseek(Mdcur *c, ulong q)
+.PP
+.B
+void	mdcurcopy(Mdcur *to, Mdcur *from)
+.PP
+.B
+void	mdcurfree(Mdcur *c)
+.PP
+.B
+int	mddef(Mdcur *link, Mdcur *def)
+.PP
+.B
+int	mdentity(char *s, int n, Rune *r)
+.PP
+.B
+void*	emalloc(ulong n)
+.PP
+.B
+void*	erealloc(void *p, ulong n)
+.SH DESCRIPTION
+These routines parse CommonMark 0.31.2, with any of four of GitHub's extensions,
+into a tree of nodes over the source.
+Each node, a run of emphasis delimiters as much as a paragraph,
+has the byte offsets of its start and end in the source and the line it starts on.
+After an edit,
+.I mdedit
+parses again only near the edit and shares the rest of the old tree.
+.PP
+.I Mdparse
+parses the
+.I n
+bytes of UTF-8 at
+.I s
+and returns a snapshot,
+.IR Md .
+.I Ext
+is a mask of the extensions to recognize:
+.B Mdxtable
+for tables,
+.B Mdxstrike
+for strikethrough with one or two tildes,
+.B Mdxauto
+for links made from bare
+.BR www. ,
+.BR http:// ,
+.B https://
+and
+.B ftp://
+addresses and email addresses,
+and
+.B Mdxtask
+for task list items;
+.B Mdgfm
+is all four, and 0 is CommonMark alone.
+The snapshot holds
+.I s
+but does not copy it; the text must not change while the snapshot is in use.
+Its
+.B seq
+counts the edits since
+.IR mdparse .
+.PP
+.I Mdedit
+returns a new snapshot for text that differs from
+.IR m 's
+in one place:
+the old bytes from
+.I q0
+to
+.I q1
+are the new bytes from
+.I q0
+to
+.IR nq1 ,
+and the new text is the
+.I n
+bytes at
+.IR s .
+The result is the tree
+.I mdparse
+would give for the new text, node for node.
+The two snapshots share the subtrees the edit did not reach.
+.I Mdedit
+reads only the new text, so the caller may change one buffer in place before the call;
+the old snapshot then stays valid as a tree but not as text, and the caller may free it at any time after.
+The new snapshot's
+.B r0
+and
+.B r1
+are the bytes of the new text that the parser read again.
+Blocks elsewhere may have had their inlines parsed again too,
+when the edit defines a link label they use or removes its last definition.
+.I Mdfree
+frees a snapshot, not its text.
+.PP
+A node is an
+.IR Mdnode :
+.IP
+.EX
+struct Mdnode
+{
+	int	type;
+	int	flags;
+	int	aux;
+	int	c;
+	int	w;
+	ulong	q0;
+	ulong	q1;
+	ulong	line;
+};
+.EE
+.PP
+.I Q0
+and
+.I q1
+are its start and end, in bytes, and
+.I line
+is the number of line endings before
+.IR q0 .
+A node's range holds its children's ranges, and children are in the order of their starts.
+The types of blocks are
+.BR Mddoc ,
+.BR Mdquote ,
+.BR Mdlist ,
+.BR Mditem ,
+.BR Mdpara ,
+.BR Mdhead ,
+.B Mdcode
+(indented or fenced),
+.B Mdhtml
+(a block of raw HTML),
+.BR Mdrule ,
+.B Mddef
+(a link reference definition),
+.BR Mdtable ,
+.B Mdrow
+and
+.BR Mdcell .
+The types of inlines are
+.BR Mdtext ,
+.B Mdesc
+(a backslash and the character it escapes),
+.B Mdent
+(an entity or numeric character reference),
+.BR Mdsoft ,
+.BR Mdhard ,
+.BR Mdcodespan ,
+.BR Mdemph ,
+.BR Mdstrong ,
+.BR Mdstrike ,
+.BR Mdlink ,
+.BR Mdimage ,
+.B Mdauto
+(an autolink)
+and
+.B Mdraw
+(raw HTML).
+An
+.B Mdtext
+node's bytes are always the text it stands for.
+.PP
+The rest of a node's syntax is in nodes of its own.
+An
+.B Mdmark
+node is markup, and its
+.I aux
+is the type of the node it marks:
+each run of delimiters of emphasis, strong emphasis, strikethrough and code spans,
+the brackets and parentheses of links and images,
+the
+.B #
+runs and setext underline of a heading,
+the fences of a code block,
+a list item's marker,
+a table's pipes and delimiter row,
+and every
+.B >
+of a block quote, on every line.
+A mark is a child of the innermost node whose range holds it,
+so a
+.B >
+at the start of a line in a quoted paragraph is among that paragraph's inlines.
+.B Mddest
+and
+.B Mdtitle
+are a link's or a definition's destination and title,
+.B Mdlabel
+is a reference's label,
+.B Mdinfo
+is a fenced code block's info string, and
+.B Mdtask
+is a task item's
+.B [ ]
+or
+.BR [x] .
+Their children are
+.BR Mdtext ,
+.BR Mdesc ,
+.BR Mdent ,
+and
+.B Mdsoft
+nodes.
+A code block or block of HTML has an
+.B Mdtext
+child for each line, whose
+.I aux
+is the number of spaces a partly used tab adds before it.
+A code span, raw HTML and a title have an
+.B Mdtext
+child for each line's part, with
+.B Mdsoft
+nodes between.
+.PP
+The flags are
+.B Mdordered
+and
+.B Mdtight
+for lists and items,
+.B Mdfenced
+for code blocks,
+.B Mdsetext
+for headings,
+.B Mdheader
+for a table's first row,
+.B Mdfill
+for a cell a short row lacked,
+.B Mdtodo
+and
+.B Mdchecked
+for task items,
+.BR Mdinline ,
+.BR Mdfull ,
+.B Mdcollapsed
+and
+.B Mdshortcut
+for the four kinds of links and images,
+and
+.BR Mdemail ,
+.BR Mdwww ,
+and
+.B Mdbare
+for autolinks.
+Higher bits are the library's own.
+.I Aux
+is a heading's level, an ordered list's start, a cell's alignment
+.RB ( l ,
+.BR c ,
+.B r
+or 0), an HTML block's kind (1 to 7),
+and a fenced code block's indentation.
+.I C
+is a list's or item's bullet or delimiter, and a fence's character;
+.I w
+is an item's content column, a fence's length, and a code span's run of backticks.
+.PP
+A cursor,
+.IR Mdcur ,
+walks a snapshot.
+Its
+.I Mdnode
+is the node it points to, and its other fields belong to the library.
+.I Mdroot
+puts
+.I c
+at the document.
+.IR Mddown ,
+.I mdnext
+and
+.I mdup
+move to the first child, the next sibling, and the parent,
+and return 0, without moving, when no such node exists.
+.I Mdseek
+moves to the deepest node whose range holds byte
+.I q
+and returns its depth.
+.I Mdcurcopy
+makes
+.I to
+a cursor at the same node as
+.IR from ,
+and
+.I mdcurfree
+frees a cursor's memory.
+The tree holds no parent pointers; a cursor keeps the path it took.
+.PP
+.I Mddef
+puts
+.I def
+at the definition a reference link or image at
+.I link
+uses, the first in the document with its label,
+and returns 0 if
+.I link
+is not one.
+.I Mdentity
+decodes the reference of
+.I n
+bytes at
+.IR s ,
+an
+.B Mdent
+node's, into
+.I r
+(one or two runes, with a zero after one) and returns its length, or 0 if the bytes are not a reference.
+.PP
+The library allocates with the program's
+.I emalloc
+and
+.IR erealloc ,
+which do not return when memory runs out;
+.I emalloc
+zeroes what it returns.
+.SH EXAMPLES
+Print each heading's text:
+.IP
+.EX
+Md *m;
+Mdcur c;
+int d;
+
+m = mdparse(s, n, Mdgfm);
+memset(&c, 0, sizeof c);
+mdroot(m, &c);
+for(d = 0;;){
+	if(c.type == Mdhead)
+		print("%.*s\en", (int)(c.q1-c.q0), s+c.q0);
+	if(mddown(&c)){
+		d++;
+		continue;
+	}
+	while(!mdnext(&c))
+		if(d-- == 0 || !mdup(&c))
+			goto done;
+}
+done:
+mdcurfree(&c);
+.EE
+.SH SOURCE
+.B /sys/src/libmd
+.SH SEE ALSO
+.IR prop (2),
+.I doc/mdparse.md
+and
+.I src/cmd/test/tmd.c
+in plan9web,
+.br
+John MacFarlane et al.,
+``CommonMark Spec'', version 0.31.2,
+.br
+GitHub,
+``GitHub Flavored Markdown Spec'', version 0.29-gfm.
+.SH DIAGNOSTICS
+.I Mdedit
+returns nil and sets the error string if the edit does not fit the texts' lengths.
+.SH BUGS
+APE has no
+.IR md.h .
+cmark's limit on the text that reference links may repeat is not applied,
+so a document's links can expand to more than its size when a renderer repeats their destinations.

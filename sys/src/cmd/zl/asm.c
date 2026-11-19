@@ -11,6 +11,7 @@ static	long	dataend;
 static	long	bssend;
 static	long	heapbase;
 static	int	tagsig = -1;
+static	int	nsect;
 
 void
 bput(Buf *b, int c)
@@ -169,7 +170,7 @@ impsig(Sym *s, Prog *p, Sig *sg)
 
 	p->sig = sigof(sg);
 	t = p->to.sym;
-	if(t == S || t->type != SIMPORT)
+	if(t == S || t->type != SIMPORT && t->type != SUNDEF)
 		return;
 	i = sigof(sg);
 	if(t->sig < 0) {
@@ -228,6 +229,21 @@ layout(void)
 		scancalls(s, impsig);
 	}
 	for(i=0; i<NHASH; i++)
+	for(s = hash[i]; s != S; s = s->hash) {
+		if(!s->reach || s->type != SUNDEF || s->sig >= 0 || s->decl == P)
+			continue;
+		memset(&sg, 0, sizeof sg);
+		for(p = s->decl; p != P; p = p->link)
+			if(p->as == APARAM && sg.np < NARG)
+				sg.p[sg.np++] = p->from.offset;
+			else if(p->as == ARESULT)
+				sg.r = p->from.offset;
+		s->sig = sigof(&sg);
+		imports = realloc(imports, (nimport+1)*sizeof(Sym*));
+		s->fidx = nimport;
+		imports[nimport++] = s;
+	}
+	for(i=0; i<NHASH; i++)
 	for(s = hash[i]; s != S; s = s->hash)
 		if(s->reach && s->type == SIMPORT && s->sig < 0)
 			diag("import %s is never called", s->name);
@@ -238,15 +254,15 @@ layout(void)
 		s->fidx = nimport + nfunc;
 		funcs[nfunc++] = s;
 	}
-	for(s = textp; s != S; s = s->next) {
+	for(s = textp; s != S && !rflag; s = s->next) {
 		if(!s->reach)
 			continue;
 		for(p = s->text; p != P; p = p->link) {
 			if(p->as == ACALL)
 				continue;
-			if(p->from.type == D_CONST)
+			if(p->from.type == D_CONST && (p->from.name == D_EXTERN || p->from.name == D_STATIC))
 				addtab(p->from.sym);
-			if(p->to.type == D_CONST)
+			if(p->to.type == D_CONST && (p->to.name == D_EXTERN || p->to.name == D_STATIC))
 				addtab(p->to.sym);
 		}
 	}
@@ -256,7 +272,7 @@ layout(void)
 		sg.p[0] = KI32;
 		tagsig = sigof(&sg);
 	}
-	v = stacksize;
+	v = rflag ? 0 : stacksize;
 	database = v;
 	for(s = datap; s != S; s = s->next) {
 		if(!s->reach || s->type != SDATA)
@@ -266,7 +282,7 @@ layout(void)
 		v = (v + dalign(s->size) - 1) & ~(dalign(s->size) - 1);
 		s->value = v;
 		v += s->size;
-		for(p = s->data; p != P; p = p->link)
+		for(p = s->data; p != P && !rflag; p = p->link)
 			if(p->to.type == D_CONST)
 				addtab(p->to.sym);
 	}
@@ -312,6 +328,7 @@ symaddr(Sym *s)
 static void
 section(Buf *m, int id, Buf *b)
 {
+	nsect++;
 	bput(m, id);
 	bvec(m, b);
 	bfree(b);
@@ -373,7 +390,16 @@ putdata(uchar *mem, Sym *s)
 			break;
 		case D_CONST:
 			v = p->to.offset;
-			if(p->to.sym != S)
+			if(p->to.sym != S && rflag) {
+				if(w != 4)
+					diag("%s: address of %s in %ld bytes", s->name, p->to.sym->name, w);
+				if(isfunc(p->to.sym))
+					addrel(RTABI32, off, p->to.sym, s, 0, 0);
+				else {
+					addrel(RMEMI32, off, p->to.sym, s, 0, v);
+					v += p->to.sym->value;
+				}
+			} else if(p->to.sym != S)
 				v += symaddr(p->to.sym);
 			break;
 		case D_VCONST:
@@ -587,5 +613,378 @@ asmb(void)
 	}
 	if(write(fd, m.p, m.n) != m.n)
 		diag("write error: %r");
+	close(fd);
+}
+
+int
+isfunc(Sym *s)
+{
+	return s->type == STEXT || s->type == SIMPORT || s->type == SUNDEF && s->sig >= 0;
+}
+
+void
+addrel(int t, long off, Sym *s, Sym *in, long idx, long add)
+{
+	Rel *r;
+
+	if(nrel % 64 == 0)
+		rels = realloc(rels, (nrel+64)*sizeof(Rel));
+	r = &rels[nrel++];
+	r->type = t;
+	r->off = off;
+	r->sym = s;
+	r->in = in;
+	r->idx = idx;
+	r->add = add;
+}
+
+void
+bpad(Buf *b, vlong v)
+{
+	int i;
+
+	for(i=0; i<4; i++)
+		bput(b, (v >> 7*i) & 0x7f | 0x80);
+	bput(b, (v >> 28) & 0x7f);
+}
+
+static int
+lebsize(uvlong v)
+{
+	int n;
+
+	for(n = 1; v >= 0x80; n++)
+		v >>= 7;
+	return n;
+}
+
+static int
+relcmp(void *a, void *b)
+{
+	return ((Rel*)a)->off - ((Rel*)b)->off;
+}
+
+static void
+putrels(Buf *m, char *name, int sect, Rel *r, int n)
+{
+	Buf b;
+	int i;
+
+	if(n == 0)
+		return;
+	memset(&b, 0, sizeof b);
+	qsort(r, n, sizeof(Rel), relcmp);
+	bname(&b, name);
+	buleb(&b, sect);
+	buleb(&b, n);
+	for(i=0; i<n; i++) {
+		buleb(&b, r[i].type);
+		buleb(&b, r[i].off);
+		buleb(&b, r[i].sym != S ? r[i].sym->ridx : r[i].idx);
+		if(r[i].type == RMEMSLEB || r[i].type == RMEMI32)
+			bsleb(&b, r[i].add);
+	}
+	section(m, 0, &b);
+}
+
+static char*
+symname(Sym *s)
+{
+	if(s->sig >= 0 && strcmp(s->name, "main") == 0)
+		return sigs[s->sig].np == 0 ? "__main_void" : "__main_argc_argv";
+	if(strcmp(s->name, "longjmp") == 0)
+		return "__wasm_longjmp";
+	if(s->type == SUNDEF && strcmp(s->name, "end") == 0)
+		return "__heap_base";
+	if(s->type == SUNDEF && strcmp(s->name, "edata") == 0)
+		return "__data_end";
+	return s->name;
+}
+
+static int
+symflags(Sym *s)
+{
+	int f;
+
+	f = 0;
+	if(s->version != 0)
+		f |= 0x02;
+	else if(s->type == SBSS || s->type == STEXT && s->dupok)
+		f |= 0x01;
+	if(s->type == STEXT && isexport(s))
+		f |= 0x20 | 0x80;
+	return f;
+}
+
+static int
+lg2(long v)
+{
+	int n;
+
+	for(n = 0; v > 1; n++)
+		v >>= 1;
+	return n;
+}
+
+static void
+import(Buf *b, char *mod, char *field, int kind)
+{
+	bname(b, mod);
+	bname(b, field);
+	bput(b, kind);
+}
+
+void
+asmr(void)
+{
+	Buf m, b, c, f, t;
+	Sym *s, *sp, *tag, **segs, **und;
+	Rel *cr, *dr;
+	int i, j, ncr, ndr, nseg, nund, start, codesect, fd, deftag;
+	long pos, *segbase;
+	char *mod, *field, *name;
+	uchar *mem;
+	Sig *sg;
+
+	memset(&m, 0, sizeof m);
+	memset(&b, 0, sizeof b);
+	memset(&c, 0, sizeof c);
+	memset(&f, 0, sizeof f);
+	memset(&t, 0, sizeof t);
+	bputs(&m, "\0asm\1\0\0\0", 8);
+
+	for(i=0; i<nfunc; i++)
+		scancalls(funcs[i], callsigs);
+	pos = lebsize(nfunc);
+	for(i=0; i<nfunc; i++) {
+		start = nrel;
+		gencode(funcs[i], &f);
+		for(j=start; j<nrel; j++)
+			rels[j].off += pos + lebsize(f.n);
+		pos += lebsize(f.n) + f.n;
+		bvec(&c, &f);
+		bfree(&f);
+	}
+	if(nerrors)
+		return;
+	cr = rels;
+	ncr = nrel;
+	rels = nil;
+	nrel = 0;
+
+	nseg = 0;
+	segs = nil;
+	for(i=0; i<2; i++)
+	for(s = datap; s != S; s = s->next) {
+		if(!s->reach || s->type != (i == 0 ? SDATA : SBSS))
+			continue;
+		segs = realloc(segs, (nseg+1)*sizeof(Sym*));
+		segs[nseg++] = s;
+	}
+	nund = 0;
+	und = nil;
+	for(i=0; i<NHASH; i++)
+	for(s = hash[i]; s != S; s = s->hash)
+		if(s->reach && s->type == SUNDEF && s->sig < 0) {
+			und = realloc(und, (nund+1)*sizeof(Sym*));
+			und[nund++] = s;
+		}
+	for(i=0; i<nimport; i++)
+		imports[i]->ridx = imports[i]->fidx;
+	for(i=0; i<nfunc; i++)
+		funcs[i]->ridx = funcs[i]->fidx;
+	for(i=0; i<nseg; i++)
+		segs[i]->ridx = nimport + nfunc + i;
+	for(i=0; i<nund; i++)
+		und[i]->ridx = nimport + nfunc + nseg + i;
+	sp = lookup("__stack_pointer", 0);
+	sp->ridx = nimport + nfunc + nseg + nund;
+	tag = lookup("__c_longjmp", 0);
+	tag->ridx = sp->ridx + 1;
+
+	buleb(&b, nsig);
+	for(i=0; i<nsig; i++) {
+		sg = &sigs[i];
+		bput(&b, 0x60);
+		buleb(&b, sg->np);
+		for(j=0; j<sg->np; j++)
+			bput(&b, vt(sg->p[j]));
+		if(sg->r == KNONE)
+			buleb(&b, 0);
+		else {
+			buleb(&b, 1);
+			bput(&b, vt(sg->r));
+		}
+	}
+	section(&m, 1, &b);
+
+	deftag = tagsig >= 0 && lookup("longjmp", 0)->type == STEXT;
+	buleb(&b, 3 + (tagsig >= 0 && !deftag) + nimport);
+	import(&b, "env", "__linear_memory", 0x02);
+	bput(&b, 0x00);
+	buleb(&b, (bssend + PAGE - 1) / PAGE);
+	import(&b, "env", "__indirect_function_table", 0x01);
+	bput(&b, 0x70);
+	bput(&b, 0x00);
+	buleb(&b, 0);
+	import(&b, "env", "__stack_pointer", 0x03);
+	bput(&b, 0x7f);
+	bput(&b, 0x01);
+	if(tagsig >= 0 && !deftag) {
+		import(&b, "env", "__c_longjmp", 0x04);
+		bput(&b, 0x00);
+		buleb(&b, tagsig);
+	}
+	for(i=0; i<nimport; i++) {
+		s = imports[i];
+		if(s->type == SIMPORT) {
+			mod = impmod(s, &field);
+			import(&b, mod, field, 0x00);
+			free(mod);
+		} else
+			import(&b, "env", symname(s), 0x00);
+		buleb(&b, s->sig);
+	}
+	section(&m, 2, &b);
+
+	buleb(&b, nfunc);
+	for(i=0; i<nfunc; i++)
+		buleb(&b, funcs[i]->sig);
+	section(&m, 3, &b);
+
+	if(deftag) {
+		buleb(&b, 1);
+		bput(&b, 0x00);
+		buleb(&b, tagsig);
+		section(&m, 13, &b);
+	}
+
+	codesect = nsect;
+	buleb(&b, nfunc);
+	bputs(&b, c.p, c.n);
+	bfree(&c);
+	section(&m, 10, &b);
+
+	dr = nil;
+	ndr = 0;
+	if(nseg > 0) {
+		mem = mallocz(bssend + 1, 1);
+		for(i=0; i<nseg; i++)
+			if(segs[i]->type == SDATA)
+				putdata(mem, segs[i]);
+		segbase = malloc(nseg*sizeof(long));
+		buleb(&b, nseg);
+		for(i=0; i<nseg; i++) {
+			s = segs[i];
+			buleb(&b, 0);
+			bput(&b, 0x41);
+			bsleb(&b, s->value);
+			bput(&b, 0x0b);
+			buleb(&b, s->size);
+			segbase[i] = b.n;
+			bputs(&b, mem + s->value, s->size);
+		}
+		for(j=0; j<nrel; j++)
+			for(i=0; i<nseg; i++)
+				if(rels[j].in == segs[i]) {
+					rels[j].off += segbase[i];
+					break;
+				}
+		free(segbase);
+		free(mem);
+		dr = rels;
+		ndr = nrel;
+		rels = nil;
+		nrel = 0;
+		section(&m, 11, &b);
+	}
+	if(nerrors)
+		return;
+
+	bname(&b, "linking");
+	buleb(&b, 2);
+	buleb(&t, nimport + nfunc + nseg + nund + 1 + (tagsig >= 0));
+	for(i=0; i<nimport; i++) {
+		s = imports[i];
+		bput(&t, 0);
+		if(s->type == SIMPORT) {
+			buleb(&t, 0x10 | 0x40);
+			buleb(&t, s->fidx);
+			bname(&t, s->name);
+		} else {
+			buleb(&t, 0x10);
+			buleb(&t, s->fidx);
+		}
+	}
+	for(i=0; i<nfunc; i++) {
+		s = funcs[i];
+		bput(&t, 0);
+		buleb(&t, symflags(s));
+		buleb(&t, s->fidx);
+		bname(&t, symname(s));
+	}
+	for(i=0; i<nseg; i++) {
+		s = segs[i];
+		bput(&t, 1);
+		buleb(&t, symflags(s));
+		bname(&t, s->name);
+		buleb(&t, i);
+		buleb(&t, 0);
+		buleb(&t, s->size);
+	}
+	for(i=0; i<nund; i++) {
+		bput(&t, 1);
+		buleb(&t, 0x10);
+		bname(&t, symname(und[i]));
+	}
+	bput(&t, 2);
+	buleb(&t, 0x10);
+	buleb(&t, 0);
+	if(deftag) {
+		bput(&t, 4);
+		buleb(&t, 0);
+		buleb(&t, 0);
+		bname(&t, "__c_longjmp");
+	} else if(tagsig >= 0) {
+		bput(&t, 4);
+		buleb(&t, 0x10);
+		buleb(&t, 0);
+	}
+	bput(&b, 8);
+	bvec(&b, &t);
+	bfree(&t);
+	if(nseg > 0) {
+		buleb(&t, nseg);
+		for(i=0; i<nseg; i++) {
+			s = segs[i];
+			name = smprint("%s%s", s->type == SBSS ? ".bss." : ".data.", s->name);
+			bname(&t, name);
+			free(name);
+			buleb(&t, lg2(dalign(s->size)));
+			buleb(&t, 0);
+		}
+		bput(&b, 5);
+		bvec(&b, &t);
+		bfree(&t);
+	}
+	section(&m, 0, &b);
+	putrels(&m, "reloc.CODE", codesect, cr, ncr);
+	if(nseg > 0)
+		putrels(&m, "reloc.DATA", codesect+1, dr, ndr);
+	features(&m);
+	free(cr);
+	free(dr);
+	free(segs);
+	free(und);
+	if(nerrors)
+		return;
+
+	fd = create(outfile, OWRITE, 0664);
+	if(fd < 0) {
+		diag("create %s: %r", outfile);
+		return;
+	}
+	if(write(fd, m.p, m.n) != m.n)
+		diag("write %s: %r", outfile);
 	close(fd);
 }

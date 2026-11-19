@@ -8,7 +8,7 @@ uvlong	choose(Src*, uvlong);
 int	coin(Src*, int);
 int	pick(Src*, int*, int);
 int	more(Src*);
-void	span(Src*);
+void	span(Src*, char*);
 void	endspan(Src*);
 void	discard(Src*);
 void	note(Src*, char*, ...);
@@ -23,5 +23,8 @@ void	srcfree(Src*);
 
 char*	expand(Src*, char**, char*, int);
 char*	mutate(Src*, char**, int);
+
+extern void*	emalloc(ulong);
+extern void*	erealloc(void*, ulong);
 
 #pragma	varargck	argpos	note	2

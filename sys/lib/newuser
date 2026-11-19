@@ -21,6 +21,7 @@ test -e $home/lib/factotum && cat $home/lib/factotum >/mnt/factotum/ctl
 # webfs, and to its accounts /adm and /mnt/keys. A passkey signs you in (factotum(4)'s webauthn):
 #	import ws!$auth!9p / /n/$auth; bind -a /n/$auth/net /net
 font = /lib/font/bit/Iosevka/12a/font,/lib/font/bit/Iosevka/24a/font
+test -e /mnt/font/Iosevka/m/r/12a/font && font = /mnt/font/Iosevka/m/r/12a/font
 EDITOR=E
 fn cd { builtin cd $* && awd }
 switch($service){
@@ -122,9 +123,10 @@ you bind replaces the one it clashes with; its first line updates them (hotkey(1
 ## Files
 
 Drop a file or a directory on the page to open it here, as B3 on its name
-would: text in Acme, a PDF or an image in page, and an MP3, M4A, Ogg, FLAC or WAV plays
-(the browser lets sound start after a click on the page; delete the window to
-stop it). It is kept in the directory drop here.
+would: text in Acme, a PDF or an image in page, and an MP3, M4A, Ogg, FLAC or WAV
+plays in deck, a window with a scrub bar, which adds each sound dropped after it
+to its playlist (the browser lets sound start after a click on the page; space
+pauses, and button 3's Exit stops it). It is kept in the directory drop here.
 To save a file to your computer, run `download file`.
 !
 
