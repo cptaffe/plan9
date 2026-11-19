@@ -312,7 +312,7 @@ resets all of the counts on all processors.
 .PP
 The
 .B swap
-file holds a text block giving memory usage statistics:
+device holds a text block giving memory usage statistics:
 .IP
 .EX
 \fIn\fP memory
@@ -320,25 +320,20 @@ file holds a text block giving memory usage statistics:
 \fIn\fP kernel
 \fIn\fP/\fIm\fP user
 \fIn\fP/\fIm\fP swap
-\fIn\fP/\fIm\fP reclaim
-\fIn\fP/\fIm\fP/\fIx\fP kernel malloc
-\fIn\fP/\fIm\fP/\fIx\fP kernel draw
-\fIn\fP/\fIm\fP/\fIx\fP kernel secret
+\fIn\fP/\fIm\fP kernel malloc
+\fIn\fP/\fIm\fP kernel draw
 .EE
 .PP
 These are total memory (bytes), system page size (bytes),
 kernel memory (pages), user memory (pages), swap space (pages),
-pages that can be reclaimed,
-and the kernel's malloced data, graphics data and secret data (bytes).
+kernel malloced data (bytes), and kernel graphics data (bytes).
 The expression
 .IR n / m
 indicates
 .I n
 used out of
 .I m
-available;
-.IR n / m / x
-gives the bytes allocated, the size of the arena, and its largest size.
+available.
 These numbers are not blank padded.
 .PP
 To turn on swapping, write to
@@ -362,9 +357,9 @@ A page is 65536 bytes, the unit by which wasm grows a program's memory.
 .B User
 counts the pages of the programs' memories.
 It counts each memory once, as of its program's last system call, or a child's fork, and never more than the total.
-Nothing swaps and the kernel reclaims no pages.
+Nothing swaps.
 It does not count its own memory.
-So kernel, swap, reclaim's first number and the kernel's arenas are zero.
+So kernel, swap's first number and the kernel's arenas are zero.
 Writes fail.
 .PP
 The other files served by the
