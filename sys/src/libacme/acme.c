@@ -13,17 +13,23 @@ newwin(void)
 {
 	char buf[100];
 	int fd, id, n;
+	Win *w;
 
 	if((fd = open("/mnt/acme/new/ctl", ORDWR|OCEXEC)) < 0)
-		sysfatal("open new/ctl: %r");
-	n = read(fd, buf, sizeof buf-1);
-	if(n <= 0)
-		sysfatal("read new/ctl: %r");
+		return nil;
+	if((n = read(fd, buf, sizeof buf-1)) <= 0){
+		close(fd);
+		return nil;
+	}
 	buf[n] = 0;
-	id = atoi(buf);
-	if(id == 0)
-		sysfatal("read new/ctl: malformed message: %s", buf);
-	return openwin(id, fd);
+	if((id = atoi(buf)) == 0){
+		close(fd);
+		werrstr("new/ctl: malformed message: %s", buf);
+		return nil;
+	}
+	if((w = openwin(id, fd)) == nil)
+		close(fd);
+	return w;
 }
 
 static int
@@ -78,18 +84,24 @@ openwin(int id, int ctl)
 	w = emalloc(sizeof *w);
 	w->id = id;
 	w->clone = w->actl = -1;
-	if(sess(w) < 0)
-		sysfatal("open /mnt/amux/%d/clone: %r", id);
-	if(w->clone >= 0){
-		w->actl = ctl;
-		ctl = -1;
+	if(sess(w) < 0){
+		free(w);
+		return nil;
 	}
-	if(ctl < 0){
+	w->ctl = -1;
+	if(w->clone < 0)
+		w->ctl = ctl;
+	if(w->ctl < 0){
 		snprint(buf, sizeof buf, "%s/ctl", w->dir);
-		if((ctl = open(buf, ORDWR|OCEXEC)) < 0)
-			sysfatal("open %s: %r", buf);
+		if((w->ctl = open(buf, ORDWR|OCEXEC)) < 0){
+			if(w->clone >= 0)
+				close(w->clone);
+			free(w);
+			return nil;
+		}
 	}
-	w->ctl = ctl;
+	if(w->clone >= 0)
+		w->actl = ctl;
 	w->tag = w->body = w->addr = w->event = w->data = w->xdata = w->rdevent = -1;
 	w->next = nil;
 	w->prev = last;
@@ -225,18 +237,19 @@ winfd(Win *w, char *name, int mode)
 }
 
 static int
-ctlfd(Win *w, char *s)
+islock(char *p)
+{
+	return strncmp(p, "lock", 4) == 0 || strncmp(p, "unlock", 6) == 0;
+}
+
+static int
+lockfd(Win *w)
 {
 	char buf[64];
-	int fd;
 
-	fd = _wfid(w, "ctl");
-	if(w->clone < 0 || strncmp(s, "lock", 4) != 0 && strncmp(s, "unlock", 6) != 0)
-		return fd;
 	if(w->actl < 0){
 		snprint(buf, sizeof buf, "/mnt/acme/%d/ctl", w->id);
-		if((w->actl = open(buf, ORDWR|OCEXEC)) < 0)
-			sysfatal("open %s: %r", buf);
+		w->actl = open(buf, ORDWR|OCEXEC);
 	}
 	return w->actl;
 }
@@ -244,14 +257,33 @@ ctlfd(Win *w, char *s)
 int
 winctl(Win *w, char *fmt, ...)
 {
-	char *s;
+	char *s, *p, *e, *q;
 	va_list arg;
-	int n;
+	int n, fd, lk;
 
 	va_start(arg, fmt);
 	s = evsmprint(fmt, arg);
 	va_end(arg);
-	n = pwrite(ctlfd(w, s), s, strlen(s), 0);
+	fd = _wfid(w, "ctl");
+	if(w->clone < 0){
+		n = pwrite(fd, s, strlen(s), 0);
+		free(s);
+		return n;
+	}
+	n = 0;
+	for(p = s; *p != 0; p = e){
+		lk = islock(p);
+		e = p;
+		do{
+			q = strchr(e, '\n');
+			e = q != nil ? q+1 : e+strlen(e);
+		}while(*e != 0 && islock(e) == lk);
+		if(pwrite(lk ? lockfd(w) : fd, p, e-p, 0) != e-p){
+			n = -1;
+			break;
+		}
+		n += e-p;
+	}
 	free(s);
 	return n;
 }
