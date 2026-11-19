@@ -270,8 +270,6 @@ layout(Tagx *t, int force)
 	draw(t->b, Rect(t->r.min.x, r.max.y, t->r.max.x, t->r.max.y), t->f->cols[BORD], nil, ZP);
 	button(t);
 	fill(t);
-	t->f->p0 = t->f->p1 = 0;
-	t->f->ticked = 0;
 	setsel(t, t->q0, t->q1);
 	if(!force && !eqrect(o, t->r))
 		newbody(t);
