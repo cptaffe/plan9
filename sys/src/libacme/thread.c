@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <thread.h>
 #include <acme.h>
+#include "impl.h"
 
 int
 pipewinto(Win *w, char *name, int errto, char *cmd, ...)
@@ -12,7 +13,7 @@ pipewinto(Win *w, char *name, int errto, char *cmd, ...)
 	int fd[3], pid;
 
 	va_start(arg, cmd);
-	p = evsmprint(cmd, arg);
+	p = _winevsmprint(cmd, arg);
 	va_end(arg);
 	fd[0] = winfd(w, name, OREAD);
 	fd[1] = dup(errto, -1);
@@ -30,7 +31,7 @@ pipetowin(Win *w, char *name, int errto, char *cmd, ...)
 	int fd[3], pid;
 
 	va_start(arg, cmd);
-	p = evsmprint(cmd, arg);
+	p = _winevsmprint(cmd, arg);
 	va_end(arg);
 	fd[0] = open("/dev/null", OREAD);
 	fd[1] = winfd(w, name, OWRITE);
@@ -57,7 +58,7 @@ sysrun(char *fmt, ...)
 	fd[1] = p[1];
 	fd[2] = dup(p[1], -1);
 	va_start(arg, fmt);
-	cmd = evsmprint(fmt, arg);
+	cmd = _winevsmprint(fmt, arg);
 	va_end(arg);
 	threadspawnl(fd, "rc", "rc", "-Ic", cmd, nil);
 	free(cmd);

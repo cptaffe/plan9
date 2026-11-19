@@ -276,7 +276,7 @@ winctl(Win *w, char *fmt, ...)
 	int n, fd, lk;
 
 	va_start(arg, fmt);
-	s = evsmprint(fmt, arg);
+	s = _winevsmprint(fmt, arg);
 	va_end(arg);
 	fd = _wfid(w, "ctl");
 	if(w->clone < 0){
@@ -310,7 +310,7 @@ winname(Win *w, char *fmt, ...)
 	int n;
 
 	va_start(arg, fmt);
-	s = evsmprint(fmt, arg);
+	s = _winevsmprint(fmt, arg);
 	va_end(arg);
 	n = winctl(w, "name %s\n", s);
 	free(s);
@@ -325,7 +325,7 @@ winprint(Win *w, char *name, char *fmt, ...)
 	int n;
 
 	va_start(arg, fmt);
-	s = evsmprint(fmt, arg);
+	s = _winevsmprint(fmt, arg);
 	va_end(arg);
 	n = write(_wfid(w, name), s, strlen(s));
 	free(s);
@@ -340,7 +340,7 @@ winaddr(Win *w, char *fmt, ...)
 	int n;
 
 	va_start(arg, fmt);
-	s = evsmprint(fmt, arg);
+	s = _winevsmprint(fmt, arg);
 	va_end(arg);
 	n = write(_wfid(w, "addr"), s, strlen(s));
 	free(s);
@@ -423,13 +423,4 @@ int
 windel(Win *w, int sure)
 {
 	return winctl(w, sure ? "delete" : "del");
-}
-
-char*
-evsmprint(char *s, va_list v)
-{
-	s = vsmprint(s, v);
-	if(s == nil)
-		sysfatal("out of memory");
-	return s;
 }

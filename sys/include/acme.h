@@ -95,10 +95,8 @@ int	winseq(Win*);
 int	winseqopen(Win*, char*, int, int);
 int	winseqwrite(Win*, int, char*, void*, int);
 
-void*	erealloc(void*, uint);
-void*	emalloc(uint);
-char*	estrdup(char*);
-char*	evsmprint(char*, va_list);
+void*	emalloc(ulong);
+void*	erealloc(void*, ulong);
 
 #pragma	varargck	argpos	winaddr	2
 #pragma	varargck	argpos	winctl	2

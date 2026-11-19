@@ -438,6 +438,19 @@ a program calls it from a proc of its own to go on drawing meanwhile, and runs i
 and
 .B >
 by it.
+.PP
+As
+.IR acme (2)'s
+library does, this one allocates with the program's
+.I emalloc
+and
+.IR erealloc ,
+of the types
+.B acme.h
+gives:
+neither returns if the memory cannot be had, and
+.I emalloc
+returns its memory zeroed.
 .SH SOURCE
 .B /sys/src/libadraw
 .SH SEE ALSO
