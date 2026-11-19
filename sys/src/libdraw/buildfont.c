@@ -28,6 +28,7 @@ buildfont(Display *d, char *buf, char *name)
 	fnt->display = d;
 	fnt->name = strdup(name);
 	fnt->namespec = strdup(name);
+	fnt->scale = 1;
 	fnt->ncache = NFCACHE+NFLOOK;
 	fnt->nsubf = NFSUBF;
 	fnt->cache = malloc(fnt->ncache * sizeof(fnt->cache[0]));
