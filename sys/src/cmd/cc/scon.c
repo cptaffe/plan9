@@ -590,7 +590,7 @@ addo(Node *n)
 {
 
 	if(n != Z)
-	if(!typefd[n->type->etype])
+	if(!typefd[n->type->etype] && n->type->etype != TVEC)
 	if(!typev[n->type->etype] || ewidth[TVLONG] == ewidth[TIND] || vlongreg)
 	switch(n->op) {
 
