@@ -280,6 +280,8 @@ and
 macros take it when the buffer is empty or full, or when any thread holds it,
 so that they wait for a holder of
 .IR flockfile .
+.I Exit
+flushes the streams without their locks, as another thread may hold one for good.
 A program with threads cannot
 .IR fork ;
 .I posix_spawn

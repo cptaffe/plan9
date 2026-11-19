@@ -30,6 +30,16 @@ static int ufflush(FILE *f){
 	}
 }
 
+void
+_IO_flushall(void)
+{
+	FILE *f;
+
+	for(f=_IO_stream;f!=&_IO_stream[FOPEN_MAX];f++)
+		if(f->state==WR)
+			ufflush(f);
+}
+
 int
 fflush(FILE *f)
 {

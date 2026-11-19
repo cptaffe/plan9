@@ -4,7 +4,7 @@
 #include "iolib.h"
 
 void _IO_cleanup(void){
-	fflush(NULL);
+	_IO_flushall();
 }
 /*
  * Look this over for simplification
