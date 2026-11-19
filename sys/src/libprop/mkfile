@@ -1,0 +1,19 @@
+</$objtype/mkfile
+
+LIB=/$objtype/lib/libprop.a
+OFILES=\
+	check.$O\
+	expand.$O\
+	mutate.$O\
+	src.$O\
+
+HFILES=/sys/include/prop.h\
+	impl.h\
+
+UPDATE=\
+	mkfile\
+	$HFILES\
+	${OFILES:%.$O=%.c}\
+	${LIB:/$objtype/%=/386/%}\
+
+</sys/src/cmd/mksyslib
