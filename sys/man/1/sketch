@@ -261,7 +261,8 @@ A click or newline keeps it;
 Escape or another button takes it back.
 What it turns is held where the turn puts it, as a drag holds what it moves,
 and the rest of the drawing meets the constraints around it,
-so turning a linkage's crank moves the linkage;
+so turning a linkage's crank moves the linkage,
+in steps of 2° at most however far the mouse or a typed number jumps;
 when it is let go, all the constraints are met again,
 so a line held horizontal turns back, and fixed points stay fixed where the turn put them.
 .TP
