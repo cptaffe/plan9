@@ -7,8 +7,12 @@
 char*
 _winevsmprint(char *s, va_list v)
 {
-	s = vsmprint(s, v);
-	if(s == nil)
+	char *t;
+
+	if((s = vsmprint(s, v)) == nil)
 		sysfatal("out of memory");
-	return s;
+	t = emalloc(strlen(s)+1);
+	strcpy(t, s);
+	free(s);
+	return t;
 }

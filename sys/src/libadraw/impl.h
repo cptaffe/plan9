@@ -86,3 +86,10 @@ struct Tagx
 	int	hangup;
 	int	done;
 };
+
+char*	_adrawstrdup(char*);
+char*	_adrawsmprint(char*, ...);
+Rune*	_adrawrunesmprint(char*, ...);
+char*	_adrawquote(char*);
+#pragma	varargck	argpos	_adrawsmprint	1
+#pragma	varargck	argpos	_adrawrunesmprint	1
