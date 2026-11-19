@@ -481,7 +481,7 @@ loadlib(void)
 static void
 ldbuf(char *file, uchar *buf, long n)
 {
-	int as, i, t;
+	int as, i, j, k, t;
 	long np, mp;
 	uchar *bp, *ep;
 	Sym *h[NSYM], *s, *curtext, *curdecl;
@@ -654,6 +654,20 @@ ldbuf(char *file, uchar *buf, long n)
 			}
 			p->cond = pcs[p->to.offset];
 		}
+	}
+	for(i=0; i<np; i++) {
+		p = pcs[i];
+		if(p->as != ACASE)
+			continue;
+		for(k=0; i+1+k < np && pcs[i+1+k]->as == ABCASE; k++)
+			;
+		p->ntab = k;
+		p->tab = malloc(k*sizeof(Prog*));
+		for(j=0; j<k; j++)
+			p->tab[j] = pcs[i+1+j]->cond;
+		if(k > 0)
+			p->link = pcs[i+k]->link;
+		i += k;
 	}
 	free(pcs);
 	filen = nil;

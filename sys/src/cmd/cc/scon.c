@@ -591,7 +591,7 @@ addo(Node *n)
 
 	if(n != Z)
 	if(!typefd[n->type->etype])
-	if(!typev[n->type->etype] || ewidth[TVLONG] == ewidth[TIND])
+	if(!typev[n->type->etype] || ewidth[TVLONG] == ewidth[TIND] || vlongreg)
 	switch(n->op) {
 
 	case OCAST:

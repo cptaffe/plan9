@@ -20,6 +20,7 @@ ginit(void)
 	lastp = P;
 	tfield = types[TLONG];
 	fieldsysv = 1;
+	vlongreg = 1;
 
 	typeword = typechlvp;
 	typeswitch = typechlv;
