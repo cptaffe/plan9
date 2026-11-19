@@ -28,6 +28,27 @@ p9web_fiber_main(void (*fn)(void *), void *arg)
 	p9web_fiber_exit();
 }
 
+static int
+inthread(void)
+{
+	return _thrself() != &_thrmain;
+}
+
+__attribute__((export_name("p9web_fiber_gone"))) void
+p9web_fiber_gone(void *v)
+{
+	Thr *t;
+
+	t = v;
+	t->ret = NULL;
+	t->done = 1;
+	_nalive--;
+	while(_thrwake(&t->joinq))
+		;
+	if(t->detached)
+		_thrfree(t);
+}
+
 static void
 start(void *v)
 {
@@ -63,6 +84,7 @@ pthread_create(pthread_t *id, const pthread_attr_t *a, void *(*f)(void *), void 
 	int i;
 
 	reap();
+	_inthread = inthread;
 	_lockfile = _thrlockfile;
 	_unlockfile = _thrunlockfile;
 	if((t = calloc(1, sizeof *t)) == NULL)

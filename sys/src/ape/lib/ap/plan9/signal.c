@@ -90,6 +90,8 @@ sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
 	return 0;
 }
 
+int (*_inthread)(void);
+
 /* this is registered in _envsetup */
 int
 _notehandler(void *u, char *msg)
@@ -117,7 +119,8 @@ _notehandler(void *u, char *msg)
 			return 0;
 		}
 	}
-	_doatexits();
+	if(_inthread == NULL || !_inthread())
+		_doatexits();
 	_NOTED(1); /* NDFLT */
 	return 0;
 }
