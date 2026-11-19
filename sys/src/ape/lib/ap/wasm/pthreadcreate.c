@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "thr.h"
 
 #define F(name)	__attribute__((import_module("p9web"), import_name(#name)))
@@ -62,6 +63,8 @@ pthread_create(pthread_t *id, const pthread_attr_t *a, void *(*f)(void *), void 
 	int i;
 
 	reap();
+	_lockfile = _thrlockfile;
+	_unlockfile = _thrunlockfile;
 	if((t = calloc(1, sizeof *t)) == NULL)
 		return EAGAIN;
 	n = a != NULL && a->stacksize? a->stacksize: Thrstack;

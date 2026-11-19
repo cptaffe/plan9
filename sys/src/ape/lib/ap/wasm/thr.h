@@ -36,3 +36,7 @@ extern Thr *_thrget(pthread_t);
 extern void _thrwait(Waiter **, Waiter *);
 extern int _thrwake(Waiter **);
 extern void _thrfree(Thr *);
+extern int _thrlockfile(FILE *, int);
+extern void _thrunlockfile(FILE *);
+extern int (*_lockfile)(FILE *, int);
+extern void (*_unlockfile)(FILE *);

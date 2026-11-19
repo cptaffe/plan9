@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include "../stdio/iolib.h"
 #include "thr.h"
 
 #define F(name)	__attribute__((import_module("p9web"), import_name(#name)))
@@ -481,4 +482,56 @@ pthread_cond_timedwait(pthread_cond_t *c, pthread_mutex_t *m, const struct times
 	r = timedwait((Waiter**)&c->wait, &w, t);
 	relock(m, n);
 	return r;
+}
+
+typedef struct Flock Flock;
+struct Flock {
+	pthread_t owner;
+	int n;
+	Waiter *q;
+};
+
+static Flock flocks[FOPEN_MAX];
+
+static Flock*
+flockof(FILE *f)
+{
+	if(f < _IO_stream || f >= _IO_stream+FOPEN_MAX)
+		return NULL;
+	return &flocks[f-_IO_stream];
+}
+
+int
+_thrlockfile(FILE *f, int try)
+{
+	Flock *l;
+	Waiter w;
+	pthread_t me;
+
+	if((l = flockof(f)) == NULL || f->flags&STRING)
+		return 0;
+	me = _thrself()->id;
+	if(l->n > 0 && l->owner == me){
+		l->n++;
+		return 0;
+	}
+	if(l->n > 0 && try)
+		return -1;
+	w.timed = 0;
+	while(l->n > 0)
+		_thrwait(&l->q, &w);
+	l->owner = me;
+	l->n = 1;
+	return 0;
+}
+
+void
+_thrunlockfile(FILE *f)
+{
+	Flock *l;
+
+	if((l = flockof(f)) == NULL || l->n == 0 || l->owner != _thrself()->id)
+		return;
+	if(--l->n == 0)
+		_thrwake(&l->q);
 }

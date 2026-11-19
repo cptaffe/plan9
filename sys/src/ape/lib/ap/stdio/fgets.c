@@ -2,7 +2,7 @@
  * pANS stdio -- fgets
  */
 #include "iolib.h"
-char *fgets(char *as, int n, FILE *f){
+static char *ufgets(char *as, int n, FILE *f){
 	int c=0;
 	char *s=as;
 	while(n>1 && (c=getc(f))!=EOF){
@@ -14,4 +14,15 @@ char *fgets(char *as, int n, FILE *f){
 	|| ferror(f)) return NULL;
 	if(n) *s='\0';
 	return as;
+}
+
+char *
+fgets(char *as, int n, FILE *f)
+{
+	char *r;
+
+	flockfile(f);
+	r = ufgets(as, n, f);
+	funlockfile(f);
+	return r;
 }

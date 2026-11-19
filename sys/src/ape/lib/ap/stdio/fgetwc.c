@@ -7,8 +7,8 @@
 #include <string.h>
 #include <errno.h>
 
-wint_t
-fgetwc(FILE *f)
+static wint_t
+ufgetwc(FILE *f)
 {
 	char b[MB_LEN_MAX];
 	mbstate_t st;
@@ -50,8 +50,8 @@ getwchar(void)
 	return fgetwc(stdin);
 }
 
-wchar_t *
-fgetws(wchar_t *s, int n, FILE *f)
+static wchar_t *
+ufgetws(wchar_t *s, int n, FILE *f)
 {
 	wint_t c;
 	int i;
@@ -72,8 +72,8 @@ fgetws(wchar_t *s, int n, FILE *f)
 }
 
 /* its bytes, pushed back last first */
-wint_t
-ungetwc(wint_t c, FILE *f)
+static wint_t
+uungetwc(wint_t c, FILE *f)
 {
 	char b[MB_LEN_MAX];
 	mbstate_t st;
@@ -90,4 +90,37 @@ ungetwc(wint_t c, FILE *f)
 		if(ungetc((unsigned char)b[--n], f) == EOF)
 			return WEOF;
 	return c;
+}
+
+wint_t
+fgetwc(FILE *f)
+{
+	wint_t r;
+
+	flockfile(f);
+	r = ufgetwc(f);
+	funlockfile(f);
+	return r;
+}
+
+wchar_t *
+fgetws(wchar_t *s, int n, FILE *f)
+{
+	wchar_t *r;
+
+	flockfile(f);
+	r = ufgetws(s, n, f);
+	funlockfile(f);
+	return r;
+}
+
+wint_t
+ungetwc(wint_t c, FILE *f)
+{
+	wint_t r;
+
+	flockfile(f);
+	r = uungetwc(c, f);
+	funlockfile(f);
+	return r;
 }

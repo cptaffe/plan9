@@ -2,7 +2,7 @@
  * pANS stdio -- ftell
  */
 #include "iolib.h"
-long ftell(FILE *f){
+static long uftell(FILE *f){
 	long seekp=lseek(f->fd, 0, SEEK_CUR);
 	if(seekp<0) return -1;		/* enter error state? */
 	switch(f->state){
@@ -13,4 +13,15 @@ long ftell(FILE *f){
 	case WR:
 		return (f->flags&LINEBUF?f->lp:f->wp)-f->buf+seekp;
 	}
+}
+
+long
+ftell(FILE *f)
+{
+	long r;
+
+	flockfile(f);
+	r = uftell(f);
+	funlockfile(f);
+	return r;
 }

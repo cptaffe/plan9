@@ -17,6 +17,7 @@ OFILES=\
 	fixti.$O\
 	floor.$O\
 	floatti.$O\
+	flockfile.$O\
 	fork.$O\
 	getpagesize.$O\
 	lock.$O\
