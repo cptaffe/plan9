@@ -3,32 +3,12 @@
 #include <prop.h>
 #include "impl.h"
 
-void*
-_propalloc(ulong n)
-{
-	void *p;
-
-	p = mallocz(n, 1);
-	if(p == nil)
-		sysfatal("prop: out of memory");
-	return p;
-}
-
-void*
-_proprealloc(void *p, ulong n)
-{
-	p = realloc(p, n);
-	if(p == nil)
-		sysfatal("prop: out of memory");
-	return p;
-}
-
 Src*
-_srcnew(int mode)
+_propnew(int mode)
 {
 	Src *s;
 
-	s = _propalloc(sizeof *s);
+	s = emalloc(sizeof *s);
 	s->mode = mode;
 	return s;
 }
@@ -52,14 +32,14 @@ srcbytes(uchar *b, long n)
 {
 	Src *s;
 
-	s = _srcnew(Bytes);
+	s = _propnew(Bytes);
 	s->b = b;
 	s->nb = n;
 	return s;
 }
 
 void
-_srcreset(Src *s)
+_propreset(Src *s)
 {
 	s->nv = 0;
 	s->nsp = 0;
@@ -73,7 +53,7 @@ _srcreset(Src *s)
 }
 
 char*
-_srcnotes(Src *s)
+_propnotes(Src *s)
 {
 	char *t;
 
@@ -89,7 +69,7 @@ _srcnotes(Src *s)
 }
 
 uvlong
-_srcrnd(Src *s)
+_proprnd(Src *s)
 {
 	uvlong z;
 
@@ -100,7 +80,7 @@ _srcrnd(Src *s)
 }
 
 uvlong
-_srcnext(Src *s, uvlong n, uvlong r)
+_propnext(Src *s, uvlong n, uvlong r)
 {
 	uvlong v;
 	int k;
@@ -130,8 +110,8 @@ _srcnext(Src *s, uvlong n, uvlong r)
 	}
 	if(s->nv == s->mv){
 		s->mv = s->mv*2 + 64;
-		s->v = _proprealloc(s->v, s->mv*sizeof s->v[0]);
-		s->n = _proprealloc(s->n, s->mv*sizeof s->n[0]);
+		s->v = erealloc(s->v, s->mv*sizeof s->v[0]);
+		s->n = erealloc(s->n, s->mv*sizeof s->n[0]);
 	}
 	s->v[s->nv] = v;
 	s->n[s->nv] = n;
@@ -147,7 +127,7 @@ choose(Src *s, uvlong n)
 
 	r = 0;
 	if(s->mode == Rand && n != 1){
-		x = _srcrnd(s);
+		x = _proprnd(s);
 		switch(x & 7){
 		case 0:
 			r = 0;
@@ -158,18 +138,18 @@ choose(Src *s, uvlong n)
 		case 2:
 		case 3:
 			w = (x>>3) % 64 + 1;
-			r = _srcrnd(s);
+			r = _proprnd(s);
 			if(w < 64)
 				r &= (1ULL<<w) - 1;
 			break;
 		default:
-			r = _srcrnd(s);
+			r = _proprnd(s);
 			break;
 		}
 		if(n != 0)
 			r %= n;
 	}
-	return _srcnext(s, n, r);
+	return _propnext(s, n, r);
 }
 
 int
@@ -179,8 +159,8 @@ coin(Src *s, int pct)
 
 	r = 0;
 	if(s->mode == Rand)
-		r = _srcrnd(s) % 100 < pct;
-	return _srcnext(s, 2, r);
+		r = _proprnd(s) % 100 < pct;
+	return _propnext(s, 2, r);
 }
 
 int
@@ -194,19 +174,19 @@ pick(Src *s, int *w, int nw)
 	r = 0;
 	if(s->mode == Rand){
 		if(w == nil)
-			r = _srcrnd(s) % nw;
+			r = _proprnd(s) % nw;
 		else{
 			t = 0;
 			for(i = 0; i < nw; i++)
 				t += w[i];
 			if(t > 0){
-				t = _srcrnd(s) % t;
+				t = _proprnd(s) % t;
 				for(r = 0; r < nw-1 && t >= w[r]; r++)
 					t -= w[r];
 			}
 		}
 	}
-	return _srcnext(s, nw, r);
+	return _propnext(s, nw, r);
 }
 
 void
@@ -216,11 +196,11 @@ span(Src *s)
 
 	if(s->nsp == s->msp){
 		s->msp = s->msp*2 + 16;
-		s->sp = _proprealloc(s->sp, s->msp*sizeof s->sp[0]);
+		s->sp = erealloc(s->sp, s->msp*sizeof s->sp[0]);
 	}
 	if(s->nopen == s->mopen){
 		s->mopen = s->mopen*2 + 16;
-		s->open = _proprealloc(s->open, s->mopen*sizeof s->open[0]);
+		s->open = erealloc(s->open, s->mopen*sizeof s->open[0]);
 	}
 	p = &s->sp[s->nsp];
 	p->a = s->nv;
@@ -231,7 +211,7 @@ span(Src *s)
 }
 
 void
-_srctag(Src *s, void *tag)
+_proptag(Src *s, void *tag)
 {
 	if(s->nopen > 0)
 		s->sp[s->open[s->nopen-1]].tag = tag;
@@ -252,8 +232,8 @@ more(Src *s)
 
 	r = 0;
 	if(s->mode == Rand && s->nv < Maxchoice/4)
-		r = _srcrnd(s) % (s->size+1) < s->size;
-	if(_srcnext(s, 2, r) == 0)
+		r = _proprnd(s) % (s->size+1) < s->size;
+	if(_propnext(s, 2, r) == 0)
 		return 0;
 	span(s);
 	s->sp[s->nsp-1].a--;
@@ -282,11 +262,11 @@ note(Src *s, char *fmt, ...)
 }
 
 int
-_srcrun(Src *s, Prop *p, void *a, char **err)
+_proprun(Src *s, Prop *p, void *a, char **err)
 {
 	char *e;
 
-	_srcreset(s);
+	_propreset(s);
 	if(setjmp(s->j)){
 		s->jok = 0;
 		return Discard;
@@ -309,7 +289,7 @@ runprop(Src *s, Prop *p, void *a)
 	char *e;
 
 	e = nil;
-	if(_srcrun(s, p, a, &e) != Fail)
+	if(_proprun(s, p, a, &e) != Fail)
 		return nil;
 	return e;
 }

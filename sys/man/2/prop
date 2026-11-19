@@ -59,6 +59,12 @@ char*	runprop(Src *s, Prop *p, void *a)
 .PP
 .B
 void	srcfree(Src *s)
+.PP
+.B
+void*	emalloc(ulong n)
+.PP
+.B
+void*	erealloc(void *p, ulong n)
 .SH DESCRIPTION
 These routines test a property of a program on many inputs, and when one fails,
 make it as small as they can before they show it.
@@ -223,8 +229,7 @@ makes text from the grammar
 .IR g ,
 starting at the symbol
 .IR start ,
-and returns it in memory from
-.IR malloc (2).
+and returns it in memory the caller frees.
 .I G
 is a nil-terminated array of rules.
 A rule is a symbol, a tab, and one alternative; a symbol's alternatives are its rules,
@@ -264,8 +269,7 @@ strings.
 It picks an example, takes a window of it, and then makes any number of edits:
 cutting a range, putting in a character, copying a piece of an example in, or copying a piece of
 the text itself.
-It returns the text in memory from
-.IR malloc (2).
+It returns the text in memory the caller frees.
 At random the window is mostly the whole example; it shrinks to the shortest window
 of the first example that still fails, with the fewest edits.
 The edits work on bytes, and put in only tabs, newlines, and printable ASCII.
@@ -291,6 +295,18 @@ once on the choices of
 from the start, and returns the property's string if it fails, or nil if it passes or discards.
 .I Srcfree
 frees a source.
+.SS Memory
+The library expects the program to provide two allocation routines,
+.I emalloc
+and
+.IR erealloc .
+They are
+.IR malloc (2)'s
+and
+.IR realloc ,
+except that they do not return if memory runs out, and
+.I emalloc
+sets the memory it returns to zero.
 .SH EXAMPLES
 Check a sort on lists of numbers; the notes show the case.
 .IP

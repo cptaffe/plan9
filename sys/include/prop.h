@@ -24,4 +24,7 @@ void	srcfree(Src*);
 char*	expand(Src*, char**, char*, int);
 char*	mutate(Src*, char**, int);
 
+extern void*	emalloc(ulong);
+extern void*	erealloc(void*, ulong);
+
 #pragma	varargck	argpos	note	2

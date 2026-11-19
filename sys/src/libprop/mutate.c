@@ -17,7 +17,7 @@ put(char **b, long *n, long at, char *t, long m)
 		m = Most - *n;
 	if(m <= 0)
 		return;
-	*b = _proprealloc(*b, *n+m+1);
+	*b = erealloc(*b, *n+m+1);
 	memmove(*b+at+m, *b+at, *n-at+1);
 	memmove(*b+at, t, m);
 	*n += m;
@@ -37,14 +37,14 @@ mutate(Src *s, char **c, int nc)
 	t = c[i];
 	n = strlen(t);
 	r = n;
-	if(s->mode == Rand && _srcrnd(s)%4 == 0)
-		r = _srcrnd(s) % (n+1);
-	k = _srcnext(s, n+1, r);
+	if(s->mode == Rand && _proprnd(s)%4 == 0)
+		r = _proprnd(s) % (n+1);
+	k = _propnext(s, n+1, r);
 	r = 0;
-	if(s->mode == Rand && k < n && _srcrnd(s)%2 == 0)
-		r = _srcrnd(s) % (n-k+1);
-	a = _srcnext(s, n-k+1, r);
-	b = _propalloc(k+1);
+	if(s->mode == Rand && k < n && _proprnd(s)%2 == 0)
+		r = _proprnd(s) % (n-k+1);
+	a = _propnext(s, n-k+1, r);
+	b = emalloc(k+1);
 	memmove(b, t+a, k);
 	n = k;
 	while(more(s)){
@@ -71,7 +71,7 @@ mutate(Src *s, char **c, int nc)
 			from = choose(s, n+1);
 			m = choose(s, (n-from < 64 ? n-from : 64) + 1);
 			at = choose(s, n+1);
-			u = _propalloc(m+1);
+			u = emalloc(m+1);
 			memmove(u, b+from, m);
 			put(&b, &n, at, u, m);
 			free(u);

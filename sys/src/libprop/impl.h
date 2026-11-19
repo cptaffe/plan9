@@ -50,12 +50,10 @@ struct Src
 	int	nnotes;
 };
 
-Src*	_srcnew(int);
-void	_srcreset(Src*);
-uvlong	_srcnext(Src*, uvlong, uvlong);
-uvlong	_srcrnd(Src*);
-void	_srctag(Src*, void*);
-int	_srcrun(Src*, Prop*, void*, char**);
-char*	_srcnotes(Src*);
-void*	_propalloc(ulong);
-void*	_proprealloc(void*, ulong);
+Src*	_propnew(int);
+void	_propreset(Src*);
+uvlong	_propnext(Src*, uvlong, uvlong);
+uvlong	_proprnd(Src*);
+void	_proptag(Src*, void*);
+int	_proprun(Src*, Prop*, void*, char**);
+char*	_propnotes(Src*);
