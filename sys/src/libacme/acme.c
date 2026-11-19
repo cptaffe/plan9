@@ -26,19 +26,69 @@ newwin(void)
 	return openwin(id, fd);
 }
 
+static int
+sess(Win *w)
+{
+	char buf[64];
+	int n;
+
+	if(w->dir[0] != 0)
+		return 0;
+	snprint(buf, sizeof buf, "/mnt/amux/%d", w->id);
+	if(access(buf, AEXIST) < 0){
+		snprint(w->dir, sizeof w->dir, "/mnt/acme/%d", w->id);
+		return 0;
+	}
+	snprint(buf, sizeof buf, "/mnt/amux/%d/clone", w->id);
+	if((w->clone = open(buf, ORDWR|OCEXEC)) < 0)
+		return -1;
+	if((n = read(w->clone, buf, sizeof buf-1)) <= 0){
+		close(w->clone);
+		w->clone = -1;
+		return -1;
+	}
+	buf[n] = 0;
+	snprint(w->dir, sizeof w->dir, "/mnt/amux/%d/%d", w->id, atoi(buf));
+	return 0;
+}
+
+char*
+_winpath(Win *w, char *name, char *buf, int n)
+{
+	if(sess(w) < 0)
+		return nil;
+	snprint(buf, n, "%s/%s", w->dir, name);
+	return buf;
+}
+
+char*
+winpath(Win *w)
+{
+	if(sess(w) < 0)
+		return nil;
+	return w->dir;
+}
+
 Win*
 openwin(int id, int ctl)
 {
 	char buf[100];
 	Win *w;
 
+	w = emalloc(sizeof *w);
+	w->id = id;
+	w->clone = w->actl = -1;
+	if(sess(w) < 0)
+		sysfatal("open /mnt/amux/%d/clone: %r", id);
+	if(w->clone >= 0){
+		w->actl = ctl;
+		ctl = -1;
+	}
 	if(ctl < 0){
-		snprint(buf, sizeof buf, "/mnt/acme/%d/ctl", id);
+		snprint(buf, sizeof buf, "%s/ctl", w->dir);
 		if((ctl = open(buf, ORDWR|OCEXEC)) < 0)
 			sysfatal("open %s: %r", buf);
 	}
-	w = emalloc(sizeof *w);
-	w->id = id;
 	w->ctl = ctl;
 	w->tag = w->body = w->addr = w->event = w->data = w->xdata = w->rdevent = -1;
 	w->next = nil;
@@ -71,6 +121,11 @@ winclosefiles(Win *w)
 	fdclose(&w->data);
 	fdclose(&w->xdata);
 	fdclose(&w->rdevent);
+	fdclose(&w->actl);
+	if(w->clone >= 0){
+		fdclose(&w->clone);
+		w->dir[0] = 0;
+	}
 	w->eb.n = w->rb.n = 0;
 }
 
@@ -110,7 +165,8 @@ _winopen(Win *w, char *name, int mode)
 	char buf[100];
 	int fd;
 
-	snprint(buf, sizeof buf, "/mnt/acme/%d/%s", w->id, name);
+	if(_winpath(w, name, buf, sizeof buf) == nil)
+		return -1;
 	if(!_winguarded(name))
 		return open(buf, mode);
 	qlock(&_winseqlk);
@@ -151,7 +207,7 @@ _wfid(Win *w, char *name)
 	if(*fd < 0){
 		*fd = _winopen(w, name, (strcmp(name, "rdevent") == 0 ? OREAD : ORDWR)|OCEXEC);
 		if(*fd < 0)
-			sysfatal("open /mnt/acme/%d/%s: %r", w->id, name);
+			sysfatal("open %s/%s: %r", w->dir, name);
 	}
 	return *fd;
 }
@@ -168,6 +224,23 @@ winfd(Win *w, char *name, int mode)
 	return _winopen(w, name, mode);
 }
 
+static int
+ctlfd(Win *w, char *s)
+{
+	char buf[64];
+	int fd;
+
+	fd = _wfid(w, "ctl");
+	if(w->clone < 0 || strncmp(s, "lock", 4) != 0 && strncmp(s, "unlock", 6) != 0)
+		return fd;
+	if(w->actl < 0){
+		snprint(buf, sizeof buf, "/mnt/acme/%d/ctl", w->id);
+		if((w->actl = open(buf, ORDWR|OCEXEC)) < 0)
+			sysfatal("open %s: %r", buf);
+	}
+	return w->actl;
+}
+
 int
 winctl(Win *w, char *fmt, ...)
 {
@@ -178,7 +251,7 @@ winctl(Win *w, char *fmt, ...)
 	va_start(arg, fmt);
 	s = evsmprint(fmt, arg);
 	va_end(arg);
-	n = pwrite(_wfid(w, "ctl"), s, strlen(s), 0);
+	n = pwrite(ctlfd(w, s), s, strlen(s), 0);
 	free(s);
 	return n;
 }
@@ -304,4 +377,13 @@ int
 windel(Win *w, int sure)
 {
 	return winctl(w, sure ? "delete" : "del");
+}
+
+char*
+evsmprint(char *s, va_list v)
+{
+	s = vsmprint(s, v);
+	if(s == nil)
+		sysfatal("out of memory");
+	return s;
 }
