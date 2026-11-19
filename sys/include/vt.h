@@ -138,3 +138,6 @@ long	vtpaste(Vt*, char *s, long len, char *buf, long n);
 int	vtmouse(Vt*, int but, int x, int y, int press, char *buf, int n);
 int	vtfocus(Vt*, int in, char *buf, int n);
 int	vtwidth(Rune);
+
+extern void*	emalloc(ulong);
+extern void*	erealloc(void*, ulong);

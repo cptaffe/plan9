@@ -2,6 +2,26 @@
 #include <libc.h>
 #include <pcm.h>
 
+void*
+emalloc(ulong n)
+{
+	void *p;
+
+	p = mallocz(n, 1);
+	if(p == nil)
+		sysfatal("out of memory");
+	return p;
+}
+
+void*
+erealloc(void *p, ulong n)
+{
+	p = realloc(p, n);
+	if(p == nil)
+		sysfatal("out of memory");
+	return p;
+}
+
 static void
 usage(void)
 {
@@ -16,7 +36,7 @@ main(int argc, char *argv[])
 	Pcmdesc i, o;
 	Pcmconv *c;
 	vlong l;
-	int n;
+	int n, m;
 
 	i = pcmdescdef;
 	o = pcmdescdef;
@@ -41,7 +61,7 @@ main(int argc, char *argv[])
 		sysfatal("%r");
 	if((n = pcmratio(c, sizeof(ibuf))) < 0)
 		sysfatal("%r");
-	obuf = malloc(n);
+	obuf = emalloc(n);
 
 	for(;;){
 		n = sizeof(ibuf);
@@ -52,11 +72,9 @@ main(int argc, char *argv[])
 			sysfatal("read: %r");
 		if(l > 0)
 			l -= n;
-		n = pcmconv(c, ibuf, obuf, n);
-		if(n > 0){
-			if(write(1, obuf, n) != n)
-				sysfatal("write: %r");
-		}
+		m = pcmconv(c, ibuf, obuf, n);
+		if(m > 0 && write(1, obuf, m) != m)
+			sysfatal("write: %r");
 		if(n == 0)
 			break;
 	}

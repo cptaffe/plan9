@@ -119,6 +119,15 @@ emalloc(ulong n)
 	return v;
 }
 
+void*
+erealloc(void *v, ulong n)
+{
+	v = realloc(v, n);
+	if(v == nil)
+		sysfatal("out of memory");
+	return v;
+}
+
 Point
 pt(int x, int y)
 {

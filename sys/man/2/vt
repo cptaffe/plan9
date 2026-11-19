@@ -2,7 +2,7 @@
 .SH NAME
 vtnew, vtdumb, vtfree, vtresize, vtreset, vtwrite, vtframe, vtkey, vtpaste, vtmouse, vtfocus, vtwidth \- a terminal's screen, with nothing drawn
 .SH SYNOPSIS
-.ta \w'long 'u
+.ta \w'void* 'u
 .B #include <u.h>
 .br
 .B #include <libc.h>
@@ -46,6 +46,12 @@ int	vtfocus(Vt *vt, int in, char *buf, int n)
 .PP
 .B
 int	vtwidth(Rune r)
+.PP
+.B
+void*	emalloc(ulong n)
+.PP
+.B
+void*	erealloc(void *p, ulong n)
 .SH DESCRIPTION
 These functions keep the screen a Unix program draws on a terminal by xterm's escape
 sequences, so that a program such as
@@ -210,7 +216,7 @@ put in
 the bytes to send the program for a key, a paste, the mouse, or the window's focus, as
 the modes ask, and return how many, 0 if there are none to send, or \-1 if
 .I n
-is too few.
+is too few, with the error string set.
 A
 .I key
 is a rune or one of
@@ -277,6 +283,20 @@ frame is empty,
 does nothing, and
 .B Vt.reply
 is never called.
+.SS Memory
+The library expects the program to provide two allocation routines,
+.I emalloc
+and
+.IR erealloc .
+They are
+.IR malloc (2)'s
+and
+.IR realloc ,
+except that they do not return if memory runs out, and
+.I emalloc
+sets the memory it returns to zero.
+The library gets all its memory from them, and gives it back with
+.IR free .
 .SH SOURCE
 .B /sys/src/libvt
 .SH SEE ALSO

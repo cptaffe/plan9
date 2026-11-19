@@ -886,9 +886,9 @@ link(Vt *vt, char *uri)
 		}
 	if(vt->nlinks >= 65535)
 		return;
-	vt->links = realloc(vt->links, (vt->nlinks+2)*sizeof vt->links[0]);
+	vt->links = erealloc(vt->links, (vt->nlinks+2)*sizeof vt->links[0]);
 	vt->links[0] = nil;
-	vt->links[++vt->nlinks] = strdup(uri);
+	vt->links[++vt->nlinks] = _vtstrdup(uri);
 	p->pen.link = vt->nlinks;
 }
 
@@ -913,7 +913,7 @@ osc(Vt *vt)
 	case 0:
 	case 2:
 		free(vt->title);
-		vt->title = strdup(t);
+		vt->title = _vtstrdup(t);
 		p->title = 1;
 		break;
 	case 8:
