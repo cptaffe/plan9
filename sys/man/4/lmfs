@@ -4,7 +4,7 @@ lmfs, aux/llama \- a language model served as files
 .SH SYNOPSIS
 .B lmfs
 [
-.B -D
+.B -Dc
 ] [
 .B -b
 .I bytes
@@ -60,7 +60,12 @@ or the first of
 The model runs in
 .BR aux/llama ,
 .IR engine 's
-default, a program of llama.cpp's on ggml's CPU backend, in one thread.
+default, a program of llama.cpp's on ggml's WebGPU backend on
+.IR gpu (3)
+where the browser has a GPU, and else, or with
+.BR -c ,
+on ggml's CPU backend, in one thread.
+On the GPU it works out each token's bits and rank there, and reads back those alone.
 .I Lmfs
 starts one for a model's tokenizer and one for the model, and talks to each on a pipe,
 a request a line, so the model's work runs beside the server and never holds up
@@ -86,8 +91,9 @@ for 8 million tokens.
 The engine keeps the model's state for the parts it scored last: a transformer's keys and
 values, or a recurrent model's state every 256 tokens, so an edit inside a part scores again
 only from the edit.
-It decodes in blocks of 256 tokens at fixed places, so a part's bits do not depend on what
-it decoded before.
+It decodes in blocks at fixed places, of 64 tokens on the CPU and 256 on the GPU,
+so a part's bits do not depend on what it decoded before.
+The GPU's bits differ from the CPU's by about 0.1 of a bit a token, on average.
 A byte that is not UTF-8 is its byte's token.
 .B Embed
 gives the model's last hidden state, the mean over the span's tokens, of unit length.
@@ -114,6 +120,11 @@ for
 .IR lmz 's
 header, names the model, its SHA-256, the backend and the engine's pinned settings, not
 .BR ctx .
+.B Device
+says where the model runs,
+.B gpu
+or
+.BR cpu .
 A read gives the
 .B sha256
 as
