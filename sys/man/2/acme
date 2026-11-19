@@ -423,7 +423,7 @@ otherwise empty.
 reads the next event from the window's
 .B event
 file, with the messages that follow it for an expansion and for an argument.
-It returns 1, 0 at the end of the file, and \-1 with the error string set if the message is not an event.
+It returns 1, 0 at the end of the file, and \-1 with the error string set if the read fails or the message is not an event.
 .I Winwriteevent
 writes the event back to
 .BR event ,
@@ -568,7 +568,7 @@ as its standard output and standard error.
 Both return the command's process id, or \-1.
 .I Sysrun
 runs the command and returns the first kilobyte of what it prints, with the white space at
-its end removed, in a buffer that the next call reuses; it returns nil if the command prints nothing.
+its end removed, in a buffer that the next call reuses; it returns nil, with the error string set, if the command cannot run or prints nothing.
 These three use
 .IR thread (2)'s
 .IR threadspawnl .
@@ -597,12 +597,11 @@ and
 .IR winmread 's
 buffers with them.
 .PP
-The other functions that use a window's file call
-.I sysfatal
-when they cannot open it, as plan9port's do;
-but after
-.IR winclosefiles ,
-if the window's session cannot be made again, they fail, returning \-1 or nil.
+The other functions that use a window's file
+return \-1 or nil when they cannot open it, where plan9port's call
+.IR sysfatal .
+The error string then names the file, as in
+.LR "open /mnt/acme/3/addr: file does not exist" .
 .SH SOURCE
 .B /sys/src/libacme
 .SH SEE ALSO

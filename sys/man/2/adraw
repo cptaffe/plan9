@@ -34,7 +34,7 @@ struct Scroll
 .fi
 .PP
 .B
-void	scrollinit(Scroll *s)
+int	scrollinit(Scroll *s)
 .PP
 .B
 void	scrolldraw(Image *dst, Scroll *s)
@@ -113,6 +113,7 @@ gives it acme's colors from the theme
 back, or acme's pale yellow, for the part that shows and
 .B bodyborder
 for the rest.
+It returns 0, or \-1 with the error string set if it cannot make the colors.
 .I Scrolldraw
 draws it in
 .IR dst .
