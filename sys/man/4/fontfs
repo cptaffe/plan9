@@ -1,0 +1,135 @@
+.TH FONTFS 4
+.SH NAME
+fontfs \- TrueType and OpenType fonts as Plan 9 fonts
+.SH SYNOPSIS
+.B fontfs
+[
+.B -D
+] [
+.B -d
+.I dir
+] [
+.B -m
+.I mtpt
+] [
+.B -s
+.I srvname
+]
+.SH DESCRIPTION
+.I Fontfs
+serves the scalable fonts in
+.I dir
+.RB ( /lib/font/ttf )
+as Plan 9 fonts and subfonts
+(see
+.IR font (6)),
+antialiased, at any size, each made when it is first read.
+It mounts itself on
+.I mtpt
+.RB ( /mnt/font )
+and, given
+.BR -s ,
+posts itself as
+.BI /srv/ srvname\f1.
+.B -D
+prints the 9P messages.
+.PP
+A font's name has every element, in this order:
+.IP
+.EX
+/mnt/font/\f2superfamily\fP/\f2family\fP/\f2face\fP/\f2size\fPa/font
+/mnt/font/IBMPlex/g/r/12a/font
+.EE
+.PP
+The family is
+.B g
+(sans),
+.B s
+(serif) or
+.B m
+(mono); the face is
+.BR r ,
+.BR b ,
+.B i
+or
+.BR bi .
+Nothing has a default.
+.I Dir
+has the same shape:
+.IB superfamily / family / face .ttf
+or
+.BR .otf ,
+and the superfamily's license in
+.IB superfamily /LICENSE\f1.
+A family exists if its
+.B r
+file does; a walk to another fails.
+.PP
+A family directory lists all four faces, and
+.BR faces ,
+a line a face: its name,
+.B real
+or
+.BR synthetic ,
+the file it is made from, and how:
+.BI wght= n
+for an instance of a variable font,
+.B bold
+for an outline made bolder, keeping its advance, and
+.B oblique
+for one sheared by 0.2.
+A face's own file comes first; a variable
+.B r
+gives
+.B b
+at weight 700.
+.PP
+A size is in points at 96 dots an inch, so
+.B 12a
+is 16 pixels to the em.
+It may have two places after a point
+.RB ( 13.5a ),
+written as briefly as it can be.
+A face directory lists sizes 6 to 72; any other walks.
+A size directory holds
+.B font
+and a subfont,
+.BI x hhhhhh .bit\f1,
+for each run of 32 runes, starting at
+.IR hhhhhh ,
+that has a glyph in the face;
+rune 0 is PJW.
+.PP
+At another dpi,
+.IR graphics (2)'s
+.I openfont
+and
+.I getwindow
+open a
+.I fontfs
+name at the size whose pixels to the em are its points at the display's dpi:
+at 192 dpi,
+.B 12a
+is opened as
+.BR 24a .
+.SH EXAMPLES
+.EX
+% ls /mnt/font
+% cat /mnt/font/NotoCJK/g/faces
+% font=/mnt/font/IBMPlex/g/r/9a/font acme -F /mnt/font/IBMPlex/m/r/9a/font
+.EE
+.SH FILES
+.TP
+.B /lib/font/ttf
+the fonts
+.SH SOURCE
+plan9web's
+.B src/cmd/fontfs
+on FreeType 2.15;
+.B doc/fonts.md
+.SH "SEE ALSO"
+.IR font (6),
+.IR graphics (2),
+.IR draw (3)
+.SH BUGS
+A font has only its own face's glyphs; it does not fall back to another's.

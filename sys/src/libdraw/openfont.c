@@ -116,17 +116,73 @@ swapfont(Font *targ, Font **oldp, Font **newp)
 	*newp = old;
 }
 
-/* hidpiname is the font at twice the dpi: y of a name x,y; else x pixel-doubled */
+static int
+fontfssize(char *name, char **tail)
+{
+	char *p, *q;
+	int i, cp, d;
+
+	if(strncmp(name, "/mnt/font/", 10) != 0)
+		return -1;
+	p = name+10;
+	for(i = 0; i < 3; i++){
+		if((q = strchr(p, '/')) == nil || q == p)
+			return -1;
+		p = q+1;
+	}
+	*tail = p;
+	cp = 0;
+	while('0' <= *p && *p <= '9')
+		cp = cp*10 + *p++ - '0';
+	cp *= 100;
+	if(*p == '.')
+		for(p++, d = 10; d > 0 && '0' <= *p && *p <= '9'; d /= 10)
+			cp += d*(*p++ - '0');
+	if(cp <= 0 || strcmp(p, "a/font") != 0)
+		return -1;
+	return cp;
+}
+
+static char*
+fontfsname(char *name, int dpi)
+{
+	char *t;
+	int cp, px;
+
+	cp = fontfssize(name, &t);
+	if(cp < 0 || dpi <= 0)
+		return nil;
+	px = (cp*dpi + 3600)/7200;
+	if(px < 1)
+		px = 1;
+	cp = px*75;
+	if(cp%100 == 0)
+		return smprint("%.*s%da/font", (int)(t-name), name, cp/100);
+	if(cp%10 == 0)
+		return smprint("%.*s%d.%da/font", (int)(t-name), name, cp/100, cp%100/10);
+	return smprint("%.*s%d.%02da/font", (int)(t-name), name, cp/100, cp%100);
+}
+
+/* hidpiname is the font at the display's dpi, nil if f's own: fontfs(4)'s at its size, y of x,y, or x pixel-doubled */
 static char*
 hidpiname(Font *f)
 {
-	char *p, *base;
-	int scale;
+	char *p, *base, *s;
+	int scale, dpi;
 
+	dpi = f->display != nil ? f->display->dpi : 0;
 	p = strchr(f->namespec, ',');
+	if(p == nil && (s = fontfsname(f->namespec, dpi)) != nil){
+		if(strcmp(s, f->namespec) != 0)
+			return s;
+		free(s);
+		return nil;
+	}
+	if(dpi < DefaultDPI*3/2)
+		return nil;
 	if(p != nil)
 		return strdup(p+1);
-	scale = parsefontscale(f->name, &base);
+	scale = parsefontscale(f->namespec, &base);
 	return smprint("%d*%s", scale*2, base);
 }
 
@@ -136,15 +192,25 @@ loadhidpi(Font *f)
 	char *name;
 	Font *fnew;
 
-	if(f->hidpi == f)
-		return;
-	if(f->hidpi != nil){
-		swapfont(f, &f->lodpi, &f->hidpi);
-		return;
-	}
 	name = hidpiname(f);
+	if(f->hidpi == f){
+		if(name != nil && strcmp(name, f->name) == 0){
+			free(name);
+			return;
+		}
+		swapfont(f, &f->hidpi, &f->lodpi);
+	}
 	if(name == nil)
 		return;
+	if(f->hidpi != nil){
+		if(strcmp(name, f->hidpi->name) == 0){
+			free(name);
+			swapfont(f, &f->lodpi, &f->hidpi);
+			return;
+		}
+		freefont(f->hidpi);
+		f->hidpi = nil;
+	}
 	fnew = openfont1(f->display, name);
 	free(name);
 	if(fnew == nil)
@@ -182,8 +248,7 @@ openfont(Display *d, char *name)
 		else
 			d->firstfont = f;
 		d->lastfont = f;
-		if(d->dpi >= DefaultDPI*3/2)
-			loadhidpi(f);
+		loadhidpi(f);
 	}
 	return f;
 }
