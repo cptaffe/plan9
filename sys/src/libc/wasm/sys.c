@@ -129,9 +129,11 @@ _exits(char *s)
 		;
 }
 
-static char notebuf[ERRMAX];
-static jmp_buf notej;
-static uvlong noteureg[8];
+static struct {
+	char	buf[ERRMAX];
+	jmp_buf	j;
+	uvlong	ureg[8];
+} note;
 
 int
 notify(void (*f)(void*, char*))
@@ -142,22 +144,28 @@ notify(void (*f)(void*, char*))
 int
 noted(int v)
 {
-	longjmp(notej, v == NCONT ? 2 : 1);
+	longjmp(note.j, v == NCONT ? 2 : 1);
 	return 0;
 }
 
 EXPORT(p9web_note_buf) char*
 p9web_note_buf(void)
 {
-	return notebuf;
+	return note.buf;
+}
+
+EXPORT(p9web_note_len) int
+p9web_note_len(void)
+{
+	return sizeof note;
 }
 
 EXPORT(p9web_note) int
 p9web_note(void (*f)(void*, char*))
 {
-	switch(setjmp(notej)){
+	switch(setjmp(note.j)){
 	case 0:
-		(*f)(noteureg, notebuf);
+		(*f)(note.ureg, note.buf);
 		return 0;
 	case 2:
 		return 1;
