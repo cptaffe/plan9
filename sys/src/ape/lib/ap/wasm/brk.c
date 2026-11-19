@@ -12,7 +12,7 @@ grow(unsigned long n)
 	unsigned long have, want;
 
 	have = __builtin_wasm_memory_size(0);
-	want = (n + 65535) >> 16;
+	want = ((unsigned long long)n + 65535) >> 16;
 	if(want > have && __builtin_wasm_memory_grow(0, want-have) == (unsigned long)-1){
 		errno = ENOMEM;
 		return -1;
@@ -40,6 +40,10 @@ sbrk(unsigned long n)
 	char *b;
 
 	b = (char*)(((unsigned long)bloc + 7) & ~7UL);
+	if(n > ~0UL - 7 || (unsigned long)b + ((n + 7) & ~7UL) < (unsigned long)b){
+		errno = ENOMEM;
+		return (void *)-1;
+	}
 	n += 7;
 	n &= ~7;
 	if(grow((unsigned long)b + n) < 0)
