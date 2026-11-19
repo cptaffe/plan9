@@ -62,7 +62,7 @@ slurp(char *f, long *np)
 	b = nil;
 	n = 0;
 	for(;;){
-		b = _proprealloc(b, n+8192+1);
+		b = erealloc(b, n+8192+1);
 		m = read(fd, b+n, 8192);
 		if(m <= 0)
 			break;
@@ -94,7 +94,7 @@ parsechoices(char *t)
 			break;
 		if(nreplay == m){
 			m = m*2 + 64;
-			replay = _proprealloc(replay, m*sizeof replay[0]);
+			replay = erealloc(replay, m*sizeof replay[0]);
 		}
 		replay[nreplay++] = strtoull(p, &q, 10);
 		if(q == p)
@@ -205,12 +205,12 @@ adopt(Shrink *h, Src *s)
 {
 	int i;
 
-	h->v = _proprealloc(h->v, (s->nv+1)*sizeof h->v[0]);
-	h->n = _proprealloc(h->n, (s->nv+1)*sizeof h->n[0]);
+	h->v = erealloc(h->v, (s->nv+1)*sizeof h->v[0]);
+	h->n = erealloc(h->n, (s->nv+1)*sizeof h->n[0]);
 	memmove(h->v, s->v, s->nv*sizeof h->v[0]);
 	memmove(h->n, s->n, s->nv*sizeof h->n[0]);
 	h->nv = s->nv;
-	h->sp = _proprealloc(h->sp, (s->nsp+1)*sizeof h->sp[0]);
+	h->sp = erealloc(h->sp, (s->nsp+1)*sizeof h->sp[0]);
 	h->nsp = 0;
 	for(i = 0; i < s->nsp; i++)
 		if(s->sp[i].e > s->sp[i].a)
@@ -222,7 +222,7 @@ cand(Shrink *h, int n)
 {
 	if(n+1 > h->mc){
 		h->mc = n+1;
-		h->c = _proprealloc(h->c, h->mc*sizeof h->c[0]);
+		h->c = erealloc(h->c, h->mc*sizeof h->c[0]);
 	}
 	return h->c;
 }
@@ -244,7 +244,7 @@ try(Shrink *h, uvlong *c, int nc)
 	s->in = c;
 	s->nin = nc;
 	e = nil;
-	if(_srcrun(s, h->p, h->a, &e) == Fail && less(s->v, s->nv, h->v, h->nv)){
+	if(_proprun(s, h->p, h->a, &e) == Fail && less(s->v, s->nv, h->v, h->nv)){
 		adopt(h, s);
 		h->err = e;
 		h->steps++;
@@ -474,7 +474,7 @@ shrink(Shrink *h)
 {
 	int ch;
 
-	h->cache = _propalloc(Ncache*sizeof h->cache[0]);
+	h->cache = emalloc(Ncache*sizeof h->cache[0]);
 	do{
 		ch = delspans(h);
 		ch |= delblocks(h);
@@ -495,7 +495,7 @@ report(char *name, char *err, Src *s, char *how)
 	int i;
 
 	print("%s: %s\n", name, err);
-	t = _srcnotes(s);
+	t = _propnotes(s);
 	if(t != nil){
 		for(p = t; *p != 0; p = q){
 			q = strchr(p, '\n');
@@ -524,7 +524,7 @@ failed(char *name, Prop *p, void *a, Src *s, char *err, char *how)
 	int k;
 
 	memset(&h, 0, sizeof h);
-	r = _srcnew(Replay);
+	r = _propnew(Replay);
 	h.s = r;
 	h.p = p;
 	h.a = a;
@@ -534,7 +534,7 @@ failed(char *name, Prop *p, void *a, Src *s, char *err, char *how)
 	r->in = h.v;
 	r->nin = h.nv;
 	e = nil;
-	k = _srcrun(r, p, a, &e);
+	k = _proprun(r, p, a, &e);
 	if(k != Fail){
 		print("%s: %s, and then passes on replay\n", name, h.err);
 		srcfree(r);
@@ -568,10 +568,10 @@ forall(char *name, Prop *p, void *a)
 	}
 	e = nil;
 	if(nreplay >= 0){
-		s = _srcnew(Replay);
+		s = _propnew(Replay);
 		s->in = replay;
 		s->nin = nreplay;
-		k = _srcrun(s, p, a, &e);
+		k = _proprun(s, p, a, &e);
 		if(k == Fail){
 			report(name, e, s, nil);
 			nfail++;
@@ -582,7 +582,7 @@ forall(char *name, Prop *p, void *a)
 	}
 	if(nbytes >= 0){
 		s = srcbytes(bytes, nbytes);
-		k = _srcrun(s, p, a, &e);
+		k = _proprun(s, p, a, &e);
 		if(k == Fail){
 			k = failed(name, p, a, s, e, "from -b");
 			srcfree(s);
@@ -593,12 +593,12 @@ forall(char *name, Prop *p, void *a)
 		srcfree(s);
 		return 0;
 	}
-	s = _srcnew(Rand);
+	s = _propnew(Rand);
 	s->x = seed ^ strhash(name);
 	nd = 0;
 	for(i = 0; i < nruns; ){
-		s->size = i*10/nruns + _srcrnd(s)%3;
-		k = _srcrun(s, p, a, &e);
+		s->size = i*10/nruns + _proprnd(s)%3;
+		k = _proprun(s, p, a, &e);
 		if(k == Discard){
 			if(++nd > 10*nruns + 100){
 				print("%s: gave up after %d runs and %d discards\n", name, i, nd);

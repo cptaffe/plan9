@@ -144,7 +144,7 @@ sym(Src *s, char **g, char *name, int n, int depth, Fmt *f)
 	if(depth < Deepest)
 		discard(s);
 	span(s);
-	_srctag(s, g[first]);
+	_proptag(s, g[first]);
 	k = 0;
 	if(na > 1 && depth > 0)
 		k = pick(s, nil, na);
