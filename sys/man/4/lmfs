@@ -148,3 +148,8 @@ until the engine has loaded the model.
 is not served yet.
 The engine scores one part at a time, not parts in batches.
 On the CPU in wasm, a model of half a billion weights scores 5 to 15 tokens a second.
+On the GPU, ggml waits 30 seconds at most for the GPU to finish a block,
+and else ends the engine;
+the model's requests then fail with ggml's message until
+.I lmfs
+is started again.
