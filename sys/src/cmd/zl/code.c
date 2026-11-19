@@ -93,6 +93,45 @@ f64c(vlong bits)
 }
 
 static void
+rfield(int t, Sym *s, long idx, long add, vlong v)
+{
+	addrel(t, b->n, s, S, idx, add);
+	bpad(b, v);
+}
+
+static void
+raddr(Sym *s, long off)
+{
+	op(WI32CONST);
+	if(isfunc(s)) {
+		if(off != 0)
+			diag("%s: offset from function %s", cur->name, s->name);
+		rfield(RTABSLEB, s, 0, 0, 0);
+	} else
+		rfield(RMEMSLEB, s, 0, off, s->value + off);
+}
+
+static void
+gsp(int o)
+{
+	op(o);
+	if(rflag)
+		rfield(RGLOBAL, lookup("__stack_pointer", 0), 0, 0, 0);
+	else
+		buleb(b, 0);
+}
+
+static void
+gtag(int o)
+{
+	op(o);
+	if(rflag)
+		rfield(RTAG, lookup("__c_longjmp", 0), 0, 0, 0);
+	else
+		buleb(b, 0);
+}
+
+static void
 dtobits(double d, vlong *v)
 {
 	memmove(v, &d, 8);
@@ -110,6 +149,10 @@ addrof(Adr *a)
 	long v;
 
 	if(a->sym != S && (a->name == D_EXTERN || a->name == D_STATIC)) {
+		if(rflag) {
+			raddr(a->sym, a->offset);
+			return;
+		}
 		i32c(symaddr(a->sym) + a->offset);
 		return;
 	}
@@ -214,6 +257,10 @@ maddr(Adr *a)
 	switch(a->name) {
 	case D_EXTERN:
 	case D_STATIC:
+		if(rflag) {
+			raddr(a->sym, a->offset);
+			return 0;
+		}
 		i32c(0);
 		return symaddr(a->sym) + a->offset;
 	case D_AUTO:
@@ -510,15 +557,15 @@ compare(Prog *p, int rel)
 }
 
 static void
-branch(Prog *p, int cond)
+brto(Prog *t, int cond)
 {
 	int k;
 
-	if(p->cond == P || p->cond->lab < 0) {
+	if(t == P || t->lab < 0) {
 		diag("%s: branch to nowhere", cur->name);
 		return;
 	}
-	k = p->cond->lab;
+	k = t->lab;
 	if(k >= seg) {
 		op2(cond ? WBRIF : WBR, k - seg);
 		return;
@@ -535,13 +582,35 @@ branch(Prog *p, int cond)
 }
 
 static void
+branch(Prog *p, int cond)
+{
+	brto(p->cond, cond);
+}
+
+static void
+gcase(Prog *p)
+{
+	int i;
+
+	for(i=0; i<p->ntab; i++) {
+		if(p->tab[i] == p->cond)
+			continue;
+		opnd(&p->from, 'R');
+		i32c(i);
+		op(WI32EQ);
+		brto(p->tab[i], 1);
+	}
+	brto(p->cond, 0);
+}
+
+static void
 epilogue(void)
 {
 	if(usesp && total > 0) {
 		lget(REGSP);
 		i32c(total);
 		op(WI32ADD);
-		op2(WGLOBALSET, 0);
+		gsp(WGLOBALSET);
 	}
 	switch(result) {
 	case KI32:
@@ -584,8 +653,7 @@ gsetjmp(Prog *p)
 static void
 catchjmp(void)
 {
-	op(WCATCH);
-	buleb(b, 0);
+	gtag(WCATCH);
 	op2(WLOCALSET, tmplocal);
 	op2(WLOCALGET, tmplocal);
 	memop(WI32LOAD, 2, 0);
@@ -597,7 +665,7 @@ catchjmp(void)
 	op2(WRETHROW, 1);
 	op(WEND);
 	lget(REGSP);
-	op2(WGLOBALSET, 0);
+	gsp(WGLOBALSET);
 	op2(WLOCALGET, tmplocal);
 	memop(WI32LOAD, 2, 4);
 	lset(REGRET);
@@ -636,7 +704,7 @@ call(Prog *p)
 				buleb(b, 11);
 				op(0);
 			} else if(strcmp(s->name, "wasm·throw") == 0)
-				op2(WTHROW, 0);
+				gtag(WTHROW);
 			else
 				diag("%s: unknown wasm operator %s", cur->name, s->name);
 		} else {
@@ -651,11 +719,19 @@ call(Prog *p)
 				} else
 					diag("%s: call of %s: signature mismatch", cur->name, s->name);
 			}
-			op2(WCALL, s->fidx);
+			if(rflag) {
+				op(WCALL);
+				rfield(RFUNC, s, 0, 0, s->fidx);
+			} else
+				op2(WCALL, s->fidx);
 		}
 	} else {
 		lget(p->to.reg);
-		op2(WCALLINDIRECT, p->sig);
+		if(rflag) {
+			op(WCALLINDIRECT);
+			rfield(RTYPE, S, p->sig, 0, p->sig);
+		} else
+			op2(WCALLINDIRECT, p->sig);
 		op(WUNREACHABLE);
 	}
 	switch(p->from.offset) {
@@ -797,8 +873,9 @@ struct Blk
 {
 	Prog*	first;
 	Prog*	last;
-	int	succ[2];
+	int*	succ;
 	int	nsucc;
+	int	s2[2];
 	int	rpo;
 	int	idom;
 	int	nfwd;
@@ -814,6 +891,7 @@ enum
 };
 
 static	Blk*	blk;
+static	int*	spool;
 static	int	nblk;
 static	int*	order;
 static	int	norder;
@@ -828,6 +906,7 @@ isterm(Prog *p)
 	case AJMP:
 	case ARET:
 	case AUNDEF:
+	case ACASE:
 	case ABEQ:
 	case ABNE:
 	case ABLT:
@@ -859,6 +938,25 @@ dfs(int b)
 		if(!blk[blk[b].succ[i]].done)
 			dfs(blk[b].succ[i]);
 	order[norder++] = b;
+}
+
+static int
+hassucc(int b, int n)
+{
+	int i;
+
+	for(i=0; i<blk[b].nsucc; i++)
+		if(blk[b].succ[i] == n)
+			return 1;
+	return 0;
+}
+
+static void
+addsucc(int b, int n)
+{
+	if(hassucc(b, n))
+		return;
+	blk[b].succ[blk[b].nsucc++] = n;
 }
 
 static int
@@ -902,19 +1000,34 @@ mkblocks(Sym *s)
 			blk[p->blk].first = p;
 		blk[p->blk].last = p;
 	}
+	n = 0;
+	for(b=0; b<nblk; b++)
+		if(blk[b].last->as == ACASE)
+			n += blk[b].last->ntab + 1;
+	spool = realloc(spool, (n+1)*sizeof(int));
+	n = 0;
 	for(b=0; b<nblk; b++) {
 		p = blk[b].last;
-		n = 0;
-		if(p->as == AJMP || iscond(p)) {
-			if(p->cond == P)
-				return 0;
-			blk[b].succ[n++] = p->cond->blk;
-		}
-		if(p->as != AJMP && p->as != ARET && p->as != AUNDEF && p->link != P)
-			blk[b].succ[n++] = p->link->blk;
-		blk[b].nsucc = n;
+		blk[b].succ = blk[b].s2;
+		blk[b].nsucc = 0;
 		blk[b].rpo = -1;
 		blk[b].idom = -1;
+		if(p->as == ACASE) {
+			blk[b].succ = spool + n;
+			n += p->ntab + 1;
+			for(i=0; i<p->ntab; i++) {
+				if(p->tab[i] == P)
+					return 0;
+				addsucc(b, p->tab[i]->blk);
+			}
+		}
+		if(p->as == AJMP || iscond(p) || p->as == ACASE) {
+			if(p->cond == P)
+				return 0;
+			addsucc(b, p->cond->blk);
+		}
+		if(p->as != AJMP && p->as != ARET && p->as != AUNDEF && p->as != ACASE && p->link != P)
+			blk[b].succ[blk[b].nsucc++] = p->link->blk;
 	}
 	order = realloc(order, nblk*sizeof(int));
 	norder = 0;
@@ -935,7 +1048,7 @@ mkblocks(Sym *s)
 			for(j=0; j<nblk; j++) {
 				if(blk[j].rpo < 0 || blk[j].idom < 0)
 					continue;
-				if(!(blk[j].nsucc > 0 && blk[j].succ[0] == b) && !(blk[j].nsucc > 1 && blk[j].succ[1] == b))
+				if(!hassucc(j, b))
 					continue;
 				d = d < 0 ? j : intersect(j, d);
 			}
@@ -958,6 +1071,16 @@ mkblocks(Sym *s)
 					return 0;
 				blk[n].header = 1;
 			}
+		}
+	}
+	for(i=0; i<norder; i++) {
+		b = order[i];
+		if(blk[b].last->as != ACASE)
+			continue;
+		for(j=0; j<blk[b].nsucc; j++) {
+			n = blk[b].succ[j];
+			if(blk[n].rpo > blk[b].rpo && blk[n].nfwd < 2)
+				blk[n].nfwd = 2;
 		}
 	}
 	ctx = realloc(ctx, (2*nblk+4)*sizeof(int));
@@ -999,14 +1122,32 @@ dobranch(int x, int y)
 		dotree(y);
 }
 
+static int
+target(int x, int y)
+{
+	if(blk[y].rpo <= blk[x].rpo)
+		return depth(CLOOP, y);
+	return depth(CBLOCK, y);
+}
+
 static void
 emitblk(int x)
 {
 	Prog *p, *l;
+	int i;
 
 	l = blk[x].last;
 	for(p = blk[x].first; p != l; p = p->link)
 		ins(p);
+	if(l->as == ACASE) {
+		opnd(&l->from, 'R');
+		op(WBRTABLE);
+		buleb(b, l->ntab);
+		for(i=0; i<l->ntab; i++)
+			buleb(b, target(x, l->tab[i]->blk));
+		buleb(b, target(x, l->cond->blk));
+		return;
+	}
 	if(iscond(l) && blk[x].nsucc > 1 && blk[x].succ[0] == blk[x].succ[1]) {
 		compare(l, l->as - ABEQ);
 		op(WDROP);
@@ -1090,12 +1231,12 @@ static void
 prologue(void)
 {
 	if(usesp) {
-		op2(WGLOBALGET, 0);
+		gsp(WGLOBALGET);
 		if(total > 0) {
 			i32c(total);
 			op(WI32SUB);
 			op2(WLOCALTEE, loc[REGSP]);
-			op2(WGLOBALSET, 0);
+			gsp(WGLOBALSET);
 		} else
 			lset(REGSP);
 	}
@@ -1183,6 +1324,9 @@ ins(Prog *p)
 	case AJMP:
 		branch(p, 0);
 		break;
+	case ACASE:
+		gcase(p);
+		break;
 	case ACALL:
 		if(issetjmp(p))
 			gsetjmp(p);
@@ -1239,6 +1383,9 @@ gencode(Sym *s, Buf *out)
 	for(p = s->text; p != P; p = p->link) {
 		if(p->cond != P && p->to.type == D_BRANCH)
 			p->cond->mark |= LABEL;
+		for(i=0; i<p->ntab; i++)
+			if(p->tab[i] != P)
+				p->tab[i]->mark |= LABEL;
 		if(issetjmp(p) && p->link != P) {
 			p->link->mark |= LABEL;
 			sj = 1;
@@ -1267,6 +1414,9 @@ gencode(Sym *s, Buf *out)
 			seg = p->lab + 1;
 		if(p->cond != P && p->to.type == D_BRANCH && p->cond->lab < seg)
 			loop = 1;
+		for(i=0; i<p->ntab; i++)
+			if(p->tab[i] != P && p->tab[i]->lab < seg)
+				loop = 1;
 	}
 	locals(&sg);
 	prologue();

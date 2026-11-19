@@ -750,6 +750,12 @@ talph:
 		print("%L: %s\n", lineno, symb);
 	peekc = c;
 	s = lookup();
+	if(s->macro && *s->macro != 0) {
+		c = getnsc();
+		unget(c);
+		if(c != '(')
+			goto ident;
+	}
 	if(s->macro) {
 		newio();
 		cp = ionext->b;
@@ -766,6 +772,7 @@ talph:
 		}
 		goto l0;
 	}
+ident:
 	yylval.sym = s;
 	if(s->class == CTYPEDEF || s->class == CTYPESTR)
 		return LTYPE;

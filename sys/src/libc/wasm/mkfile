@@ -3,6 +3,7 @@ objtype=wasm
 
 LIB=/$objtype/lib/libc.a
 CFILES=\
+	abort.c\
 	execl.c\
 	main9.c\
 	memmove.c\

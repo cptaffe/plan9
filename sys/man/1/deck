@@ -1,0 +1,169 @@
+.TH DECK 1
+.SH NAME
+deck, Deck \- play sound, with a scrub bar
+.SH SYNOPSIS
+.B deck
+[
+.B -p
+] [
+.I file ...
+]
+.PP
+.B Deck
+[
+.I file
+]
+.SH DESCRIPTION
+.I Deck
+plays a list of sound files with a scrub bar.
+.I deck
+plays them in the window it is run in;
+.IR Deck ,
+in the tag of an
+.IR acme (1)
+window, plays the files the window's lines name, the window's text being the playlist.
+.PP
+.I Deck's
+lines name files by their paths, or by paths from the window's directory,
+so
+.I Deck
+in the tag of a directory's window plays the directory.
+Given
+.IR file ,
+it opens a window on it instead.
+Empty lines, lines that begin with
+.BR # ,
+as an M3U playlist's comments do,
+and names of directories are passed by, and a line of names separated by tabs,
+as acme shows a directory, is a name each.
+It opens on the line at the window's selection, decoded and paused,
+and sets the selection to each track it plays.
+.PP
+.I deck
+plays its
+.I files
+in turn, a directory's files in order of their names.
+With
+.BR -p ,
+as the plumber starts it,
+it plays the files plumbed to the
+.B audio
+port, each from its place in the list, added at the end if it is not there.
+Only one
+.B -p
+.I deck
+runs at a time.
+.PP
+Both draw the same picture.
+At the top are the track's name and, at the right,
+where it is and how long it is, with
+.B paused
+or
+.B wait
+before them when it is paused or waiting for the decoder.
+A length decoded only in part is an estimate, marked
+.BR ~ .
+Below them is the scrub bar, the loudness of the track drawn as it is decoded,
+the part played in the
+.B hold
+color.
+Below the bar is the playlist, with the line being played highlighted.
+.PP
+A track is decoded into memory by the decoder of
+.IR audio (1)
+that its name's extension calls for, or by
+.IR play (1),
+faster than it plays, so a jump anywhere already decoded is at once.
+A track that fails to decode is passed over.
+.I Deck
+opens
+.B /dev/audio
+while it plays and closes it when it pauses, so another program can play in the meantime.
+.SS Mouse
+.TP
+Button 1 on the bar
+Jumps there.
+Dragging plays from under the pointer as it goes, so you hear where you are,
+and releasing plays on from there, or stays paused if it was paused.
+With the pointer more than a line above or below the bar, a drag moves at half the pointer's speed,
+a quarter two lines away and an eighth three or more,
+for fine work in a long track; the readout shows the speed.
+.TP
+Button 1 on a line
+Plays that track.
+.TP
+Button 2
+Plays or pauses.
+.TP
+Button 3
+A menu:
+.B Play
+or
+.BR Pause ,
+.BR Next ,
+.B Prev
+and
+.BR Exit .
+.TP
+The wheel
+Over the bar or above it, jumps 5 seconds back for up and on for down, as text scrolls;
+over the playlist, scrolls it.
+.PP
+With the pointer over the bar, the readout shows the time under it.
+.SS Keys
+.TP
+.B space
+Plays or pauses.
+.TP
+.B ← →
+Jump 5 seconds back or on.
+.TP
+.B ↑ ↓
+Play the track before or after.
+.TP
+.B 0 \fRto\fP 9
+Jump to that tenth of the track.
+.SS "Deck's commands"
+.TP
+.B Play Pause Next Prev
+in the tag do as their names say.
+.TP
+.B Deck
+in the tag ends
+.I Deck
+and shows the body again.
+.TP
+.B Del
+ends
+.I Deck
+with its window.
+.SH EXAMPLES
+Play a directory:
+.IP
+.EX
+deck /usr/glenda/music
+.EE
+.SH FILES
+.TF /tmp/deck.plumb.\fIuser\fP
+.TP
+.BI /tmp/deck.plumb. user
+held by the
+.B -p
+.I deck
+.TP
+.B /sys/lib/plumb/basic
+the rule that plumbs sound to
+.I deck
+.SH SOURCE
+.B src/cmd/deck
+.SH SEE ALSO
+.IR play (1),
+.IR audio (1),
+.IR plumber (4),
+.IR acme (1),
+.IR audio (3)
+.SH BUGS
+A key's or the wheel's jump past what is decoded waits there for the decoder, shown as
+.BR wait ;
+a click or a drag on the bar goes no further than what is decoded.
+A pause lets the fifth of a second the device holds play out.

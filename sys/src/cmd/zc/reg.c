@@ -14,6 +14,7 @@ struct Var
 	int	cls;
 	int	bad;
 	int	idx;
+	Sym*	sym;
 };
 
 static	Var	vars[NVARS];
@@ -53,15 +54,20 @@ isframe(Adr *a)
 }
 
 static Var*
-var(long off, int size, int cls)
+var(long off, int size, int cls, Sym *s)
 {
 	Var *v;
 	int i;
 
 	for(i=0; i<nvars; i++) {
 		v = &vars[i];
-		if(v->off == off && v->size == size && v->cls == cls)
+		if(v->off == off && v->size == size && v->cls == cls) {
+			if(v->sym == S)
+				v->sym = s;
+			else if(s != S && v->sym != s)
+				v->bad = 1;
 			return v;
+		}
 	}
 	if(nvars >= NVARS) {
 		toomany = 1;
@@ -73,6 +79,7 @@ var(long off, int size, int cls)
 	v->cls = cls;
 	v->bad = 0;
 	v->idx = -1;
+	v->sym = s;
 	return v;
 }
 
@@ -98,23 +105,24 @@ frameuse(Prog *p, Adr *a)
 		diag(Z, "regopt: frame operand of %A", p->as);
 		return;
 	}
-	var(a->offset, size, cls);
+	var(a->offset, size, cls, a->sym);
 }
 
 static void
 address(Adr *a)
 {
-	long w;
+	int i;
 
 	if(a->type != D_CONST || !isframe(a))
 		return;
-	w = BIG;
-	if(a->name == D_AUTO && a->sym != S && a->sym != nodsafe->sym && a->sym->type != T && a->sym->type->width > 0)
-		w = a->sym->type->width;
-	if(w == BIG)
+	if(a->name != D_AUTO || a->sym == S || a->sym == nodsafe->sym || a->width <= 0) {
 		taint(a->offset, BIG);
-	else
-		taint(a->offset, a->offset + w);
+		return;
+	}
+	taint(a->offset, a->offset + a->width);
+	for(i=0; i<nvars; i++)
+		if(vars[i].sym == a->sym)
+			vars[i].bad = 1;
 }
 
 static void
@@ -128,7 +136,7 @@ rewrite(Adr *a, int as)
 	size = opsize(as, &cls);
 	if(size == 0)
 		return;
-	v = var(a->offset, size, cls);
+	v = var(a->offset, size, cls, a->sym);
 	if(v == nil || v->bad)
 		return;
 	a->type = D_LOCAL;

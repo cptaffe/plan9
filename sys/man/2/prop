@@ -25,7 +25,7 @@ int	pick(Src *s, int *w, int nw)
 int	more(Src *s)
 .PP
 .B
-void	span(Src *s)
+void	span(Src *s, char *tag)
 .PP
 .B
 void	endspan(Src *s)
@@ -59,6 +59,12 @@ char*	runprop(Src *s, Prop *p, void *a)
 .PP
 .B
 void	srcfree(Src *s)
+.PP
+.B
+void*	emalloc(ulong n)
+.PP
+.B
+void*	erealloc(void *p, ulong n)
 .SH DESCRIPTION
 These routines test a property of a program on many inputs, and when one fails,
 make it as small as they can before they show it.
@@ -125,6 +131,25 @@ mark the choices that make one part of an input, such as an operation and its ar
 so the shrinker can delete the part whole or swap it with the part beside it.
 Spans nest.
 When the property returns, the library ends any span left open.
+The
+.I tag
+names the kind of part, such as
+.B block
+or
+.BR expr ;
+the shrinker puts in place of a span a span with the same tag inside it,
+so a recursive generator's nested part can take its parent's place.
+The library compares tags by their text.
+A nil
+.I tag
+marks a span that is never replaced.
+The span that
+.I more
+begins has the tag
+.BR more ,
+and
+.IR expand 's
+have their symbols' names.
 .PP
 .I Discard
 says the input does not apply.
@@ -182,14 +207,68 @@ as
 .I srcbytes
 does, and shrink the input if it fails.
 .TP
+.BI -R " file"
+Before the random inputs, replay each case that
+.I file
+holds for the property, and shrink and show those that still fail;
+if one fails, make no random inputs.
+A line of the file is a property's name and its choices.
+.I Forall
+adds the choices of each failure it shows to the file, if the file does not hold them,
+and makes the file if it does not exist.
+.TP
+.B -f
+Run each input in a child process
+(see
+.IR fork (2)).
+A child that dies, by a fault, a
+.IR sysfatal ,
+an
+.I exits
+or a note, fails with the message of its wait record
+(see
+.IR wait (2)),
+less the program's name and process id,
+and that failure shrinks like any other.
+.TP
+.BI -t " ms"
+Fail an input that runs for more than
+.I ms
+milliseconds: post the note
+.B timeout
+to its child, and kill it if it has not ended
+.I ms
+milliseconds later.
+The failure reads
+.BR "timed out after" " \fIms\fP " ms .
+.B -t
+implies
+.BR -f .
+.TP
 .B -v
 Print a line for each property that passes.
 .PD
+.PP
+With
+.B -f
+a seed gives the same inputs as without it, but each run costs a
+.IR fork .
 .PP
 .I Propexits
 exits with the status
 .B fail
 if a property failed, and with an empty status otherwise.
+.PP
+.I Propargs
+catches the note
+.BR interrupt .
+After one,
+.I forall
+ends the property's runs or its shrinking at the next input,
+shows the least failing case it has found, or says it found none,
+and exits with the status
+.BR interrupted .
+A second interrupt ends the program at once.
 .PP
 A failure reads:
 .IP
@@ -202,6 +281,10 @@ sortdup: sort lost an element
 .EE
 .PP
 The last line is the shrunk input's choices, as the property read them.
+The shrinker keeps any failure, so the shrunk case can fail in another way than the case first found;
+if its string differs, a line
+.B first failure:
+gives the first.
 On a replay, choices past the end are 0, and a choice that is not below its bound is 0.
 .SS Shrinking
 The shrinker keeps a change only if the property still fails and the new choices are simpler:
@@ -210,9 +293,7 @@ It tries these changes in order, and starts again until none applies or it has r
 property 20000 times:
 deleting each span;
 deleting each run of 8, 4, 2 and then 1 choices;
-putting in place of a span of one of
-.IR expand 's
-symbols a span of the same symbol inside it;
+putting in place of each tagged span a span with the same tag inside it;
 lowering each choice, to 0 or else by halves;
 lowering together the choices that are equal;
 swapping neighboring choices that are out of order, and neighboring spans;
@@ -223,8 +304,7 @@ makes text from the grammar
 .IR g ,
 starting at the symbol
 .IR start ,
-and returns it in memory from
-.IR malloc (2).
+and returns it in memory the caller frees.
 .I G
 is a nil-terminated array of rules.
 A rule is a symbol, a tab, and one alternative; a symbol's alternatives are its rules,
@@ -264,8 +344,7 @@ strings.
 It picks an example, takes a window of it, and then makes any number of edits:
 cutting a range, putting in a character, copying a piece of an example in, or copying a piece of
 the text itself.
-It returns the text in memory from
-.IR malloc (2).
+It returns the text in memory the caller frees.
 At random the window is mostly the whole example; it shrinks to the shortest window
 of the first example that still fails, with the fewest edits.
 The edits work on bytes, and put in only tabs, newlines, and printable ASCII.
@@ -291,6 +370,18 @@ once on the choices of
 from the start, and returns the property's string if it fails, or nil if it passes or discards.
 .I Srcfree
 frees a source.
+.SS Memory
+The library expects the program to provide two allocation routines,
+.I emalloc
+and
+.IR erealloc .
+They are
+.IR malloc (2)'s
+and
+.IR realloc ,
+except that they do not return if memory runs out, and
+.I emalloc
+sets the memory it returns to zero.
 .SH EXAMPLES
 Check a sort on lists of numbers; the notes show the case.
 .IP
@@ -407,15 +498,23 @@ ECOOP 2020,
 Koen Claessen and John Hughes,
 ``QuickCheck: a lightweight tool for random testing of Haskell programs'',
 ICFP 2000.
+.SH DIAGNOSTICS
+.I Propargs
+ends the program with
+.I sysfatal
+if it cannot read the
+.B -R
+file, or a line of it is not a name and numbers;
+.I forall
+does the same if a
+.I fork
+or
+.I pipe
+fails.
 .SH BUGS
-A property that crashes or never returns is not shrunk.
+Without
+.BR -f ,
+a property that crashes ends the program, and one that never returns is not shrunk.
 The shrinker can stop at a case that no one change makes simpler, though a smaller one exists.
-Only
-.IR expand 's
-spans take part in the change to a span inside; those of
-.I span
-and
-.I more
-do not.
 APE has no
 .IR prop.h .

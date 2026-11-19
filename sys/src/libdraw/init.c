@@ -189,14 +189,8 @@ retry:
 	}
 	d->screenimage = *winp;
 	assert((*winp)->chan != 0);
-	if(d->dpi >= DefaultDPI*3/2){
-		for(f = d->firstfont; f != nil; f = f->next)
-			loadhidpi(f);
-	}else{
-		for(f = d->firstfont; f != nil; f = f->next)
-			if(f->lodpi != nil && f->lodpi != f)
-				swapfont(f, &f->hidpi, &f->lodpi);
-	}
+	for(f = d->firstfont; f != nil; f = f->next)
+		loadhidpi(f);
 	return 1;
 }
 

@@ -24,6 +24,8 @@ struct Shrink
 	uvlong	*c;
 	int	mc;
 	char	*err;
+	char	*first;
+	char	*notes;
 	int	runs;
 	int	steps;
 	uvlong	*cache;
@@ -41,11 +43,16 @@ static char **names;
 static int nnames;
 static int verbose;
 static int nfail;
+static int forking;
+static int limit;
+static char *regf;
+static char **regs;
+static int nregs;
 
 static void
 usage(void)
 {
-	fprint(2, "usage: %s [-v] [-n runs] [-s seed] [-r choices] [-b file] [prop ...]\n", argv0);
+	fprint(2, "usage: %s [-fv] [-n runs] [-s seed] [-t ms] [-r choices] [-b file] [-R file] [prop ...]\n", argv0);
 	exits("usage");
 }
 
@@ -58,49 +65,137 @@ slurp(char *f, long *np)
 
 	fd = open(f, OREAD);
 	if(fd < 0)
-		sysfatal("%s: %r", f);
+		return nil;
 	b = nil;
 	n = 0;
 	for(;;){
-		b = _proprealloc(b, n+8192+1);
+		b = erealloc(b, n+8192+1);
 		m = read(fd, b+n, 8192);
 		if(m <= 0)
 			break;
 		n += m;
 	}
 	close(fd);
+	if(m < 0){
+		free(b);
+		return nil;
+	}
 	b[n] = 0;
 	*np = n;
 	return b;
 }
 
-static void
-parsechoices(char *t)
+static int
+choices(char *t, uvlong **vp)
 {
+	uvlong *v;
 	char *p, *q;
-	long m;
+	int n, m;
 
-	p = t;
-	while(*p != 0 && strchr("0123456789 \t\n", *p) != nil)
-		p++;
-	if(*p != 0)
-		t = slurp(t, &m);
-	m = 0;
-	nreplay = 0;
+	v = nil;
+	n = m = 0;
 	for(p = t;;){
 		while(*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
 			p++;
 		if(*p == 0)
 			break;
-		if(nreplay == m){
+		if(n == m){
 			m = m*2 + 64;
-			replay = _proprealloc(replay, m*sizeof replay[0]);
+			v = erealloc(v, m*sizeof v[0]);
 		}
-		replay[nreplay++] = strtoull(p, &q, 10);
-		if(q == p)
-			sysfatal("bad choice at %.10s", p);
+		v[n++] = strtoull(p, &q, 10);
+		if(q == p){
+			free(v);
+			werrstr("bad choice at %.10s", p);
+			return -1;
+		}
 		p = q;
 	}
+	*vp = v;
+	return n;
+}
+
+static void
+parsechoices(char *t)
+{
+	char *p;
+	long m;
+
+	p = t;
+	while(*p != 0 && strchr("0123456789 \t\n", *p) != nil)
+		p++;
+	if(*p != 0 && (t = slurp(t, &m)) == nil)
+		sysfatal("-r: %r");
+	nreplay = choices(t, &replay);
+	if(nreplay < 0)
+		sysfatal("-r: %r");
+}
+
+static int
+loadregs(void)
+{
+	char *b, *p, *q;
+	long n;
+	int ln;
+
+	if(access(regf, AEXIST) < 0)
+		return 0;
+	b = slurp(regf, &n);
+	if(b == nil){
+		werrstr("%s: %r", regf);
+		return -1;
+	}
+	ln = 0;
+	for(p = b; *p != 0; p = q){
+		ln++;
+		q = strchr(p, '\n');
+		if(q == nil)
+			q = p + strlen(p);
+		else
+			*q++ = 0;
+		if(*p == 0)
+			continue;
+		n = strcspn(p, " ");
+		if(n == 0 || p[n] != ' ' || p[n+1+strspn(p+n+1, "0123456789 ")] != 0){
+			werrstr("%s:%d: not a property's name and choices", regf, ln);
+			free(b);
+			return -1;
+		}
+		if(nregs % 16 == 0)
+			regs = erealloc(regs, (nregs+16)*sizeof regs[0]);
+		regs[nregs++] = _propdup(p);
+	}
+	free(b);
+	return 0;
+}
+
+static void
+savereg(char *name, uvlong *v, int nv)
+{
+	Fmt f;
+	char *t;
+	int fd, i;
+
+	fmtstrinit(&f);
+	fmtprint(&f, "%s", name);
+	for(i = 0; i < nv; i++)
+		fmtprint(&f, " %llud", v[i]);
+	t = fmtstrflush(&f);
+	for(i = 0; i < nregs; i++)
+		if(strcmp(regs[i], t) == 0){
+			free(t);
+			return;
+		}
+	fd = open(regf, OWRITE);
+	if(fd < 0)
+		fd = create(regf, OWRITE, 0666);
+	if(fd < 0 || seek(fd, 0, 2) < 0 || fprint(fd, "%s\n", t) < 0)
+		fprint(2, "%s: -R %s: %r\n", argv0 != nil ? argv0 : "prop", regf);
+	if(fd >= 0)
+		close(fd);
+	if(nregs % 16 == 0)
+		regs = erealloc(regs, (nregs+16)*sizeof regs[0]);
+	regs[nregs++] = t;
 }
 
 void
@@ -119,6 +214,20 @@ propargs(int argc, char **argv)
 		break;
 	case 'b':
 		bytes = (uchar*)slurp(EARGF(usage()), &nbytes);
+		if(bytes == nil)
+			sysfatal("-b: %r");
+		break;
+	case 'f':
+		forking = 1;
+		break;
+	case 't':
+		limit = atoi(EARGF(usage()));
+		forking = 1;
+		break;
+	case 'R':
+		regf = EARGF(usage());
+		if(loadregs() < 0)
+			sysfatal("-R: %r");
 		break;
 	case 'v':
 		verbose++;
@@ -128,6 +237,7 @@ propargs(int argc, char **argv)
 	}ARGEND
 	names = argv;
 	nnames = argc;
+	_propnotify();
 }
 
 void
@@ -200,21 +310,38 @@ cached(Shrink *h, uvlong k, int add)
 	return 0;
 }
 
+static int
+run(Src *s, Prop *p, void *a, char **err)
+{
+	int k;
+
+	if(!forking)
+		return _proprun(s, p, a, err);
+	k = _propfork(s, p, a, err, limit);
+	if(k < 0)
+		sysfatal("%r");
+	return k;
+}
+
 static void
-adopt(Shrink *h, Src *s)
+adopt(Shrink *h, Src *s, char *e)
 {
 	int i;
 
-	h->v = _proprealloc(h->v, (s->nv+1)*sizeof h->v[0]);
-	h->n = _proprealloc(h->n, (s->nv+1)*sizeof h->n[0]);
+	h->v = erealloc(h->v, (s->nv+1)*sizeof h->v[0]);
+	h->n = erealloc(h->n, (s->nv+1)*sizeof h->n[0]);
 	memmove(h->v, s->v, s->nv*sizeof h->v[0]);
 	memmove(h->n, s->n, s->nv*sizeof h->n[0]);
 	h->nv = s->nv;
-	h->sp = _proprealloc(h->sp, (s->nsp+1)*sizeof h->sp[0]);
+	h->sp = erealloc(h->sp, (s->nsp+1)*sizeof h->sp[0]);
 	h->nsp = 0;
 	for(i = 0; i < s->nsp; i++)
 		if(s->sp[i].e > s->sp[i].a)
 			h->sp[h->nsp++] = s->sp[i];
+	free(h->err);
+	h->err = _propdup(e);
+	free(h->notes);
+	h->notes = _propnotes(s);
 }
 
 static uvlong*
@@ -222,7 +349,7 @@ cand(Shrink *h, int n)
 {
 	if(n+1 > h->mc){
 		h->mc = n+1;
-		h->c = _proprealloc(h->c, h->mc*sizeof h->c[0]);
+		h->c = erealloc(h->c, h->mc*sizeof h->c[0]);
 	}
 	return h->c;
 }
@@ -234,7 +361,7 @@ try(Shrink *h, uvlong *c, int nc)
 	uvlong k;
 	char *e;
 
-	if(h->runs >= Maxshrink || !less(c, nc, h->v, h->nv))
+	if(_propstop || h->runs >= Maxshrink || !less(c, nc, h->v, h->nv))
 		return 0;
 	k = hash(c, nc);
 	if(cached(h, k, 0))
@@ -244,12 +371,13 @@ try(Shrink *h, uvlong *c, int nc)
 	s->in = c;
 	s->nin = nc;
 	e = nil;
-	if(_srcrun(s, h->p, h->a, &e) == Fail && less(s->v, s->nv, h->v, h->nv)){
-		adopt(h, s);
-		h->err = e;
+	if(run(s, h->p, h->a, &e) == Fail && !_propstop && less(s->v, s->nv, h->v, h->nv)){
+		adopt(h, s, e);
 		h->steps++;
 		return 1;
 	}
+	if(_propstop)
+		return 0;
 	cached(h, k, 1);
 	return 0;
 }
@@ -474,7 +602,7 @@ shrink(Shrink *h)
 {
 	int ch;
 
-	h->cache = _propalloc(Ncache*sizeof h->cache[0]);
+	h->cache = emalloc(Ncache*sizeof h->cache[0]);
 	do{
 		ch = delspans(h);
 		ch |= delblocks(h);
@@ -483,21 +611,20 @@ shrink(Shrink *h)
 		ch |= lowersame(h);
 		ch |= swaps(h);
 		ch |= shift(h);
-	}while(ch && h->runs < Maxshrink);
+	}while(ch && h->runs < Maxshrink && !_propstop);
 	free(h->cache);
 	h->cache = nil;
 }
 
 static void
-report(char *name, char *err, Src *s, char *how)
+report(char *name, char *err, char *first, char *notes, uvlong *v, int nv, char *how)
 {
-	char *t, *p, *q;
+	char *p, *q;
 	int i;
 
 	print("%s: %s\n", name, err);
-	t = _srcnotes(s);
-	if(t != nil){
-		for(p = t; *p != 0; p = q){
+	if(notes != nil)
+		for(p = notes; *p != 0; p = q){
 			q = strchr(p, '\n');
 			if(q == nil)
 				q = p + strlen(p);
@@ -505,14 +632,33 @@ report(char *name, char *err, Src *s, char *how)
 			if(*q == '\n')
 				q++;
 		}
-		free(t);
-	}
+	if(first != nil && strcmp(first, err) != 0)
+		print("\tfirst failure: %s\n", first);
 	if(how != nil)
 		print("\t%s\n", how);
 	print("\t%s -r '", argv0 != nil ? argv0 : "prop");
-	for(i = 0; i < s->nv; i++)
-		print(i ? " %llud" : "%llud", s->v[i]);
+	for(i = 0; i < nv; i++)
+		print(i ? " %llud" : "%llud", v[i]);
 	print("' %s\n", name);
+}
+
+static void
+stopped(char *name, int runs)
+{
+	print("%s: interrupted after %d runs, with no failure\n", name, runs);
+	exits("interrupted");
+}
+
+static void
+hfree(Shrink *h)
+{
+	free(h->v);
+	free(h->n);
+	free(h->sp);
+	free(h->c);
+	free(h->err);
+	free(h->first);
+	free(h->notes);
 }
 
 static int
@@ -520,44 +666,91 @@ failed(char *name, Prop *p, void *a, Src *s, char *err, char *how)
 {
 	Shrink h;
 	Src *r;
-	char *e, *t;
+	char *e, *t, *n;
 	int k;
 
 	memset(&h, 0, sizeof h);
-	r = _srcnew(Replay);
+	r = _propnew(Replay);
 	h.s = r;
 	h.p = p;
 	h.a = a;
-	h.err = err;
-	adopt(&h, s);
+	h.first = _propdup(err);
+	adopt(&h, s, err);
 	shrink(&h);
-	r->in = h.v;
-	r->nin = h.nv;
+	nfail++;
+	k = Discard;
 	e = nil;
-	k = _srcrun(r, p, a, &e);
+	if(!_propstop){
+		r->in = h.v;
+		r->nin = h.nv;
+		k = run(r, p, a, &e);
+	}
+	if(_propstop){
+		t = smprint("%s; interrupted after %d shrinks in %d runs", how, h.steps, h.runs);
+		report(name, h.err, h.first, h.notes, h.v, h.nv, t);
+		exits("interrupted");
+	}
 	if(k != Fail){
 		print("%s: %s, and then passes on replay\n", name, h.err);
+		hfree(&h);
 		srcfree(r);
-		nfail++;
 		return -1;
 	}
 	t = smprint("%s; %d shrinks in %d runs", how, h.steps, h.runs);
-	report(name, e, r, t);
+	n = _propnotes(r);
+	report(name, e, h.first, n, r->v, r->nv, t);
+	if(regf != nil)
+		savereg(name, r->v, r->nv);
+	free(n);
 	free(t);
-	free(h.v);
-	free(h.n);
-	free(h.sp);
-	free(h.c);
+	hfree(&h);
 	srcfree(r);
-	nfail++;
 	return -1;
+}
+
+static int
+replayregs(char *name, Prop *p, void *a)
+{
+	Src *s;
+	uvlong *v;
+	char *e, *how;
+	int i, n, nr, nv, np, k, bad;
+
+	bad = 0;
+	np = 0;
+	nr = nregs;
+	for(i = 0; i < nr; i++){
+		n = strcspn(regs[i], " ");
+		if(strncmp(regs[i], name, n) != 0 || name[n] != 0)
+			continue;
+		nv = choices(regs[i]+n, &v);
+		s = _propnew(Replay);
+		s->in = v;
+		s->nin = nv;
+		e = nil;
+		k = run(s, p, a, &e);
+		if(_propstop)
+			stopped(name, np);
+		np++;
+		if(k == Fail){
+			how = smprint("from -R %s", regf);
+			failed(name, p, a, s, e, how);
+			free(how);
+			bad = 1;
+		}
+		srcfree(s);
+		free(v);
+	}
+	if(verbose && np > 0 && !bad)
+		print("%s: %d cases from %s pass\n", name, np, regf);
+	return bad ? -1 : 0;
 }
 
 int
 forall(char *name, Prop *p, void *a)
 {
-	Src *s;
-	char *e, *how;
+	Src *s, *m;
+	char *e, *how, *n;
 	int i, nd, k;
 
 	if(!named(name))
@@ -568,21 +761,29 @@ forall(char *name, Prop *p, void *a)
 	}
 	e = nil;
 	if(nreplay >= 0){
-		s = _srcnew(Replay);
+		s = _propnew(Replay);
 		s->in = replay;
 		s->nin = nreplay;
-		k = _srcrun(s, p, a, &e);
+		k = run(s, p, a, &e);
+		if(_propstop)
+			stopped(name, 0);
 		if(k == Fail){
-			report(name, e, s, nil);
+			n = _propnotes(s);
+			report(name, e, nil, n, s->v, s->nv, nil);
+			free(n);
 			nfail++;
 		}else if(verbose || k == Discard)
 			print("%s: %s on replay\n", name, k == Pass ? "passes" : "discards its choices");
 		srcfree(s);
 		return k == Fail ? -1 : 0;
 	}
+	if(regf != nil && replayregs(name, p, a) < 0)
+		return -1;
 	if(nbytes >= 0){
 		s = srcbytes(bytes, nbytes);
-		k = _srcrun(s, p, a, &e);
+		k = run(s, p, a, &e);
+		if(_propstop)
+			stopped(name, 0);
 		if(k == Fail){
 			k = failed(name, p, a, s, e, "from -b");
 			srcfree(s);
@@ -593,18 +794,23 @@ forall(char *name, Prop *p, void *a)
 		srcfree(s);
 		return 0;
 	}
-	s = _srcnew(Rand);
-	s->x = seed ^ strhash(name);
+	m = _propnew(Rand);
+	m->x = seed ^ strhash(name);
+	s = _propnew(Rand);
 	nd = 0;
+	k = 0;
 	for(i = 0; i < nruns; ){
-		s->size = i*10/nruns + _srcrnd(s)%3;
-		k = _srcrun(s, p, a, &e);
+		s->size = i*10/nruns + _proprnd(m)%3;
+		s->x = _proprnd(m);
+		k = run(s, p, a, &e);
+		if(_propstop)
+			stopped(name, i);
 		if(k == Discard){
 			if(++nd > 10*nruns + 100){
 				print("%s: gave up after %d runs and %d discards\n", name, i, nd);
-				srcfree(s);
 				nfail++;
-				return -1;
+				k = -1;
+				break;
 			}
 			continue;
 		}
@@ -613,12 +819,12 @@ forall(char *name, Prop *p, void *a)
 			how = smprint("found by run %d with -s %llud", i, seed);
 			k = failed(name, p, a, s, e, how);
 			free(how);
-			srcfree(s);
-			return k;
+			break;
 		}
 	}
-	if(verbose)
+	if(k == Pass && verbose)
 		print("%s: %d runs pass, %d discarded\n", name, nruns, nd);
 	srcfree(s);
-	return 0;
+	srcfree(m);
+	return k < 0 ? -1 : 0;
 }
