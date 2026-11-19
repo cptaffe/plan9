@@ -123,9 +123,10 @@ you bind replaces the one it clashes with; its first line updates them (hotkey(1
 ## Files
 
 Drop a file or a directory on the page to open it here, as B3 on its name
-would: text in Acme, a PDF or an image in page, and an MP3, M4A, Ogg, FLAC or WAV plays
-(the browser lets sound start after a click on the page; delete the window to
-stop it). It is kept in the directory drop here.
+would: text in Acme, a PDF or an image in page, and an MP3, M4A, Ogg, FLAC or WAV
+plays in deck, a window with a scrub bar, which adds each sound dropped after it
+to its playlist (the browser lets sound start after a click on the page; space
+pauses, and button 3's Exit stops it). It is kept in the directory drop here.
 To save a file to your computer, run `download file`.
 !
 
