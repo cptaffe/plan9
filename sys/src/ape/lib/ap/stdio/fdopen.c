@@ -14,12 +14,14 @@
  */
 FILE *fdopen(const int fd, const char *mode){
 	FILE *f;
+	if(fd==-1) return NULL;
 	for(f=_IO_stream;f!=&_IO_stream[FOPEN_MAX];f++)
-		if(f->state==CLOSED)
+		if(f->state==CLOSED && ftrylockfile(f)==0){
+			funlockfile(f);
 			break;
+		}
 	if(f==&_IO_stream[FOPEN_MAX])
 		return NULL;
-	if(fd==-1) return NULL;
 	f->fd=fd;
 	f->flags=0;
 	f->state=OPEN;
