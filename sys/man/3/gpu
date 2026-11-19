@@ -291,5 +291,7 @@ plan9web's
 .SH BUGS
 A lost device ends every session that has it:
 their writes fail, and so do their reads, fences among them,
-that the GPU had not done.
-A session opened after it asks the browser for a new adapter and device.
+that the GPU had not done,
+and the names of its buffers go.
+A session opened after it asks the browser for a new adapter and device,
+and a session whose device is lost before it has used it asks once more.
