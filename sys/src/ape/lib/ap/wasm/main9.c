@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 extern void _envsetup(void);
+extern void __wasm_call_ctors(void);
 extern char __stack_high[];
 
 /* the program's name, as BSD's err.h (libbsd) has it */
@@ -35,6 +36,7 @@ _start(void)
 	argv = (char**)(a+1);
 	if(argc > 0)
 		__progname = argv[0];
+	__wasm_call_ctors();
 	if(__main_argc_argv)
 		r = __main_argc_argv(argc, argv);
 	else if(__main_void)
