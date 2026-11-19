@@ -107,6 +107,23 @@ A byte that is not UTF-8 is its byte's token.
 .B Embed
 gives the model's last hidden state, the mean over the span's tokens, of unit length.
 .PP
+.B Freq
+gives each token's slot by
+.IR lmsim (4)'s
+rule, with each token's probability from a softmax, in double precision, of the model's
+logits.
+The engine runs a block a token at a time, from the start-of-text token, when it encodes as
+when it decodes, so the two add the same sums in the same order, and on the CPU in wasm those
+sums are the same on every machine.
+It keeps each block of a set in a sequence of its own, and runs a block that has lost its
+sequence to another again from its start.
+A block is at most
+.B ctx
++ 4096 tokens.
+The engine takes
+.BR freq 's
+work a few tokens at a time, and the other files' requests go first.
+.PP
 .B Ctl
 takes
 .BR model ,
@@ -150,7 +167,7 @@ The packages are downloads: Granite-4.0-H-350M is 366 MB and Qwen3-0.6B 639 MB.
 .IR pkg (1),
 .B doc/words.md
 .SH BUGS
-.B Freq
-is not served yet.
+A set of more blocks than the engine has sequences runs each block again from its start at
+every step, and takes time in proportion to the square of its length.
 The engine scores one part at a time, not parts in batches.
 On the CPU in wasm, a model of half a billion weights scores 5 to 15 tokens a second.
