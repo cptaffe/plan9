@@ -851,10 +851,18 @@ tcomx(Node *n)
 	l = invert(n->left);
 	n->left = l;
 	al = &n->left;
+	ar = nil;
 	for(t = n->type->link; t != T; t = t->down) {
 		if(l == Z) {
-			diag(n, "constructor list too short");
-			return 1;
+			if(ar == nil || typesu[t->etype] || t->etype == TARRAY) {
+				diag(n, "constructor list too short");
+				return 1;
+			}
+			l = new(OCONST, Z, Z);
+			l->vconst = 0;
+			l->type = types[TINT];
+			*ar = new(OLIST, *ar, l);
+			al = &(*ar)->right;
 		}
 		if(l->op == OLIST) {
 			r = l->left;

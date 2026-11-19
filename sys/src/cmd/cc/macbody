@@ -572,6 +572,10 @@ macinc(void)
 		if(f >= 0)
 			break;
 	}
+	if(f < 0 && str[0] == '/' && (hp = getenv("ccroot")) != nil && *hp != 0){
+		snprint(symb, NSYMB, "%s%s", hp, str);
+		f = open(symb, 0);
+	}
 	if(f < 0)
 		strcpy(symb, str);
 	c = strlen(symb) + 1;

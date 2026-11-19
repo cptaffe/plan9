@@ -75,5 +75,6 @@ char*	anames[] =
 	"TEXT",
 	"END",
 	"SIGNAME",
+	"DECL",
 	"LAST",
 };

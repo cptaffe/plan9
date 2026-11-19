@@ -13,6 +13,9 @@ long	stacksize = STACK;
 int	debug[128];
 char**	exports;
 int	nexport;
+int	rflag;
+Rel*	rels;
+int	nrel;
 Sym*	cursym;
 static	int	version;
 static	char*	filen;
@@ -23,11 +26,14 @@ static	int	nlibrary;
 static	int	libloaded;
 static	char*	frog[64];
 static	int	nfrog;
+static	Sym**	work;
+static	int	nwork, mwork;
+static	int	quiet;
 
 void
 usage(void)
 {
-	fprint(2, "usage: zl [-alsv] [-o out] [-D stack] [-E entry] [-L dir] [-x name] file.z ...\n");
+	fprint(2, "usage: zl [-alrsv] [-o out] [-D stack] [-E entry] [-L dir] [-x name] file.z ...\n");
 	exits("usage");
 }
 
@@ -58,6 +64,10 @@ main(int argc, char *argv[])
 	case 'p':
 		fprint(2, "zl: profiling is not supported\n");
 		exits("usage");
+	case 'r':
+		rflag = 1;
+		debug['l'] = 1;
+		break;
 	default:
 		c = ARGC();
 		if(c >= 0 && c < nelem(debug))
@@ -96,7 +106,10 @@ main(int argc, char *argv[])
 		errorexit();
 	if(debug['v'])
 		fprint(2, "%5.2f asmb\n", cputime());
-	asmb();
+	if(rflag)
+		asmr();
+	else
+		asmb();
 	if(nerrors)
 		errorexit();
 	exits(0);
@@ -426,22 +439,34 @@ ldobj(char *file)
 	free(buf);
 }
 
+static void
+unreach(void)
+{
+	Sym *s;
+	int i;
+
+	for(i=0; i<NHASH; i++)
+		for(s = hash[i]; s != S; s = s->hash)
+			s->reach = 0;
+	nwork = 0;
+}
+
 void
 loadlib(void)
 {
 	int i, more;
 	Sym *s;
 
-	lookup(entry, 0)->ref = 1;
-	for(i=0; i<nexport; i++)
-		lookup(exports[i], 0)->ref = 1;
 	do {
 		more = 0;
+		quiet = 1;
+		reach();
+		quiet = 0;
 		for(i=0; i<ndef; i++) {
 			if(defs[i].m->loaded)
 				continue;
 			s = lookup(defs[i].sym, 0);
-			if(!s->ref || s->type != SXREF)
+			if(!s->reach || s->type != SXREF)
 				continue;
 			defs[i].m->loaded = 1;
 			inlib = 1;
@@ -449,6 +474,7 @@ loadlib(void)
 			inlib = 0;
 			more = 1;
 		}
+		unreach();
 	} while(more);
 }
 
@@ -458,8 +484,8 @@ ldbuf(char *file, uchar *buf, long n)
 	int as, i, t;
 	long np, mp;
 	uchar *bp, *ep;
-	Sym *h[NSYM], *s, *curtext;
-	Prog *p, **pcs, *lastp;
+	Sym *h[NSYM], *s, *curtext, *curdecl;
+	Prog *p, **pcs, *lastp, *lastd;
 
 	filen = file;
 	if(!isobj(buf, n)) {
@@ -474,7 +500,9 @@ ldbuf(char *file, uchar *buf, long n)
 	mp = 1024;
 	pcs = malloc(mp*sizeof(Prog*));
 	curtext = S;
+	curdecl = S;
 	lastp = P;
+	lastd = P;
 	while(bp < ep) {
 		as = bp[0];
 		if(as == ASIGNAME) {
@@ -525,6 +553,25 @@ ldbuf(char *file, uchar *buf, long n)
 			continue;
 		case AEND:
 			bp = ep;
+			continue;
+		case ADECL:
+			curtext = S;
+			curdecl = p->from.sym;
+			if(curdecl != S && curdecl->decl != P)
+				curdecl = S;
+			lastd = P;
+			continue;
+		case APARAM:
+		case ARESULT:
+			if(curdecl == S)
+				break;
+			if(lastd == P)
+				curdecl->decl = p;
+			else
+				lastd->link = p;
+			lastd = p;
+			if(as == ARESULT)
+				curdecl = S;
 			continue;
 		case AGLOBL:
 			s = p->from.sym;
@@ -664,15 +711,13 @@ linksym(Sym *s)
 	return 0;
 }
 
-static Sym**	work;
-static int	nwork, mwork;
 
 static void
 mark(Sym *s)
 {
 	if(s == S || s->reach)
 		return;
-	if(s->type == SXREF && !iswasm(s) && !isimport(s) && !linksym(s)) {
+	if(s->type == SXREF && !rflag && !quiet && !iswasm(s) && !isimport(s) && !linksym(s)) {
 		diag("undefined: %s", s->name);
 		s->reach = 1;
 		return;
@@ -700,13 +745,20 @@ reach(void)
 
 	int i;
 
-	s = lookup(entry, 0);
-	if(s->type != STEXT)
-		diag("entry %s not defined", entry);
-	mark(s);
+	if(rflag) {
+		for(s = textp; s != S; s = s->next)
+			mark(s);
+		for(s = datap; s != S; s = s->next)
+			mark(s);
+	} else {
+		s = lookup(entry, 0);
+		if(s->type != STEXT && !quiet)
+			diag("entry %s not defined", entry);
+		mark(s);
+	}
 	for(i=0; i<nexport; i++) {
 		s = lookup(exports[i], 0);
-		if(s->type != STEXT)
+		if(s->type != STEXT && !quiet)
 			diag("export %s not defined", exports[i]);
 		mark(s);
 	}
@@ -735,6 +787,8 @@ reach(void)
 				s->type = SWASM;
 			else if(isimport(s))
 				s->type = SIMPORT;
+			else if(rflag)
+				s->type = SUNDEF;
 			else if(linksym(s))
 				s->type = SLINK;
 			break;

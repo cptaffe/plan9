@@ -1754,18 +1754,6 @@ runproc(void *argvp)
 			sendul(cpid, ret);
 		threadexits("");
 	}
-/* libthread uses execvp so no need to do this */
-#if 0
-	e = av[0];
-	if(e[0]=='/' || (e[0]=='.' && e[1]=='/'))
-		goto Fail;
-	if(cputype){
-		sprint(buf, "%s/%s", cputype, av[0]);
-		procexec(cpid, sfd, buf, av);
-	}
-	sprint(buf, "/bin/%s", av[0]);
-	procexec(cpid, sfd, buf, av);
-#endif
 	goto Fail;
 
 Hard:
