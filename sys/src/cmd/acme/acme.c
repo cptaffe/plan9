@@ -543,6 +543,7 @@ keyboardthread(void *)
 		switch(alt(alts)){
 		case KTimer:
 			timerstop(timer);
+			timer = nil;
 			t = typetext;
 			if(t!=nil && t->what==Tag){
 				winlock(t->w, 'K');
