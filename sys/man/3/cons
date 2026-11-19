@@ -361,7 +361,7 @@ is 4 gigabytes.
 A page is 65536 bytes, the unit by which wasm grows a program's memory.
 .B User
 counts the pages of the programs' memories.
-It counts each memory once, as of its program's last system call.
+It counts each memory once, as of its program's last system call, or a child's fork, and never more than the total.
 Nothing swaps and the kernel reclaims no pages.
 It does not count its own memory.
 So kernel, swap, reclaim's first number and the kernel's arenas are zero.
