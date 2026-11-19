@@ -26,6 +26,8 @@ struct Thr {
 	char *abuf;
 	char *tls;
 	Waiter *joinq;
+	Waiter **q;
+	Waiter *w;
 	void *keys[PTHREAD_KEYS_MAX];
 };
 
@@ -37,6 +39,7 @@ extern Thr *_thrself(void);
 extern Thr *_thrget(pthread_t);
 extern void _thrwait(Waiter **, Waiter *);
 extern int _thrwake(Waiter **);
+extern void _thrleave(Thr *);
 extern int _thrsignal(pthread_t, int);
 extern int (*_thrkill)(pthread_t, int);
 extern void _thrfree(Thr *);

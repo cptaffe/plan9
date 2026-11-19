@@ -55,6 +55,7 @@ p9web_fiber_gone(void *v)
 	Thr *t;
 
 	t = v;
+	_thrleave(t);
 	t->ret = NULL;
 	t->done = 1;
 	_nalive--;

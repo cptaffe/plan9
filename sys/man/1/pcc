@@ -222,6 +222,10 @@ post the note to the calling thread's own process, whose handler runs there.
 posts it to the thread's.
 A note whose default action ends the process ends the program,
 from any thread, with the note as its status.
+A thread that a handler ends in a wait, or that a handler takes out of one by
+.IR longjmp ,
+leaves the wait's queue and passes on a wakeup it had;
+a lock it held stays held.
 .SH FILES
 .TF /$objtype/lib/ape/libap.a
 .TP
