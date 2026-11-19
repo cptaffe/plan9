@@ -409,9 +409,13 @@ With no
 .IR file ,
 it draws the window it is run from,
 .BR $winid ;
-with one, outside a window, or in a window whose events another program reads, as in
-.IR win ,
-it opens a new window,
+with one, outside a window, or in a window whose
+.B event
+another program holds through
+.IR amux (4),
+as
+.I win
+does, it opens a new window,
 with the file's text if it exists.
 Dot is acme's: stepping through the game moves it,
 so the text shows the same move when
