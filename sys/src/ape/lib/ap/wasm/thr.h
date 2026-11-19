@@ -22,6 +22,7 @@ struct Thr {
 	void *arg;
 	char *stk;
 	char *abuf;
+	char *tls;
 	Waiter *joinq;
 	void *keys[PTHREAD_KEYS_MAX];
 };

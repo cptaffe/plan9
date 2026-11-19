@@ -9,6 +9,7 @@ OFILES=\
 	cmul.$O\
 	cycles.$O\
 	divti3.$O\
+	errno.$O\
 	execl.$O\
 	execle.$O\
 	execlp.$O\

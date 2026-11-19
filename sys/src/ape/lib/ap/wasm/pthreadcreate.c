@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include "thr.h"
 
 #define F(name)	__attribute__((import_module("p9web"), import_name(#name)))
@@ -16,6 +17,7 @@ enum {
 F(fiber_new) extern int p9web_fiber_new(void (*)(void *), void *, void *, int, void *, int, int);
 F(fiber_setdata) extern void p9web_fiber_setdata(void *);
 F(fiber_exit) extern void p9web_fiber_exit(void);
+extern void __wasm_init_tls(void *);
 
 
 __attribute__((export_name("p9web_fiber_main"))) void
@@ -29,8 +31,11 @@ static void
 start(void *v)
 {
 	Thr *t;
+	uintptr_t a;
 
 	t = v;
+	a = __builtin_wasm_tls_align();
+	__wasm_init_tls((void*)(((uintptr_t)t->tls + a-1) & ~(a-1)));
 	p9web_fiber_setdata(t);
 	pthread_exit(t->f(t->arg));
 }
@@ -44,6 +49,7 @@ reap(void)
 		_thrdead = (Thr*)t->ret;
 		free(t->stk);
 		free(t->abuf);
+		free(t->tls);
 		free(t);
 	}
 }
@@ -61,7 +67,8 @@ pthread_create(pthread_t *id, const pthread_attr_t *a, void *(*f)(void *), void 
 	n = a != NULL && a->stacksize? a->stacksize: Thrstack;
 	t->stk = malloc(n);
 	t->abuf = malloc(Thrabuf);
-	if(t->stk == NULL || t->abuf == NULL)
+	t->tls = malloc(__builtin_wasm_tls_size() + __builtin_wasm_tls_align());
+	if(t->stk == NULL || t->abuf == NULL || t->tls == NULL)
 		goto Nomem;
 	for(i = 0; i < _nthr && _thr[i] != NULL; i++)
 		;
@@ -87,6 +94,7 @@ pthread_create(pthread_t *id, const pthread_attr_t *a, void *(*f)(void *), void 
 Nomem:
 	free(t->stk);
 	free(t->abuf);
+	free(t->tls);
 	free(t);
 	return EAGAIN;
 }

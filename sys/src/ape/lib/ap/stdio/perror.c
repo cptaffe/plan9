@@ -2,6 +2,7 @@
  * pANS stdio -- perror
  */
 #include "iolib.h"
+#include <errno.h>
 void perror(const char *s){
 	extern int errno;
 	if(s!=NULL && *s != '\0') fputs(s, stderr), fputs(": ", stderr);

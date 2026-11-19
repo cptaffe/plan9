@@ -15,7 +15,8 @@ struct List {
 	Fn fn0[NONEXIT];
 };
 
-static List ex, th;
+static List ex;
+static _Thread_local List th;
 
 static int
 add(List *l, void (*f)(void), void (*g)(void *), void *a)
@@ -72,6 +73,16 @@ run(List *l)
 		else
 			(*e.g)(e.a);
 	}
+}
+
+void
+_doatthrexits(void)
+{
+	run(&th);
+	if(th.fn != th.fn0)
+		free(th.fn);
+	th.fn = NULL;
+	th.m = 0;
 }
 
 void

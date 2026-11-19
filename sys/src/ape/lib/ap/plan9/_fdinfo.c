@@ -1,5 +1,6 @@
 #define  _BSDTIME_EXTENSION
 #include "lib.h"
+#include <errno.h>
 #include <sys/stat.h>
 #include <stdlib.h>
 #include "sys9.h"
