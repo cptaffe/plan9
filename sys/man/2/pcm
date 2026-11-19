@@ -159,11 +159,11 @@ output channel.
 If it has fewer, it writes its first channel to each output channel.
 .PP
 .I Pcmratio
-gives the size of the buffer that
+gives the most bytes
 .I pcmconv
-needs for its output when its input is at most
+can write when it is given at most
 .I insz
-bytes.
+bytes, with the partial frame it may hold from its last call.
 It returns \-1 and sets the error string if
 .I insz
 is less than a frame of the input.
@@ -188,13 +188,3 @@ gives it back with
 .SH SEE ALSO
 .IR audio (1),
 .IR audio (3)
-.SH BUGS
-.I Pcmratio
-can give too little when the output rate is much lower than the input's:
-for 1000 bytes from
-.B s32c8r48000
-to
-.BR U24c2r8000 ,
-it gives 32 bytes, and
-.I pcmconv
-can write 36.

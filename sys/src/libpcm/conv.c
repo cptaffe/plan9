@@ -651,7 +651,7 @@ conv(Pcmconv *c, uchar *in, uchar *out0, int insz)
 		}
 		if(m > 0)
 			out += m * o->framesz;
-		if(n == 0)
+		if(nin == 0)
 			break;
 		in += n * i->framesz;
 	}
@@ -664,7 +664,7 @@ pcmconv(Pcmconv *c, void *in0, void *out0, int insz)
 {
 	uchar *in, *out;
 	Pcmdesc *i;
-	int n;
+	int n, sz;
 
 	if(c->flags & Fcopy){
 		memmove(out0, in0, insz);
@@ -673,6 +673,7 @@ pcmconv(Pcmconv *c, void *in0, void *out0, int insz)
 	i = &c->idesc;
 	in = in0;
 	out = out0;
+	sz = insz;
 	if(c->nbuf > 0){
 		n = i->framesz - c->nbuf;
 		if(n > insz)
@@ -689,7 +690,8 @@ pcmconv(Pcmconv *c, void *in0, void *out0, int insz)
 
 	n = insz % i->framesz;
 	insz -= n;
-	out += conv(c, in, out, insz);
+	if(insz > 0 || sz == 0)
+		out += conv(c, in, out, insz);
 	if(n > 0){
 		memcpy(c->buf, in+insz, n);
 		c->nbuf += n;
@@ -701,15 +703,21 @@ pcmconv(Pcmconv *c, void *in0, void *out0, int insz)
 int
 pcmratio(Pcmconv *c, int insz)
 {
-	int outsz, fsz;
+	uvlong n;
+	int fsz;
 
 	fsz = c->idesc.framesz;
 	if(insz < fsz)
 		goto Bad;
-	insz = (insz + fsz)/fsz;
-	outsz = ((uvlong)insz * c->odesc.framesz * ((uvlong)c->odesc.rate<<Np)/c->idesc.rate) >> Np;
-	if(outsz >= c->odesc.framesz)
-		return outsz;
+	n = ((uvlong)insz + fsz-1)/fsz;
+	if(c->ch[0].ρ != One){
+		if(c->ch[0].tΔ == 0)
+			goto Bad;
+		n = ((n<<Np) + c->ch[0].tΔ-1) / c->ch[0].tΔ;
+	}
+	n *= c->odesc.framesz;
+	if(n <= MAXINT)
+		return n;
 Bad:
 	werrstr("invalid buffer size: %d", insz);
 	return -1;
