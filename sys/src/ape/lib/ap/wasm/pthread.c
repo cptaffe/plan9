@@ -25,6 +25,8 @@ int _nthr, _nalive = 1;
 
 Thr *_thrdead;
 
+extern void _doatthrexits(void);
+
 void
 _thrfree(Thr *t)
 {
@@ -203,6 +205,7 @@ pthread_exit(void *r)
 	struct timespec ms = {0, 1000000};
 
 	t = _thrself();
+	_doatthrexits();
 	dtors(t);
 	if(t == &_thrmain){
 		while(_nalive > 1)

@@ -187,6 +187,13 @@ or
 .IR nanosleep ;
 then another may run.
 A program with threads is rewritten by asyncify at those calls.
+.I Errno
+and
+.B _Thread_local
+variables are each thread's;
+destructors of C++'s
+.B thread_local
+objects run when their thread ends.
 .SH FILES
 .TF /$objtype/lib/ape/libap.a
 .TP
@@ -230,11 +237,7 @@ No thread is preempted: one that spins on a variable another thread sets,
 with no call that waits and no
 .IR sched_yield ,
 never lets that thread run, and hangs.
-.I Errno
-and the stdio buffers are the process's, not each thread's:
-read
-.I errno
-before the next call that may wait.
+The stdio buffers are the process's.
 A program with threads cannot
 .IR fork ;
 .I posix_spawn
