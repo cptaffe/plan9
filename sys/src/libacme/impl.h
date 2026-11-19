@@ -5,3 +5,4 @@ int*	_winfd(Win*, char*);
 int	_winguarded(char*);
 int	_wfid(Win*, char*);
 char*	_winpath(Win*, char*, char*, int);
+char*	_winevsmprint(char*, va_list);

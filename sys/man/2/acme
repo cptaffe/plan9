@@ -30,11 +30,7 @@ winseq,
 winseqopen,
 winseqwrite,
 winwrite,
-winwriteevent,
-emalloc,
-erealloc,
-estrdup,
-evsmprint \- acme client library
+winwriteevent \- acme client library
 .SH SYNOPSIS
 .ft L
 .nf
@@ -154,18 +150,6 @@ int	winseqopen(Win *w, char *file, int seq, int mode)
 .PP
 .B
 int	winseqwrite(Win *w, int seq, char *addr, void *a, int n)
-.PP
-.B
-void*	emalloc(uint n)
-.PP
-.B
-void*	erealloc(void *v, uint n)
-.PP
-.B
-char*	estrdup(char *s)
-.PP
-.B
-char*	evsmprint(char *fmt, va_list arg)
 .SH DESCRIPTION
 .I Libacme
 is plan9port's library for programs that use
@@ -589,34 +573,29 @@ These three use
 .IR thread (2)'s
 .IR threadspawnl .
 .PP
-.IR Emalloc ,
+Unlike plan9port's, the library does not define
+.I emalloc
+and
 .IR erealloc ,
-.IR estrdup
+nor provide
+.IR estrdup :
+the program provides the first two, as Plan 9's programs have their own, with the types
+.B acme.h
+gives:
+.IP
+.EX
+void*	emalloc(ulong n)
+void*	erealloc(void *v, ulong n)
+.EE
+.PP
+Neither returns if the memory cannot be had, and
+.I emalloc
+returns its memory zeroed.
+The library allocates its
+.BR Win s
 and
-.I evsmprint
-are
-.IR malloc (2)'s
-.I mallocz
-(with
-.I clr
-set),
-.IR realloc ,
-.I strdup
-and
-.I vsmprint
-(see
-.IR print (2)),
-but they call
-.I sysfatal
-(see
-.IR perror (2))
-when they would return nil.
-A program that defines its own
-.IR emalloc ,
-.I erealloc
-and
-.IR estrdup ,
-of these types, uses them in place of the library's, and so does the library.
+.IR winmread 's
+buffers with them.
 .PP
 The other functions that use a window's file call
 .I sysfatal
