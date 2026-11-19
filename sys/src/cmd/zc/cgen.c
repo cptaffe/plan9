@@ -42,6 +42,10 @@ cgen(Node *n, Node *nn)
 		gmove(n, nn);
 		return;
 	}
+	if(vecop(o) || n->type->etype == TVEC) {
+		vcgen(n, nn);
+		return;
+	}
 	curs = cursafe;
 
 	if(n->complex >= FNX)

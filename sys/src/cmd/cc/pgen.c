@@ -23,6 +23,8 @@ codgen(Node *n, Node *nn)
 			break;
 	}
 	nearln = nn->lineno;
+	if(vecwidth > 0 && !debug['Q'])
+		vecfn(n);
 	gpseudo(ATEXT, n1->sym, nodconst(stkoff));
 	sp = p;
 
