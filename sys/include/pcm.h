@@ -25,3 +25,6 @@ Pcmconv	*allocpcmconv(Pcmdesc *in, Pcmdesc *out);
 void	freepcmconv(Pcmconv *c);
 int	pcmconv(Pcmconv *c, void *in0, void *out0, int insz);
 int	pcmratio(Pcmconv *c, int insz);
+
+extern void*	emalloc(ulong);
+extern void*	erealloc(void*, ulong);

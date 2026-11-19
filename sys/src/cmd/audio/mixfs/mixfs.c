@@ -54,6 +54,26 @@ int	fmtchanged;
 int	isnulldev;
 int delay;
 
+void*
+emalloc(ulong n)
+{
+	void *p;
+
+	p = mallocz(n, 1);
+	if(p == nil)
+		sysfatal("out of memory");
+	return p;
+}
+
+void*
+erealloc(void *p, ulong n)
+{
+	p = realloc(p, n);
+	if(p == nil)
+		sysfatal("out of memory");
+	return p;
+}
+
 int
 s16(uchar *p)
 {

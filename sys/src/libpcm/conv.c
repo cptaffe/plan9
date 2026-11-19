@@ -63,7 +63,7 @@ clip(vlong v)
 }
 
 static int
-chaninit(Chan *c, int irate, int orate, int count, uintptr caller)
+chaninit(Chan *c, int irate, int orate, int count)
 {
 	static int h[] = {
 #include "fir.h"
@@ -98,12 +98,7 @@ chaninit(Chan *c, int irate, int orate, int count, uintptr caller)
 	c->ix = c->wx;
 	c->t = c->ix<<Np;
 	c->nx = c->wx*2 + count;
-	c->x = mallocz(sizeof(c->x[0]) * c->nx, 1);
-	if(c->x == nil){
-		werrstr("memory");
-		return -1;
-	}
-	setmalloctag(c->x, caller);
+	c->x = emalloc(sizeof(c->x[0]) * c->nx);
 	count += c->nx; /* account for buffer accumulation */
 Done:
 	return ((uvlong)count * c->ρ) >> Np;
@@ -532,7 +527,6 @@ foconv(int *src, uchar *dst, int bits, int skip, int count)
 Pcmconv	*
 allocpcmconv(Pcmdesc *i, Pcmdesc *o)
 {
-	uintptr caller;
 	Pcmconv *c;
 	int k, nout;
 
@@ -545,17 +539,10 @@ allocpcmconv(Pcmdesc *i, Pcmdesc *o)
 		return nil;
 	}
 
-	caller = getcallerpc(&i);
-	c = mallocz(sizeof(*c) + i->channels*sizeof(Chan) + i->framesz, 1);
-	if(c == nil){
-Nomem:
-		werrstr("memory");
-		goto Err;
-	}
-	setmalloctag(c, caller);
+	c = emalloc(sizeof(*c) + i->channels*sizeof(Chan) + i->framesz);
 	memcpy(&c->idesc, i, sizeof(*i));
 	memcpy(&c->odesc, o, sizeof(*o));
-	c->buf = (uchar*)&c->ch[i->channels+1];
+	c->buf = (uchar*)&c->ch[i->channels];
 
 	switch(i->fmt){
 	case L's': c->iconv = siconv; break;
@@ -590,23 +577,14 @@ Nomem:
 		&& i->fmt == o->fmt
 	) ? Fcopy : 0;
 
-	c->in = malloc(sizeof(int) * Nin);
-	if(c->in == nil)
-		goto Nomem;
-	setmalloctag(c->in, caller);
+	c->in = emalloc(sizeof(int) * Nin);
 
 	nout = 0;
-	for(k=0; k < i->channels; k++){
-		nout = chaninit(&c->ch[k], i->rate, o->rate, Nin, caller);
-		if(nout < 0)
-			goto Err;
-	}
+	for(k=0; k < i->channels; k++)
+		nout = chaninit(&c->ch[k], i->rate, o->rate, Nin);
 
 	/* out is also used for mixing before resampling, so needs to be max(Nin, nout) */
-	c->out = malloc(sizeof(int) * (nout > Nin ? nout : Nin));
-	if(c->out == nil)
-		goto Nomem;
-	setmalloctag(c->out, caller);
+	c->out = emalloc(sizeof(int) * (nout > Nin ? nout : Nin));
 
 	return c;
 Err:
