@@ -222,7 +222,7 @@ _winfd(Win *w, char *name)
 }
 
 int
-_wfid(Win *w, char *name)
+_winfid(Win *w, char *name)
 {
 	int *fd, r;
 
@@ -278,7 +278,7 @@ winctl(Win *w, char *fmt, ...)
 	va_start(arg, fmt);
 	s = _winevsmprint(fmt, arg);
 	va_end(arg);
-	fd = _wfid(w, "ctl");
+	fd = _winfid(w, "ctl");
 	if(w->clone < 0){
 		n = pwrite(fd, s, strlen(s), 0);
 		free(s);
@@ -327,7 +327,7 @@ winprint(Win *w, char *name, char *fmt, ...)
 	va_start(arg, fmt);
 	s = _winevsmprint(fmt, arg);
 	va_end(arg);
-	n = write(_wfid(w, name), s, strlen(s));
+	n = write(_winfid(w, name), s, strlen(s));
 	free(s);
 	return n;
 }
@@ -342,7 +342,7 @@ winaddr(Win *w, char *fmt, ...)
 	va_start(arg, fmt);
 	s = _winevsmprint(fmt, arg);
 	va_end(arg);
-	n = write(_wfid(w, "addr"), s, strlen(s));
+	n = write(_winfid(w, "addr"), s, strlen(s));
 	free(s);
 	return n;
 }
@@ -354,7 +354,7 @@ winreadaddr(Win *w, uint *q1)
 	uint q0;
 	int n;
 
-	n = pread(_wfid(w, "addr"), buf, sizeof buf-1, 0);
+	n = pread(_winfid(w, "addr"), buf, sizeof buf-1, 0);
 	if(n <= 0)
 		return -1;
 	buf[n] = 0;
@@ -367,13 +367,13 @@ winreadaddr(Win *w, uint *q1)
 int
 winread(Win *w, char *file, void *a, int n)
 {
-	return read(_wfid(w, file), a, n);
+	return read(_winfid(w, file), a, n);
 }
 
 int
 winwrite(Win *w, char *file, void *a, int n)
 {
-	return write(_wfid(w, file), a, n);
+	return write(_winfid(w, file), a, n);
 }
 
 char*
@@ -385,7 +385,7 @@ winmread(Win *w, char *file)
 	m = 128;
 	buf = emalloc(m+1);
 	tot = 0;
-	while((n = read(_wfid(w, file), buf+tot, m-tot)) > 0){
+	while((n = read(_winfid(w, file), buf+tot, m-tot)) > 0){
 		tot += n;
 		if(tot >= m){
 			m += 128;
@@ -407,7 +407,7 @@ winseek(Win *w, char *file, vlong n, int type)
 		w->eb.n = 0;
 	else if(strcmp(file, "rdevent") == 0)
 		w->rb.n = 0;
-	return seek(_wfid(w, file), n, type);
+	return seek(_winfid(w, file), n, type);
 }
 
 int
@@ -416,7 +416,7 @@ winwriteevent(Win *w, Event *e)
 	char buf[100];
 
 	snprint(buf, sizeof buf, "%c%c%d %d \n", e->c1, e->c2, e->q0, e->q1);
-	return write(_wfid(w, "event"), buf, strlen(buf));
+	return write(_winfid(w, "event"), buf, strlen(buf));
 }
 
 int

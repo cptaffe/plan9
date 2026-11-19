@@ -111,13 +111,13 @@ readev(int fd, Winbuf *b, Event *e, Event *x)
 int
 winreadevent(Win *w, Event *e)
 {
-	return readev(_wfid(w, "event"), &w->eb, e, &w->e2);
+	return readev(_winfid(w, "event"), &w->eb, e, &w->e2);
 }
 
 int
 winreadrdevent(Win *w, Event *e)
 {
-	return readev(_wfid(w, "rdevent"), &w->rb, e, &w->r2);
+	return readev(_winfid(w, "rdevent"), &w->rb, e, &w->r2);
 }
 
 int
