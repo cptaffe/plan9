@@ -61,7 +61,7 @@ enum
 	Displaybufsize	= 8000,
 	ICOSSCALE	= 1024,
 	Borderwidth =	4,
-	DefaultDPI	= 133,	/* over this, sizes in pixels scale: scalesize */
+	DefaultDPI	= 116,	/* over this, sizes in pixels scale: scalesize; plan9port's 133 at 110 for its 96 */
 };
 
 enum
