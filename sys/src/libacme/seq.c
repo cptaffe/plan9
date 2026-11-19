@@ -20,9 +20,14 @@ winseq(Win *w)
 	if((fd = _winopen(w, "seq", OREAD)) < 0)
 		return -1;
 	n = read(fd, buf, sizeof buf-1);
-	close(fd);
-	if(n <= 0)
+	if(n <= 0){
+		if(n == 0)
+			werrstr("eof");
+		werrstr("read seq: %r");
+		close(fd);
 		return -1;
+	}
+	close(fd);
 	buf[n] = 0;
 	return atoi(buf);
 }
@@ -38,11 +43,14 @@ winseqopen(Win *w, char *file, int seq, int mode)
 	n = snprint(s, sizeof s, "%d", seq);
 	fd = -1;
 	qlock(&_winseqlk);
-	if((sfd = open(buf, OWRITE)) >= 0){
-		if(write(sfd, s, n) == n && _winpath(w, file, buf, sizeof buf) != nil)
-			fd = open(buf, mode);
+	if((sfd = open(buf, OWRITE)) < 0)
+		werrstr("open %s: %r", buf);
+	else if(write(sfd, s, n) != n)
+		werrstr("write %s: %r", buf);
+	else if(_winpath(w, file, buf, sizeof buf) != nil && (fd = open(buf, mode)) < 0)
+		werrstr("open %s: %r", buf);
+	if(sfd >= 0)
 		close(sfd);
-	}
 	qunlock(&_winseqlk);
 	return fd;
 }
@@ -64,6 +72,7 @@ winseqwrite(Win *w, int seq, char *addr, void *a, int n)
 		while(m+k < n && k > 0 && (s[m+k]&0xC0) == 0x80)
 			k--;
 		if(write(fd, s+m, k) != k){
+			werrstr("write data: %r");
 			close(fd);
 			return -1;
 		}

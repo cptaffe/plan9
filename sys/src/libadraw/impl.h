@@ -88,6 +88,7 @@ struct Tagx
 };
 
 char*	_adrawstrdup(char*);
+char*	_adrawvsmprint(char*, va_list);
 char*	_adrawsmprint(char*, ...);
 Rune*	_adrawrunesmprint(char*, ...);
 char*	_adrawquote(char*);

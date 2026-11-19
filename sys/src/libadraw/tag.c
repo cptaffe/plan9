@@ -335,8 +335,6 @@ insert(Tagx *t, uint q, Rune *r, int n)
 	if(q > t->ns)
 		q = t->ns;
 	t->s = erealloc(t->s, (t->ns+n+1)*sizeof(Rune));
-	if(t->s == nil)
-		sysfatal("tag: %r");
 	memmove(t->s+q+n, t->s+q, (t->ns-q)*sizeof(Rune));
 	memmove(t->s+q, r, n*sizeof(Rune));
 	t->ns += n;
@@ -2117,12 +2115,30 @@ tagopen(Mousectl *mc, Keyboardctl *kc, char *name)
 {
 	Tag *tg;
 	Tagx *t;
-	Image *cols[NCOL];
+	Image *cols[NCOL], *im[4];
+	int i, n;
 
+	themecols(cols);
+	im[0] = allocimage(display, Rect(0,0,1,1), screen->chan, 0, DWhite);
+	im[1] = colimage(themecolor("but2", 0xAA0000FF));
+	im[2] = colimage(themecolor("but3", 0x006600FF));
+	im[3] = colimage(themecolor("modbutton", DMedblue));
+	n = 0;
+	for(i=0; i<NCOL; i++)
+		n += cols[i] == nil;
+	for(i=0; i<nelem(im); i++)
+		n += im[i] == nil;
+	if(n > 0){
+		for(i=0; i<NCOL; i++)
+			if(cols[i] != display->black)
+				freeimage(cols[i]);
+		for(i=0; i<nelem(im); i++)
+			freeimage(im[i]);
+		werrstr("tag colors: %r");
+		return nil;
+	}
 	tg = emalloc(sizeof *tg);
 	t = emalloc(sizeof *t);
-	if(tg == nil || t == nil)
-		return nil;
 	tg->x = t;
 	t->tag = tg;
 	t->mc = mc;
@@ -2147,12 +2163,11 @@ tagopen(Mousectl *mc, Keyboardctl *kc, char *name)
 	t->expand = 1;
 	t->f = emalloc(sizeof(Frame));
 	t->g = emalloc(sizeof(Frame));
-	themecols(cols);
 	memmove(t->f->cols, cols, sizeof cols);
-	t->gb = allocimage(display, Rect(0,0,1,1), screen->chan, 0, DWhite);
-	t->but2 = colimage(themecolor("but2", 0xAA0000FF));
-	t->but3 = colimage(themecolor("but3", 0x006600FF));
-	t->mod = colimage(themecolor("modbutton", DMedblue));
+	t->gb = im[0];
+	t->but2 = im[1];
+	t->but3 = im[2];
+	t->mod = im[3];
 	t->s = _adrawrunesmprint("%s Del Snarf |", name ? name : "");
 	t->ns = runestrlen(t->s);
 	t->q0 = t->q1 = t->ns;
@@ -2220,10 +2235,8 @@ tagctl(Tag *tg, char *fmt, ...)
 		return -1;
 	}
 	va_start(arg, fmt);
-	s = vsmprint(fmt, arg);
+	s = _adrawvsmprint(fmt, arg);
 	va_end(arg);
-	if(s == nil)
-		return -1;
 	r = 0;
 	for(p=s; *p; p=e){
 		if((e = strchr(p, '\n')) != nil)

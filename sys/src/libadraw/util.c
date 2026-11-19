@@ -23,19 +23,27 @@ _adrawstrdup(char *s)
 }
 
 char*
-_adrawsmprint(char *fmt, ...)
+_adrawvsmprint(char *fmt, va_list arg)
 {
-	va_list arg;
 	char *s, *t;
 
-	va_start(arg, fmt);
-	s = vsmprint(fmt, arg);
-	va_end(arg);
-	if(s == nil)
+	if((s = vsmprint(fmt, arg)) == nil)
 		sysfatal("out of memory");
 	t = _adrawstrdup(s);
 	free(s);
 	return t;
+}
+
+char*
+_adrawsmprint(char *fmt, ...)
+{
+	va_list arg;
+	char *s;
+
+	va_start(arg, fmt);
+	s = _adrawvsmprint(fmt, arg);
+	va_end(arg);
+	return s;
 }
 
 Rune*
