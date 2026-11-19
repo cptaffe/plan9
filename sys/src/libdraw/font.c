@@ -129,8 +129,7 @@ agefont(Font *f)
 			if(s->age){
 				if(s->age<SUBFAGE && s->cf->name != nil){
 					/* clean up */
-					if(display &&
-					    s->f != display->defaultsubfont)
+					if(f->display == nil || s->f != f->display->defaultsubfont)
 						freesubfont(s->f);
 					s->cf = nil;
 					s->f = nil;
@@ -212,22 +211,21 @@ loadchar(Font *f, Rune r, Cacheinfo *c, int h, int noflush, char **subfontname)
 		if(f->age-subf->age>SUBFAGE || f->nsubf>MAXSUBF){
     Toss:
 			/* ancient data; toss */
-			freesubfont(subf->f);
+			if(f->display == nil || subf->f != f->display->defaultsubfont)
+				freesubfont(subf->f);
 			subf->cf = nil;
 			subf->f = nil;
 			subf->age = 0;
 		}else{				/* too recent; grow instead */
 			of = f->subf;
-			f->subf = malloc((f->nsubf+DSUBF)*sizeof *subf);
+			f->subf = realloc(of, (f->nsubf+DSUBF)*sizeof *subf);
 			if(f->subf == nil){
 				f->subf = of;
 				goto Toss;
 			}
-			memmove(f->subf, of, (f->nsubf+DSUBF)*sizeof *subf);
-			memset(f->subf+f->nsubf, 0, DSUBF*sizeof *subf);
 			subf = &f->subf[f->nsubf];
+			memset(subf, 0, DSUBF*sizeof *subf);
 			f->nsubf += DSUBF;
-			free(of);
 		}
 	}
 	subf->age = 0;
