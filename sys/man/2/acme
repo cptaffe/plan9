@@ -212,9 +212,10 @@ set, until
 or
 .I winfree
 closes them.
-It opens each file once, under a lock, so procs that share a
+Since it opens a file on its first use, a program uses each window's files from one proc,
+or opens them before it hands the
 .B Win
-may use its files first in any order.
+to another, as plan9port's library expects.
 Closing them ends the window's session, if it has one,
 unless something else still holds a file of it:
 a file descriptor from

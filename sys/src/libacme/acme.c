@@ -6,8 +6,6 @@
 
 static Win *windows;
 static Win *last;
-static QLock fdlk;
-static QLock sesslk;
 QLock _winseqlk;
 
 Win*
@@ -47,22 +45,19 @@ static int
 sess(Win *w)
 {
 	char buf[64], s[16];
-	int n, r;
+	int n;
 
-	qlock(&sesslk);
-	r = 0;
 	if(w->dir[0] != 0)
-		goto Out;
+		return 0;
 	snprint(buf, sizeof buf, "/mnt/amux/%d", w->id);
 	if(access(buf, AEXIST) < 0){
 		snprint(w->dir, sizeof w->dir, "/mnt/acme/%d", w->id);
-		goto Out;
+		return 0;
 	}
-	r = -1;
 	snprint(buf, sizeof buf, "/mnt/amux/%d/clone", w->id);
 	if((w->clone = open(buf, ORDWR|OCEXEC)) < 0){
 		werrstr("open %s: %r", buf);
-		goto Out;
+		return -1;
 	}
 	if((n = read(w->clone, s, sizeof s-1)) <= 0){
 		if(n == 0)
@@ -70,14 +65,11 @@ sess(Win *w)
 		werrstr("read %s: %r", buf);
 		close(w->clone);
 		w->clone = -1;
-		goto Out;
+		return -1;
 	}
 	s[n] = 0;
 	snprint(w->dir, sizeof w->dir, "/mnt/amux/%d/%d", w->id, atoi(s));
-	r = 0;
-Out:
-	qunlock(&sesslk);
-	return r;
+	return 0;
 }
 
 char*
@@ -239,16 +231,13 @@ _winfd(Win *w, char *name)
 int
 _winfid(Win *w, char *name)
 {
-	int *fd, r;
+	int *fd;
 
 	if((fd = _winfd(w, name)) == nil)
 		return -1;
-	qlock(&fdlk);
 	if(*fd < 0)
 		*fd = _winopen(w, name, (strcmp(name, "rdevent") == 0 ? OREAD : ORDWR)|OCEXEC);
-	r = *fd;
-	qunlock(&fdlk);
-	return r;
+	return *fd;
 }
 
 int
