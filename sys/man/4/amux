@@ -1,0 +1,212 @@
+.TH AMUX 4
+.SH NAME
+amux \- sessions on acme's windows, each with its own address
+.SH SYNOPSIS
+.B amux
+[
+.B -Di
+] [
+.B -a
+.I acme
+] [
+.B -m
+.I mtpt
+] [
+.B -s
+.I srvname
+]
+.SH DESCRIPTION
+.I Amux
+lets more than one program edit one
+.IR acme (1)
+window at once.
+A window's
+.BR addr ,
+its limit and the guard written to its
+.B seq
+belong to the window, so each program that writes them moves the others'.
+.I Amux
+gives each program a session on the window, with its own address, limit and guard,
+and makes each session's use of them on acme one step that no other session comes between.
+It posts itself as
+.BI /srv/ srvname
+.RB ( /srv/amux
+by default) and mounts itself on
+.I mtpt
+.RB ( /mnt/amux ).
+It mounts
+.BR $acmesrv ,
+the
+.B /srv
+file of an acme
+(which
+.B acmestart
+sets),
+on
+.I acme
+.RB ( /mnt/acme )
+in a namespace of its own, when a program first looks.
+The
+.B -D
+option prints the 9P messages;
+.B -i
+serves 9P on standard input and output, and posts and mounts nothing.
+.PP
+The top directory has a directory for each of acme's windows, named by the window's ID.
+Each holds:
+.TF clone
+.TP
+.B clone
+Opening it makes a session, and reading it gives the session's number
+.IR n .
+Writing it is writing the session's
+.BR ctl .
+The session lasts while any file of it is open or walked to.
+.TP
+.I n
+The directory of session
+.IR n ,
+which holds the files of acme's window directory, in
+.IR acme (4)'s
+formats.
+.PD
+.PP
+A program that owns a window can bind the session over it,
+.IP
+.EX
+bind /mnt/amux/$winid/$n /mnt/acme/$winid
+.EE
+.PP
+and run as it would on acme.
+In a session:
+.TF limit=addr
+.TP
+.B addr
+is the session's, as acme's is the window's:
+the first open of it in the session sets it to
+.BR #0,#0 ,
+and reading it clamps it to the body and gives its value.
+A write of a character address,
+.BI # m
+or
+.BI # m ,# n\fR,
+sets it after acme checks it is in the body;
+any other address acme evaluates from the session's address and limit, and the session
+takes the result.
+.TP
+.B data
+reads and writes at the session's address, which moves as acme's would:
+after a write of
+.I n
+runes it is
+.BI # q0+n ,# q0+n\fR,
+and after a read both ends are past the runes read.
+.TP
+.B xdata
+reads at the session's address up to its end, and moves its start past the runes read.
+.TP
+.B seq
+Writing a number guards the session's next open of
+.BR body ,
+.BR data ,
+.BR xdata ,
+.B style
+or
+.BR rdevent ,
+and nothing another session opens.
+Reading it is reading acme's.
+.TP
+.B style
+After a write of the session's
+.BR addr ,
+a write of
+.B style
+replaces the styles at the session's address, as acme's does after a write of acme's;
+otherwise it replaces the window's styles, whatever another session's address.
+.TP
+.B event
+gives the window's events, in
+.IR acme (4)'s
+format, and the sessions holding it form a chain, the newest first.
+An execute or a look, with the events that follow it, goes to the newest;
+writing it back, as
+.B Mx
+.I "q0 q1"
+names it, passes it to the next, and from the last to acme, which does its default.
+A line that names no event the session was given goes to acme.
+Inserts and deletes go to every session holding
+.BR event .
+Closing it leaves the chain, and an open for writing only joins none.
+Acme's own
+.B event
+is open while any session holds one.
+.TP
+.B ctl
+finds its messages as acme does, and handles
+.BR addr=dot ,
+.B dot=addr
+and
+.B limit=addr
+with the session's address and limit, refuses
+.B lock
+and
+.BR unlock ,
+and passes every other message to acme's.
+.PD
+.PP
+The other files pass to acme's.
+Reads of
+.BR rdevent ,
+.BR cons ,
+.B mouse
+and
+.BR wctl ,
+which wait, each wait in a process of their own,
+so a program that never reads holds up no other.
+.SH EXAMPLES
+Two sessions on window 5: an address the second writes does not move the first's.
+.IP
+.EX
+{
+	{
+		echo -n 2 >/mnt/amux/5/1/addr
+		echo -n 3 >/mnt/amux/5/2/addr
+		echo -n new >/mnt/amux/5/2/data
+		echo -n old >/mnt/amux/5/1/data
+	} <>[4]/mnt/amux/5/clone
+} <>[3]/mnt/amux/5/clone
+.EE
+.SH SOURCE
+plan9web's
+.B src/cmd/amux.c
+.br
+.B rc/bin/acmestart
+.br
+its design, plan9web's
+.BR doc/amux.md ,
+and its model,
+.B specs/amux.qnt
+.SH "SEE ALSO"
+.IR acme (1),
+.IR acme (4),
+.IR astyles (4)
+.SH BUGS
+A program that writes acme's
+.B addr
+or opens its guarded files directly, around
+.IR amux ,
+can still come between a session's steps, as any program can on acme.
+.br
+A program that opens acme's
+.B event
+directly, around
+.IR amux ,
+splits its one stream with
+.IR amux .
+.br
+.I Amux
+does every session's work on acme in one loop, so a ctl message acme is slow over, such as
+.BR put ,
+holds up every session until acme answers.
+.br
+It does not exit when its acme does.

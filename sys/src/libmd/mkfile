@@ -1,0 +1,25 @@
+</$objtype/mkfile
+
+LIB=/$objtype/lib/libmd.a
+OFILES=\
+	blk.$O\
+	cur.$O\
+	edit.$O\
+	ent.$O\
+	inl.$O\
+	md.$O\
+	scan.$O\
+	tree.$O\
+	uni.$O\
+	util.$O\
+
+HFILES=/sys/include/md.h\
+	impl.h\
+
+UPDATE=\
+	mkfile\
+	$HFILES\
+	${OFILES:%.$O=%.c}\
+	${LIB:/$objtype/%=/386/%}\
+
+</sys/src/cmd/mksyslib

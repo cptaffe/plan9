@@ -558,8 +558,12 @@ sclunk(Srv *srv, Req *r)
 		respond(r, nil);
 }
 static void
-rclunk(Req*, char*)
+rclunk(Req *r, char*)
 {
+	if(r->fid != nil){
+		closefid(r->fid);
+		r->fid = nil;
+	}
 }
 
 static void

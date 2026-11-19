@@ -13,17 +13,7 @@ getdefont(Display *d)
 	Rectangle r;
 	Image *i;
 
-	/*
-	 * make sure data is word-aligned.  this is true with Plan 9 compilers
-	 * but not in general.  the byte order is right because the data is
-	 * declared as char*, not ulong*.
-	 */
 	p = (char*)defontdata;
-	n = (int)(uvlong)p & 3;				/* stupid ape */
-	if(n != 0){
-		memmove(p+(4-n), p, sizeofdefont-n);
-		p += 4-n;
-	}
 	ld = atoi(p+0*12);
 	r.min.x = atoi(p+1*12);
 	r.min.y = atoi(p+2*12);

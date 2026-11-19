@@ -20,9 +20,14 @@ window of its own with a pastel background and an acme-like tag
 With no arguments it opens every note, each where it was last, in its color;
 with
 .B -n
-it makes a new one, as the tag's
+it makes a new one, as
 .B New
-does.
+and Command-N do.
+Run in a window of its own, a
+.IR rio (1)
+shell's, sticky draws its first note there and gives the window back when the note closes;
+the rest open windows of their own, as do notes run from
+.IR acme (1).
 A note is the file
 .BI $home/lib/sticky/ n .md\fR,
 its text in Markdown, so that it reads well in
@@ -88,17 +93,28 @@ put in is Markdown, so styles go between notes and to and from acme.
 Sticky takes a typed character as itself, and escapes with a backslash one that Markdown
 would take as a marker.
 .PP
+A note's tag starts with only its name and
+.BR "Del Snarf |" ;
+sticky's words work when typed there and run with button 2:
+.BR New ,
+.BI Color " name\fR,"
 .BR Bold ,
 .BR Italic ,
 .BR Underline ,
-.B Highlight
+.BR Highlight ,
+.BR Strike ,
+.BR Shrink ,
+.B Source
 and
-.B Strike
-in the tag turn their style on for the selection, or off if all of it has it already;
+.BR Delete .
+The styles turn on for the selection, or off if all of it has them already;
 with no selection, they set the style of what you type next.
-Under
-.IR rio (1)
-the Mac's Command-B, -I and -U do the first three.
+Keys do the common ones, as the Mac's do:
+Command-B, -I and -U bold, italicize and underline,
+Command-Shift-X strikes through, as in Notes,
+Command-Shift-H highlights,
+Command-N makes a note
+and Command-S saves.
 .B Color
 .I name
 gives the note a color:
@@ -113,9 +129,9 @@ or
 .BI # rrggbb\fR;
 .B Color
 alone goes to the next.
-The tag takes a darker shade of the note's color, and in a dark theme
-.RI ( theme (6))
-the note is the color darkened.
+The colors are the classic Stickies' pastels, the same in either theme
+.RI ( theme (6)),
+with dark text and the tag a darker shade of the note's color.
 .PP
 In Markdown,
 .B **bold**
@@ -155,11 +171,36 @@ Sticky ends when acme deletes the window.
 With no acme, sticky edits the file itself, and
 .B Put
 writes it.
+.PP
+Sticky draws its text in
+.BR $stickyfont ,
+one
+.IR fontfs (4)
+font, by default
+.BR /mnt/font/IBMPlex/g/r/12a/font .
+Bold, italic and bold italic are its
+.BR b ,
+.B i
+and
+.B bi
+faces, code is family
+.B m
+face
+.BR r ,
+and headings are bold, at 1.4 times its size for level 1, 1.2 times for level 2,
+and its size for levels 3 to 6, each to a whole point.
+A font that does not open is drawn as plain text is, or as bold is for bold italic;
+if
+.B $stickyfont
+does not open, or is not a
+.I fontfs
+font, plain text and code are in
+.BR $font .
 .SH FILES
 .TF $home/lib/sticky/*.meta
 .TP
 .B $home/lib/sticky/*.md
-the notes
+the notes; riostart opens them at boot, and termrc keeps them when it empties a home
 .TP
 .B $home/lib/sticky/*.meta
 each note's color and rectangle
@@ -170,6 +211,7 @@ plan9web's
 .IR acme (1),
 .IR rio (1),
 .IR adraw (2),
+.IR fontfs (4),
 .IR theme (6)
 .SH BUGS
 A style marker spans one line: sticky marks a selection over lines line by line.

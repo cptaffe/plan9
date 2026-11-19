@@ -65,21 +65,12 @@ geninitdraw(char *devdir, void(*error)(Display*, char*), char *fontname, char *l
 	 * Build fonts with caches==depth of screen, for speed.
 	 * If conversion were faster, we'd use 0 and save memory.
 	 */
-	if(fontname == nil){
-		snprint(buf, sizeof buf, "%d %d\n0 %d\t%s\n", df->height, df->ascent,
-			df->n-1, deffontname);
-//BUG: Need something better for this	installsubfont("*default*", df);
-		font = buildfont(display, buf, deffontname);
-		if(font == nil){
-			fprint(2, "imageinit: can't open default font: %r\n");
-			goto Error;
-		}
-	}else{
-		font = openfont(display, fontname);	/* BUG: grey fonts */
-		if(font == nil){
-			fprint(2, "imageinit: can't open font %s: %r\n", fontname);
-			goto Error;
-		}
+	if(fontname == nil)
+		fontname = deffontname;
+	font = openfont(display, fontname);	/* BUG: grey fonts */
+	if(font == nil){
+		fprint(2, "imageinit: can't open font %s: %r\n", fontname);
+		goto Error;
 	}
 	display->defaultfont = font;
 
@@ -198,14 +189,8 @@ retry:
 	}
 	d->screenimage = *winp;
 	assert((*winp)->chan != 0);
-	if(d->dpi >= DefaultDPI*3/2){
-		for(f = d->firstfont; f != nil; f = f->next)
-			loadhidpi(f);
-	}else{
-		for(f = d->firstfont; f != nil; f = f->next)
-			if(f->lodpi != nil && f->lodpi != f)
-				swapfont(f, &f->hidpi, &f->lodpi);
-	}
+	for(f = d->firstfont; f != nil; f = f->next)
+		loadhidpi(f);
 	return 1;
 }
 

@@ -124,6 +124,9 @@ enum	as
 	ATEXT,
 	AEND,
 	ASIGNAME,
+	ADECL,
+	ACASE,
+	ABCASE,
 
 	ALAST,
 };
