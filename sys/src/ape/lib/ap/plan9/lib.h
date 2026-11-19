@@ -78,6 +78,9 @@ extern void	_syserrno(void);
 extern int	_getpw(int *, char **, char **);
 extern mode_t	_umask;
 extern int _isatty(int);
+extern pid_t	_grouppid;
+extern pid_t	_getpid(void);
+extern int	(*_thrdie)(char*);
 extern void _fdinit(char*, char*);
 
 

@@ -5,11 +5,15 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <signal.h>
 #include "thr.h"
 
 #define F(name)	__attribute__((import_module("p9web"), import_name(#name)))
 
 enum {
+	RFNOTEG = 1<<3,
 	RFPROC = 1<<4,
 	RFMEM = 1<<5,
 	RFNOWAIT = 1<<6,
@@ -17,6 +21,7 @@ enum {
 
 F(fiber_new) extern int p9web_fiber_new(void (*)(void *), void *, void *, int, void *, int, int);
 F(fiber_setdata) extern void p9web_fiber_setdata(void *);
+F(fiber_pid) extern int p9web_fiber_pid(int);
 F(fiber_exit) extern void p9web_fiber_exit(void);
 extern void __wasm_init_tls(void *);
 
@@ -29,9 +34,19 @@ p9web_fiber_main(void (*fn)(void *), void *arg)
 }
 
 static int
-inthread(void)
+thrdie(char *msg)
 {
-	return _thrself() != &_thrmain;
+	char buf[32];
+	int f;
+
+	if(_thrself() == &_thrmain)
+		return 0;
+	snprintf(buf, sizeof buf, "/proc/%d/note", _grouppid);
+	if((f = open(buf, O_WRONLY)) >= 0){
+		write(f, msg, strlen(msg));
+		close(f);
+	}
+	return 1;
 }
 
 __attribute__((export_name("p9web_fiber_gone"))) void
@@ -84,7 +99,10 @@ pthread_create(pthread_t *id, const pthread_attr_t *a, void *(*f)(void *), void 
 	int i;
 
 	reap();
-	_inthread = inthread;
+	if(_grouppid == 0)
+		_thrmain.pid = _grouppid = _getpid();
+	_thrdie = thrdie;
+	_thrkill = _thrsignal;
 	_lockfile = _thrlockfile;
 	_unlockfile = _thrunlockfile;
 	if((t = calloc(1, sizeof *t)) == NULL)
@@ -109,10 +127,11 @@ pthread_create(pthread_t *id, const pthread_attr_t *a, void *(*f)(void *), void 
 	t->arg = arg;
 	t->detached = a != NULL && a->detached;
 	_thr[i] = t;
-	if((t->fiber = p9web_fiber_new(start, t, t->stk, n, t->abuf, Thrabuf, RFPROC|RFMEM|RFNOWAIT)) < 0){
+	if((t->fiber = p9web_fiber_new(start, t, t->stk, n, t->abuf, Thrabuf, RFPROC|RFMEM|RFNOWAIT|RFNOTEG)) < 0){
 		_thr[i] = NULL;
 		goto Nomem;
 	}
+	t->pid = p9web_fiber_pid(t->fiber);
 	_nalive++;
 	*id = t->id;
 	return 0;

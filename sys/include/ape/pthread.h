@@ -45,6 +45,7 @@ extern int pthread_equal(pthread_t, pthread_t);
 extern int pthread_create(pthread_t *, const pthread_attr_t *, void *(*)(void *), void *);
 extern int pthread_join(pthread_t, void **);
 extern int pthread_detach(pthread_t);
+extern int pthread_kill(pthread_t, int);
 extern void pthread_exit(void *);
 extern int pthread_attr_init(pthread_attr_t *);
 extern int pthread_attr_destroy(pthread_attr_t *);
