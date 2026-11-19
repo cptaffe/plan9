@@ -40,3 +40,4 @@ extern int _thrlockfile(FILE *, int);
 extern void _thrunlockfile(FILE *);
 extern int (*_lockfile)(FILE *, int);
 extern void (*_unlockfile)(FILE *);
+extern int (*_inthread)(void);
