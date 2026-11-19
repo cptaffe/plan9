@@ -93,6 +93,45 @@ f64c(vlong bits)
 }
 
 static void
+rfield(int t, Sym *s, long idx, long add, vlong v)
+{
+	addrel(t, b->n, s, S, idx, add);
+	bpad(b, v);
+}
+
+static void
+raddr(Sym *s, long off)
+{
+	op(WI32CONST);
+	if(isfunc(s)) {
+		if(off != 0)
+			diag("%s: offset from function %s", cur->name, s->name);
+		rfield(RTABSLEB, s, 0, 0, 0);
+	} else
+		rfield(RMEMSLEB, s, 0, off, s->value + off);
+}
+
+static void
+gsp(int o)
+{
+	op(o);
+	if(rflag)
+		rfield(RGLOBAL, lookup("__stack_pointer", 0), 0, 0, 0);
+	else
+		buleb(b, 0);
+}
+
+static void
+gtag(int o)
+{
+	op(o);
+	if(rflag)
+		rfield(RTAG, lookup("__c_longjmp", 0), 0, 0, 0);
+	else
+		buleb(b, 0);
+}
+
+static void
 dtobits(double d, vlong *v)
 {
 	memmove(v, &d, 8);
@@ -110,6 +149,10 @@ addrof(Adr *a)
 	long v;
 
 	if(a->sym != S && (a->name == D_EXTERN || a->name == D_STATIC)) {
+		if(rflag) {
+			raddr(a->sym, a->offset);
+			return;
+		}
 		i32c(symaddr(a->sym) + a->offset);
 		return;
 	}
@@ -214,6 +257,10 @@ maddr(Adr *a)
 	switch(a->name) {
 	case D_EXTERN:
 	case D_STATIC:
+		if(rflag) {
+			raddr(a->sym, a->offset);
+			return 0;
+		}
 		i32c(0);
 		return symaddr(a->sym) + a->offset;
 	case D_AUTO:
@@ -541,7 +588,7 @@ epilogue(void)
 		lget(REGSP);
 		i32c(total);
 		op(WI32ADD);
-		op2(WGLOBALSET, 0);
+		gsp(WGLOBALSET);
 	}
 	switch(result) {
 	case KI32:
@@ -584,8 +631,7 @@ gsetjmp(Prog *p)
 static void
 catchjmp(void)
 {
-	op(WCATCH);
-	buleb(b, 0);
+	gtag(WCATCH);
 	op2(WLOCALSET, tmplocal);
 	op2(WLOCALGET, tmplocal);
 	memop(WI32LOAD, 2, 0);
@@ -597,7 +643,7 @@ catchjmp(void)
 	op2(WRETHROW, 1);
 	op(WEND);
 	lget(REGSP);
-	op2(WGLOBALSET, 0);
+	gsp(WGLOBALSET);
 	op2(WLOCALGET, tmplocal);
 	memop(WI32LOAD, 2, 4);
 	lset(REGRET);
@@ -636,7 +682,7 @@ call(Prog *p)
 				buleb(b, 11);
 				op(0);
 			} else if(strcmp(s->name, "wasm·throw") == 0)
-				op2(WTHROW, 0);
+				gtag(WTHROW);
 			else
 				diag("%s: unknown wasm operator %s", cur->name, s->name);
 		} else {
@@ -651,11 +697,19 @@ call(Prog *p)
 				} else
 					diag("%s: call of %s: signature mismatch", cur->name, s->name);
 			}
-			op2(WCALL, s->fidx);
+			if(rflag) {
+				op(WCALL);
+				rfield(RFUNC, s, 0, 0, s->fidx);
+			} else
+				op2(WCALL, s->fidx);
 		}
 	} else {
 		lget(p->to.reg);
-		op2(WCALLINDIRECT, p->sig);
+		if(rflag) {
+			op(WCALLINDIRECT);
+			rfield(RTYPE, S, p->sig, 0, p->sig);
+		} else
+			op2(WCALLINDIRECT, p->sig);
 		op(WUNREACHABLE);
 	}
 	switch(p->from.offset) {
@@ -1090,12 +1144,12 @@ static void
 prologue(void)
 {
 	if(usesp) {
-		op2(WGLOBALGET, 0);
+		gsp(WGLOBALGET);
 		if(total > 0) {
 			i32c(total);
 			op(WI32SUB);
 			op2(WLOCALTEE, loc[REGSP]);
-			op2(WGLOBALSET, 0);
+			gsp(WGLOBALSET);
 		} else
 			lset(REGSP);
 	}

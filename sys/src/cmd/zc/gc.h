@@ -27,6 +27,7 @@ struct	Adr
 	char	reg;
 	char	name;
 	char	etype;
+	long	width;
 };
 #define	A	((Adr*)0)
 
@@ -129,6 +130,7 @@ void	gbranch(int);
 void	patch(Prog*, long);
 int	sconst(Node*);
 void	gpseudo(int, Sym*, Node*);
+void	gdecl(Sym*);
 int	rclass(int);
 int	tclass(Type*);
 int	kind(Type*);

@@ -120,6 +120,10 @@ gclean(void)
 			continue;
 		gpseudo(AGLOBL, s, nodconst(s->type->width));
 	}
+	for(i=0; i<NHASH; i++)
+	for(s = hash[i]; s != S; s = s->link)
+		if(s->aused && (s->class == CEXTERN || s->class == CGLOBL) && s->type != T && s->type->etype == TFUNC)
+			gdecl(s);
 	nextpc();
 	p->as = AEND;
 	outcode();
@@ -474,6 +478,7 @@ naddr(Node *n, Adr *a)
 		}
 		if(n->class == CAUTO) {
 			a->name = D_AUTO;
+			a->width = n->type != T ? n->type->width : 0;
 			break;
 		}
 		if(n->class == CPARAM) {
@@ -1057,6 +1062,37 @@ gpar(int k)
 	p->as = APARAM;
 	p->from.type = D_CONST;
 	p->from.offset = k;
+}
+
+void
+gdecl(Sym *s)
+{
+	Type *t, *r;
+
+	t = s->type->down;
+	if(t == T || t->etype == TOLD)
+		return;
+	r = s->type->link;
+	nextpc();
+	p->as = ADECL;
+	p->from.type = D_OREG;
+	p->from.sym = s;
+	p->from.name = D_EXTERN;
+	if(typecmplx[r->etype] && sutype(r) < 0)
+		gpar(KI32);
+	for(; t != T; t = t->down) {
+		if(t->etype == TVOID)
+			break;
+		if(t->etype == TDOT) {
+			gpar(KI32);
+			break;
+		}
+		gpar(kind(t));
+	}
+	nextpc();
+	p->as = ARESULT;
+	p->from.type = D_CONST;
+	p->from.offset = typecmplx[r->etype] && sutype(r) < 0 ? KNONE : kind(r);
 }
 
 static void
