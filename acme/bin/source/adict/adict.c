@@ -13,10 +13,11 @@ enum
 char *prog = "adict";
 char *lprog = "/bin/adict";
 char *xprog  = "/bin/dict";
-char *dict, *pattern, *curaddr[MAXMATCH], *curone, *args[6], buffer[80];
+char *dict, *pattern, *curaddr[MAXMATCH], *curone, buffer[256];
 char abuffer[80], fbuffer[80], pbuffer[80];
 int curindex, count, Eopen, Mopen;
 Win Mwin, Ewin, Dwin;
+Channel *waitc;
 
 void openwin(char*, char*, Win*, int);
 void  handle(Win*, int);
@@ -33,9 +34,11 @@ usage(void)
 
 int mainstacksize = STACK;
 
+
 void
 threadmain(int argc, char** argv)
 {
+	waitc = threadwaitchan();
 	ARGBEGIN{
 	case 'd':
 		dict = strdup(ARGF());
@@ -50,8 +53,7 @@ threadmain(int argc, char** argv)
 
 	switch(argc){
 	case 1:
-		pattern = pbuffer;
-		strcpy(pattern,argv[0]);
+		pattern = strdup(argv[0]);
 		if(dict == nil)
 			dict = "pgw";
 		break;
@@ -72,16 +74,19 @@ threadmain(int argc, char** argv)
 }
 
 static int
-procrexec(char *xprog, ...)
+procrexec(int *pid, char *xprog, ...)
 {
 	int fpipe[2];
 	void *rexarg[4];
 	Channel *c;
 	va_list va;
 	int i;
-	char *p;
+	char *p, *args[7];
 
-	pipe(fpipe);
+	if(pipe(fpipe) < 0){
+		werrstr("pipe: %r");
+		return -1;
+	}
 	va_start(va, xprog);
 	p = xprog;
 	for(i=0; p && i+1<nelem(args); i++){
@@ -97,10 +102,37 @@ procrexec(char *xprog, ...)
 	rexarg[3] = c;
 
 	proccreate(rexec, rexarg, STACK);
-	recvul(c);
+	*pid = recvul(c);
 	chanfree(c);
 	close(fpipe[1]);
 	return fpipe[0];
+}
+
+static int
+dictend(int fd, int pid)
+{
+	Waitmsg *w;
+	char *m;
+	int r;
+
+	close(fd);
+	if(pid <= 0)
+		return 0;
+	r = 0;
+	while((w = recvp(waitc)) != nil){
+		if(w->pid != pid){
+			free(w);
+			continue;
+		}
+		if(w->msg[0] != 0){
+			m = strstr(w->msg, ": ");
+			werrstr("dict: %s", m != nil ? m+2 : w->msg);
+			r = -1;
+		}
+		free(w);
+		break;
+	}
+	return r;
 }
 
 int
@@ -108,9 +140,9 @@ getaddr(char *pattern)
 {
 	/* Get char offset into dictionary of matches. */
 
-	int fd, i;
+	int fd, pid, i;
 	Biobuf inbuf;
-	char *bufptr;
+	char *bufptr, *q;
 char *obuf;
 
 	if (pattern == nil) {
@@ -120,8 +152,16 @@ char *obuf;
 		return 0;
 	}
 
-	sprint(buffer,"/%s/A", pattern);
-	fd = procrexec(xprog, "-d", dict, "-c", buffer, nil);
+	q = smprint("/%s/A", pattern);
+	fd = procrexec(&pid, xprog, "-d", dict, "-c", q, nil);
+	free(q);
+	if(fd < 0){
+		fprint(2, "adict: %r\n");
+		curone = nil;
+		curindex = 0;
+		curaddr[curindex] = nil;
+		return 0;
+	}
 	Binit(&inbuf, fd, OREAD);
 	i = 0;
 	curindex = 0;
@@ -131,15 +171,15 @@ obuf=bufptr;
 		while (bufptr[0] != '#' && bufptr[0] != 0) bufptr++;
 if(bufptr[0] == 0)
 	print("whoops buf «%s»\n", obuf);
-		curaddr[i] = malloc(strlen(bufptr));
-		strcpy(curaddr[i], bufptr);
+		curaddr[i] = strdup(bufptr);
 		i++;
 	}
 	curaddr[i] = nil;
 	if (i == MAXMATCH)
 		fprint(2, "Too many matches!\n");
 	Bterm(&inbuf);
-	close(fd);
+	if(dictend(fd, pid) < 0)
+		fprint(2, "adict: %r\n");
 
 	curone = curaddr[curindex];
 	return(i);
@@ -149,15 +189,21 @@ char*
 getpattern(char *addr)
 {
 	/* Get the pattern corresponding to an absolute address.*/
-	int fd;
-	char *res, *t;
+	int fd, pid, n;
+	char *res, *t, *q;
 
 	res = nil;
-	sprint(buffer,"%sh", addr);
-	fd = procrexec(xprog, "-d", dict, "-c", buffer, nil);
-	if (read(fd, pbuffer, 80) > 80)
-		fprint(2, "Error in getting addres from dict.\n");
+	q = smprint("%sh", addr);
+	fd = procrexec(&pid, xprog, "-d", dict, "-c", q, nil);
+	free(q);
+	if(fd < 0){
+		fprint(2, "adict: %r\n");
+		return nil;
+	}
+	if ((n = read(fd, pbuffer, sizeof pbuffer - 1)) < 0)
+		fprint(2, "adict: read dict: %r\n");
 	else {
+		pbuffer[n] = 0;
 		t = pbuffer;
 		/* remove trailing whitespace, newline */
 		if (t != nil){
@@ -170,7 +216,10 @@ getpattern(char *addr)
 		}
 		res = pbuffer;
 	}
-	close(fd);
+	if(dictend(fd, pid) < 0){
+		fprint(2, "adict: %r\n");
+		res = nil;
+	}
 	return(res);
 }
 
@@ -179,25 +228,28 @@ chgaddr(int dir)
 {
 	/* Increment or decrement the current address (curone). */
 
-	int fd;
-	char *res, *t;
+	int fd, pid, n;
+	char *res, *t, *q;
 
 	res = nil;
-	if (dir < 0)
-		sprint(buffer,"%s-a", curone);
-	else
-		sprint(buffer,"%s+a", curone);
-	fd = procrexec(xprog, "-d", dict, "-c", buffer, nil);
-	if (read(fd, abuffer, 80) > 80)
-		fprint(2, "Error in getting addres from dict.\n");
-	else {
-		res = abuffer;
-		while (*res != '#') res++;
-		t = res;
-		while ((*t != '\n') && (t != nil)) t++;
-		if (t != nil) *t = 0;
+	q = smprint("%s%ca", curone, dir < 0? '-': '+');
+	fd = procrexec(&pid, xprog, "-d", dict, "-c", q, nil);
+	free(q);
+	if(fd < 0){
+		fprint(2, "adict: %r\n");
+		return nil;
 	}
-	close(fd);
+	if ((n = read(fd, abuffer, sizeof abuffer - 1)) < 0)
+		fprint(2, "adict: read dict: %r\n");
+	else {
+		abuffer[n] = 0;
+		if ((res = strchr(abuffer, '#')) != nil && (t = strchr(res, '\n')) != nil)
+			*t = 0;
+	}
+	if(dictend(fd, pid) < 0){
+		fprint(2, "adict: %r\n");
+		res = nil;
+	}
 	return(res);
 }
 
@@ -206,10 +258,14 @@ dispdicts(Win *cwin)
 {
 	/* Display available dictionaries in window. */
 
-	int fd, nb, i;
+	int fd, pid, nb, i;
 	char buf[1024], *t;
 
-	fd = procrexec(xprog, "-d", "?", nil);
+	fd = procrexec(&pid, xprog, "-d", "?", nil);
+	if(fd < 0){
+		fprint(2, "adict: %r\n");
+		return;
+	}
 	wreplace(cwin, "0,$","",0);	/* Clear window */
 	while ((nb = read(fd, buf, 1024)) > 0) {
 		t = buf;
@@ -224,7 +280,8 @@ dispdicts(Win *cwin)
 		}
 		wwritebody(cwin, t, nb-i);
 	}
-	close(fd);
+	if(dictend(fd, pid) < 0)
+		fprint(2, "adict: %r\n");
 	wclean(cwin);
 }
 
@@ -233,8 +290,8 @@ dispentry(Win *cwin)
 {
 	/* Display the current selection in window. */
 
-	int fd, nb;
-	char buf[BUFSIZE];
+	int fd, pid, nb;
+	char buf[BUFSIZE], *q;
 
 	if (curone == nil) {
 		if (pattern != nil) {
@@ -244,13 +301,19 @@ dispentry(Win *cwin)
 		}
 		return;
 	}
-	sprint(buffer,"%sp", curone);
-	fd = procrexec(xprog, "-d", dict, "-c", buffer, nil);
+	q = smprint("%sp", curone);
+	fd = procrexec(&pid, xprog, "-d", dict, "-c", q, nil);
+	free(q);
+	if(fd < 0){
+		fprint(2, "adict: %r\n");
+		return;
+	}
 	wreplace(cwin, "0,$","",0);	/* Clear window */
 	while ((nb = read(fd, buf, BUFSIZE)) > 0) {
 		wwritebody(cwin, buf, nb);
 	}
-	close(fd);
+	if(dictend(fd, pid) < 0)
+		fprint(2, "adict: %r\n");
 	wclean(cwin);
 }
 
@@ -259,14 +322,20 @@ dispmatches(Win *cwin)
 {
 	/* Display the current matches. */
 
-	int fd, nb;
-	char buf[BUFSIZE];
+	int fd, pid, nb;
+	char buf[BUFSIZE], *q;
 
-	sprint(buffer,"/%s/H", pattern);
-	fd = procrexec(xprog, "-d", dict, "-c", buffer, nil);
+	q = smprint("/%s/H", pattern);
+	fd = procrexec(&pid, xprog, "-d", dict, "-c", q, nil);
+	free(q);
+	if(fd < 0){
+		fprint(2, "adict: %r\n");
+		return;
+	}
 	while ((nb = read(fd, buf, BUFSIZE)) > 0)
 		wwritebody(cwin, buf, nb);
-	close(fd);
+	if(dictend(fd, pid) < 0)
+		fprint(2, "adict: %r\n");
 	wclean(cwin);
 }
 
@@ -283,34 +352,36 @@ format(char *s)
 		*t = 0;
 		return t;
 	}
-	strcpy(t, s);
 	h = t;
-	while (*t != 0) {
-		if (!(((*t >= 'a') && (*t <= 'z')) ||
-		    ((*t >= 'A') && (*t <= 'Z')) ||
-		    ((*t >= '0') && (*t <= '9'))))
-			*t = '_';
-		t++;
+	for (; *s != 0 && t < fbuffer+sizeof fbuffer-1; s++) {
+		if (*s == '\\')
+			continue;
+		if (!(((*s >= 'a') && (*s <= 'z')) ||
+		    ((*s >= 'A') && (*s <= 'Z')) ||
+		    ((*s >= '0') && (*s <= '9'))))
+			*t++ = '_';
+		else
+			*t++ = *s;
 	}
+	*t = 0;
 	if (strlen(h) > MAXTAG)
 		h[MAXTAG] = 0;
-	if (strcmp(s,h) == 0) return s;
 	return h;
 }
 
 void
 openwin(char *name, char *buttons, Win *twin, int wintype)
 {
-	char buf[80];
+	char buf[256];
 
 	wnew(twin);
 	if (wintype == Dictwin)
-		sprint(buf,"%s",name);
+		snprint(buf, sizeof buf, "%s", name);
 	else
 		if ((wintype == Entrywin) && (count > 1))
-			sprint(buf,"%s/%s/%s/%d",name, dict, format(pattern), curindex+1);
+			snprint(buf, sizeof buf, "%s/%s/%s/%d",name, dict, format(pattern), curindex+1);
 		else
-			sprint(buf,"%s/%s/%s",name, dict, format(pattern));
+			snprint(buf, sizeof buf, "%s/%s/%s",name, dict, format(pattern));
 	wname(twin, buf);
 	wtagwrite(twin, buttons, strlen(buttons));
 	wclean(twin);
@@ -430,7 +501,7 @@ kill(void)
 	/* Kill all processes related to this one. */
 	int fd;
 
-	sprint(buffer, "/proc/%d/notepg", getpid());
+	snprint(buffer, sizeof buffer, "/proc/%d/notepg", getpid());
 	fd = open(buffer, OWRITE);
 	rfork(RFNOTEG);
 	write(fd, "kill", 4);
@@ -467,9 +538,10 @@ command(char *com, Win *w, int wintype)
 	}
 	if (strncmp(com, "Next", 4) == 0){
 		if (curone != nil) {
-			curone = chgaddr(1);
+			if ((buf = chgaddr(1)) != nil)
+				curone = buf;
 			buf = getpattern(curone);
-			sprint(buffer,"%s/%s/%s", prog, dict, format(buf));
+			snprint(buffer, sizeof buffer, "%s/%s/%s", prog, dict, format(buf));
 			wname(w, buffer);
 			dispentry(w);
 		}
@@ -477,9 +549,10 @@ command(char *com, Win *w, int wintype)
 	}
 	if (strncmp(com, "Prev",4) == 0){
 		if (curone != nil) {
-			curone = chgaddr(-1);
+			if ((buf = chgaddr(-1)) != nil)
+				curone = buf;
 			buf = getpattern(curone);
-			sprint(buffer,"%s/%s/%s", prog, dict, format(buf));
+			snprint(buffer, sizeof buffer, "%s/%s/%s", prog, dict, format(buf));
 			wname(w, buffer);
 			dispentry(w);
 		}
@@ -490,7 +563,7 @@ command(char *com, Win *w, int wintype)
 			curindex = 0;
 		curone = curaddr[curindex];
 		if (curone != nil) {
-			sprint(buffer,"%s/%s/%s/%d",prog,dict,format(pattern),curindex+1);
+			snprint(buffer, sizeof buffer, "%s/%s/%s/%d",prog,dict,format(pattern),curindex+1);
 			wname(w, buffer);
 			dispentry(w);
 		}
@@ -503,7 +576,7 @@ void
 handle(Win *w, int wintype)
 {
 	Event e, e2, ea, etoss;
-	char *s, *t, buf[80];
+	char *s, *t, *args[6], buf[256];
 	int tmp, na;
 
 	while (True) {
@@ -554,7 +627,7 @@ handle(Win *w, int wintype)
 				wevent(w, &e);
 			wclean(w);		/* Set clean bit. */
 			if (wintype == Dictwin) {
-				strcpy(buf, e.b);
+				strecpy(buf, buf+sizeof buf, e.b);
 				args[0] = lprog;
 				args[1] = "-d";
 				args[2] = buf;
@@ -562,12 +635,13 @@ handle(Win *w, int wintype)
 				procpexec(lprog, args);	/* New adict with chosen dict. */
 			}
 			if (wintype == Entrywin) {
-				strcpy(buf, e.b);
+				strecpy(buf, buf+sizeof buf, e.b);
 				args[0] = lprog;
 				args[1] = "-d";
 				args[2] = dict;
-				args[3] = buf;
-				args[4] = nil;
+				args[3] = "--";
+				args[4] = buf;
+				args[5] = nil;
 				procpexec(lprog, args); /* New adict with chosen pattern. */
 			}
 			if (wintype == Matchwin) {
@@ -577,7 +651,7 @@ handle(Win *w, int wintype)
 					curone = curaddr[curindex];
 					/* Display selected match. */
 					if (Eopen) {
-						sprint(buf,"%s/%s/%s/%d",prog,dict,format(pattern),curindex+1);
+						snprint(buf, sizeof buf, "%s/%s/%s/%d",prog,dict,format(pattern),curindex+1);
 						wname(&Ewin, buf);
 						dispentry(&Ewin);
 					}
