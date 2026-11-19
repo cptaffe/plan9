@@ -194,6 +194,16 @@ variables are each thread's;
 destructors of C++'s
 .B thread_local
 objects run when their thread ends.
+Each thread has its own block of thread-local storage, which
+.I wasm-ld
+lays out only for shared memory: so
+.I pcc
+compiles with the atomics and bulk memory features, links with
+.B --shared-memory
+and a maximum of 4 GB, and then clears the memory's shared flag and its maximum.
+That is safe because a program's threads are fibers in its one instance, which share no
+memory with another, and atomic instructions are valid on unshared memory;
+the step is there because WebKit fails to make many shared memories with a large maximum at once.
 .SH FILES
 .TF /$objtype/lib/ape/libap.a
 .TP
