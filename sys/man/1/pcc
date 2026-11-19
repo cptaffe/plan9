@@ -222,6 +222,8 @@ post the note to the calling thread's own process, whose handler runs there.
 posts it to the thread's.
 A note whose default action ends the process ends the program,
 from any thread, with the note as its status.
+A note reaches a thread that waits for a mutex, a condition variable, a join or a stream
+at once; its handler runs, and the thread waits on.
 A thread that a handler ends in a wait, or that a handler takes out of one by
 .IR longjmp ,
 leaves the wait's queue and passes on a wakeup it had;
