@@ -216,7 +216,7 @@ put in
 the bytes to send the program for a key, a paste, the mouse, or the window's focus, as
 the modes ask, and return how many, 0 if there are none to send, or \-1 if
 .I n
-is too few.
+is too few, with the error string set.
 A
 .I key
 is a rune or one of
