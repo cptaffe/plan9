@@ -57,7 +57,7 @@ brk_(void *p)
 	ulong have, want;
 
 	have = wasm·memory_size();
-	want = ((uintptr)p + 65535) >> 16;
+	want = ((uvlong)(uintptr)p + 65535) >> 16;
 	if(want > have && wasm·memory_grow(want-have) == (ulong)-1){
 		werrstr("no memory");
 		return -1;
@@ -81,6 +81,10 @@ sbrk(ulong n)
 	uintptr b;
 
 	b = ((uintptr)bloc + 7) & ~7;
+	if(b+n < b){
+		werrstr("no memory");
+		return (void*)-1;
+	}
 	if(brk_((void*)(b+n)) < 0)
 		return (void*)-1;
 	bloc = (char*)b + n;
