@@ -45,6 +45,7 @@
 char *strerror(int);
 int _IO_setvbuf(FILE *);
 void flockfile(FILE *);
+int ftrylockfile(FILE *);
 void funlockfile(FILE *);
 FILE *_IO_sopenr(const char*);
 FILE *_IO_sopenw(void);
