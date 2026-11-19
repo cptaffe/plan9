@@ -21,6 +21,7 @@
 #include <sys/time.h>
 #include <sys/select.h>
 #include "../plan9/sys9.h"
+#include "../plan9/dir.h"
 
 typedef struct Hdr Hdr;
 struct Hdr {
@@ -462,11 +463,78 @@ settimer(int t)
 	return 0;
 }
 
+static long
+waiting(int fd)
+{
+	Dir *d;
+	long n;
+
+	if((d = _dirfstat(fd)) == nil)
+		return 0;
+	n = d->length;
+	free(d);
+	return n;
+}
+
+static int
+pending(int nfds, fd_set *rwant, fd_set *pend)
+{
+	int fd;
+
+	for(fd = 0; fd < nfds; fd++)
+		if(FD_ISSET(fd, rwant) && FD_ISSET(fd, pend))
+			return 1;
+	return 0;
+}
+
+static int drain(int, fd_set *, fd_set *, fd_set *, fd_set *, fd_set *);
+
+static int
+poll0(int nfds, fd_set *rfds, fd_set *efds, fd_set *rwant, fd_set *ewant, fd_set *pend)
+{
+	int n, try;
+
+	n = 0;
+	for(try = 0; try < 2 && n == 0; try++){
+		if(try)
+			_SLEEP(1);
+		n += drain(nfds, rfds, efds, rwant, ewant, pend);
+	}
+	return n;
+}
+
+static int
+drain(int nfds, fd_set *rfds, fd_set *efds, fd_set *rwant, fd_set *ewant, fd_set *pend)
+{
+	int n, fd, id;
+	Muxbuf *b;
+
+	n = 0;
+	while(waiting(mux[0]) > 0 || pending(nfds, rwant, pend)){
+		fd = take(&id);
+		if(fd < 0)
+			break;
+		if(fd == Timeout || (b = _fdinfo[fd].buf) == 0)
+			continue;
+		if(FD_ISSET(fd, rwant)){
+			FD_CLR(fd, rwant);
+			FD_SET(fd, rfds);
+			n++;
+		}
+		if(FD_ISSET(fd, ewant) && b->eof && b->n == 0){
+			FD_CLR(fd, ewant);
+			FD_SET(fd, efds);
+			n++;
+		}
+	}
+	return n;
+}
+
 int
 select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *timeout)
 {
 	int n, i, t, fd, id;
-	fd_set rwant, ewant;
+	fd_set rwant, ewant, pend;
 	Muxbuf *b;
 
 	if(timeout)
@@ -487,11 +555,15 @@ select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *timeo
 	/* make sure all requested rfds and efds are buffered */
 	if(nfds >= OPEN_MAX)
 		nfds = OPEN_MAX;
+	FD_ZERO(&pend);
 	for(i = 0; i < nfds; i++)
-		if((rfds && FD_ISSET(i, rfds)) || (efds && FD_ISSET(i, efds)))
+		if((rfds && FD_ISSET(i, rfds)) || (efds && FD_ISSET(i, efds))){
+			if(t == 0 && rfds && FD_ISSET(i, rfds) && waiting(i) > 0)
+				FD_SET(i, &pend);
 			if(!(_fdinfo[i].flags&FD_BUFFERED))
 				if(_startbuf(i) != 0)
 					return -1;
+		}
 
 	/* check wfds;  for now, we'll say they are all ready */
 	n = 0;
@@ -523,8 +595,10 @@ select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *timeo
 			}
 		}
 	}
-	if(n || !(FD_ANYSET(&rwant) || FD_ANYSET(&ewant)) || t == 0)
+	if(n || !(FD_ANYSET(&rwant) || FD_ANYSET(&ewant)))
 		return n;
+	if(t == 0)
+		return poll0(nfds, rfds, efds, &rwant, &ewant, &pend);
 
 	if(timeout && settimer(t) < 0)
 		return -1;
