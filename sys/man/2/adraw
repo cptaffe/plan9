@@ -201,6 +201,9 @@ The tag draws in acme's tag colors from the theme
 read when it opens, or in those its
 .B ctl
 gives.
+.I Tagopen
+returns nil, with the error string set, if it cannot make those colors,
+since each is an image the display must allocate.
 The program doesn't call
 .I getwindow
 itself, which would draw over the tag, and draws from a proc other than the one that
