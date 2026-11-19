@@ -569,6 +569,7 @@ _thrlockfile(FILE *f, int try)
 		_thrwait(&l->q, &w);
 	l->owner = me;
 	l->n = 1;
+	f->lk = 1;
 	return 0;
 }
 
@@ -579,6 +580,8 @@ _thrunlockfile(FILE *f)
 
 	if((l = flockof(f)) == NULL || l->n == 0 || l->owner != _thrself()->id)
 		return;
-	if(--l->n == 0)
+	if(--l->n == 0){
+		f->lk = 0;
 		_thrwake(&l->q);
+	}
 }

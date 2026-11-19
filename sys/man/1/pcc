@@ -277,7 +277,9 @@ the
 .I getc
 and
 .I putc
-macros take it only when the buffer is empty or full.
+macros take it when the buffer is empty or full, or when any thread holds it,
+so that they wait for a holder of
+.IR flockfile .
 A program with threads cannot
 .IR fork ;
 .I posix_spawn

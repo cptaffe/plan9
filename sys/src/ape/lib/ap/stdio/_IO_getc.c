@@ -31,7 +31,10 @@ _IO_getc(FILE *f)
 	int r;
 
 	flockfile(f);
-	r = ugetc(f);
+	if(f->rp < f->wp)
+		r = *f->rp++;
+	else
+		r = ugetc(f);
 	funlockfile(f);
 	return r;
 }

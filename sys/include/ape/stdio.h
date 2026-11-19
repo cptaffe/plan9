@@ -31,6 +31,7 @@ typedef struct{
 	int fd;		/* UNIX file pointer */
 	char flags;	/* bits for must free buffer on close, line-buffered */
 	char state;	/* last operation was read, write, position, error, eof */
+	char lk;	/* a thread holds the stream's lock */
 	unsigned char *buf;	/* pointer to i/o buffer */
 	unsigned char *rp;	/* read pointer (or write end-of-buffer) */
 	unsigned char *wp;	/* write pointer (or read end-of-buffer) */
@@ -108,7 +109,7 @@ long	ftell(FILE *);
 off_t	ftello(FILE *);
 size_t	fwrite(const void *, size_t, size_t, FILE *);
 int	getc(FILE *);
-#define	getc(f)	((f)->rp>=(f)->wp? _IO_getc(f): *(f)->rp++)
+#define	getc(f)	((f)->rp>=(f)->wp || (f)->lk? _IO_getc(f): *(f)->rp++)
 int	getchar(void);
 #define	getchar()	getc(stdin)
 char	*gets(char *);
@@ -116,7 +117,7 @@ void	perror(const char *);
 int	printf(const char *, ...);
 int	putc(int, FILE *);
 /* assignment to f->junk eliminates warnings about unused result of operation */
-#define	putc(c, f) ((f)->junk = ((f)->wp>=(f)->rp? \
+#define	putc(c, f) ((f)->junk = ((f)->wp>=(f)->rp || (f)->lk? \
 	_IO_putc(c, f): (*(f)->wp++ = (c))))
 int	putchar(int);
 #define	putchar(c)	putc(c, stdout)
