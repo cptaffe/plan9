@@ -502,7 +502,7 @@ getpref(char *pat, Rune *pre)
 			return p-pat;
 		case L'\\':
 			p += n;
-			p += chartorune(++pre, p);
+			p += chartorune(pre, p);
 			pre++;
 			break;
 		default:

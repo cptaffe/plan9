@@ -1,0 +1,61 @@
+#!/bin/rc
+rfork e
+if(! ~ $#* 0)
+	winid=$1
+if(~ $#winid 0){
+	echo usage: aword [winid] >[1=2]
+	exit usage
+}
+cd /mnt/acme/$winid || exit nowin
+{
+	echo -n 'addr=dot' >ctl
+	a=`{cat addr}
+	if(! ~ $a(1) $a(2)){
+		cat xdata
+		exit
+	}
+	echo -n '#'$a(1) >[1=3]
+	echo -n -+ >[1=3]
+	l=`{cat addr}
+	if(~ $l(1) $l(2) && ! ~ $a(1) 0){
+		echo -n '#'$a(1) >[1=3]
+		echo -n '-#1' >[1=3]
+		echo -n -+ >[1=3]
+		l=`{cat addr}
+	}
+	cat xdata | awk -v 'q='$a(1) -v 'l='$l(1) '
+	function w(c) {
+		return c != "" && index(sp, c) == 0 && index(p, c) == 0
+	}
+	function j(c) {
+		return c == "''" || c == "’" || c == "-"
+	}
+	BEGIN {
+		sp = " \t\n   　"
+		o = "([{‘“«‹„‚「『〈《【〔（［｛"
+		c = ")]}‘“”»›」』〉》】〕）］｝"
+		p = o c "!\"#$%&*+,./:;<=>?@\\^_`|~—–‒―…·•¡¿、。，．！？：；"
+	}
+	NR == 1 {
+		i = q - l
+		if(!w(substr($0, i, 1)))
+			while(substr($0, i + 1, 1) != "" && index(o, substr($0, i + 1, 1)))
+				i++
+		if(!w(substr($0, i, 1)) && !w(substr($0, i + 1, 1)))
+			while(i > 0 && index(c, substr($0, i, 1)))
+				i--
+		k = i + 1
+		while(i > 0 && w(substr($0, i, 1)))
+			i--
+		while(k <= length($0) && w(substr($0, k, 1)))
+			k++
+		s = substr($0, i + 1, k - i - 1)
+		while(s != "" && j(substr(s, 1, 1)))
+			s = substr(s, 2)
+		while(s != "" && j(substr(s, length(s), 1)))
+			s = substr(s, 1, length(s) - 1)
+		gsub(/’/, "''", s)
+		if(s != "")
+			print s
+	}'
+} <>[3]addr

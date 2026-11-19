@@ -171,7 +171,7 @@ wname(Win *w, char *s)
 {
 	char buf[128];
 
-	sprint(buf, "name %s\n", s);
+	snprint(buf, sizeof buf, "name %s\n", s);
 	ctlwrite(w, buf);
 }
 
