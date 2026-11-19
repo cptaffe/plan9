@@ -4,6 +4,49 @@
 #include	<time.h>
 #include	<errno.h>
 #include	<sys/limits.h>
+#include	<fcntl.h>
+#include	<stdlib.h>
+#include	<string.h>
+
+static long
+swap(int av)
+{
+	char b[512], *p, *e;
+	long long n, m, mem, pg, used, user;
+	int f, r;
+
+	f = open("/dev/swap", O_RDONLY);
+	if(f < 0)
+		return -1;
+	r = read(f, b, sizeof b - 1);
+	close(f);
+	if(r < 0)
+		return -1;
+	b[r] = 0;
+	mem = pg = used = user = -1;
+	for(p = b; *p != 0; p = e+1){
+		n = strtoll(p, &e, 10);
+		m = -1;
+		if(*e == '/')
+			m = strtoll(e+1, &e, 10);
+		if(strncmp(e, " memory\n", 8) == 0)
+			mem = n;
+		else if(strncmp(e, " pagesize\n", 10) == 0)
+			pg = n;
+		else if(strncmp(e, " user\n", 6) == 0){
+			used = n;
+			user = m;
+		}
+		if((e = strchr(e, '\n')) == NULL)
+			break;
+	}
+	if(!av && mem >= 0)
+		return mem / getpagesize();
+	if(av && pg > 0 && user >= 0)
+		return used < user ? (user-used)*pg / getpagesize() : 0;
+	errno = EINVAL;
+	return -1;
+}
 
 long
 sysconf(int name)
@@ -38,6 +81,10 @@ sysconf(int name)
 		return L_cuserid;
 	case _SC_PAGESIZE:
 		return getpagesize();
+	case _SC_PHYS_PAGES:
+		return swap(0);
+	case _SC_AVPHYS_PAGES:
+		return swap(1);
 	}
 	errno = EINVAL;
 	return -1;

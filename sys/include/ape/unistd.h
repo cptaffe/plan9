@@ -70,6 +70,10 @@ typedef long ssize_t;
 #define _SC_PAGESIZE		12	/* getpagesize's */
 #define _SC_PAGE_SIZE		_SC_PAGESIZE
 #endif
+#ifdef _BSD_EXTENSION
+#define _SC_PHYS_PAGES		13
+#define _SC_AVPHYS_PAGES	14
+#endif
 
 /* pathconf argument */
 #define _PC_LINK_MAX		1

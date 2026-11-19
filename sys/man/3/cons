@@ -312,7 +312,7 @@ resets all of the counts on all processors.
 .PP
 The
 .B swap
-device holds a text block giving memory usage statistics:
+file holds a text block giving memory usage statistics:
 .IP
 .EX
 \fIn\fP memory
@@ -320,20 +320,25 @@ device holds a text block giving memory usage statistics:
 \fIn\fP kernel
 \fIn\fP/\fIm\fP user
 \fIn\fP/\fIm\fP swap
-\fIn\fP/\fIm\fP kernel malloc
-\fIn\fP/\fIm\fP kernel draw
+\fIn\fP/\fIm\fP reclaim
+\fIn\fP/\fIm\fP/\fIx\fP kernel malloc
+\fIn\fP/\fIm\fP/\fIx\fP kernel draw
+\fIn\fP/\fIm\fP/\fIx\fP kernel secret
 .EE
 .PP
 These are total memory (bytes), system page size (bytes),
 kernel memory (pages), user memory (pages), swap space (pages),
-kernel malloced data (bytes), and kernel graphics data (bytes).
+pages that can be reclaimed,
+and the kernel's malloced data, graphics data and secret data (bytes).
 The expression
 .IR n / m
 indicates
 .I n
 used out of
 .I m
-available.
+available;
+.IR n / m / x
+gives the bytes allocated, the size of the arena, and its largest size.
 These numbers are not blank padded.
 .PP
 To turn on swapping, write to
@@ -341,6 +346,26 @@ To turn on swapping, write to
 the textual file descriptor number of a file or device on which to swap.
 See
 .IR swap (8).
+.PP
+On p9web,
+.B memory
+is the memory of the computer the kernel runs on, as the host reports it:
+.I os.totalmem
+under Node, and the browser's
+.I navigator.deviceMemory
+in a page.
+Chrome rounds that to a power of two between 2 and 32 gigabytes, or 1 and 8 on Android;
+Safari and Firefox do not report it, and there
+.B memory
+is 4 gigabytes.
+A page is 65536 bytes, the unit by which wasm grows a program's memory.
+.B User
+counts the pages of the programs' memories.
+It counts each memory once, as of its program's last system call.
+Nothing swaps and the kernel reclaims no pages.
+It does not count its own memory.
+So kernel, swap, reclaim's first number and the kernel's arenas are zero.
+Writes fail.
 .PP
 The other files served by the
 .I cons
@@ -362,6 +387,9 @@ parent's process number
 .IR swap (8)
 .SH SOURCE
 .B /sys/src/9/port/devcons.c
+.br
+plan9web's
+.B k/src/kernel/dev.ts
 .SH BUGS
 For debugging, two control-T's followed by a letter
 generate console output and manage debugging:
