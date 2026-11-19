@@ -113,7 +113,10 @@ _IO_putc(int c, FILE *f)
 	int r;
 
 	flockfile(f);
-	r = uputc(c, f);
+	if(f->wp < f->rp)
+		r = *f->wp++ = c;
+	else
+		r = uputc(c, f);
 	funlockfile(f);
 	return r;
 }
