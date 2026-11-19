@@ -36,7 +36,7 @@ and
 .B chromium-experimental-subgroup-matrix
 that the adapter has.
 A session's buffers, shader modules and pipelines are its own,
-but a buffer it names another session may attach, as
+but a buffer it names another session of its user may attach, as
 .IR draw (3)
 names images.
 The device's queue runs the sessions' work in the order their writes come.
@@ -207,7 +207,9 @@ is 1, publish buffer
 as
 .IR name ;
 if 0, withdraw the name, which must be the buffer's.
-A name is the device's, not the session's, and goes when the session that published it
+A name is its user's, not the session's: only that user's sessions see it,
+and another user may publish the same name.
+It goes when the session that published it
 closes or the buffer goes.
 .TP
 .BI n " id n name\fR[\fIn\fR]"
@@ -232,6 +234,8 @@ and
 .B F
 messages, in the order asked, each once the GPU has done the messages before it,
 and an empty read when no more are to come.
+A read that waits for the GPU may be interrupted, and takes nothing:
+the next read gives those bytes.
 An error names the message and fails the write:
 the messages after it are not done, nor any part of a message it leaves unfinished,
 and the next write starts afresh;
@@ -244,7 +248,7 @@ a larger buffer is written in several
 messages.
 A write fails if its reads would leave more than 64 MiB unread,
 or its buffers, modules and pipelines would make more than 16384 in the session,
-or its buffers more than 2 GiB.
+or its buffers, its own and those it attached, more than 2 GiB.
 A device has at most 32 sessions at once; opening
 .B clone
 when it has them fails.
@@ -285,6 +289,7 @@ plan9web's
 .br
 .B https://www.w3.org/TR/WGSL/
 .SH BUGS
-A lost device ends every session; the next opening of
-.B clone
-gets a new one.
+A lost device ends every session that has it:
+their writes fail, and so do their reads, fences among them,
+that the GPU had not done.
+A session opened after it asks the browser for a new adapter and device.
