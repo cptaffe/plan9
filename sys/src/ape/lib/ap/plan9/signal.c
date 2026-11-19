@@ -117,7 +117,8 @@ _notehandler(void *u, char *msg)
 			return 0;
 		}
 	}
-	_doatexits();
+	if(i == NSIGTAB || sigtab[i].num != SIGABRT)
+		_doatexits();
 	_NOTED(1); /* NDFLT */
 	return 0;
 }
