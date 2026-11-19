@@ -586,15 +586,17 @@ sremove(Srv *srv, Req *r)
 static void
 rremove(Req *r, char *error, char *errbuf)
 {
-	if(error)
-		return;
-	if(r->fid->file){
+	if(error == nil && r->fid->file){
 		if(removefile(r->fid->file) < 0){
 			snprint(errbuf, ERRMAX, "remove %s: %r",
 				r->fid->file->name);
 			r->error = errbuf;
 		}
 		r->fid->file = nil;
+	}
+	if(r->fid != nil){
+		closefid(r->fid);
+		r->fid = nil;
 	}
 }
 

@@ -704,6 +704,14 @@ is called to allow the program to dispose
 of the
 .IB fid -> aux
 pointer.
+For a clunk or a remove that holds the fid's last reference,
+it is called before the reply goes out, so what the program closes for the fid
+is closed by the time the client hears the
+.B Rclunk
+or
+.BR Rremove ,
+as a kernel device's close is;
+Plan 9's library replies first.
 .TP
 .I Destroyreq
 Similarly, when a
