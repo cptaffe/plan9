@@ -237,7 +237,13 @@ No thread is preempted: one that spins on a variable another thread sets,
 with no call that waits and no
 .IR sched_yield ,
 never lets that thread run, and hangs.
-The stdio buffers are the process's.
+Each stdio stream has a lock, taken by every stdio call and by
+.IR flockfile ;
+the
+.I getc
+and
+.I putc
+macros take it only when the buffer is empty or full.
 A program with threads cannot
 .IR fork ;
 .I posix_spawn

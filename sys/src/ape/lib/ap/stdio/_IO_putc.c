@@ -9,7 +9,7 @@ void _IO_cleanup(void){
 /*
  * Look this over for simplification
  */
-int _IO_putc(int c, FILE *f){
+static int uputc(int c, FILE *f){
 	int cnt;
 	static int first=1;
 	switch(f->state){
@@ -105,4 +105,15 @@ int _IO_putc(int c, FILE *f){
 	 * there's a vc bug preventing that from working
 	 */
 	return c&0xff;
+}
+
+int
+_IO_putc(int c, FILE *f)
+{
+	int r;
+
+	flockfile(f);
+	r = uputc(c, f);
+	funlockfile(f);
+	return r;
 }

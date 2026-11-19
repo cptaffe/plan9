@@ -2,7 +2,7 @@
  * pANS stdio -- setvbuf
  */
 #include "iolib.h"
-int setvbuf(FILE *f, char *buf, int mode, size_t size){
+static int usetvbuf(FILE *f, char *buf, int mode, size_t size){
 	if(f->state!=OPEN)
 		return -1;
 	f->state=RDWR;
@@ -35,4 +35,15 @@ int _IO_setvbuf(FILE *f){
 	if(f==stderr || (f==stdout && isatty(1)))
 		return setvbuf(f, (char *)0, _IOLBF, BUFSIZ);
 	return setvbuf(f, (char *)0, _IOFBF, BUFSIZ);
+}
+
+int
+setvbuf(FILE *f, char *buf, int mode, size_t size)
+{
+	int r;
+
+	flockfile(f);
+	r = usetvbuf(f, buf, mode, size);
+	funlockfile(f);
+	return r;
 }

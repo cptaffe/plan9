@@ -19,15 +19,15 @@ FILE *fdopen(const int fd, const char *mode){
 			break;
 	if(f==&_IO_stream[FOPEN_MAX])
 		return NULL;
+	if(fd==-1) return NULL;
 	f->fd=fd;
-	if(mode[0]=='a')
-		lseek(f->fd, 0, SEEK_END);
-	if(f->fd==-1) return NULL;
 	f->flags=0;
 	f->state=OPEN;
 	f->buf=0;
 	f->rp=0;
 	f->wp=0;
 	f->lp=0;
+	if(mode[0]=='a')
+		lseek(f->fd, 0, SEEK_END);
 	return f;
 }

@@ -2,7 +2,7 @@
  * pANS stdio -- fflush
  */
 #include "iolib.h"
-int fflush(FILE *f){
+static int ufflush(FILE *f){
 	int error, cnt;
 	if(f==NULL){
 		error=0;
@@ -20,12 +20,23 @@ int fflush(FILE *f){
 		return EOF;
 	case WR:
 		cnt=(f->flags&LINEBUF?f->lp:f->wp)-f->buf;
+		f->rp=f->wp=f->buf;
 		if(cnt && write(f->fd, f->buf, cnt)!=cnt){
 			f->state=ERR;
 			return EOF;
 		}
-		f->rp=f->wp=f->buf;
 		f->state=RDWR;
 		return 0;
 	}
+}
+
+int
+fflush(FILE *f)
+{
+	int r;
+
+	flockfile(f);
+	r = ufflush(f);
+	funlockfile(f);
+	return r;
 }

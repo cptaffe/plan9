@@ -2,7 +2,7 @@
  * pANS stdio -- setbuf
  */
 #include "iolib.h"
-void setbuf(FILE *f, char *buf){
+static void usetbuf(FILE *f, char *buf){
 	if(f->state==OPEN){
 		if(buf)
 			f->bufl=BUFSIZ;
@@ -14,4 +14,12 @@ void setbuf(FILE *f, char *buf){
 		f->state=RDWR;
 	}
 	/* else error, but there's no way to report it */
+}
+
+void
+setbuf(FILE *f, char *buf)
+{
+	flockfile(f);
+	usetbuf(f, buf);
+	funlockfile(f);
 }
