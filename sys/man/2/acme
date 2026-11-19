@@ -12,6 +12,7 @@ winclosefiles,
 winctl,
 windel,
 windeleteall,
+winpath,
 wineventchan,
 winfd,
 winfree,
@@ -98,6 +99,9 @@ int	windel(Win *w, int sure)
 void	windeleteall(void)
 .PP
 .B
+char*	winpath(Win *w)
+.PP
+.B
 Channel*	wineventchan(Win *w)
 .PP
 .B
@@ -174,6 +178,19 @@ but it opens, reads and writes the window's files in
 .IR acme (4))
 instead of using a 9P client library.
 .PP
+When
+.B /mnt/amux
+has the window, the library opens the window's
+.B clone
+there and uses the session's directory in place of acme's
+(see
+.IR amux (4)),
+so the window's address, limit and guard are the program's own.
+It keeps the
+.B clone
+file open while it keeps the window's files, so the session lasts that long.
+Otherwise it opens acme's files directly.
+.PP
 A
 .B Win
 is a window and the files of it the library has opened.
@@ -181,7 +198,9 @@ A program should not use its fields, but for
 .BR id ,
 the window's number.
 .I Newwin
-makes a window and returns its
+makes a window, by acme's
+.BR new/ctl ,
+and returns its
 .BR Win .
 .I Openwin
 returns a
@@ -192,7 +211,12 @@ If
 .I ctlfd
 is not negative, it is the window's
 .B ctl
-file, open for reading and writing, and the library keeps it.
+file in acme, open for reading and writing, and the library keeps it;
+with a session, the library writes
+.B lock
+and
+.B unlock
+to it.
 .PP
 The library opens a window's files as they are first used and keeps them open,
 with
@@ -245,6 +269,13 @@ including the ones for a body a program draws
 .BR undo
 and
 .BR redo ).
+A session refuses
+.B lock
+and
+.BR unlock ,
+so a write that starts with either goes to acme's own
+.B ctl
+for the window, which the library keeps open while it keeps the window's files.
 .I Winname
 sets the window's name to
 .I fmt\fR, \fP...
@@ -309,6 +340,18 @@ and
 open any of the window's files for
 .I mode
 and return the file descriptor, which the caller closes.
+.I Winpath
+returns the directory the library opens them in, the session's or acme's,
+for a program that binds them, as one that draws its body binds its
+.B mouse
+and
+.B cons
+on
+.BR /dev ;
+the string is the library's, and good until
+.I winclosefiles
+or
+.IR winfree .
 .PP
 An
 .B Event
@@ -540,6 +583,12 @@ but they call
 (see
 .IR perror (2))
 when they would return nil.
+A program that defines its own
+.IR emalloc ,
+.I erealloc
+and
+.IR estrdup ,
+of these types, uses them in place of the library's, and so does the library.
 .PP
 The functions that use a window's file call
 .I sysfatal
@@ -549,12 +598,15 @@ when they cannot open it, as plan9port's do.
 .SH SEE ALSO
 .IR acme (1),
 .IR acme (4),
+.IR amux (4),
 .IR thread (2)
 .SH BUGS
 .I Openwin
 takes a file descriptor where plan9port's takes a 9P client's fid, so a program that passes nil passes \-1 here.
 .PP
-.IR Winseqopen 's
+Without
+.IR amux ,
+.IR winseqopen 's
 lock is the program's own.
 Another program that writes the window's
 .B seq

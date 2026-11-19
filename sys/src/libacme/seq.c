@@ -33,15 +33,14 @@ winseqopen(Win *w, char *file, int seq, int mode)
 	char buf[100], s[16];
 	int fd, sfd, n;
 
-	snprint(buf, sizeof buf, "/mnt/acme/%d/seq", w->id);
+	if(_winpath(w, "seq", buf, sizeof buf) == nil)
+		return -1;
 	n = snprint(s, sizeof s, "%d", seq);
 	fd = -1;
 	qlock(&_winseqlk);
 	if((sfd = open(buf, OWRITE)) >= 0){
-		if(write(sfd, s, n) == n){
-			snprint(buf, sizeof buf, "/mnt/acme/%d/%s", w->id, file);
+		if(write(sfd, s, n) == n && _winpath(w, file, buf, sizeof buf) != nil)
 			fd = open(buf, mode);
-		}
 		close(sfd);
 	}
 	qunlock(&_winseqlk);

@@ -31,12 +31,3 @@ estrdup(char *s)
 		sysfatal("out of memory");
 	return s;
 }
-
-char*
-evsmprint(char *s, va_list v)
-{
-	s = vsmprint(s, v);
-	if(s == nil)
-		sysfatal("out of memory");
-	return s;
-}
