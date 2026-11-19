@@ -1,0 +1,86 @@
+.TH BITS 1
+.SH NAME
+bits \- how much information each part of a text carries, according to a language model
+.SH SYNOPSIS
+.B bits
+[
+.B -p
+] [
+.B -m
+.I dir
+] [
+.I file
+]
+.SH DESCRIPTION
+.I Bits
+reads a text from
+.I file
+or its standard input, writes it to a session of the language model served at
+.I dir
+.RB ( /mnt/lm ,
+by
+.I lmfs
+or
+.IR lmsim (4)),
+and prints the model's answer.
+.PP
+With no option it prints a line for each token:
+.IP
+.I "q0 q1 bits rank"
+.LP
+.I Q0
+and
+.I q1
+are rune offsets into the text, which serve as
+.IR acme (1)
+addresses,
+.I bits
+is the token's surprisal, the negative base-2 logarithm of its probability, to two places,
+and
+.I rank
+is where the token stood among the model's guesses, 1 for the likeliest.
+The server joins a token that ends inside a rune with the next, so every line starts and ends on
+a rune.
+The lines tile the text.
+The
+.I bits
+column sums to the text's size under the model, and 2 to the power of its mean is the
+model's perplexity on the text.
+.PP
+With
+.B -p
+it prints a line for each paragraph:
+.IP
+.I "q0 q1 bits alone shared"
+.LP
+A paragraph is a run of lines with text, and the blank lines after it;
+the first takes any blank lines before it, so the paragraphs tile the text.
+.I Bits
+is the paragraph's cost given the text before it, the sum of its tokens' bits,
+.I alone
+its cost as a text of its own, and
+.I shared
+the difference: how much of it the text has already said.
+.B -p
+sets the session's context to the longest the model takes, its
+.B maxctx
+in
+.BR ctl ,
+so that
+.I shared
+sees repetition from far back.
+.PP
+The model measures surprise, not value: a cliché costs few bits, and a misspelling and a fresh
+idea many.
+.SH EXAMPLES
+The ten costliest runes of a file:
+.IP
+.EX
+bits file | sort -nr +2 | sed 10q
+.EE
+.SH SOURCE
+.B src/cmd/bits.c
+.SH SEE ALSO
+.IR segment (1),
+.IR lmsim (4),
+.B doc/words.md
