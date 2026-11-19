@@ -1,15 +1,124 @@
 #include "gc.h"
 
+enum
+{
+	Tmin	= 4,
+	Tdens	= 10,
+	Tmax	= 65520,
+};
+
+static int
+dense(C1 *q, int nc)
+{
+	uvlong r;
+
+	if(nc < Tmin)
+		return 0;
+	r = (uvlong)q[nc-1].val - (uvlong)q[0].val;
+	if(r >= Tmax)
+		return 0;
+	return (uvlong)nc*100 >= (r+1)*Tdens;
+}
+
+static void
+swtab(C1 *q, int nc, long def, Node *n, Node *tn)
+{
+	Node r, *x;
+	vlong v;
+
+	v = q->val;
+	x = n;
+	if(v != 0) {
+		gopcode(OSUB, nodgconst(v, n->type), n, tn);
+		x = tn;
+	}
+	if(typev[n->type->etype]) {
+		gopcode(OHI, nodgconst(q[nc-1].val - v, n->type), x, Z);
+		patch(p, def);
+		regalloc(&r, &regnode, Z);
+		gmove(x, &r);
+		x = &r;
+	}
+	nextpc();
+	p->as = ACASE;
+	naddr(x, &p->from);
+	patch(p, def);
+	for(; nc > 0; v++) {
+		nextpc();
+		p->as = ABCASE;
+		if(q->val == v) {
+			patch(p, q->label);
+			q++;
+			nc--;
+		} else
+			patch(p, def);
+	}
+	if(x == &r)
+		regfree(&r);
+}
+
+static void
+swclu(C1 *q, int *e, int m, long def, Node *n, Node *tn)
+{
+	int i, j, b;
+	Prog *sp;
+
+	b = 0;
+	for(i=0; i<m; i++)
+		if(e[i] - (i > 0 ? e[i-1] : 0) > 1)
+			b = 1;
+	if(!b) {
+		swit2(q, e[m-1], def, n, tn);
+		return;
+	}
+	if(m == 1) {
+		swtab(q, e[0], def, n, tn);
+		return;
+	}
+	i = m / 2;
+	j = e[i-1];
+	gopcode(OGE, nodgconst(q[j].val, n->type), n, Z);
+	sp = p;
+	swclu(q, e, i, def, n, tn);
+	patch(sp, pc);
+	for(b=i; b<m; b++)
+		e[b] -= j;
+	swclu(q+j, e+i, m-i, def, n, tn);
+}
+
 void
 swit1(C1 *q, int nc, long def, Node *n)
 {
 	Node tn;
+	int *c, *nx, *e, i, j, m;
 
 	if(typev[n->type->etype])
 		regalloc(&tn, &vregnode, Z);
 	else
 		regalloc(&tn, &regnode, Z);
-	swit2(q, nc, def, n, &tn);
+	c = alloc((nc+1)*sizeof(int));
+	nx = alloc((nc+1)*sizeof(int));
+	e = alloc((nc+1)*sizeof(int));
+	c[nc] = 0;
+	for(i=nc-1; i>=0; i--) {
+		c[i] = c[i+1] + 1;
+		nx[i] = i+1;
+		for(j=i+Tmin-1; j<nc; j++) {
+			if((uvlong)q[j].val - (uvlong)q[i].val >= Tmax)
+				break;
+			if(dense(q+i, j-i+1) && c[j+1] + 1 <= c[i]) {
+				c[i] = c[j+1] + 1;
+				nx[i] = j+1;
+			}
+		}
+	}
+	m = 0;
+	for(i=0; i<nc; i=nx[i])
+		e[m++] = nx[i];
+	if(m > 0)
+		swclu(q, e, m, def, n, &tn);
+	else
+		swit2(q, nc, def, n, &tn);
 	regfree(&tn);
 }
 

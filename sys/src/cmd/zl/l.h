@@ -76,6 +76,7 @@ enum
 	WI32CONST	= 0x41,
 	WI64CONST	= 0x42,
 	WF64CONST	= 0x44,
+	WI32EQ	= 0x46,
 	WI32NE	= 0x47,
 	WI32ADD	= 0x6a,
 	WI32SUB	= 0x6b,
@@ -107,6 +108,8 @@ struct	Prog
 	Adr	to;
 	Prog*	link;
 	Prog*	cond;
+	Prog**	tab;
+	int	ntab;
 	long	line;
 	int	lab;
 	int	sig;

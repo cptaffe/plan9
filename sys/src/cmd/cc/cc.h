@@ -483,6 +483,7 @@ EXTERN	int	nterm;
 EXTERN	int	packflg;
 EXTERN	int	fproundflg;
 EXTERN	int	fieldsysv;
+EXTERN	int	vlongreg;
 EXTERN	int	profileflg;
 EXTERN	int	ncontin;
 EXTERN	int	newvlongcode;
