@@ -157,7 +157,7 @@ getpattern(char *addr)
 	fd = procrexec(xprog, "-d", dict, "-c", q, nil);
 	free(q);
 	if ((n = read(fd, pbuffer, sizeof pbuffer - 1)) < 0)
-		fprint(2, "Error in getting addres from dict.\n");
+		fprint(2, "adict: read dict: %r\n");
 	else {
 		pbuffer[n] = 0;
 		t = pbuffer;
@@ -189,7 +189,7 @@ chgaddr(int dir)
 	fd = procrexec(xprog, "-d", dict, "-c", q, nil);
 	free(q);
 	if ((n = read(fd, abuffer, sizeof abuffer - 1)) < 0)
-		fprint(2, "Error in getting addres from dict.\n");
+		fprint(2, "adict: read dict: %r\n");
 	else {
 		abuffer[n] = 0;
 		if ((res = strchr(abuffer, '#')) != nil && (t = strchr(res, '\n')) != nil)
