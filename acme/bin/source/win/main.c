@@ -5,6 +5,7 @@
 #include <fcall.h>
 #include <9p.h>
 #include <ctype.h>
+#include <acme.h>
 #include "dat.h"
 
 void	mainctl(void*);
@@ -76,17 +77,17 @@ threadmain(int argc, char *argv[])
 	tag = eappend(estrdup(tag), "/-", name);
 	id = nil;
 	if(resume && (id = getenv("winid")) != nil && atoi(id) > 0)
-		win = oldwindow(id, &resumept);
+		win = wold(id, &resumept);
 	else{
 		resume = 0;
-		win = newwindow();
+		win = wnew();
 	}
 	free(id);
 	snprint(buf, sizeof buf, "%d", win->id);
 	putenv("winid", buf);
-	winname(win, tag);
+	wname(win, tag);
 	if(!resume)
-		wintagwrite(win, "Send Noscroll", 5+8);
+		wtag(win, "Send Noscroll");
 	strcpy(buf, "win -r");
 	j = 6;
 	for(i=0; i<argc && j+1+strlen(argv[i])+1<sizeof buf; i++){
@@ -95,13 +96,13 @@ threadmain(int argc, char *argv[])
 		j += 1+strlen(argv[i]);
 	}
 
-	winsetdump(win, dir, buf);
+	wdump(win, dir, buf);
 	threadcreate(mainctl, win, STACK);
 	mountcons();
 	threadcreate(fsloop, nil, STACK);
 	startpipe();
 	startcmd(av, &notepg);
-	ctlprint(win->ctl, "scroll");
+	wctl(win, "scroll");
 }
 
 int
@@ -120,16 +121,16 @@ command(Window *w, char *s)
 		s++;
 	if(strcmp(s, "Delete")==0 || strcmp(s, "Del")==0){
 		write(notepg, "hangup", 6);
-		windel(w, 1);
+		wdel(w, 1);
 		threadexitsall(nil);
 		return 1;
 	}
 	if(EQUAL(s, "scroll")){
-		ctlprint(w->ctl, "scroll\nshow");
+		wctl(w, "scroll\nshow");
 		return 1;
 	}
 	if(EQUAL(s, "noscroll")){
-		ctlprint(w->ctl, "noscroll");
+		wctl(w, "noscroll");
 		return 1;
 	}
 	return 0;
@@ -200,7 +201,7 @@ __sendinput(Window *w, ulong q0, ulong q1)
 	if(q0==q1)
 		return 0;
 	s = emalloc((q1-q0)*UTFmax+1);
-	n = winread(w, q0, q1, s);
+	n = wbody(w, q0, q1, s);
 	s[n] = '\0';
 	t = strpbrk(s, "\n\004");
 	if(t == nil){
@@ -249,8 +250,7 @@ _sendinput(Window *w, ulong q0, ulong *q1)
 	n = __sendinput(w, q0, *q1);
 	if(n && eofsent && !eraseinput){
 		sprint(buf, "#%lud,#%lud", q0+n-1, q0+n);
-		winsetaddr(w, buf, 0);
-		write(w->data, buf, 0);
+		wzap(w, buf);
 		*q1 -= 1;
 		return n-1;
 	}
@@ -258,8 +258,7 @@ _sendinput(Window *w, ulong q0, ulong *q1)
 		return n;
 	/* erase q0 to q0+n */
 	sprint(buf, "#%lud,#%lud", q0, q0+n);
-	winsetaddr(w, buf, 0);
-	write(w->data, buf, 0);
+	wzap(w, buf);
 	*q1 -= n;
 	return 0;
 }
@@ -278,7 +277,7 @@ sendinput(Window *w, ulong q0, ulong *q1)
 	return n;
 }
 
-Event esendinput;
+Msg esendinput;
 void
 fsloop(void*)
 {
@@ -287,7 +286,7 @@ fsloop(void*)
 
 	eq = &q;
 	memset(&esendinput, 0, sizeof esendinput);
-	esendinput.c1 = 'C';
+	esendinput.e.c1 = 'C';
 	for(;;){
 		while(recv(fschan, &e) == -1)
 			;
@@ -321,7 +320,7 @@ sendit(char *s)
 {
 //	char tmp[32];
 
-	write(win->body, s, strlen(s));
+	winwrite(win->a, "body", s, strlen(s));
 /*
  * RSC: The problem here is that other procs can call sendit,
  * so we lose our single-threadedness if we call sendinput.
@@ -340,43 +339,25 @@ sendit(char *s)
 }
 
 void
-execevent(Window *w, Event *e, int (*command)(Window*, char*))
+execevent(Window *w, Msg *m, int (*command)(Window*, char*))
 {
-	Event *ea, *e2;
-	int n, na, len, needfree;
+	Event *e;
+	int n, len, needfree;
 	char *s, *t;
 
-	ea = nil;
-	e2 = nil;
-	if(e->flag & 2)
-		e2 = recvp(w->cevent);
-	if(e->flag & 8){
-		ea = recvp(w->cevent);
-		na = ea->nb;
-		recvp(w->cevent);
-	}else
-		na = 0;
-
+	e = &m->e;
 	needfree = 0;
-	s = e->b;
-	if(e->nb==0 && (e->flag&2)){
-		s = e2->b;
-		e->q0 = e2->q0;
-		e->q1 = e2->q1;
-		e->nb = e2->nb;
-	}
+	s = e->text;
 	if(e->nb==0 && e->q0<e->q1){
 		/* fetch data from window */
 		s = emalloc((e->q1-e->q0)*UTFmax+2);
-		n = winread(w, e->q0, e->q1, s);
+		n = wbody(w, e->q0, e->q1, s);
 		s[n] = '\0';
 		needfree = 1;
 	}else
-	if(na){
-		t = emalloc(strlen(s)+1+na+2);
-		sprint(t, "%s %s", s, ea->b);
-		if(needfree)
-			free(s);
+	if(e->arg[0] != '\0'){
+		t = emalloc(strlen(s)+1+strlen(e->arg)+2);
+		sprint(t, "%s %s", s, e->arg);
 		s = t;
 		needfree = 1;
 	}
@@ -386,7 +367,7 @@ execevent(Window *w, Event *e, int (*command)(Window*, char*))
 	if(!command(w, s) && s[0]!='\0'){	/* send it as typed text */
 		/* if it's a built-in from the tag, send it back */
 		if(e->flag & 1)
-			fprint(w->event, "%c%c%d %d\n", e->c1, e->c2, e->q0, e->q1);
+			wwrite(w, m);
 		else{	/* send text to main window */
 			len = strlen(s);
 			if(len>0 && s[len-1]!='\n' && s[len-1]!='\004'){
@@ -408,12 +389,12 @@ execevent(Window *w, Event *e, int (*command)(Window*, char*))
 }
 
 int
-hasboundary(Rune *r, int nr)
+hasboundary(char *b, int nb)
 {
 	int i;
 
-	for(i=0; i<nr; i++)
-		if(r[i]=='\n' || r[i]=='\004')
+	for(i=0; i<nb; i++)
+		if(b[i]=='\n' || b[i]=='\004')
 			return 1;
 	return 0;
 }
@@ -422,27 +403,29 @@ void
 mainctl(void *v)
 {
 	Window *w;
-	Event *e, *held;
+	Msg *m, *held;
+	Event *e;
 	int delta, pendingS, pendingK, seq, try;
 	ulong hostpt, endpt;
 
 	w = v;
-	seq = winguard(w);
-	proccreate(wineventproc, w, STACK);
+	seq = wguard(w);
+	proccreate(wevents, w, STACK);
 	held = nil;
 
 	hostpt = resumept;
 	endpt = resumept;
-	winsetaddr(w, "0", 0);
+	waddr(w, "0", 0);
 	pendingS = 0;
 	pendingK = 0;
 	for(;;){
 		if(debug)
 			fprint(2, "input range %lud-%lud\n", hostpt, endpt);
-		e = recvp(w->cevent);
+		m = recvp(w->cevent);
+		e = &m->e;
 		if(debug)
 			fprint(2, "msg: %C %C %d %d %d %d %q\n",
-				e->c1 ? e->c1 : ' ', e->c2 ? e->c2 : ' ', e->q0, e->q1, e->flag, e->nb, e->b);
+				e->c1 ? e->c1 : ' ', e->c2 ? e->c2 : ' ', e->q0, e->q1, e->flag, m->nb, m->b);
 		try = e->c2=='I' || e->c2=='D';
 		if(try)
 			seq++;
@@ -460,7 +443,7 @@ mainctl(void *v)
 			break;
 
 		case 'S':	/* output to stdout */
-			held = e;
+			held = m;
 			try = 1;
 			break;
 
@@ -476,7 +459,7 @@ mainctl(void *v)
 			}
 			if(!islower(e->c2))
 				fprint(2, "win msg: %C %C %d %d %d %d %q\n",
-					e->c1, e->c2, e->q0, e->q1, e->flag, e->nb, e->b);
+					e->c1, e->c2, e->q0, e->q1, e->flag, m->nb, m->b);
 			break;
 
 		case 'F':	/* generated by our actions (specifically case 'S' above) */
@@ -502,7 +485,7 @@ mainctl(void *v)
 			}
 			if(!islower(e->c2))
 				fprint(2, "win msg: %C %C %d %d %d %d %q\n",
-					e->c1, e->c2, e->q0, e->q1, e->flag, e->nb, e->b);
+					e->c1, e->c2, e->q0, e->q1, e->flag, m->nb, m->b);
 			break;
 
 		case 'K':
@@ -512,7 +495,7 @@ mainctl(void *v)
 			case 'X':
 			case 'l':
 			case 'L':
-				winwriteevent(w, e);
+				wwrite(w, m);
 				break;
 			case 'D':
 				endpt -= delta;
@@ -528,13 +511,13 @@ mainctl(void *v)
 					endpt = e->q1;
 				if(e->q0 < hostpt)
 					hostpt += delta;
-				if(e->nr>0 && e->r[e->nr-1]==0x7F){
+				if(m->nb>0 && m->b[m->nb-1]==0x7F){
 					write(notepg, "interrupt", 9);
 					hostpt = endpt;
 					break;
 				}
 				if(e->q0 >= hostpt
-				&& hasboundary(e->r, e->nr)){
+				&& hasboundary(m->b, m->nb)){
 					/*
 					 * If we are between the S message (which
 					 * we processed by inserting text in the
@@ -567,14 +550,12 @@ mainctl(void *v)
 			switch(e->c2){
 			case 'x':
 			case 'X':
-				execevent(w, e, command);
+				execevent(w, m, command);
 				break;
 
 			case 'l':	/* reflect all searches back to acme */
 			case 'L':
-				if(e->flag & 2)
-					recvp(w->cevent);
-				winwriteevent(w, e);
+				wwrite(w, m);
 				break;
 
 			case 'I':
@@ -601,7 +582,7 @@ mainctl(void *v)
 			}
 		}
 		if(held != nil && try)
-			switch(winput(w, hostpt, seq, held->b, held->nb)){
+			switch(wput(w, hostpt, seq, held->b, held->nb)){
 			case 1:
 				pendingS += held->nr;
 				held = nil;
@@ -639,6 +620,26 @@ lookinbin(char *s)
 	return 1;
 }
 
+static void
+devacme(void)
+{
+	char buf[64], n[16];
+	int fd, k;
+
+	snprint(buf, sizeof buf, "/mnt/amux/%d/clone", win->id);
+	if((fd = open(buf, ORDWR)) >= 0){
+		if((k = read(fd, n, sizeof n-1)) > 0){
+			n[k] = 0;
+			snprint(buf, sizeof buf, "/mnt/amux/%d/%d", win->id, atoi(n));
+			if(bind(buf, "/dev/acme", MREPL) >= 0)
+				return;
+		}
+		close(fd);
+	}
+	snprint(buf, sizeof buf, "/mnt/wsys/%d", win->id);
+	bind(buf, "/dev/acme", MREPL);
+}
+
 /* adapted from mail.  not entirely free of details from that environment */
 void
 execproc(void *v)
@@ -655,6 +656,7 @@ execproc(void *v)
 	close(1);
 	open("/dev/cons", OWRITE);
 	dup(1, 2);
+	devacme();
 	cpid = e->cpid;
 	free(e);
 	procexec(cpid, av[0], av);
@@ -677,8 +679,6 @@ startcmd(char *argv[], int *notepg)
 	e->argv = argv;
 	cpid = chancreate(sizeof(ulong), 0);
 	e->cpid = cpid;
-	sprint(buf, "/mnt/wsys/%d", win->id);
-	bind(buf, "/dev/acme", MREPL);
 	proccreate(execproc, e, EXECSTACK);
 	do
 		pid = recvul(cpid);
