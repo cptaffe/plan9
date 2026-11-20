@@ -259,7 +259,7 @@ zone(Fmt *f, int c, int off)
 	if(c == Isosec || c == Numsec || c == Isocolonsec || c == Numcolonsec){
 		if(c == Isocolonsec || c == Numcolonsec)
 			fmtprint(f, ":");
-		fmtprint(f, "%02d", off%60);
+		num(f, off%60, 2);
 	}
 }
 
@@ -761,9 +761,12 @@ tmparse(Tm *tm, char *layout, char *s)
 	}else if(name[0] || big){
 		strcpy(tm->zone, name);
 		tm->tzoff = 0;
-		lt = localtime(tmsec(tm));
-		if(name[0] && strcmp(lt->zone, name) == 0)
-			tm->tzoff = lt->tzoff;
+		t = tmsec(tm);
+		if(t == (long)t){
+			lt = localtime(t);
+			if(name[0] && strcmp(lt->zone, name) == 0)
+				tm->tzoff = lt->tzoff;
+		}
 	}else
 		strcpy(tm->zone, "GMT");
 	t = days(year, mon, day);
