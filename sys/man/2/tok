@@ -175,25 +175,44 @@ A bad regular expression in a pattern calls
 a program that defines one that returns, and sets the error string, gets that string from
 .IR tokcomp .
 .PP
-Among the ways a match can capture, these routines choose as
-.IR sam (1)
-does: its threads run in sam's order, and of two that reach the same state, the one that started
-first wins.
-.PP
-The matcher is a Pike VM: a thread is a state of the compiled pattern with its bound tokens and, for
-each repetition around it, the bracket that closes the outermost group it has entered; two threads in the same
-state whose bound tokens have the same texts merge.
-For a pattern with
+The compiler and the machine are those of
+.IR sam (1)'s
+regular expressions, on tokens.
+An operator-precedence parser builds Thompson's fragments, numbering the captures as they open,
+and compiles the pattern twice, the second time with its catenations reversed for
+.IR tokbexec ,
+which runs that program backward from
+.IR t1 .
+A thread is an instruction and its start, with its captures, its bound tokens and, for each
+repetition around it, the partner of the outermost bracket it has entered.
+The machine keeps one thread a state; a state is an instruction, those partners, and the texts of
+the bound tokens, so two threads whose bound tokens have the same texts merge, and of two that
+reach one state the one that started first stays, as in sam.
+For a pattern of
+.I m
+instructions with
 .I k
-names, a document of
+names, nested
+.I s
+repetitions deep, on
 .I n
-tokens and
+tokens with
 .I V
-distinct texts takes time at most proportional to
+distinct texts and brackets
+.I D
+deep, a search takes time at most proportional to
 .I n
-times the pattern's size times
-.IR V\u\s-2k\s0\d ,
-and times the depth of brackets for each nested repetition.
+times
+.I m
+times
+.IR V\u\s-2k\s0\d
+times
+.IR D\u\s-2s\s0\d .
+A backward search with
+.BI : x
+runs the reversed program with looser guards, checks its match forward, and if that fails
+searches forward from
+.IR t0 .
 .SH SOURCE
 .B /sys/src/libtok
 .SH SEE ALSO

@@ -14,13 +14,13 @@ enum
 	Tref,
 
 	Itok = 1,
-	Isplit,
-	Ijmp,
+	Ior,
+	Inop,
+	Ilbra,
+	Irbra,
 	Isbeg,
 	Isend,
-	Igopen,
-	Igclose,
-	Imatch,
+	Iend,
 };
 
 struct Test
@@ -38,12 +38,12 @@ struct Test
 struct Inst
 {
 	int	op;
-	int	x;
-	int	y;
+	int	next;
+	int	right;
 	Test	*t;
 	int	bind;
+	int	sub;
 	int	star;
-	int	grp;
 	int	*stars;
 	int	nstars;
 };
@@ -52,13 +52,15 @@ struct Tpat
 {
 	Inst	*i;
 	int	ni;
+	int	mi;
+	int	start;
+	int	bstart;
+	int	refs;
 	int	nstar;
 	int	nbind;
 	char	*bname[Tmaxcap];
-	int	ngrp;
 	int	ncap;
 	int	capbind[Tmaxcap];
-	int	capgrp[Tmaxcap];
 	int	bcap[Tmaxcap];
 	int	comments;
 	Test	**tests;
@@ -84,9 +86,12 @@ struct Tx
 {
 	Intern	text;
 	Intern	names;
+	int	*vis;
+	int	*rank;
 };
 
 uint	_tokhash(char*, int);
 Ient*	_tokintern(Intern*, char*, int);
 void	_tokinternfree(Intern*);
 int	_tokname(char*, char*);
+void	_tokview(Toks*, int**, int**);

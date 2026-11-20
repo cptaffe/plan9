@@ -4,46 +4,68 @@
 #include <tok.h>
 #include "impl.h"
 
-typedef struct Node	Node;
+typedef struct Lx	Lx;
+typedef struct Frag	Frag;
+typedef struct Ator	Ator;
 typedef struct P	P;
 
 enum
 {
 	Maxdepth = 100,
 
-	Ntok = 1,
-	Ncat,
-	Nalt,
-	Nrep,
-	Ngrp,
-	Nempty,
+	Ostart = 0x100,
+	Orbra,
+	Olbra,
+	Oor,
+	Ocat,
+	Ostar,
+	Oplus,
+	Oquest,
 };
 
-struct Node
+struct Lx
 {
 	int	type;
-	int	op;
 	Test	*t;
 	int	bind;
-	Node	*l;
-	Node	*r;
+	int	sub;
+};
+
+struct Frag
+{
+	int	first;
+	int	last;
+	int	lo;
+};
+
+struct Ator
+{
+	int	op;
+	int	sub;
 };
 
 struct P
 {
+	Tpat	*p;
 	char	**w;
 	int	nw;
 	int	i;
-	Tpat	*p;
-	Node	**nodes;
-	int	nnodes;
-	int	stk[64];
-	int	nstk;
+	Lx	*lx;
+	int	nlx;
+	int	mlx;
+	Frag	*and;
+	int	nand;
+	int	mand;
+	Ator	*ator;
+	int	nator;
+	int	mator;
+	int	lastwasand;
+	int	nbra;
+	int	back;
+	int	nstar;
 	int	depth;
 	char	err[ERRMAX];
 };
-
-static Node*	alt(P*);
 
 static char*
 sdup(char *s)
@@ -65,21 +87,6 @@ perr(P *p, char *fmt, ...)
 	va_start(a, fmt);
 	vsnprint(p->err, sizeof p->err, fmt, a);
 	va_end(a);
-}
-
-static Node*
-node(P *p, int type, Node *l, Node *r)
-{
-	Node *n;
-
-	n = emalloc(sizeof *n);
-	n->type = type;
-	n->l = l;
-	n->r = r;
-	n->bind = -1;
-	p->nodes = erealloc(p->nodes, (p->nnodes+1)*sizeof p->nodes[0]);
-	p->nodes[p->nnodes++] = n;
-	return n;
 }
 
 static Test*
@@ -227,44 +234,40 @@ tagof(char *s, int *lp)
 	return t;
 }
 
-static Node*
+static void
+addlx(P *p, int type, Test *t, int bind, int sub)
+{
+	Lx *l;
+
+	if(p->nlx == p->mlx){
+		p->mlx = p->mlx ? 2*p->mlx : 64;
+		p->lx = erealloc(p->lx, p->mlx*sizeof p->lx[0]);
+	}
+	l = &p->lx[p->nlx++];
+	l->type = type;
+	l->t = t;
+	l->bind = bind;
+	l->sub = sub;
+}
+
+static int
+newcap(P *p)
+{
+	if(p->p->ncap == Tmaxcap){
+		perr(p, "more than %d groups and names", Tmaxcap);
+		return 0;
+	}
+	return p->p->ncap++;
+}
+
+static void
 item(P *p)
 {
-	Node *n;
 	Test *t, *m;
 	char *w, *s, **f, *set, *tag;
 	int q, l, bind, neg, i, nf;
 
 	w = p->w[p->i++];
-	if(strcmp(w, "\\(") == 0){
-		if(p->depth >= Maxdepth){
-			perr(p, "groups nested too deep");
-			return node(p, Nempty, nil, nil);
-		}
-		p->depth++;
-		n = alt(p);
-		p->depth--;
-		if(p->i >= p->nw || strncmp(p->w[p->i], "\\)", 2) != 0){
-			perr(p, "no \\) for \\(");
-			return n;
-		}
-		w = p->w[p->i++];
-		n = node(p, Ngrp, n, nil);
-		q = 0;
-		if(strcmp(w, "\\)*") == 0)
-			q = '*';
-		else if(strcmp(w, "\\)\\+") == 0)
-			q = '+';
-		else if(strcmp(w, "\\)\\?") == 0)
-			q = '?';
-		else if(strcmp(w, "\\)") != 0)
-			perr(p, "%s: bad \\)", w);
-		if(q){
-			n = node(p, Nrep, n, nil);
-			n->op = q;
-		}
-		return n;
-	}
 	bind = -1;
 	neg = 0;
 	s = w;
@@ -289,7 +292,7 @@ item(P *p)
 			if(p->i >= p->nw){
 				perr(p, "no ] for [");
 				free(set);
-				return node(p, Nempty, nil, nil);
+				return;
 			}
 			w = p->w[p->i++];
 			s = emalloc(strlen(set)+strlen(w)+2);
@@ -326,212 +329,287 @@ item(P *p)
 	}
 	t->neg = neg;
 	t->tag = tag;
-	if(t->type == Tref && bind >= 0)
-		perr(p, "%s: a name bound to a name", w);
-	n = node(p, Ntok, nil, nil);
-	n->t = t;
-	n->bind = bind;
-	if(q){
-		n = node(p, Nrep, n, nil);
-		n->op = q;
+	if(t->type == Tref){
+		p->p->refs = 1;
+		if(bind >= 0)
+			perr(p, "%s: a name bound to a name", w);
 	}
-	return n;
+	if(bind >= 0 && p->p->bcap[bind] < 0){
+		i = newcap(p);
+		p->p->bcap[bind] = i;
+		p->p->capbind[i] = bind;
+	}
+	addlx(p, Itok, t, bind, -1);
+	if(q)
+		addlx(p, q == '*' ? Ostar : q == '+' ? Oplus : Oquest, nil, -1, -1);
 }
 
-static Node*
-seq(P *p)
+static void
+lexall(P *p)
 {
-	Node *n;
+	char *w;
+	int c;
 
-	n = nil;
-	while(p->i < p->nw && strcmp(p->w[p->i], "\\|") != 0 && strncmp(p->w[p->i], "\\)", 2) != 0)
-		n = n == nil ? item(p) : node(p, Ncat, n, item(p));
-	if(n == nil)
-		n = node(p, Nempty, nil, nil);
-	return n;
-}
-
-static Node*
-alt(P *p)
-{
-	Node *n;
-
-	n = seq(p);
-	while(p->i < p->nw && strcmp(p->w[p->i], "\\|") == 0){
-		p->i++;
-		n = node(p, Nalt, n, seq(p));
+	while(p->i < p->nw && p->err[0] == 0){
+		w = p->w[p->i];
+		if(strcmp(w, "\\(") == 0){
+			p->i++;
+			if(++p->depth > Maxdepth){
+				perr(p, "groups nested too deep");
+				return;
+			}
+			c = newcap(p);
+			p->p->capbind[c] = -1;
+			addlx(p, Olbra, nil, -1, c);
+		}else if(strncmp(w, "\\)", 2) == 0){
+			p->i++;
+			p->depth--;
+			addlx(p, Orbra, nil, -1, -1);
+			if(strcmp(w, "\\)*") == 0)
+				addlx(p, Ostar, nil, -1, -1);
+			else if(strcmp(w, "\\)\\+") == 0)
+				addlx(p, Oplus, nil, -1, -1);
+			else if(strcmp(w, "\\)\\?") == 0)
+				addlx(p, Oquest, nil, -1, -1);
+			else if(strcmp(w, "\\)") != 0)
+				perr(p, "%s: bad \\)", w);
+		}else if(strcmp(w, "\\|") == 0){
+			p->i++;
+			addlx(p, Oor, nil, -1, -1);
+		}else
+			item(p);
 	}
-	return n;
 }
 
 static int
-emit(P *p, int op)
+newinst(P *p, int op)
 {
 	Tpat *tp;
 	Inst *i;
 
 	tp = p->p;
-	tp->i = erealloc(tp->i, (tp->ni+1)*sizeof tp->i[0]);
+	if(tp->ni == tp->mi){
+		tp->mi = tp->mi ? 2*tp->mi : 64;
+		tp->i = erealloc(tp->i, tp->mi*sizeof tp->i[0]);
+	}
 	i = &tp->i[tp->ni];
 	memset(i, 0, sizeof *i);
 	i->op = op;
+	i->next = -1;
+	i->right = -1;
 	i->bind = -1;
 	return tp->ni++;
 }
 
-static int
-newcap(P *p)
+#define	I(n)	(p->p->i[n])
+
+static void
+pushand(P *p, int f, int l, int lo)
 {
-	if(p->p->ncap == Tmaxcap){
-		perr(p, "more than %d groups and names", Tmaxcap);
-		return -1;
+	if(p->nand == p->mand){
+		p->mand = p->mand ? 2*p->mand : 32;
+		p->and = erealloc(p->and, p->mand*sizeof p->and[0]);
 	}
-	return p->p->ncap++;
+	p->and[p->nand].first = f;
+	p->and[p->nand].last = l;
+	p->and[p->nand].lo = lo;
+	p->nand++;
 }
 
-static Node**
-spine(Node *n, int type, int *np)
+static Frag
+popand(P *p)
 {
-	Node **v, *m;
-	int k, i;
+	Frag f;
+	int i;
 
-	k = 1;
-	for(m = n; m->type == type; m = m->l)
-		k++;
-	v = emalloc(k*sizeof v[0]);
-	i = k;
-	for(m = n; m->type == type; m = m->l)
-		v[--i] = m->r;
-	v[--i] = m;
-	*np = k;
-	return v;
+	if(p->nand == 0){
+		perr(p, "an operator without its operand");
+		i = newinst(p, Inop);
+		f.first = f.last = f.lo = i;
+		return f;
+	}
+	return p->and[--p->nand];
 }
 
 static void
-number(P *p, Node *n)
+pushator(P *p, int op, int sub)
 {
-	Node **v;
-	int k, nv, c;
-
-	switch(n->type){
-	case Ngrp:
-		if((c = newcap(p)) < 0)
-			return;
-		n->op = p->p->ngrp++;
-		p->p->capbind[c] = -1;
-		p->p->capgrp[c] = n->op;
-		number(p, n->l);
-		break;
-	case Ntok:
-		if(n->bind >= 0 && p->p->bcap[n->bind] < 0){
-			if((c = newcap(p)) < 0)
-				return;
-			p->p->bcap[n->bind] = c;
-			p->p->capbind[c] = n->bind;
-			p->p->capgrp[c] = -1;
-		}
-		break;
-	case Ncat:
-	case Nalt:
-		v = spine(n, n->type, &nv);
-		for(k = 0; k < nv; k++)
-			number(p, v[k]);
-		free(v);
-		break;
-	case Nrep:
-		number(p, n->l);
-		break;
+	if(p->nator == p->mator){
+		p->mator = p->mator ? 2*p->mator : 32;
+		p->ator = erealloc(p->ator, p->mator*sizeof p->ator[0]);
 	}
+	p->ator[p->nator].op = op;
+	p->ator[p->nator].sub = sub;
+	p->nator++;
 }
 
 static void
-gen(P *p, Node *n)
+instar(P *p, int lo, int s)
 {
 	Inst *i;
-	Node **v;
-	int a, b, c, s, k, nv, *j;
+	int k;
 
-	switch(n->type){
-	case Nempty:
-		break;
-	case Ngrp:
-		s = n->op;
-		a = emit(p, Igopen);
-		p->p->i[a].grp = s;
-		gen(p, n->l);
-		a = emit(p, Igclose);
-		p->p->i[a].grp = s;
-		break;
-	case Ntok:
-		a = emit(p, Itok);
-		i = &p->p->i[a];
-		i->t = n->t;
-		i->bind = n->bind;
-		i->nstars = p->nstk;
-		if(p->nstk > 0){
-			i->stars = emalloc(p->nstk*sizeof i->stars[0]);
-			memmove(i->stars, p->stk, p->nstk*sizeof i->stars[0]);
-		}
-		break;
-	case Ncat:
-		v = spine(n, Ncat, &nv);
-		for(k = 0; k < nv; k++)
-			gen(p, v[k]);
-		free(v);
-		break;
-	case Nalt:
-		v = spine(n, Nalt, &nv);
-		j = emalloc(nv*sizeof j[0]);
-		for(k = nv-1; k > 0; k--){
-			a = emit(p, Isplit);
-			p->p->i[a].x = a+1;
-			gen(p, v[k]);
-			j[k] = emit(p, Ijmp);
-			p->p->i[a].y = p->p->ni;
-		}
-		gen(p, v[0]);
-		for(k = nv-1; k > 0; k--)
-			p->p->i[j[k]].x = p->p->ni;
-		free(j);
-		free(v);
-		break;
-	case Nrep:
-		if(p->nstk == nelem(p->stk)){
-			perr(p, "repetitions nested too deep");
+	for(k = lo; k < p->p->ni; k++){
+		i = &I(k);
+		if(i->op != Itok)
+			continue;
+		i->stars = erealloc(i->stars, (i->nstars+1)*sizeof i->stars[0]);
+		i->stars[i->nstars++] = s;
+	}
+}
+
+static void
+evaluntil(P *p, int pri)
+{
+	Frag a, b, t;
+	Ator o;
+	int i1, i2, ib, s;
+
+	while(p->nator > 0 && (pri == Orbra || p->ator[p->nator-1].op >= pri)){
+		o = p->ator[--p->nator];
+		switch(o.op){
+		case Olbra:
+			a = popand(p);
+			i2 = newinst(p, Irbra);
+			I(i2).sub = o.sub;
+			I(a.last).next = i2;
+			i1 = newinst(p, Ilbra);
+			I(i1).sub = o.sub;
+			I(i1).next = a.first;
+			pushand(p, i1, i2, a.lo);
+			return;
+		case Oor:
+			b = popand(p);
+			a = popand(p);
+			i2 = newinst(p, Inop);
+			I(b.last).next = i2;
+			I(a.last).next = i2;
+			i1 = newinst(p, Ior);
+			I(i1).right = a.first;
+			I(i1).next = b.first;
+			pushand(p, i1, i2, a.lo < b.lo ? a.lo : b.lo);
+			break;
+		case Ocat:
+			b = popand(p);
+			a = popand(p);
+			if(p->back && I(b.first).op != Iend){
+				t = a;
+				a = b;
+				b = t;
+			}
+			I(a.last).next = b.first;
+			pushand(p, a.first, b.last, a.lo < b.lo ? a.lo : b.lo);
+			break;
+		case Ostar:
+		case Oplus:
+		case Oquest:
+			b = popand(p);
+			s = p->nstar++;
+			instar(p, b.lo, s);
+			i1 = newinst(p, Ior);
+			i2 = newinst(p, Isend);
+			I(i2).star = s;
+			ib = newinst(p, Isbeg);
+			I(ib).star = s;
+			I(i1).right = b.first;
+			I(i1).next = i2;
+			if(o.op == Oquest){
+				I(b.last).next = i2;
+				I(ib).next = i1;
+			}else{
+				I(b.last).next = i1;
+				I(ib).next = o.op == Ostar ? i1 : b.first;
+			}
+			pushand(p, ib, i2, b.lo);
+			break;
+		default:
+			perr(p, "unknown operator");
 			return;
 		}
-		s = p->p->nstar++;
-		a = emit(p, Isbeg);
-		p->p->i[a].star = s;
-		p->stk[p->nstk++] = s;
-		switch(n->op){
-		case '*':
-			b = emit(p, Isplit);
-			p->p->i[b].y = b+1;
-			gen(p, n->l);
-			c = emit(p, Ijmp);
-			p->p->i[c].x = b;
-			p->p->i[b].x = p->p->ni;
-			break;
-		case '+':
-			b = p->p->ni;
-			gen(p, n->l);
-			c = emit(p, Isplit);
-			p->p->i[c].y = b;
-			p->p->i[c].x = c+1;
-			break;
-		case '?':
-			b = emit(p, Isplit);
-			p->p->i[b].y = b+1;
-			gen(p, n->l);
-			p->p->i[b].x = p->p->ni;
-			break;
-		}
-		p->nstk--;
-		a = emit(p, Isend);
-		p->p->i[a].star = s;
-		break;
 	}
+}
+
+static void
+operator(P *p, int op, int sub)
+{
+	if(op == Orbra && --p->nbra < 0){
+		perr(p, "\\): no \\( before it");
+		p->nbra = 0;
+		return;
+	}
+	if(op == Olbra){
+		p->nbra++;
+		if(p->lastwasand)
+			operator(p, Ocat, -1);
+	}else
+		evaluntil(p, op);
+	if(op != Orbra)
+		pushator(p, op, sub);
+	p->lastwasand = op == Ostar || op == Oquest || op == Oplus || op == Orbra;
+}
+
+static void
+operand(P *p, Lx *l)
+{
+	int i;
+
+	if(p->lastwasand)
+		operator(p, Ocat, -1);
+	i = newinst(p, l->type);
+	I(i).t = l->t;
+	I(i).bind = l->bind;
+	pushand(p, i, i, i);
+	p->lastwasand = 1;
+}
+
+static void
+optimize(P *p, int lo, int hi)
+{
+	int k, n;
+
+	for(k = lo; k < hi; k++){
+		if(I(k).op == Iend)
+			continue;
+		n = I(k).next;
+		while(n >= 0 && I(n).op == Inop)
+			n = I(n).next;
+		I(k).next = n;
+	}
+}
+
+static int
+compile1(P *p, int back)
+{
+	Lx end;
+	int k, lo;
+
+	lo = p->p->ni;
+	p->back = back;
+	p->nand = p->nator = 0;
+	p->lastwasand = 0;
+	p->nbra = 0;
+	p->nstar = 0;
+	pushator(p, Ostart-1, -1);
+	for(k = 0; k < p->nlx && p->err[0] == 0; k++){
+		if(p->lx[k].type >= Ostart)
+			operator(p, p->lx[k].type, p->lx[k].sub);
+		else
+			operand(p, &p->lx[k]);
+	}
+	evaluntil(p, Ostart);
+	memset(&end, 0, sizeof end);
+	end.type = Iend;
+	end.bind = -1;
+	operand(p, &end);
+	evaluntil(p, Ostart);
+	if(p->nbra)
+		perr(p, "no \\) for \\(");
+	if(p->err[0] != 0 || p->nand != 1)
+		return -1;
+	optimize(p, lo, p->p->ni);
+	if(p->nstar > p->p->nstar)
+		p->p->nstar = p->nstar;
+	return p->and[0].first;
 }
 
 static void
@@ -555,7 +633,6 @@ Tpat*
 tokcomp(char *pat)
 {
 	P p;
-	Node *n;
 	Tpat *tp;
 	char *s;
 	int i;
@@ -563,6 +640,7 @@ tokcomp(char *pat)
 	memset(&p, 0, sizeof p);
 	p.p = tp = emalloc(sizeof *tp);
 	memset(tp->bcap, 0xff, sizeof tp->bcap);
+	memset(tp->capbind, 0xff, sizeof tp->capbind);
 	s = sdup(pat);
 	for(i = 0; s[i] != 0; i++)
 		if(s[i] == '\n')
@@ -577,19 +655,16 @@ tokcomp(char *pat)
 	p.i = 0;
 	if(p.nw == 0)
 		perr(&p, "empty pattern");
-	n = alt(&p);
-	if(p.i < p.nw)
-		perr(&p, "%s: no \\( before it", p.w[p.i]);
+	lexall(&p);
 	if(p.err[0] == 0)
-		number(&p, n);
-	if(p.err[0] == 0){
-		gen(&p, n);
-		emit(&p, Imatch);
+		tp->start = compile1(&p, 0);
+	if(p.err[0] == 0)
+		tp->bstart = compile1(&p, 1);
+	if(p.err[0] == 0)
 		check(&p);
-	}
-	for(i = 0; i < p.nnodes; i++)
-		free(p.nodes[i]);
-	free(p.nodes);
+	free(p.lx);
+	free(p.and);
+	free(p.ator);
 	free(p.w);
 	free(s);
 	if(p.err[0] != 0){
