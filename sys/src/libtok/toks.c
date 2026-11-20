@@ -172,7 +172,9 @@ links(Toks *t)
 		if(q[i] < 0)
 			continue;
 		j = tokat(t, q[i]);
-		if(j >= t->n || j == i || t->t[j].q0 != q[i] || q[j] != t->t[i].q0){
+		if(j >= t->n || t->t[j].q0 != q[i])
+			continue;
+		if(j == i || q[j] != t->t[i].q0){
 			werrstr("token at %ld: bad partner %ld", t->t[i].q0, q[i]);
 			goto Out;
 		}

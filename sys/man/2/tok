@@ -93,6 +93,8 @@ and in
 the index of its partner, or \-1.
 The partner is the token that starts at the rune a line's optional fifth field gives, if that
 token's own fifth field names this one; a token with a partner is a bracket, whatever its text.
+A partner that starts no token of the answer, as when the answer covers only part of the text,
+leaves the token unpaired.
 A token named
 .B comment
 or
