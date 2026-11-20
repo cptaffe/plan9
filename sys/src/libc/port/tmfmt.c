@@ -686,7 +686,7 @@ tmparse(Tm *tm, char *layout, char *s)
 				s += 3;
 				break;
 			}
-			if((m = zonelen(s)) == 0){
+			if((s[0] == '+' || s[0] == '-') && isdig(s[1]) && isdig(s[2]) && isdig(s[3]) && isdig(s[4]) && !isdig(s[5]) || (m = zonelen(s)) == 0){
 				if(getzone(&s, Num, &x) < 0)
 					goto Bad;
 				off = x;
