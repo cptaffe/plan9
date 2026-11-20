@@ -20,6 +20,9 @@ struct File
 	int	state;
 	int	isdir;
 	int	later;
+	char	*olddir;
+	char	*src;
+	int	lnum;
 };
 
 File	*files;
@@ -32,14 +35,16 @@ int	zflag;
 int	strip = -1;
 int	committing;
 char	*errfile;
+char	*curname;
+int	curlnum;
 char	held[ERRMAX];
+int	left;
 
 enum
 {
 	Saved = 1,
 	Placed,
 	Chmod,
-	Gone,
 };
 
 void*
@@ -185,6 +190,8 @@ settext(File *f, char *b, long n)
 	f->exists = 1;
 	f->dirty = 1;
 	f->edit = 1;
+	f->src = curname;
+	f->lnum = curlnum;
 }
 
 void
@@ -327,6 +334,8 @@ load(char *name, int fd)
 			pt->d[i].flags |= Pzero;
 	for(i = 0; i < pt->nd; i++){
 		errfile = nil;
+		curname = name;
+		curlnum = pt->d[i].lnum;
 		if(apply(&pt->d[i]) < 0)
 			fail(name, pt->d[i].lnum);
 	}
@@ -492,14 +501,21 @@ emptied(char *dir)
 void
 checkdirs(void)
 {
-	int i;
-	File *f;
+	int i, j;
+	File *f, *g;
 
 	for(i = 0; i < nfiles; i++){
 		f = &files[i];
 		if(f->isdir && f->exists && !emptied(f->path)){
 			fprint(2, "%s: %s: a directory the patch does not empty\n", argv0, f->path);
 			exits("directory");
+		}
+		for(j = 0; j < nfiles; j++){
+			g = &files[j];
+			if(f->exists && g->exists && under(g->path, f->path)){
+				fprint(2, "%s: %s:%d: %s: %s is a file\n", argv0, g->src, g->lnum, g->path, f->path);
+				exits("file");
+			}
 		}
 	}
 }
@@ -573,28 +589,33 @@ setperm(char *path, ulong perm)
 }
 
 int
-rmdirs(char *dir)
+rmtree(char *dir)
 {
 	Dir *d;
-	int fd, i, n;
+	int fd, i, n, bad;
 	char *p;
 
 	if((fd = open(dir, OREAD)) < 0)
 		return oops("open", dir);
 	n = dirreadall(fd, &d);
 	close(fd);
+	bad = 0;
 	for(i = 0; i < n; i++){
 		p = smprint("%s/%s", dir, d[i].name);
 		if(p == nil)
 			sysfatal("smprint: %r");
-		if(rmdirs(p) < 0){
-			free(p);
-			free(d);
-			return -1;
+		if(d[i].qid.type&QTDIR){
+			if(rmtree(p) < 0)
+				bad++;
+		}else if(remove(p) < 0){
+			oops("remove", p);
+			bad++;
 		}
 		free(p);
 	}
 	free(d);
+	if(bad)
+		return -1;
 	if(remove(dir) < 0)
 		return oops("remove", dir);
 	return 0;
@@ -617,6 +638,17 @@ undo(void)
 	cleanup();
 	for(i = nfiles-1; i >= 0; i--){
 		f = &files[i];
+		if(f->olddir != nil){
+			if(move(f->olddir, f->path) < 0){
+				fprint(2, "%s: %s is left in %s\n", argv0, f->path, f->olddir);
+				bad++;
+			}
+			free(f->olddir);
+			f->olddir = nil;
+		}
+	}
+	for(i = nfiles-1; i >= 0; i--){
+		f = &files[i];
 		if(f->bak != nil){
 			if(move(f->bak, f->path) < 0){
 				fprint(2, "%s: %s is left in %s\n", argv0, f->path, f->bak);
@@ -624,9 +656,6 @@ undo(void)
 			}
 			free(f->bak);
 			f->bak = nil;
-		}else if(f->state == Gone){
-			fprint(2, "%s: %s is removed and cannot be put back\n", argv0, f->path);
-			bad++;
 		}
 		f->state = 0;
 	}
@@ -651,8 +680,8 @@ place(File *f)
 int
 commit(void)
 {
-	int i, j;
-	File *f, *g;
+	int i;
+	File *f;
 
 	for(i = 0; i < nfiles; i++){
 		f = &files[i];
@@ -684,19 +713,28 @@ commit(void)
 		f = &files[i];
 		if(!changed(f) || !f->isdir || !f->exists)
 			continue;
-		for(j = 0; j < nfiles; j++){
-			g = &files[j];
-			if(g->bak != nil && !g->exists && under(g->path, f->path)){
-				if(remove(g->bak) < 0)
-					return oops("remove", g->bak);
-				free(g->bak);
-				g->bak = nil;
-				g->state = Gone;
-			}
+		f->olddir = smprint("%s.patchold%d", f->path, getpid());
+		if(f->olddir == nil)
+			sysfatal("smprint: %r");
+		if(move(f->path, f->olddir) < 0){
+			free(f->olddir);
+			f->olddir = nil;
+			return -1;
 		}
-		if(rmdirs(f->path) < 0 || place(f) < 0)
+		if(place(f) < 0)
 			return -1;
 	}
+	return 0;
+}
+
+int
+inold(char *path)
+{
+	int i;
+
+	for(i = 0; i < nfiles; i++)
+		if(files[i].olddir != nil && under(path, files[i].path))
+			return 1;
 	return 0;
 }
 
@@ -708,7 +746,14 @@ finish(void)
 
 	for(i = 0; i < nfiles; i++){
 		f = &files[i];
-		if(f->bak != nil && remove(f->bak) < 0)
+		if(f->olddir != nil && rmtree(f->olddir) < 0){
+			fprint(2, "%s: %s's old tree is left in %s\n", argv0, f->path, f->olddir);
+			left++;
+		}
+	}
+	for(i = 0; i < nfiles; i++){
+		f = &files[i];
+		if(f->bak != nil && !inold(f->path) && remove(f->bak) < 0)
 			oops("remove", f->bak);
 		if(changed(f) && !f->exists)
 			rmparent(f->path);
@@ -792,5 +837,7 @@ main(int argc, char **argv)
 	for(i = 0; i < nfiles; i++)
 		if(changed(&files[i]))
 			print("%s\n", files[i].path);
-	exits(held[0] ? held : nil);
+	if(held[0])
+		exits(held);
+	exits(left ? "left" : nil);
 }
