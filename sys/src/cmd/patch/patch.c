@@ -25,6 +25,10 @@ struct File
 	int	lnum;
 };
 
+int	pcreate(char*, int, ulong);
+int	premove(char*);
+int	pwstat(char*, Dir*);
+
 File	*files;
 int	nfiles;
 char	**made;
@@ -387,7 +391,7 @@ mkparent(char *path)
 			*s = '/';
 			continue;
 		}
-		if((fd = create(p, OREAD, DMDIR|0775)) < 0){
+		if((fd = pcreate(p, OREAD, DMDIR|0775)) < 0){
 			oops("mkdir", p);
 			free(p);
 			return -1;
@@ -416,7 +420,7 @@ rmparent(char *path)
 			break;
 		dir = d->qid.type&QTDIR;
 		free(d);
-		if(!dir || remove(p) < 0)
+		if(!dir || premove(p) < 0)
 			break;
 	}
 	free(p);
@@ -429,11 +433,11 @@ cleanup(void)
 
 	for(i = 0; i < nfiles; i++)
 		if(files[i].tmp != nil){
-			remove(files[i].tmp);
+			premove(files[i].tmp);
 			files[i].tmp = nil;
 		}
 	while(nmade > 0)
-		remove(made[--nmade]);
+		premove(made[--nmade]);
 }
 
 int
@@ -545,7 +549,7 @@ writetmp(File *f)
 	f->tmp = smprint("%s.patch%d", f->path, getpid());
 	if(f->tmp == nil)
 		sysfatal("smprint: %r");
-	if((fd = create(f->tmp, OWRITE|OEXCL, f->perm)) < 0){
+	if((fd = pcreate(f->tmp, OWRITE|OEXCL, f->perm)) < 0){
 		oops("create", f->tmp);
 		free(f->tmp);
 		f->tmp = nil;
@@ -571,7 +575,7 @@ move(char *from, char *to)
 
 	nulldir(&d);
 	d.name = base(to);
-	if(dirwstat(from, &d) < 0)
+	if(pwstat(from, &d) < 0)
 		return oops("rename", from);
 	return 0;
 }
@@ -583,7 +587,7 @@ setperm(char *path, ulong perm)
 
 	nulldir(&d);
 	d.mode = perm;
-	if(dirwstat(path, &d) < 0)
+	if(pwstat(path, &d) < 0)
 		return oops("chmod", path);
 	return 0;
 }
@@ -607,7 +611,7 @@ rmtree(char *dir)
 		if(d[i].qid.type&QTDIR){
 			if(rmtree(p) < 0)
 				bad++;
-		}else if(remove(p) < 0){
+		}else if(premove(p) < 0){
 			oops("remove", p);
 			bad++;
 		}
@@ -616,7 +620,7 @@ rmtree(char *dir)
 	free(d);
 	if(bad)
 		return -1;
-	if(remove(dir) < 0)
+	if(premove(dir) < 0)
 		return oops("remove", dir);
 	return 0;
 }
@@ -753,8 +757,11 @@ finish(void)
 	}
 	for(i = 0; i < nfiles; i++){
 		f = &files[i];
-		if(f->bak != nil && !inold(f->path) && remove(f->bak) < 0)
+		if(f->bak != nil && !inold(f->path) && premove(f->bak) < 0){
 			oops("remove", f->bak);
+			fprint(2, "%s: %s's old text is left in %s\n", argv0, f->path, f->bak);
+			left++;
+		}
 		if(changed(f) && !f->exists)
 			rmparent(f->path);
 		free(f->tmp);
