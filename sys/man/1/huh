@@ -72,13 +72,14 @@ there, as
 .B lm
 posts it, since acme runs a command in acme's own namespace.
 Each is meant to be run from the window's tag.
-One of them follows a window at a time: one that starts on a window whose
+One of them follows a window at a time, as the window's
+.B event
+has one owner: a second program on a window, under
+.IR amux (4),
+cannot open it and exits, and one that starts on a window whose
 .I astyles
-layers already include
-.B huh
-or
-.B bits
-deletes its own layer and exits.
+layers already include its own deletes its layer and exits.
+To change one for the other, turn the first off by its name in the tag, then start the other.
 .I Huh
 marks the parts that cost the most, where something new or something wrong is going on;
 .I Bits
@@ -180,16 +181,6 @@ window) or
 (in
 .IR Bits 's)
 ends the program, so the same word in the tag turns it on and off.
-.TP
-.B Bits
-in
-.IR Huh 's
-window, or
-.B Huh
-in
-.IR Bits 's,
-is written back to acme, which runs the other, and the program ends.
-One window shows either the marks or the bands.
 .TP
 .B Get
 is written back; the program reads the reloaded body and colors it again.
