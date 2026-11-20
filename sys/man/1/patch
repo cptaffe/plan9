@@ -183,5 +183,8 @@ patch -R <0001-fix.patch
 An error names the patch, the line of the diff's header, the file and the cause,
 such as the line of a hunk that does not apply.
 .SH BUGS
+Lines after a hunk's counts run out are text between diffs, so a hunk that miscounts its lines
+loses the rest without a word.
+.PP
 .B -R
 refuses a copy.
