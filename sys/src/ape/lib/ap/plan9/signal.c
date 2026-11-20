@@ -123,7 +123,7 @@ _notehandler(void *u, char *msg)
 			return 0;
 		}
 	}
-	if(_thrdie == NULL || !_thrdie(msg))
+	if((_thrdie == NULL || !_thrdie(msg)) && (i == NSIGTAB || sigtab[i].num != SIGABRT))
 		_doatexits();
 	_NOTED(1); /* NDFLT */
 	return 0;
