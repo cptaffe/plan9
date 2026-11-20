@@ -1,0 +1,43 @@
+# The syntax programs (syn(4)), one entry each; $home/lib/syn is read in place of this file.
+#
+# syn=name cmd=command file=pattern fence=name ...
+#
+# cmd= runs by rc; file= is a regexp(6) of a file's full name, and the first entry that matches
+# serves the file; each fence= names a fenced block in markdown that the entry colors.
+
+syn=c cmd=/bin/ts/c file="\.([ch]|def|cpp|cc|cxx|hpp)$"
+	fence=c fence=h
+syn=markdown cmd=/bin/ts/markdown file="(\.(md|markdown)|/README)$"
+	fence=markdown fence=md
+syn=go cmd=/bin/ts/go file="\.go$"
+	fence=go fence=golang
+syn=python cmd=/bin/ts/python file="\.py$"
+	fence=python fence=py fence=python3
+syn=rust cmd=/bin/ts/rust file="\.rs$"
+	fence=rust fence=rs
+syn=javascript cmd=/bin/ts/javascript file="\.(js|mjs|cjs|jsx)$"
+	fence=javascript fence=js fence=jsx fence=mjs fence=cjs
+syn=bash cmd=/bin/ts/bash file="\.sh$"
+	fence=bash fence=sh fence=shell fence=zsh
+syn=java cmd=/bin/ts/java file="\.java$"
+	fence=java
+syn=scala cmd=/bin/ts/scala file="\.(scala|sc)$"
+	fence=scala
+syn=typescript cmd=/bin/ts/typescript file="\.(ts|mts|cts)$"
+	fence=typescript fence=ts
+syn=tsx cmd=/bin/ts/tsx file="\.tsx$"
+	fence=tsx
+syn=yaml cmd=/bin/ts/yaml file="\.(yaml|yml)$"
+	fence=yaml fence=yml
+syn=json cmd=/bin/ts/json file="\.json$"
+	fence=json
+syn=toml cmd=/bin/ts/toml file="\.toml$"
+	fence=toml
+syn=mermaid cmd=/bin/ts/mermaid file="\.(mmd|mermaid)$"
+	fence=mermaid fence=mmd
+syn=pic cmd=/bin/ts/pic file="\.pic$"
+	fence=pic
+syn=goyacc cmd=/bin/ts/goyacc file="\.go\.y$"
+	fence=goyacc
+syn=yacc cmd=/bin/ts/yacc file="\.y$"
+	fence=yacc fence=y fence=bison
