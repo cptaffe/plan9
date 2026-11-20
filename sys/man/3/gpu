@@ -57,6 +57,9 @@ then the limits that matter for computing, a line for each with its value, such 
 	maxUniformBufferBindingSize 65536
 .EE
 among them the buffers' sizes and the alignments of a binding's offset,
+then a line
+.B maxbytes
+with the most bytes a session's buffers may take, its own and those it attached,
 then, where the adapter says them,
 .B subgroupMinSize
 and
