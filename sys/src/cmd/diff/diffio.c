@@ -229,6 +229,32 @@ check(Biobuf *bf, Biobuf *bt)
 	}
 }
 
+int
+sameline(int k, int a, int b)
+{
+	long *ix, n, o, m;
+	char x[512], y[512];
+
+	ix = k ? ixnew : ixold;
+	n = ix[a] - ix[a-1];
+	if (n != ix[b] - ix[b-1] || noeol[k] && (a == len[k]) != (b == len[k]))
+		return 0;
+	for (o = 0; o < n; o += m) {
+		m = n - o;
+		if (m > sizeof x)
+			m = sizeof x;
+		Bseek(input[k], ix[a-1]+o, 0);
+		if (Bread(input[k], x, m) != m)
+			return 0;
+		Bseek(input[k], ix[b-1]+o, 0);
+		if (Bread(input[k], y, m) != m)
+			return 0;
+		if (memcmp(x, y, m) != 0)
+			return 0;
+	}
+	return 1;
+}
+
 static void
 range(int a, int b, char *separator)
 {
