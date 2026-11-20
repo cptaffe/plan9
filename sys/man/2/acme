@@ -11,7 +11,6 @@ winaddr,
 winclosefiles,
 winctl,
 windel,
-windeleteall,
 winpath,
 wineventchan,
 winfd,
@@ -90,9 +89,6 @@ int	winctl(Win *w, char *fmt, ...)
 .PP
 .B
 int	windel(Win *w, int sure)
-.PP
-.B
-void	windeleteall(void)
 .PP
 .B
 char*	winpath(Win *w)
@@ -240,12 +236,6 @@ says.
 .I Winfree
 also frees the
 .BR Win .
-.I Windeleteall
-writes
-.B delete
-to the
-.B ctl
-file of every window the program has.
 .PP
 Many of these functions take a format
 .I fmt
@@ -537,13 +527,17 @@ or \-1 if an edit to the body came after
 .IR seq .
 The library writes
 .B seq
-and opens the file it guards under one lock, which its own opens of
+and opens the file it guards under the
+.BR Win 's
+lock, which its opens of
 .BR body ,
 .BR data ,
 .B xdata
 and
 .B rdevent
-also take, so that none of the program's opens takes another's guard.
+also take, so that none of the
+.BR Win 's
+opens takes another's guard.
 .PP
 .I Pipetowin
 runs the
@@ -617,7 +611,11 @@ takes a file descriptor where plan9port's takes a 9P client's fid, so a program 
 Without
 .IR amux ,
 .IR winseqopen 's
-lock is the program's own.
-Another program that writes the window's
+lock is the
+.BR Win 's
+own.
+Another
+.BR Win ,
+in this program or another, that writes the window's
 .B seq
 between this one's write and its open takes the guard.

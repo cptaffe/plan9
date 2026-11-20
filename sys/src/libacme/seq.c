@@ -42,7 +42,7 @@ winseqopen(Win *w, char *file, int seq, int mode)
 		return -1;
 	n = snprint(s, sizeof s, "%d", seq);
 	fd = -1;
-	qlock(&_winseqlk);
+	qlock(&w->seqlk);
 	if((sfd = open(buf, OWRITE)) < 0)
 		werrstr("open %s: %r", buf);
 	else if(write(sfd, s, n) != n)
@@ -51,7 +51,7 @@ winseqopen(Win *w, char *file, int seq, int mode)
 		werrstr("open %s: %r", buf);
 	if(sfd >= 0)
 		close(sfd);
-	qunlock(&_winseqlk);
+	qunlock(&w->seqlk);
 	return fd;
 }
 

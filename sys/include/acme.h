@@ -53,8 +53,7 @@ struct Win
 	int	xdata;
 	int	rdevent;
 	Channel	*c;
-	Win	*next;
-	Win	*prev;
+	QLock	seqlk;
 
 	Winbuf	eb;
 	Winbuf	rb;
@@ -84,7 +83,6 @@ int	winreadevent(Win*, Event*);
 int	winwrite(Win*, char*, void*, int);
 int	winwriteevent(Win*, Event*);
 int	winopenfd(Win*, char*, int);
-void	windeleteall(void);
 void	winfree(Win*);
 void	winclosefiles(Win*);
 Channel*	wineventchan(Win*);
