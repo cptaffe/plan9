@@ -59,7 +59,14 @@ extern long	_itimerms;
 extern void	(*_sighdlr[])(int, char*, Ureg*);
 extern char	*_sigstring(int);
 extern int	_stringsig(char *);
-extern long	_psigblocked;
+#ifdef __wasm__
+#define _TLS	_Thread_local
+#else
+#define _TLS
+#endif
+extern _TLS long	_psigblocked;
+extern _TLS long	_psigpending;
+extern void	_sigdeliver(void);
 extern int	_startbuf(int);
 extern int	_selbuf(int);
 extern void	_closebuf(int);
@@ -78,6 +85,9 @@ extern void	_syserrno(void);
 extern int	_getpw(int *, char **, char **);
 extern mode_t	_umask;
 extern int _isatty(int);
+extern pid_t	_grouppid;
+extern pid_t	_getpid(void);
+extern int	(*_thrdie)(char*);
 extern void _fdinit(char*, char*);
 
 

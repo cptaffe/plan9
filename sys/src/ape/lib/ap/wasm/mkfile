@@ -3,15 +3,21 @@ APE=/sys/src/ape
 LIB=/$objtype/lib/ape/libap.a
 OFILES=\
 	_buf.$O\
+	ashlti3.$O\
 	atom.$O\
 	brk.$O\
 	cmul.$O\
 	cycles.$O\
+	divti3.$O\
+	errno.$O\
 	execl.$O\
 	execle.$O\
 	execlp.$O\
 	fabs.$O\
+	fixti.$O\
 	floor.$O\
+	floatti.$O\
+	flockfile.$O\
 	fork.$O\
 	getpagesize.$O\
 	lock.$O\
@@ -23,6 +29,9 @@ OFILES=\
 	procfork9.$O\
 	rforkfn9.$O\
 	profile.$O\
+	pthread.$O\
+	pthreadcreate.$O\
+	pthreadkill.$O\
 	rforkfn.$O\
 	rint.$O\
 	setjmp.$O\

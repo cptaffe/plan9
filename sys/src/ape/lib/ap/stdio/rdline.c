@@ -5,7 +5,7 @@
 #include "iolib.h"
 #include <string.h>
 
-char *rdline(FILE *f, char **aep){
+static char *urdline(FILE *f, char **aep){
 	int cnt;
 	void *vp;
 	unsigned char *nlp;
@@ -49,12 +49,15 @@ char *rdline(FILE *f, char **aep){
 				nlp=f->wp-1;
 				break;
 			}
+			f->rp=f->wp;
 			cnt=read(f->fd, f->wp, cnt);
 			if(cnt==-1){
+				f->rp=vp;
 				f->state=ERR;
 				return NULL;
 			}
 			if(cnt==0){	/* is this ok? */
+				f->rp=vp;
 				f->state=EOF;
 				return NULL;
 			}
@@ -66,4 +69,15 @@ char *rdline(FILE *f, char **aep){
 		if(ep) *ep=nlp;
 		return vp;
 	}
+}
+
+char *
+rdline(FILE *f, char **aep)
+{
+	char *r;
+
+	flockfile(f);
+	r = urdline(f, aep);
+	funlockfile(f);
+	return r;
 }

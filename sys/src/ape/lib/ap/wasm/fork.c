@@ -18,6 +18,7 @@ fork(void)
 		_syserrno();
 	if(n == 0) {
 		_detachbuf();
+		_grouppid = 0;
 		_sessleader = 0;
 		_itimerms = 0;
 	}

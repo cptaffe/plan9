@@ -6,7 +6,7 @@
 
 #define BIGN (BUFSIZ/2)
 
-size_t fwrite(const void *p, size_t recl, size_t nrec, FILE *f){
+static size_t ufwrite(const void *p, size_t recl, size_t nrec, FILE *f){
 	char *s;
 	int n, d;
 
@@ -23,13 +23,13 @@ size_t fwrite(const void *p, size_t recl, size_t nrec, FILE *f){
 			if(n>=BIGN && f->state==WR && !(f->flags&(STRING|LINEBUF)) && f->buf!=f->unbuf){
 				d=f->wp-f->buf;
 				if(d>0){
+					f->wp=f->rp=f->buf;
 					if(f->flags&APPEND)
 						lseek(f->fd, 0, SEEK_END);
 					if(write(f->fd, f->buf, d)!=d){
 						f->state=ERR;
 						goto ret;
 					}
-					f->wp=f->rp=f->buf;
 				}
 				if(f->flags&APPEND)
 					lseek(f->fd, 0, SEEK_END);
@@ -52,4 +52,15 @@ size_t fwrite(const void *p, size_t recl, size_t nrec, FILE *f){
 		return (s-(char*)p)/recl;
 	else
 		return s-(char*)p;
+}
+
+size_t
+fwrite(const void *p, size_t recl, size_t nrec, FILE *f)
+{
+	size_t r;
+
+	flockfile(f);
+	r = ufwrite(p, recl, nrec, f);
+	funlockfile(f);
+	return r;
 }
