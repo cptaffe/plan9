@@ -233,6 +233,23 @@ or
 .I pthread_sigmask
 unblocks it;
 a lock it held stays held.
+.PP
+As on Plan 9,
+.IR rc (1)
+runs a command in the foreground in its own note group;
+only a command started with
+.B &
+or by
+.B rfork
+gets another.
+So
+.I kill
+of pid 0, and a term, hangup or kill note posted to the group,
+reach the interactive
+.I rc
+too, and
+.I rc
+exits on such a note it does not trap.
 .SH FILES
 .TF /$objtype/lib/ape/libap.a
 .TP
