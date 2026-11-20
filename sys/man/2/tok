@@ -186,9 +186,30 @@ which runs that program backward from
 A thread is an instruction and its start, with its captures, its bound tokens and, for each
 repetition around it, the partner of the outermost bracket it has entered.
 The machine keeps one thread a state; a state is an instruction, those partners, and the texts of
-the bound tokens, so two threads whose bound tokens have the same texts merge, and of two that
-reach one state the one that started first stays, as in sam.
-For a pattern of
+the bound tokens, so two threads whose bound tokens have the same texts merge.
+Of two threads that reach one state, the one that started first stays, as in sam; one that reaches
+a state already run runs again only if it started earlier, so the machine loses no thread that could
+lead to the match, and each state runs at most once for each start alive at that token.
+With
+.I S
+states and
+.I L
+starts alive, a search takes time at most proportional to
+.I n
+times
+.I m
+times
+.I S
+times
+.IR L ;
+.I S
+is at most
+.I m
+times
+.IR V\u\s-2k\s0\d
+times
+.IR D\u\s-2s\s0\d ,
+for a pattern of
 .I m
 instructions with
 .I k
@@ -200,19 +221,30 @@ tokens with
 .I V
 distinct texts and brackets
 .I D
-deep, a search takes time at most proportional to
-.I n
-times
-.I m
-times
-.IR V\u\s-2k\s0\d
-times
-.IR D\u\s-2s\s0\d .
-A backward search with
+deep, and
+.I L
+is at most
+.I S
+plus one.
+.PP
+In the reversed program the first occurrence of a name that
+.I tokbexec
+meets fixes its text and the rest check it, so the guards hold exactly: a
 .BI : x
-runs the reversed program with looser guards, checks its match forward, and if that fails
-searches forward from
+that comes before every binding of
+.I x
+fails, and a
+.BI ^: x
+passes, as forward.
+.I Tokbexec
+checks only loosely a
+.BI ^: x
+that the reversed program can meet before any other occurrence of
+.IR x ;
+for such a pattern it checks its match forward and, if that fails, searches forward from
 .IR t0 .
+A backward search captures in each group what its first repetition matched, where a forward one
+captures the last.
 .SH SOURCE
 .B /sys/src/libtok
 .SH SEE ALSO

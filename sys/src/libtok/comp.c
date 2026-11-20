@@ -25,6 +25,7 @@ enum
 
 struct Lx
 {
+	int	word;
 	int	type;
 	Test	*t;
 	int	bind;
@@ -42,6 +43,7 @@ struct Ator
 {
 	int	op;
 	int	sub;
+	int	word;
 };
 
 struct P
@@ -60,6 +62,7 @@ struct P
 	int	nator;
 	int	mator;
 	int	lastwasand;
+	int	cw;
 	int	nbra;
 	int	back;
 	int	nstar;
@@ -244,6 +247,7 @@ addlx(P *p, int type, Test *t, int bind, int sub)
 		p->lx = erealloc(p->lx, p->mlx*sizeof p->lx[0]);
 	}
 	l = &p->lx[p->nlx++];
+	l->word = p->cw;
 	l->type = type;
 	l->t = t;
 	l->bind = bind;
@@ -278,6 +282,10 @@ item(P *p)
 	if(s[0] == '^' && s[1] != 0){
 		neg = 1;
 		s++;
+	}
+	if(s[0] == '\\' && strchr("()|", s[1]) != nil && (bind >= 0 || neg)){
+		perr(p, "%s, word %d: %s", w, p->cw+1, bind >= 0 ? "a name binds one token, not a group" : "^ negates one token, not a group");
+		return;
 	}
 	set = nil;
 	quant(s, &l);
@@ -351,6 +359,7 @@ lexall(P *p)
 	int c;
 
 	while(p->i < p->nw && p->err[0] == 0){
+		p->cw = p->i;
 		w = p->w[p->i];
 		if(strcmp(w, "\\(") == 0){
 			p->i++;
@@ -417,13 +426,16 @@ pushand(P *p, int f, int l, int lo)
 }
 
 static Frag
-popand(P *p)
+popand(P *p, Ator *o)
 {
 	Frag f;
 	int i;
 
 	if(p->nand == 0){
-		perr(p, "an operator without its operand");
+		if(o->word >= 0)
+			perr(p, "%s, word %d: no operand for it", p->w[o->word], o->word+1);
+		else
+			perr(p, "no operand");
 		i = newinst(p, Inop);
 		f.first = f.last = f.lo = i;
 		return f;
@@ -432,7 +444,7 @@ popand(P *p)
 }
 
 static void
-pushator(P *p, int op, int sub)
+pushator(P *p, int op, int sub, int word)
 {
 	if(p->nator == p->mator){
 		p->mator = p->mator ? 2*p->mator : 32;
@@ -440,6 +452,7 @@ pushator(P *p, int op, int sub)
 	}
 	p->ator[p->nator].op = op;
 	p->ator[p->nator].sub = sub;
+	p->ator[p->nator].word = word;
 	p->nator++;
 }
 
@@ -469,7 +482,7 @@ evaluntil(P *p, int pri)
 		o = p->ator[--p->nator];
 		switch(o.op){
 		case Olbra:
-			a = popand(p);
+			a = popand(p, &o);
 			i2 = newinst(p, Irbra);
 			I(i2).sub = o.sub;
 			I(a.last).next = i2;
@@ -479,8 +492,8 @@ evaluntil(P *p, int pri)
 			pushand(p, i1, i2, a.lo);
 			return;
 		case Oor:
-			b = popand(p);
-			a = popand(p);
+			b = popand(p, &o);
+			a = popand(p, &o);
 			i2 = newinst(p, Inop);
 			I(b.last).next = i2;
 			I(a.last).next = i2;
@@ -490,8 +503,8 @@ evaluntil(P *p, int pri)
 			pushand(p, i1, i2, a.lo < b.lo ? a.lo : b.lo);
 			break;
 		case Ocat:
-			b = popand(p);
-			a = popand(p);
+			b = popand(p, &o);
+			a = popand(p, &o);
 			if(p->back && I(b.first).op != Iend){
 				t = a;
 				a = b;
@@ -503,7 +516,7 @@ evaluntil(P *p, int pri)
 		case Ostar:
 		case Oplus:
 		case Oquest:
-			b = popand(p);
+			b = popand(p, &o);
 			s = p->nstar++;
 			instar(p, b.lo, s);
 			i1 = newinst(p, Ior);
@@ -530,21 +543,21 @@ evaluntil(P *p, int pri)
 }
 
 static void
-operator(P *p, int op, int sub)
+operator(P *p, int op, int sub, int word)
 {
 	if(op == Orbra && --p->nbra < 0){
-		perr(p, "\\): no \\( before it");
+		perr(p, "%s, word %d: no \\( before it", p->w[word], word+1);
 		p->nbra = 0;
 		return;
 	}
 	if(op == Olbra){
 		p->nbra++;
 		if(p->lastwasand)
-			operator(p, Ocat, -1);
+			operator(p, Ocat, -1, -1);
 	}else
 		evaluntil(p, op);
 	if(op != Orbra)
-		pushator(p, op, sub);
+		pushator(p, op, sub, word);
 	p->lastwasand = op == Ostar || op == Oquest || op == Oplus || op == Orbra;
 }
 
@@ -554,7 +567,7 @@ operand(P *p, Lx *l)
 	int i;
 
 	if(p->lastwasand)
-		operator(p, Ocat, -1);
+		operator(p, Ocat, -1, -1);
 	i = newinst(p, l->type);
 	I(i).t = l->t;
 	I(i).bind = l->bind;
@@ -565,7 +578,7 @@ operand(P *p, Lx *l)
 static void
 optimize(P *p, int lo, int hi)
 {
-	int k, n;
+	int k, n, m, t;
 
 	for(k = lo; k < hi; k++){
 		if(I(k).op == Iend)
@@ -573,6 +586,10 @@ optimize(P *p, int lo, int hi)
 		n = I(k).next;
 		while(n >= 0 && I(n).op == Inop)
 			n = I(n).next;
+		for(m = I(k).next; m >= 0 && I(m).op == Inop; m = t){
+			t = I(m).next;
+			I(m).next = n;
+		}
 		I(k).next = n;
 	}
 }
@@ -589,10 +606,10 @@ compile1(P *p, int back)
 	p->lastwasand = 0;
 	p->nbra = 0;
 	p->nstar = 0;
-	pushator(p, Ostart-1, -1);
+	pushator(p, Ostart-1, -1, -1);
 	for(k = 0; k < p->nlx && p->err[0] == 0; k++){
 		if(p->lx[k].type >= Ostart)
-			operator(p, p->lx[k].type, p->lx[k].sub);
+			operator(p, p->lx[k].type, p->lx[k].sub, p->lx[k].word);
 		else
 			operand(p, &p->lx[k]);
 	}
@@ -629,6 +646,61 @@ check(P *p)
 	free(def);
 }
 
+static int
+pos(Inst *i, int x)
+{
+	if(i->op != Itok)
+		return 0;
+	if(i->bind == x)
+		return 1;
+	return i->t->type == Tref && i->t->ref == x && !i->t->neg;
+}
+
+static int
+reach(Tpat *tp, int x, uchar *seen, int *stk)
+{
+	Inst *i;
+	int n, k;
+
+	n = 0;
+	stk[n++] = tp->bstart;
+	while(n > 0){
+		k = stk[--n];
+		if(k < 0 || seen[k])
+			continue;
+		seen[k] = 1;
+		i = &tp->i[k];
+		if(pos(i, x))
+			continue;
+		if(i->op == Itok && i->t->type == Tref && i->t->ref == x)
+			return 1;
+		if(i->op == Iend)
+			continue;
+		if(i->op == Ior)
+			stk[n++] = i->right;
+		stk[n++] = i->next;
+	}
+	return 0;
+}
+
+static int
+unsafe(Tpat *tp)
+{
+	uchar *seen;
+	int x, u, *stk;
+
+	u = 0;
+	seen = emalloc(tp->ni+1);
+	stk = emalloc((2*tp->ni+2)*sizeof stk[0]);
+	for(x = 0; x < tp->nbind && !u; x++){
+		memset(seen, 0, tp->ni+1);
+		u = reach(tp, x, seen, stk);
+	}
+	free(stk);
+	free(seen);
+	return u;
+}
+
 Tpat*
 tokcomp(char *pat)
 {
@@ -662,6 +734,8 @@ tokcomp(char *pat)
 		tp->bstart = compile1(&p, 1);
 	if(p.err[0] == 0)
 		check(&p);
+	if(p.err[0] == 0)
+		tp->bunsafe = unsafe(tp);
 	free(p.lx);
 	free(p.and);
 	free(p.ator);
