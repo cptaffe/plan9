@@ -26,7 +26,6 @@ struct Tok
 	int	id;
 	Tnames	*name;
 	Tnames	*tag;
-	int	br;
 	int	link;
 	int	comment;
 };

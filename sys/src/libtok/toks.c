@@ -156,47 +156,27 @@ field(char **pp, char *e, int *n)
 	return s;
 }
 
-static int
-opener(int c)
-{
-	switch(c){
-	case ')':
-		return '(';
-	case ']':
-		return '[';
-	case '}':
-		return '{';
-	}
-	return 0;
-}
-
 static void
 links(Toks *t)
 {
-	int *st, n, i, j, o;
-	Tok *k;
+	long *q;
+	int i, j;
 
-	st = emalloc((t->n+1)*sizeof st[0]);
-	n = 0;
+	q = emalloc((t->n+1)*sizeof q[0]);
+	for(i = 0; i < t->n; i++)
+		q[i] = t->t[i].link;
 	for(i = 0; i < t->n; i++){
-		k = &t->t[i];
-		k->link = -1;
-		if(k->br == 0)
+		t->t[i].link = -1;
+		if(q[i] < 0)
 			continue;
-		if((o = opener(k->br)) == 0){
-			st[n++] = i;
-			continue;
-		}
-		for(j = n-1; j >= 0; j--)
-			if(t->t[st[j]].br == o)
-				break;
-		if(j < 0)
-			continue;
-		k->link = st[j];
-		t->t[st[j]].link = i;
-		n = j;
+		j = tokat(t, q[i]);
+		if(j < t->n && j != i && t->t[j].q0 == q[i])
+			t->t[i].link = j;
 	}
-	free(st);
+	for(i = 0; i < t->n; i++)
+		if((j = t->t[i].link) >= 0 && t->t[j].link != i)
+			t->t[i].link = -1;
+	free(q);
 }
 
 Toks*
@@ -243,6 +223,8 @@ tokparse(char *text, long ntext, char *lines, long nlines)
 		k->name = names(x, s, ns);
 		s = field(&p, le, &ns);
 		k->tag = names(x, s, ns);
+		s = field(&p, le, &ns);
+		k->link = ns > 0 ? strtol(s, nil, 10) : -1;
 	}
 	qsort(t->t, t->n, sizeof t->t[0], tokcmp);
 	r = 0;
@@ -262,8 +244,6 @@ tokparse(char *text, long ntext, char *lines, long nlines)
 		k->s = e->s;
 		k->id = e->id;
 		k->comment = tokhas(k->name, "comment");
-		if(!k->comment && b1-b0 == 1 && strchr("()[]{}", *b0) != nil)
-			k->br = *b0;
 	}
 	links(t);
 	return t;
