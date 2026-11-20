@@ -76,7 +76,7 @@ command does.
 .SS Patterns
 A pattern is a list of tokens separated by blanks.
 Each item matches one token:
-.TF @name{tag}
+.TF item{tag}
 .TP
 .I text
 the token whose text is
@@ -109,18 +109,6 @@ and a lexical name for a token no highlight covers, such as
 or
 .BR punct .
 .TP
-.BI @ name { tag }
-a token, named as before, inside a range that the program tags
-.IR tag ,
-such as
-.B reference.call
-or
-.BR definition.function ;
-.I tag
-matches by its dotted prefix, as
-.I name
-does.
-.TP
 .BI / re
 a token whose text holds a match of the regular expression
 .I re
@@ -151,6 +139,33 @@ matches, bound to the name
 .BI : x
 a token with the same text as the one bound to
 .IR x .
+.TP
+.IB item { tag }
+a token that
+.I item
+matches inside a range that the program tags
+.IR tag ,
+such as
+.B reference.call
+or
+.BR definition.function ;
+.I tag
+matches by its dotted prefix, as a name does.
+Any item but a group takes a tag, so
+.B "@ident{reference.call}"
+is an identifier in a call,
+.B malloc{definition.macro}
+is
+.I malloc
+inside a macro, and
+.B .{definition.function}
+is any token inside a function.
+With
+.BR ^ ,
+the tag still holds:
+.B ^free{reference.call}
+is a token in a call that is not
+.IR free .
 .PD
 .PP
 A match binds a name once: a second

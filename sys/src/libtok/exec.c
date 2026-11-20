@@ -227,7 +227,7 @@ test(Test *t, Tok *k)
 		ok = 1;
 		break;
 	case Tname:
-		ok = tokhas(k->name, t->s) && (t->tag == nil || tokhas(k->tag, t->tag));
+		ok = tokhas(k->name, t->s);
 		break;
 	case Tre:
 		ok = regexec(t->re, k->s, nil, 0);
@@ -237,7 +237,8 @@ test(Test *t, Tok *k)
 			ok = test(t->set[i], k);
 		break;
 	}
-	return ok ^ t->neg;
+	ok ^= t->neg;
+	return ok && (t->tag == nil || tokhas(k->tag, t->tag));
 }
 
 static int
@@ -256,7 +257,8 @@ step(Run *r, int *st, int pos)
 	cap = u+r->p->nstar;
 	if(t->type == Tref){
 		c = cap[t->ref];
-		ok = c < 0 ? t->neg : (tt[c].id == k->id) ^ t->neg;
+		ok = (c >= 0 && tt[c].id == k->id) ^ t->neg;
+		ok = ok && (t->tag == nil || tokhas(k->tag, t->tag));
 	}else{
 		ok = test(t, k);
 		if(ok && i->bind >= 0){
