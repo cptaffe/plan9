@@ -9,6 +9,8 @@ typedef struct P	P;
 
 enum
 {
+	Maxdepth = 100,
+
 	Ntok = 1,
 	Ncat,
 	Nalt,
@@ -36,6 +38,7 @@ struct P
 	int	nnodes;
 	int	stk[64];
 	int	nstk;
+	int	depth;
 	char	err[ERRMAX];
 };
 
@@ -210,12 +213,18 @@ item(P *p)
 {
 	Node *n;
 	Test *t, *m;
-	char *w, *s, *f[64], *set;
+	char *w, *s, **f, *set;
 	int q, l, bind, neg, i, nf;
 
 	w = p->w[p->i++];
 	if(strcmp(w, "\\(") == 0){
+		if(p->depth >= Maxdepth){
+			perr(p, "groups nested too deep");
+			return node(p, Nempty, nil, nil);
+		}
+		p->depth++;
 		n = alt(p);
+		p->depth--;
 		if(p->i >= p->nw || strncmp(p->w[p->i], "\\)", 2) != 0){
 			perr(p, "no \\) for \\(");
 			return n;
@@ -271,7 +280,8 @@ item(P *p)
 	if(set != nil){
 		set[l-1] = 0;
 		t = newtest(p, Tset);
-		nf = tokenize(set, f, nelem(f));
+		f = emalloc((strlen(set)/2+2)*sizeof f[0]);
+		nf = tokenize(set, f, strlen(set)/2+1);
 		for(i = 0; i < nf; i++){
 			m = simple(p, f[i]);
 			if(m->type == Tref)
@@ -279,6 +289,7 @@ item(P *p)
 			t->set = erealloc(t->set, (t->nset+1)*sizeof t->set[0]);
 			t->set[t->nset++] = m;
 		}
+		free(f);
 		free(set);
 		if(nf == 0)
 			perr(p, "empty set");
@@ -342,11 +353,30 @@ emit(P *p, int op)
 	return tp->ni++;
 }
 
+static Node**
+spine(Node *n, int type, int *np)
+{
+	Node **v, *m;
+	int k, i;
+
+	k = 1;
+	for(m = n; m->type == type; m = m->l)
+		k++;
+	v = emalloc(k*sizeof v[0]);
+	i = k;
+	for(m = n; m->type == type; m = m->l)
+		v[--i] = m->r;
+	v[--i] = m;
+	*np = k;
+	return v;
+}
+
 static void
 gen(P *p, Node *n)
 {
 	Inst *i;
-	int a, b, c, s;
+	Node **v;
+	int a, b, c, s, k, nv, *j;
 
 	switch(n->type){
 	case Nempty:
@@ -363,17 +393,30 @@ gen(P *p, Node *n)
 		}
 		break;
 	case Ncat:
-		gen(p, n->l);
-		gen(p, n->r);
+		v = spine(n, Ncat, &nv);
+		for(k = 0; k < nv; k++)
+			gen(p, v[k]);
+		free(v);
 		break;
 	case Nalt:
-		a = emit(p, Isplit);
-		p->p->i[a].x = a+1;
-		gen(p, n->l);
-		b = emit(p, Ijmp);
-		p->p->i[a].y = p->p->ni;
-		gen(p, n->r);
-		p->p->i[b].x = p->p->ni;
+		v = spine(n, Nalt, &nv);
+		j = emalloc(nv*sizeof j[0]);
+		for(k = 0; k < nv; k++){
+			a = -1;
+			if(k < nv-1){
+				a = emit(p, Isplit);
+				p->p->i[a].x = a+1;
+			}
+			gen(p, v[k]);
+			if(k < nv-1){
+				j[k] = emit(p, Ijmp);
+				p->p->i[a].y = p->p->ni;
+			}
+		}
+		for(k = 0; k < nv-1; k++)
+			p->p->i[j[k]].x = p->p->ni;
+		free(j);
+		free(v);
 		break;
 	case Nrep:
 		if(p->nstk == nelem(p->stk)){
