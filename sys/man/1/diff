@@ -209,6 +209,9 @@ as
 .IR git 's
 indent heuristic does,
 so that an added function begins with its first line and ends with its own brace.
+The heuristic's weights are those of
+.IR git 's
+xdiff.
 .SH FILES
 .B /tmp/diff[12]
 .SH SOURCE
