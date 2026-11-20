@@ -89,7 +89,11 @@ char *sys_errlist[] = {
 };
 #define	_IO_nerr	(sizeof sys_errlist/sizeof sys_errlist[0])
 int sys_nerr = _IO_nerr;
+#ifdef __wasm__
+extern _Thread_local char _plan9err[];
+#else
 extern char _plan9err[];
+#endif
 
 char *
 strerror(int n)
