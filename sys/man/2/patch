@@ -117,8 +117,11 @@ A
 .B old
 and
 .B new
-are the names, stripped, or nil for
+are the names, stripped and cleaned, or nil for
 .BR /dev/null .
+A name that is not local, as
+.IR islocal (2)
+has it, makes the patch fail.
 .B Oldmode
 and
 .B newmode
