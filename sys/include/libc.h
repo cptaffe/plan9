@@ -375,6 +375,7 @@ extern	long	atol(char*);
 extern	vlong	atoll(char*);
 extern	double	charstod(int(*)(void*), void*);
 extern	char*	cleanname(char*);
+extern	int	islocal(char*);
 extern	int	decrypt(void*, void*, int);
 extern	int	encrypt(void*, void*, int);
 extern	int	dec64(uchar*, int, char*, int);

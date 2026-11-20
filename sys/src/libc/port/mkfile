@@ -18,6 +18,7 @@ CFILES=\
 	cistrstr.c\
 	charstod.c\
 	cleanname.c\
+	islocal.c\
 	crypt.c\
 	ctype.c\
 	encodefmt.c\
