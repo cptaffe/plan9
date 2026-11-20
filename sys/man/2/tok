@@ -1,0 +1,186 @@
+.TH TOK 2
+.SH NAME
+tokparse, tokfree, tokat, tokbefore, tokhas, tokcomp, tokpatfree, toknbind, tokbindname, tokexec, tokbexec \- match patterns of tokens
+.SH SYNOPSIS
+.ta \w'Toks*\ \ \ 'u
+.B #include <u.h>
+.br
+.B #include <libc.h>
+.br
+.B #include <regexp.h>
+.br
+.B #include <tok.h>
+.PP
+.B
+Toks*	tokparse(char *text, long ntext, char *lines, long nlines)
+.PP
+.B
+void	tokfree(Toks *t)
+.PP
+.B
+int	tokat(Toks *t, long q)
+.PP
+.B
+int	tokbefore(Toks *t, long q)
+.PP
+.B
+int	tokhas(Tnames *n, char *name)
+.PP
+.B
+Tpat*	tokcomp(char *pat)
+.PP
+.B
+void	tokpatfree(Tpat *p)
+.PP
+.B
+int	toknbind(Tpat *p)
+.PP
+.B
+char*	tokbindname(Tpat *p, int i)
+.PP
+.B
+int	tokexec(Tpat *p, Toks *t, int t0, int t1, int from, Tmatch *m)
+.PP
+.B
+int	tokbexec(Tpat *p, Toks *t, int t0, int t1, Tmatch *m)
+.PP
+.B
+void*	emalloc(ulong n)
+.PP
+.B
+void*	erealloc(void *v, ulong n)
+.SH DESCRIPTION
+These routines match the patterns of
+.IR sift (1)
+against a document's tokens, for
+.I sift
+and
+.IR carve (1).
+.PP
+.I Tokparse
+makes a document's tokens from its UTF-8
+.I text
+and the answer a syntax program gives to the request
+.B tokens
+(see
+.IR syn (4)):
+a line per token of its start and length in runes, its names joined by commas, and the names of the
+tags around it joined by commas, or
+.BR - .
+It sorts the tokens by their start and skips any that fall outside the text.
+Each
+.B Tok
+holds its runes
+.B q0
+to
+.BR q1 ,
+its text
+.BR s ,
+an
+.B id
+that two tokens share when their texts are equal,
+its names and tag names, each a
+.B Tnames
+of
+.B n
+strings
+.BR s ,
+and, for a bracket, its character in
+.B br
+and the index of its match in
+.BR link ,
+or \-1.
+A token named
+.B comment
+or
+.BI comment. x
+has
+.B comment
+set, and is never a bracket.
+.I Tokfree
+frees them.
+.I Tokat
+gives the index of the first token that starts at rune
+.I q
+or after it;
+.I tokbefore
+gives the number of tokens that end at
+.I q
+or before it.
+.I Tokhas
+says whether one of the names
+.I n
+is
+.I name
+or begins with
+.IB name . \f1.
+.PP
+.I Tokcomp
+compiles a pattern, or returns nil and sets the error string.
+.I Toknbind
+gives the number of names the pattern binds, at most
+.BR Tmaxbind ,
+and
+.I tokbindname
+the
+.IR i th
+of them, in the order the pattern first names them.
+.PP
+.I Tokexec
+finds the leftmost longest match among the tokens
+.I t0
+to
+.IR t1 \-1
+that starts at token
+.I from
+or after it.
+A bracket whose match lies outside them counts as unmatched.
+It fills
+.IR m :
+the match is the tokens
+.B m->t0
+to
+.BR m->t1 \-1,
+and
+.BI m->bind[ i ]
+is the token bound to the
+.IR i th
+name, or \-1.
+A match that names no comment skips comments, so it neither starts nor ends on one.
+.I Tokbexec
+finds, among the same tokens, the match that ends last, and of those the longest:
+the match that a search backward would find first.
+Both return 1 if they find a match and 0 if not.
+.PP
+The caller provides
+.I emalloc
+and
+.IR erealloc ,
+which return zeroed memory and never nil.
+A bad regular expression in a pattern calls
+.I regerror
+(see
+.IR regexp (2));
+a program that defines one that returns, and sets the error string, gets that string from
+.IR tokcomp .
+.PP
+The matcher is a Pike VM: a thread is a state of the compiled pattern with its bound tokens and, for
+each repetition around it, the bracket that closes the outermost group it has entered; two threads in the same
+state whose bound tokens have the same texts merge.
+For a pattern with
+.I k
+names, a document of
+.I n
+tokens and
+.I V
+distinct texts takes time at most proportional to
+.I n
+times the pattern's size times
+.IR V\u\s-2k\s0\d ,
+and times the depth of brackets for each nested repetition.
+.SH SOURCE
+.B /sys/src/libtok
+.SH SEE ALSO
+.IR carve (1),
+.IR sift (1),
+.IR syn (4)
