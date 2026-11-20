@@ -67,7 +67,10 @@ and the answer a syntax program gives to the request
 a line per token of its start and length in runes, its names joined by commas, and the names of the
 tags around it joined by commas, or
 .BR - .
-It sorts the tokens by their start and skips any that fall outside the text.
+It sorts the tokens by their start.
+It refuses, with nil and the error string set, a line that is not four or five fields, a start or
+length that is not a decimal number, a token of no runes or past the text's end, tokens that
+overlap, and partners that do not name each other or that cross.
 Each
 .B Tok
 holds its runes

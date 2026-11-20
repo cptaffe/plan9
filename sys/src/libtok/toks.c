@@ -156,27 +156,64 @@ field(char **pp, char *e, int *n)
 	return s;
 }
 
-static void
+static int
 links(Toks *t)
 {
 	long *q;
-	int i, j;
+	int i, j, *st, ns, ok;
 
 	q = emalloc((t->n+1)*sizeof q[0]);
+	st = emalloc((t->n+1)*sizeof st[0]);
 	for(i = 0; i < t->n; i++)
 		q[i] = t->t[i].link;
+	ok = 0;
 	for(i = 0; i < t->n; i++){
 		t->t[i].link = -1;
 		if(q[i] < 0)
 			continue;
 		j = tokat(t, q[i]);
-		if(j < t->n && j != i && t->t[j].q0 == q[i])
-			t->t[i].link = j;
+		if(j >= t->n || j == i || t->t[j].q0 != q[i] || q[j] != t->t[i].q0){
+			werrstr("token at %ld: bad partner %ld", t->t[i].q0, q[i]);
+			goto Out;
+		}
+		t->t[i].link = j;
 	}
-	for(i = 0; i < t->n; i++)
-		if((j = t->t[i].link) >= 0 && t->t[j].link != i)
-			t->t[i].link = -1;
+	ns = 0;
+	for(i = 0; i < t->n; i++){
+		if((j = t->t[i].link) < 0)
+			continue;
+		if(j > i)
+			st[ns++] = i;
+		else if(ns == 0 || st[--ns] != j){
+			werrstr("token at %ld: partners cross", t->t[i].q0);
+			goto Out;
+		}
+	}
+	ok = 1;
+Out:
 	free(q);
+	free(st);
+	return ok ? 0 : -1;
+}
+
+static int
+num(char *s, int n, long lim, long *v)
+{
+	vlong x;
+	int i;
+
+	if(n <= 0 || n > 18)
+		return -1;
+	x = 0;
+	for(i = 0; i < n; i++){
+		if(s[i] < '0' || s[i] > '9')
+			return -1;
+		x = x*10 + s[i]-'0';
+	}
+	if(x > lim)
+		return -1;
+	*v = x;
+	return 0;
 }
 
 Toks*
@@ -186,9 +223,9 @@ tokparse(char *text, long ntext, char *lines, long nlines)
 	Tx *x;
 	Tok *k;
 	Ient *e;
-	char *p, *le, *e1, *s, *b0, *b1, *te;
-	long q0, n, r, r1, nr;
-	int ns, i, m;
+	char *p, *le, *e1, *b0, *b1, *te, *f[5];
+	long q0, n, r, r1, nr, lk;
+	int ns, i, m, ln, nf, fl[5];
 	Rune c;
 
 	t = emalloc(sizeof *t);
@@ -200,17 +237,32 @@ tokparse(char *text, long ntext, char *lines, long nlines)
 		p += chartorune(&c, p);
 	t->nr = nr;
 	m = 0;
+	ln = 0;
 	for(p = lines, e1 = lines+nlines; p < e1; p = le+1){
+		ln++;
 		if((le = memchr(p, '\n', e1-p)) == nil)
 			le = e1;
-		s = field(&p, le, &ns);
-		if(ns == 0)
+		for(nf = 0; nf < nelem(f); nf++){
+			f[nf] = field(&p, le, &fl[nf]);
+			if(fl[nf] == 0)
+				break;
+		}
+		if(nf == 0)
 			continue;
-		q0 = strtol(s, nil, 10);
-		s = field(&p, le, &ns);
-		n = strtol(s, nil, 10);
-		if(q0 < 0 || n < 0 || q0+n > nr)
-			continue;
+		field(&p, le, &ns);
+		if(nf < 4 || ns > 0){
+			werrstr("tokens line %d: not four or five fields", ln);
+			goto Err;
+		}
+		if(num(f[0], fl[0], nr, &q0) < 0 || num(f[1], fl[1], nr, &n) < 0 || n == 0 || n > nr-q0){
+			werrstr("tokens line %d: bad start or length", ln);
+			goto Err;
+		}
+		lk = -1;
+		if(nf == 5 && num(f[4], fl[4], nr, &lk) < 0){
+			werrstr("tokens line %d: bad partner", ln);
+			goto Err;
+		}
 		if(t->n == m){
 			m = m ? 2*m : 1024;
 			t->t = erealloc(t->t, m*sizeof t->t[0]);
@@ -219,14 +271,16 @@ tokparse(char *text, long ntext, char *lines, long nlines)
 		memset(k, 0, sizeof *k);
 		k->q0 = q0;
 		k->q1 = q0+n;
-		s = field(&p, le, &ns);
-		k->name = names(x, s, ns);
-		s = field(&p, le, &ns);
-		k->tag = names(x, s, ns);
-		s = field(&p, le, &ns);
-		k->link = ns > 0 ? strtol(s, nil, 10) : -1;
+		k->name = names(x, f[2], fl[2]);
+		k->tag = names(x, f[3], fl[3]);
+		k->link = lk;
 	}
 	qsort(t->t, t->n, sizeof t->t[0], tokcmp);
+	for(i = 1; i < t->n; i++)
+		if(t->t[i].q0 < t->t[i-1].q1){
+			werrstr("token at %ld overlaps the one before", t->t[i].q0);
+			goto Err;
+		}
 	r = 0;
 	b0 = text;
 	for(i = 0; i < t->n; i++){
@@ -245,8 +299,12 @@ tokparse(char *text, long ntext, char *lines, long nlines)
 		k->id = e->id;
 		k->comment = tokhas(k->name, "comment");
 	}
-	links(t);
+	if(links(t) < 0)
+		goto Err;
 	return t;
+Err:
+	tokfree(t);
+	return nil;
 }
 
 void
