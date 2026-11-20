@@ -1,0 +1,253 @@
+.TH PATCH 2
+.SH NAME
+parsepatch, freepatch, revpatch, splittext, findhunk, placehunks, applydiff \- read and apply unified diffs
+.SH SYNOPSIS
+.ta \w'Patch*\ \ \ 'u
+.B #include <u.h>
+.br
+.B #include <libc.h>
+.br
+.B #include <patch.h>
+.PP
+.ft L
+.nf
+.ta \w'typedef 'u +\w'struct 'u +\w'Text\ \ 'u
+typedef struct Line {
+	char	*s;
+	int	n;
+} Line;
+.PP
+.ft L
+.nf
+typedef struct Text {
+	Line	*l;
+	int	n;
+} Text;
+.PP
+.ft L
+.nf
+typedef struct Hunk {
+	int	oldln;
+	int	oldcnt;
+	int	newln;
+	int	newcnt;
+	int	lead;
+	int	trail;
+	Text	old;
+	Text	new;
+	int	lnum;
+} Hunk;
+.PP
+.ft L
+.nf
+typedef struct Diff {
+	char	*old;
+	char	*new;
+	int	oldmode;
+	int	newmode;
+	int	flags;
+	Hunk	*h;
+	int	nh;
+	int	lnum;
+} Diff;
+.PP
+.ft L
+.nf
+typedef struct Patch {
+	Diff	*d;
+	int	nd;
+	char	*buf;
+} Patch;
+.fi
+.PP
+.ta \w'Patch*\ \ \ 'u
+.B
+Patch*	parsepatch(char *s, long n, int p)
+.PP
+.B
+void	freepatch(Patch *pt)
+.PP
+.B
+void	revpatch(Patch *pt)
+.PP
+.B
+void	splittext(Text *t, char *s, long n)
+.PP
+.B
+int	findhunk(Diff *d, Hunk *h, Text *t, int lo, int drift)
+.PP
+.B
+int	placehunks(Diff *d, Text *t, int *at)
+.PP
+.B
+char*	applydiff(Diff *d, Text *t, long *np)
+.PP
+.B
+void*	emalloc(ulong n)
+.PP
+.B
+void*	erealloc(void *p, ulong n)
+.SH DESCRIPTION
+These routines read unified diffs, with
+.IR git 's
+headers, and apply them to text in memory, as
+.IR patch (1)
+does to files.
+.PP
+.I Parsepatch
+reads the
+.I n
+bytes at
+.I s
+and returns a
+.B Patch
+that holds a
+.B Diff
+for each file, in the order of the patch, and a copy of the bytes.
+It skips the text around the diffs.
+.I P
+is the number of slashes to strip from each name, as
+.I patch
+.B -p
+does, or \-1 for 1 when a diff has
+.IR git 's
+header and 0 when it does not.
+A
+.BR Diff 's
+.B old
+and
+.B new
+are the names, stripped, or nil for
+.BR /dev/null .
+.B Oldmode
+and
+.B newmode
+are
+.IR git 's
+modes, or 0.
+.B Flags
+holds
+.B Pgit
+for a diff with
+.IR git 's
+header,
+.B Pnew
+for one that makes its file,
+.B Pdel
+for one that removes it,
+.B Pren
+and
+.B Pcopy
+for a rename and a copy, and
+.B Pzero
+when the hunks show that the diff has no context, as
+.B diff -U0
+makes it.
+.B Lnum
+is the line of the patch where the diff begins.
+.I Parsepatch
+returns nil, with the error string set, for a patch that it cannot read and for a binary patch.
+.I Freepatch
+frees a
+.BR Patch .
+.I Revpatch
+turns each diff around, so that it changes the new file into the old.
+.PP
+A
+.B Hunk
+has the numbers of its header,
+.BR oldln ,
+.BR oldcnt ,
+.B newln
+and
+.BR newcnt ;
+the number of context lines before its first change,
+.BR lead ,
+and after its last,
+.BR trail ;
+its old lines, context and removed, in
+.BR old ,
+and its new lines, context and added, in
+.BR new ;
+and the line of the patch where its header is,
+.BR lnum .
+A
+.B Text
+is an array of lines, and each
+.B Line
+points into the bytes it came from:
+.B n
+counts the bytes of the line with its newline, which the last line of a file may lack.
+.I Splittext
+fills a
+.B Text
+with the lines of the
+.I n
+bytes at
+.IR s ,
+in an array that the caller frees.
+.PP
+.I Findhunk
+finds where the hunk
+.I h
+of the diff
+.I d
+applies in
+.IR t ,
+at a line no earlier than
+.IR lo ,
+and returns that line, counted from 0, or \-1.
+The hunk applies where its old lines are exactly.
+.I Findhunk
+looks first at the line the hunk names plus
+.IR drift ,
+and then one line further each way in turn.
+A hunk that names the first line applies there or nowhere,
+and one with no context after its changes must end at the end of
+.IR t ,
+unless the diff is
+.BR Pzero .
+.PP
+.I Placehunks
+finds each hunk of
+.I d
+in
+.I t
+in turn, each after the one before and moved by as much, and puts its line in
+.IR at ,
+which has room for
+.B d->nh
+numbers.
+It returns 0, or \-1 with the error string set when a hunk does not apply.
+.I Applydiff
+places the hunks of
+.I d
+in
+.IR t ,
+and returns the text they make, in an array that the caller frees, and its length in
+.BR *np .
+It returns nil, with the error string set, when a hunk does not apply.
+.PP
+A program applying hunks one at a time, as an editor applies them to the text of a window,
+can call
+.I findhunk
+with
+.I lo
+the line after the last hunk it applied and
+.I drift
+how far that hunk moved.
+.PP
+The library allocates with two routines that the program provides, as
+.IR html (2)
+does:
+.I emalloc
+returns zeroed memory and
+.I erealloc
+resizes as
+.I realloc
+does, and neither returns when it fails.
+.SH SOURCE
+.B /sys/src/libpatch
+.SH "SEE ALSO"
+.IR diff (1),
+.IR patch (1)
