@@ -150,7 +150,26 @@ When it has written them all, it moves each old file aside, to
 .IB file .patchold pid\f1,
 puts the temporary files in their places, and only then removes the old files.
 If any step fails, it puts back what it moved and removes the temporary files and the directories it made,
-so the files are as they were.
+so the files are as they were;
+if it cannot put a file back, it says so, names the file that holds the old text, and exits with an error.
+A file and a directory of the same name may change places:
+.I patch
+moves the file aside before it makes the directory, and empties the directory before it puts the file in its place.
+If
+.I patch
+is killed while it commits, or cannot put files back, the old text of a file is in
+.IB file .patchold pid
+beside it, and its new text may be in
+.IB file .patch pid\f1;
+to put a file back, remove any new
+.I file
+and rename
+.IB file .patchold pid
+to
+.IR file ,
+and remove the
+.IB file .patch pid
+files.
 It holds an interrupt off while it does this, and acts on it after, and it prints the names when it has done.
 It makes the directories a new file needs, and removes those that a removed file leaves empty.
 .SH EXAMPLES

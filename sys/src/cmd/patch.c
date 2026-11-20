@@ -18,6 +18,8 @@ struct File
 	char	*tmp;
 	char	*bak;
 	int	state;
+	int	isdir;
+	int	later;
 };
 
 File	*files;
@@ -29,6 +31,7 @@ int	rflag;
 int	zflag;
 int	strip = -1;
 int	committing;
+char	*errfile;
 char	held[ERRMAX];
 
 enum
@@ -36,6 +39,7 @@ enum
 	Saved = 1,
 	Placed,
 	Chmod,
+	Gone,
 };
 
 void*
@@ -102,22 +106,23 @@ getfile(char *path)
 	for(i = 0; i < nfiles; i++)
 		if(strcmp(files[i].path, path) == 0)
 			return &files[i];
-	if((d = dirstat(path)) != nil && d->qid.type&QTDIR){
-		free(d);
-		werrstr("%s: is a directory", path);
-		return nil;
-	}
 	if(nfiles % 32 == 0)
 		files = erealloc(files, (nfiles+32)*sizeof(File));
 	f = &files[nfiles];
 	memset(f, 0, sizeof *f);
 	f->path = estrdup(path);
 	f->perm = 0664;
+	d = dirstat(path);
+	if(d != nil && d->qid.type&QTDIR){
+		free(d);
+		d = nil;
+		f->isdir = 1;
+	}
 	if(d != nil){
 		f->perm = d->mode & 0777;
 		free(d);
 		if((fd = open(path, OREAD)) < 0 || (f->buf = readall(fd, &f->n)) == nil){
-			werrstr("%s: %r", path);
+			errfile = path;
 			if(fd >= 0)
 				close(fd);
 			free(f->path);
@@ -150,7 +155,8 @@ filetype(Diff *d)
 	if(m == 0 || (m&0170000) == 0100000)
 		m = d->newmode;
 	if(m != 0 && (m&0170000) != 0100000){
-		werrstr("%s: mode %o: not a regular file", d->new ? d->new : d->old, m);
+		errfile = d->new ? d->new : d->old;
+		werrstr("mode %o: not a regular file", m);
 		return -1;
 	}
 	return 0;
@@ -166,7 +172,7 @@ patched(Diff *d, File *f, long *np)
 	b = applydiff(d, &t, np);
 	free(t.l);
 	if(b == nil)
-		werrstr("%s: %r", f->path);
+		errfile = f->path;
 	return b;
 }
 
@@ -204,7 +210,8 @@ apply(Diff *d)
 		if((t = getfile(d->new)) == nil)
 			return -1;
 		if(t->exists){
-			werrstr("%s: already exists", d->new);
+			errfile = d->new;
+			werrstr("already exists");
 			return -1;
 		}
 		if((b = patched(d, t, &n)) == nil)
@@ -215,13 +222,15 @@ apply(Diff *d)
 	}
 	if(d->flags&(Pren|Pcopy)){
 		if(rflag && d->flags&Pcopy){
-			werrstr("%s: cannot reverse a copy", d->old);
+			errfile = d->old;
+			werrstr("cannot reverse a copy");
 			return -1;
 		}
 		if((s = getfile(d->old)) == nil)
 			return -1;
 		if(!s->exists){
-			werrstr("%s: no such file", d->old);
+			errfile = d->old;
+			werrstr("no such file");
 			return -1;
 		}
 		if((b = patched(d, s, &n)) == nil)
@@ -232,7 +241,8 @@ apply(Diff *d)
 		}
 		if(t->exists){
 			free(b);
-			werrstr("%s: already exists", d->new);
+			errfile = d->new;
+			werrstr("already exists");
 			return -1;
 		}
 		settext(t, b, n);
@@ -251,7 +261,8 @@ apply(Diff *d)
 			return -1;
 	}
 	if(!s->exists){
-		werrstr("%s: no such file", p);
+		errfile = p;
+		werrstr(s->isdir ? "is a directory" : "no such file");
 		return -1;
 	}
 	if((b = patched(d, s, &n)) == nil)
@@ -259,7 +270,8 @@ apply(Diff *d)
 	if(d->flags&Pdel){
 		free(b);
 		if(n != 0){
-			werrstr("%s: not empty after the patch removes it", s->path);
+			errfile = s->path;
+			werrstr("not empty after the patch removes it");
 			return -1;
 		}
 		unset(s);
@@ -276,7 +288,22 @@ apply(Diff *d)
 	return 0;
 }
 
-int
+void
+fail(char *name, int lnum)
+{
+	char err[ERRMAX];
+
+	rerrstr(err, sizeof err);
+	if(errfile != nil)
+		fprint(2, "%s: %s:%d: %s: %s\n", argv0, name, lnum, errfile, err);
+	else if(lnum > 0)
+		fprint(2, "%s: %s:%d: %s\n", argv0, name, lnum, err);
+	else
+		fprint(2, "%s: %s: %s\n", argv0, name, err);
+	exits(err);
+}
+
+void
 load(char *name, int fd)
 {
 	char *b;
@@ -284,29 +311,26 @@ load(char *name, int fd)
 	int i;
 	Patch *pt;
 
-	if((b = readall(fd, &n)) == nil){
-		werrstr("%s: %r", name);
-		return -1;
-	}
+	if((b = readall(fd, &n)) == nil)
+		fail(name, 0);
 	pt = parsepatch(b, n, strip);
 	free(b);
 	if(pt == nil){
-		werrstr("%s:%r", name);
-		return -1;
+		errfile = nil;
+		fprint(2, "%s: %s:%r\n", argv0, name);
+		exits("parse");
 	}
 	if(rflag)
 		revpatch(pt);
 	if(zflag)
 		for(i = 0; i < pt->nd; i++)
 			pt->d[i].flags |= Pzero;
-	for(i = 0; i < pt->nd; i++)
-		if(apply(&pt->d[i]) < 0){
-			werrstr("%s:%d: %r", name, pt->d[i].lnum);
-			freepatch(pt);
-			return -1;
-		}
+	for(i = 0; i < pt->nd; i++){
+		errfile = nil;
+		if(apply(&pt->d[i]) < 0)
+			fail(name, pt->d[i].lnum);
+	}
 	freepatch(pt);
-	return 0;
 }
 
 int
@@ -330,6 +354,16 @@ base(char *p)
 }
 
 int
+oops(char *op, char *path)
+{
+	char err[ERRMAX];
+
+	rerrstr(err, sizeof err);
+	fprint(2, "%s: %s %s: %s\n", argv0, op, path, err);
+	return -1;
+}
+
+int
 mkparent(char *path)
 {
 	char *p, *s;
@@ -345,7 +379,7 @@ mkparent(char *path)
 			continue;
 		}
 		if((fd = create(p, OREAD, DMDIR|0775)) < 0){
-			werrstr("mkdir %s: %r", p);
+			oops("mkdir", p);
 			free(p);
 			return -1;
 		}
@@ -363,11 +397,17 @@ void
 rmparent(char *path)
 {
 	char *p, *s;
+	Dir *d;
+	int dir;
 
 	p = estrdup(path);
 	while((s = strrchr(p, '/')) != nil && s > p){
 		*s = 0;
-		if(remove(p) < 0)
+		if((d = dirstat(p)) == nil)
+			break;
+		dir = d->qid.type&QTDIR;
+		free(d);
+		if(!dir || remove(p) < 0)
 			break;
 	}
 	free(p);
@@ -402,6 +442,82 @@ catch(void*, char *msg)
 	return 0;
 }
 
+File*
+lookup(char *path)
+{
+	int i;
+
+	for(i = 0; i < nfiles; i++)
+		if(strcmp(files[i].path, path) == 0)
+			return &files[i];
+	return nil;
+}
+
+int
+under(char *path, char *dir)
+{
+	int n;
+
+	n = strlen(dir);
+	return strncmp(path, dir, n) == 0 && path[n] == '/';
+}
+
+int
+emptied(char *dir)
+{
+	Dir *d;
+	int fd, i, n, ok;
+	char *p;
+	File *f;
+
+	if((fd = open(dir, OREAD)) < 0)
+		return 0;
+	n = dirreadall(fd, &d);
+	close(fd);
+	ok = 1;
+	for(i = 0; i < n && ok; i++){
+		p = smprint("%s/%s", dir, d[i].name);
+		if(p == nil)
+			sysfatal("smprint: %r");
+		if(d[i].qid.type&QTDIR)
+			ok = emptied(p);
+		else
+			ok = (f = lookup(p)) != nil && f->had && !f->exists;
+		free(p);
+	}
+	free(d);
+	return ok;
+}
+
+void
+checkdirs(void)
+{
+	int i;
+	File *f;
+
+	for(i = 0; i < nfiles; i++){
+		f = &files[i];
+		if(f->isdir && f->exists && !emptied(f->path)){
+			fprint(2, "%s: %s: a directory the patch does not empty\n", argv0, f->path);
+			exits("directory");
+		}
+	}
+}
+
+int
+blocked(char *path)
+{
+	int i;
+	File *f;
+
+	for(i = 0; i < nfiles; i++){
+		f = &files[i];
+		if(f->had && !f->exists && under(path, f->path))
+			return 1;
+	}
+	return 0;
+}
+
 int
 writetmp(File *f)
 {
@@ -414,19 +530,19 @@ writetmp(File *f)
 	if(f->tmp == nil)
 		sysfatal("smprint: %r");
 	if((fd = create(f->tmp, OWRITE|OEXCL, f->perm)) < 0){
-		werrstr("create %s: %r", f->tmp);
+		oops("create", f->tmp);
 		free(f->tmp);
 		f->tmp = nil;
 		return -1;
 	}
 	n = write(fd, f->buf, f->n);
 	if(n != f->n){
-		werrstr("write %s: %r", f->tmp);
+		oops("write", f->tmp);
 		close(fd);
 		return -1;
 	}
 	if(close(fd) < 0){
-		werrstr("close %s: %r", f->tmp);
+		oops("close", f->tmp);
 		return -1;
 	}
 	return 0;
@@ -439,10 +555,8 @@ move(char *from, char *to)
 
 	nulldir(&d);
 	d.name = base(to);
-	if(dirwstat(from, &d) < 0){
-		werrstr("rename %s to %s: %r", from, d.name);
-		return -1;
-	}
+	if(dirwstat(from, &d) < 0)
+		return oops("rename", from);
 	return 0;
 }
 
@@ -453,47 +567,96 @@ setperm(char *path, ulong perm)
 
 	nulldir(&d);
 	d.mode = perm;
-	if(dirwstat(path, &d) < 0){
-		werrstr("chmod %s: %r", path);
-		return -1;
-	}
+	if(dirwstat(path, &d) < 0)
+		return oops("chmod", path);
 	return 0;
 }
 
-void
+int
+rmdirs(char *dir)
+{
+	Dir *d;
+	int fd, i, n;
+	char *p;
+
+	if((fd = open(dir, OREAD)) < 0)
+		return oops("open", dir);
+	n = dirreadall(fd, &d);
+	close(fd);
+	for(i = 0; i < n; i++){
+		p = smprint("%s/%s", dir, d[i].name);
+		if(p == nil)
+			sysfatal("smprint: %r");
+		if(rmdirs(p) < 0){
+			free(p);
+			free(d);
+			return -1;
+		}
+		free(p);
+	}
+	free(d);
+	if(remove(dir) < 0)
+		return oops("remove", dir);
+	return 0;
+}
+
+int
 undo(void)
 {
-	int i;
+	int i, bad;
 	File *f;
 
+	bad = 0;
 	for(i = nfiles-1; i >= 0; i--){
 		f = &files[i];
-		switch(f->state){
-		case Chmod:
-			setperm(f->path, f->operm);
-			break;
-		case Placed:
-			move(f->path, f->tmp);
-			if(f->bak != nil)
-				move(f->bak, f->path);
-			break;
-		case Saved:
-			move(f->bak, f->path);
-			break;
+		if(f->state == Chmod && setperm(f->path, f->operm) < 0)
+			bad++;
+		if(f->state == Placed && move(f->path, f->tmp) < 0)
+			bad++;
+	}
+	cleanup();
+	for(i = nfiles-1; i >= 0; i--){
+		f = &files[i];
+		if(f->bak != nil){
+			if(move(f->bak, f->path) < 0){
+				fprint(2, "%s: %s is left in %s\n", argv0, f->path, f->bak);
+				bad++;
+			}
+			free(f->bak);
+			f->bak = nil;
+		}else if(f->state == Gone){
+			fprint(2, "%s: %s is removed and cannot be put back\n", argv0, f->path);
+			bad++;
 		}
 		f->state = 0;
 	}
+	return bad;
+}
+
+int
+place(File *f)
+{
+	if(f->tmp != nil){
+		if(move(f->tmp, f->path) < 0)
+			return -1;
+		f->state = Placed;
+	}else{
+		if(setperm(f->path, f->perm) < 0)
+			return -1;
+		f->state = Chmod;
+	}
+	return 0;
 }
 
 int
 commit(void)
 {
-	int i;
-	File *f;
+	int i, j;
+	File *f, *g;
 
 	for(i = 0; i < nfiles; i++){
 		f = &files[i];
-		if(!changed(f) || !f->had || f->exists && f->tmp == nil)
+		if(!changed(f) || !f->had || f->exists && f->tmp == nil && !f->later)
 			continue;
 		f->bak = smprint("%s.patchold%d", f->path, getpid());
 		if(f->bak == nil)
@@ -507,17 +670,32 @@ commit(void)
 	}
 	for(i = 0; i < nfiles; i++){
 		f = &files[i];
-		if(!changed(f) || !f->exists)
+		if(changed(f) && f->exists && !f->later && !f->isdir && place(f) < 0)
+			return -1;
+	}
+	for(i = 0; i < nfiles; i++){
+		f = &files[i];
+		if(!changed(f) || !f->later)
 			continue;
-		if(f->tmp != nil){
-			if(move(f->tmp, f->path) < 0)
-				return -1;
-			f->state = Placed;
-		}else{
-			if(setperm(f->path, f->perm) < 0)
-				return -1;
-			f->state = Chmod;
+		if(writetmp(f) < 0 || place(f) < 0)
+			return -1;
+	}
+	for(i = 0; i < nfiles; i++){
+		f = &files[i];
+		if(!changed(f) || !f->isdir || !f->exists)
+			continue;
+		for(j = 0; j < nfiles; j++){
+			g = &files[j];
+			if(g->bak != nil && !g->exists && under(g->path, f->path)){
+				if(remove(g->bak) < 0)
+					return oops("remove", g->bak);
+				free(g->bak);
+				g->bak = nil;
+				g->state = Gone;
+			}
 		}
+		if(rmdirs(f->path) < 0 || place(f) < 0)
+			return -1;
 	}
 	return 0;
 }
@@ -531,7 +709,7 @@ finish(void)
 	for(i = 0; i < nfiles; i++){
 		f = &files[i];
 		if(f->bak != nil && remove(f->bak) < 0)
-			fprint(2, "%s: remove %s: %r\n", argv0, f->bak);
+			oops("remove", f->bak);
 		if(changed(f) && !f->exists)
 			rmparent(f->path);
 		free(f->tmp);
@@ -572,17 +750,15 @@ main(int argc, char **argv)
 		usage();
 	}ARGEND
 
-	if(argc == 0){
-		if(load("stdin", 0) < 0)
-			sysfatal("%r");
-	}
+	if(argc == 0)
+		load("stdin", 0);
 	for(i = 0; i < argc; i++){
 		if((fd = open(argv[i], OREAD)) < 0)
 			sysfatal("open: %r");
-		if(load(argv[i], fd) < 0)
-			sysfatal("%r");
+		load(argv[i], fd);
 		close(fd);
 	}
+	checkdirs();
 	if(nflag){
 		for(i = 0; i < nfiles; i++)
 			if(changed(&files[i]))
@@ -594,17 +770,21 @@ main(int argc, char **argv)
 		f = &files[i];
 		if(!changed(f) || !f->exists || f->had && !f->edit)
 			continue;
+		if(blocked(f->path)){
+			f->later = 1;
+			continue;
+		}
 		if(writetmp(f) < 0){
-			fprint(2, "%s: %r\n", argv0);
 			cleanup();
 			exits("write");
 		}
 	}
 	committing = 1;
 	if(commit() < 0){
-		fprint(2, "%s: %r\n", argv0);
-		undo();
-		cleanup();
+		if(undo() > 0){
+			fprint(2, "%s: could not undo all of the patch; see patch(1)\n", argv0);
+			exits("undo");
+		}
 		exits("commit");
 	}
 	finish();
