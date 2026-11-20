@@ -154,7 +154,11 @@ so the files are as they were;
 if it cannot put a file back, it says so, names the file that holds the old text, and exits with an error.
 A file and a directory of the same name may change places:
 .I patch
-moves the file aside before it makes the directory, and empties the directory before it puts the file in its place.
+moves the file aside before it makes the directory, and moves the directory aside, to
+.IB dir .patchold pid\f1,
+before it puts the file in its place, removing the old tree only when all is done.
+.I Patch
+refuses a patch that makes a file under a name the patch makes a file.
 If
 .I patch
 is killed while it commits, or cannot put files back, the old text of a file is in
