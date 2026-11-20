@@ -20,7 +20,7 @@ test -e $home/lib/factotum && cat $home/lib/factotum >/mnt/factotum/ctl
 # $auth, the machine this page came from, serves its / to import(4): its /net, for /net/tcp, and
 # webfs, and to its accounts /adm and /mnt/keys. A passkey signs you in (factotum(4)'s webauthn):
 #	import ws!$auth!9p / /n/$auth; bind -a /n/$auth/net /net
-font = /lib/font/bit/Iosevka/12a/font,/lib/font/bit/Iosevka/24a/font
+font = /lib/font/bit/Iosevka/16a/font,/lib/font/bit/Iosevka/32a/font
 test -e /mnt/font/Iosevka/m/r/12a/font && font = /mnt/font/Iosevka/m/r/12a/font
 EDITOR=E
 chessa=leela
