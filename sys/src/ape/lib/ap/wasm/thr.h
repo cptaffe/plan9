@@ -17,6 +17,7 @@ struct Thr {
 	pthread_t id;
 	int fiber;
 	int pid;
+	long mask;
 	int done;
 	int detached;
 	void *ret;
@@ -49,4 +50,5 @@ extern int (*_lockfile)(FILE *, int);
 extern void (*_unlockfile)(FILE *);
 extern int (*_thrdie)(char*);
 extern pid_t _grouppid;
+extern _Thread_local long _psigblocked;
 extern pid_t _getpid(void);

@@ -5,7 +5,6 @@
 #include <string.h>
 #include <setjmp.h>
 
-extern sigset_t	_psigblocked;
 long _itimerms;
 
 static struct {
@@ -106,6 +105,11 @@ _notehandler(void *u, char *msg)
 		_ALARM(_itimerms);
 	for(i = 0; i<NSIGTAB; i++){
 		if(strncmp(msg, sigtab[i].msg, strlen(sigtab[i].msg)) == 0){
+			if(_psigblocked & 2<<sigtab[i].num){
+				_psigpending |= 2<<sigtab[i].num;
+				_NOTED(0); /* NCONT */
+				return 0;
+			}
 			f = _sighdlr[sigtab[i].num];
 			if(f == SIG_DFL && sigtab[i].num == SIGWINCH)
 				f = SIG_IGN;
