@@ -38,6 +38,12 @@ them, and passes each request to the program of its document's language.
 and
 .IR Tree (1)
 are its clients.
+It has a reader process for each program, which passes that program's answers to it on a
+channel, so a program never waits on a full pipe while
+.I syn
+writes to it, and
+.I syn
+answers each request in turn.
 Given a file, or with
 .B -l
 standard input in
@@ -703,7 +709,9 @@ and the queries and names from acme-treesitter, with our own additions
 .IR theme (6)
 .SH BUGS
 After many edits of text with errors, tree-sitter's parse of the edited text may differ
-from a new one's, and so may its runs and tokens.
+from a new one's, and so may its runs and tokens, though
+.I syn
+gives the program's answers whole.
 .PP
 A program parses a text of another language anew, whole, when an edit falls in it, so an edit in a
 long macro of C is slow.
