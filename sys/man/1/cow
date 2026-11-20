@@ -85,8 +85,8 @@ Each removed file, in the order of their paths, takes one made file:
 of those with its text, the one with the same last element, then the one whose path shares the
 longest start with its own, then the first in the order of their paths.
 .I Spots
-quotes a name holding a control character, a double quote or a backslash as Git does, in
-double quotes with C's escapes.
+quotes a name holding a control character, a double quotation mark or a backslash as Git does, in
+double quotation marks with C's escapes.
 .I Spots
 leaves out Git's
 .B index
@@ -96,7 +96,10 @@ and
 .B git apply
 both take its output.
 It leaves binary files out of the patch, naming each on standard error as
-.BI "spots: binary: " path .
+.BI "spots: binary: " path ,
+and then exits with status
+.B binary
+so that a pipeline knows the patch is partial.
 .PP
 .IR Cowfs
 notes the SHA-1 of each file of the real tree as it copies it;
@@ -129,12 +132,12 @@ which marks no missing newline at the end of a file;
 a patch of such a file adds one.
 APE's
 .I patch
-ignores Git's headers, so it makes no empty file and sets no mode.
+ignores Git's headers, so it makes no empty file and sets no mode,
+drops a rename without a word, and without
+.B -p
+keeps only the last element of each name.
 .PP
-A name holding a newline breaks
-.IB dir /.cow/files ,
-a line each.
-Other bytes past ASCII stay as they are in a name, as Git writes them with
+Bytes past ASCII stay as they are in a name, as Git writes them with
 .B core.quotepath
 off.
 .PP
