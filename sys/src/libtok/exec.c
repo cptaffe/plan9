@@ -41,6 +41,7 @@ struct Run
 	int	mode;
 	int	w;
 	int	ub;
+	int	fb;
 	int	bb;
 	int	cb;
 	List	l[2];
@@ -53,7 +54,6 @@ struct Run
 	int	o1;
 	int	t1;
 	int	*best;
-	long	readd;
 };
 
 static Tok*
@@ -178,13 +178,12 @@ addinst(Run *r, List *l, int *st, int from)
 		v = l->v+l->hidx[j]*r->w;
 		if(!keyeq(r, v, st))
 			continue;
+		if(!earlier(r, st[Sstart], v[Sstart]))
+			return;
 		if(l->hidx[j] >= from){
-			if(earlier(r, st[Sstart], v[Sstart]))
-				memmove(v, st, r->w*sizeof v[0]);
+			memmove(v, st, r->w*sizeof v[0]);
 			return;
 		}
-		if(r->readd++ > r->p->ni)
-			return;
 		break;
 	}
 	l->hgen[j] = l->gen;
@@ -253,43 +252,110 @@ test(Test *t, Tok *k)
 	return ok && (t->tag == nil || tokhas(k->tag, t->tag));
 }
 
+enum
+{
+	Fneed = 1,
+	Fforbid = 2,
+};
+
+static int
+same(Run *r, int c, Tok *k)
+{
+	return vtok(r, c)->id == k->id;
+}
+
+static int
+bguard(Run *r, int *st, Inst *i, Tok *k, int j)
+{
+	Test *t;
+	int *bd, *fl, *cap, c, x, cb;
+
+	t = i->t;
+	bd = st+r->bb;
+	fl = st+r->fb;
+	cap = st+r->cb;
+	if(t->type == Tref){
+		x = t->ref;
+		c = bd[x];
+		if(r->p->bunsafe){
+			if(!t->neg){
+				if(c >= 0 && !same(r, c, k))
+					return 0;
+				if(c < 0)
+					bd[x] = j;
+			}
+		}else if(t->neg){
+			if(c >= 0 && same(r, c, k))
+				fl[x] |= Fforbid;
+		}else{
+			if(c >= 0 && !same(r, c, k))
+				return 0;
+			if(c < 0)
+				bd[x] = j;
+			fl[x] |= Fneed;
+		}
+		return t->tag == nil || tokhas(k->tag, t->tag);
+	}
+	if(!test(t, k))
+		return 0;
+	if((x = i->bind) < 0)
+		return 1;
+	c = bd[x];
+	if(c >= 0 && !same(r, c, k))
+		return 0;
+	if(!r->p->bunsafe){
+		if(fl[x] & Fforbid)
+			return 0;
+		fl[x] &= ~Fneed;
+	}
+	if(c < 0)
+		bd[x] = j;
+	cb = 2*r->p->bcap[x];
+	cap[cb] = j;
+	cap[cb+1] = j+1;
+	return 1;
+}
+
 static int
 guard(Run *r, int *st, Inst *i, Tok *k, int j)
 {
 	Test *t;
-	int *bd, *cap, c, ok, cb;
+	int *bd, *cap, c, cb;
 
+	if(r->back)
+		return bguard(r, st, i, k, j);
 	t = i->t;
 	bd = st+r->bb;
 	cap = st+r->cb;
 	if(t->type == Tref){
 		c = bd[t->ref];
-		if(!r->back)
-			ok = (c >= 0 && vtok(r, c)->id == k->id) ^ t->neg;
-		else if(t->neg)
-			ok = 1;
-		else if(c < 0){
-			ok = 1;
-			bd[t->ref] = j;
-		}else
-			ok = vtok(r, c)->id == k->id;
-		return ok && (t->tag == nil || tokhas(k->tag, t->tag));
+		return ((c >= 0 && same(r, c, k)) ^ t->neg) && (t->tag == nil || tokhas(k->tag, t->tag));
 	}
 	if(!test(t, k))
 		return 0;
 	if(i->bind < 0)
 		return 1;
 	c = bd[i->bind];
-	if(c >= 0 && vtok(r, c)->id != k->id)
-		return 0;
-	if(c < 0)
-		bd[i->bind] = j;
-	if(c < 0 || r->back){
-		cb = 2*r->p->bcap[i->bind];
-		cap[cb] = j;
-		cap[cb+1] = j+1;
-	}
+	if(c >= 0)
+		return same(r, c, k);
+	bd[i->bind] = j;
+	cb = 2*r->p->bcap[i->bind];
+	cap[cb] = j;
+	cap[cb+1] = j+1;
 	return 1;
+}
+
+static int
+needs(Run *r, int *st)
+{
+	int x;
+
+	if(!r->back || r->p->bunsafe)
+		return 0;
+	for(x = 0; x < r->p->nbind; x++)
+		if(st[r->fb+x] & Fneed)
+			return 1;
+	return 0;
 }
 
 static int
@@ -366,7 +432,8 @@ chain(Run *r, int *st, int pos, int cur)
 			st[Spc] = i->next;
 			break;
 		case Iend:
-			record(r, st, pos);
+			if(!needs(r, st))
+				record(r, st, pos);
 			return;
 		}
 	}
@@ -398,9 +465,9 @@ run(Run *r, int from)
 			memset(st, 0xff, r->w*sizeof st[0]);
 			st[Spc] = r->back ? r->p->bstart : r->p->start;
 			st[Sstart] = pos;
+			memset(st+r->fb, 0, r->p->nbind*sizeof st[0]);
 			addinst(r, &r->l[0], st, 0);
 		}
-		r->readd = 0;
 		clear(&r->l[1]);
 		for(j = 0; j < r->l[0].n; j++){
 			v = r->l[0].v+j*r->w;
@@ -494,7 +561,8 @@ texec(Tpat *p, Toks *t, int t0, int t1, int from, int mode, int back, Tmatch *m)
 	r.mode = mode;
 	r.back = back;
 	r.ub = Sfix;
-	r.bb = r.ub+p->nstar;
+	r.fb = r.ub+p->nstar;
+	r.bb = r.fb+p->nbind;
 	r.cb = r.bb+p->nbind;
 	r.w = r.cb+2*p->ncap;
 	r.work = emalloc(r.w*sizeof r.work[0]);
@@ -524,7 +592,7 @@ tokbexec(Tpat *p, Toks *t, int t0, int t1, Tmatch *m)
 
 	if(!texec(p, t, t0, t1, t1, Left, 1, m))
 		return 0;
-	if(!p->refs)
+	if(!p->refs || !p->bunsafe)
 		return 1;
 	if(texec(p, t, m->t0, m->t1, m->t0, Anchor, 0, &v) && v.t0 == m->t0 && v.t1 == m->t1){
 		*m = v;

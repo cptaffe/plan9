@@ -56,6 +56,7 @@ struct Tpat
 	int	start;
 	int	bstart;
 	int	refs;
+	int	bunsafe;
 	int	nstar;
 	int	nbind;
 	char	*bname[Tmaxcap];
