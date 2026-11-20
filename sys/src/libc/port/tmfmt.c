@@ -353,7 +353,7 @@ tmfmt(Tm *tm, char *layout)
 				zone(&f, Num, tm->tzoff);
 			break;
 		case Frac0:
-			fmtprint(&f, "%c%0*d", layout[-len], nd, 0);
+			fmtprint(&f, "%c%0*d", layout[-len], nd > 9 ? 9 : nd, 0);
 			break;
 		case Frac9:
 			break;
@@ -445,21 +445,30 @@ skip(char **s, char *p, int n)
 }
 
 static int
+signedoff(char *s)
+{
+	int n, x;
+
+	if(s[0] != '+' && s[0] != '-' || !isdig(s[1]))
+		return 0;
+	x = 0;
+	for(n = 1; isdig(s[n]); n++)
+		if((x = x*10 + s[n]-'0') > 23)
+			return 0;
+	return n;
+}
+
+static int
 zonelen(char *s)
 {
 	int n;
 
 	if(strncmp(s, "ChST", 4) == 0 || strncmp(s, "MeST", 4) == 0)
 		return 4;
-	if(strncmp(s, "GMT", 3) == 0){
-		n = 3;
-		if((s[3] == '+' || s[3] == '-') && isdig(s[4])){
-			n = 5;
-			if(isdig(s[5]))
-				n = 6;
-		}
-		return n;
-	}
+	if(strncmp(s, "GMT", 3) == 0)
+		return 3 + signedoff(s+3);
+	if(s[0] == '+' || s[0] == '-')
+		return signedoff(s);
 	for(n = 0; n < 6 && s[n] >= 'A' && s[n] <= 'Z'; n++)
 		;
 	switch(n){
@@ -534,7 +543,9 @@ frac(char **s, int n)
 {
 	int i;
 
-	for(i = 1; i < n; i++)
+	if((*s)[0] != '.' && (*s)[0] != ',')
+		return -1;
+	for(i = 1; i < n && i < 10; i++)
 		if(!isdig((*s)[i]))
 			return -1;
 	*s += n;
@@ -545,7 +556,7 @@ int
 tmparse(Tm *tm, char *layout, char *s)
 {
 	char *l0, *s0, name[8];
-	int c, pre, len, nd, year, mon, day, yday, hour, min, sec, off, am, pm, x, m;
+	int c, pre, len, nd, year, mon, day, yday, hour, min, sec, off, am, pm, x, m, utc, big;
 	Tm *lt;
 	vlong t;
 
@@ -554,7 +565,7 @@ tmparse(Tm *tm, char *layout, char *s)
 	year = 0;
 	mon = day = yday = off = -1;
 	hour = min = sec = 0;
-	am = pm = 0;
+	am = pm = utc = big = 0;
 	name[0] = 0;
 	for(;;){
 		nd = 0;
@@ -671,19 +682,20 @@ tmparse(Tm *tm, char *layout, char *s)
 			break;
 		case TZ:
 			if(strncmp(s, "UTC", 3) == 0){
-				strcpy(name, "UTC");
-				off = 0;
+				utc = 1;
 				s += 3;
 				break;
 			}
-			if((m = zonelen(s)) == 0 && (s[0] == '+' || s[0] == '-') && isdig(s[1]))
-				for(m = 2; isdig(s[m]) && m < 3; m++)
-					;
-			if(m == 0)
-				goto Bad;
-			snprint(name, sizeof name, "%.*s", m, s);
-			if(strncmp(name, "GMT", 3) == 0)
-				off = atoi(name+3)*3600;
+			if((m = zonelen(s)) == 0){
+				if(getzone(&s, Num, &x) < 0)
+					goto Bad;
+				off = x;
+				break;
+			}
+			if(m < sizeof tm->zone)
+				snprint(name, sizeof name, "%.*s", m, s);
+			else
+				big = 1;
 			s += m;
 			break;
 		case Frac0:
@@ -696,6 +708,11 @@ tmparse(Tm *tm, char *layout, char *s)
 					;
 			break;
 		default:
+			if(c >= Iso && c <= Isocolonsec && *s == 'Z'){
+				utc = 1;
+				s++;
+				break;
+			}
 			if(getzone(&s, c, &x) < 0)
 				goto Bad;
 			off = x;
@@ -735,17 +752,19 @@ tmparse(Tm *tm, char *layout, char *s)
 	tm->hour = hour;
 	tm->min = min;
 	tm->sec = sec;
-	if(off == -1 && name[0]){
+	if(utc){
+		strcpy(tm->zone, "UTC");
 		tm->tzoff = 0;
-		t = tmsec(tm);
-		lt = localtime(t);
-		if(strcmp(lt->zone, name) == 0)
-			off = lt->tzoff;
-	}
-	tm->tzoff = off == -1 ? 0 : off;
-	if(name[0])
-		strecpy(tm->zone, tm->zone+sizeof tm->zone, name);
-	else if(off == -1)
+	}else if(off != -1){
+		strcpy(tm->zone, name);
+		tm->tzoff = off;
+	}else if(name[0] || big){
+		strcpy(tm->zone, name);
+		tm->tzoff = 0;
+		lt = localtime(tmsec(tm));
+		if(name[0] && strcmp(lt->zone, name) == 0)
+			tm->tzoff = lt->tzoff;
+	}else
 		strcpy(tm->zone, "GMT");
 	t = days(year, mon, day);
 	tm->wday = ((t%7) + 11) % 7;
