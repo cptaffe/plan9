@@ -147,24 +147,15 @@ static Test*
 simple(P *p, char *w)
 {
 	Test *t;
-	char *b, *e, err[ERRMAX];
+	char err[ERRMAX];
 
 	if(w[0] == '.' && w[1] == 0)
 		return newtest(p, Tany);
 	if(w[0] == '@' && w[1] != 0){
 		t = newtest(p, Tname);
 		t->s = sdup(w+1);
-		if((b = strchr(t->s, '{')) != nil){
-			*b++ = 0;
-			if((e = strchr(b, '}')) == nil || e[1] != 0){
-				perr(p, "%s: no } after the tag", w);
-				return t;
-			}
-			*e = 0;
-			t->tag = b;
-			if(*b == 0)
-				perr(p, "%s: empty tag", w);
-		}
+		if(strpbrk(t->s, "{}") != nil)
+			perr(p, "%s: bad tag", w);
 		if(t->s[0] == 0)
 			perr(p, "%s: @ needs a name", w);
 		if(_tokname(t->s, "comment"))
@@ -208,12 +199,39 @@ quant(char *w, int *n)
 	return 0;
 }
 
+static int
+istag(int c)
+{
+	return c == '_' || c == '.' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9';
+}
+
+static char*
+tagof(char *s, int *lp)
+{
+	char *t;
+	int l, b, i;
+
+	l = *lp;
+	if(l < 4 || s[l-1] != '}' || s[l-2] == '\\')
+		return nil;
+	for(b = l-2; b > 0 && s[b] != '{'; b--)
+		if(!istag(s[b]))
+			return nil;
+	if(b <= 0 || b == l-2 || s[b-1] == '\\')
+		return nil;
+	t = emalloc(l-b-1);
+	for(i = b+1; i < l-1; i++)
+		t[i-b-1] = s[i];
+	*lp = b;
+	return t;
+}
+
 static Node*
 item(P *p)
 {
 	Node *n;
 	Test *t, *m;
-	char *w, *s, **f, *set;
+	char *w, *s, **f, *set, *tag;
 	int q, l, bind, neg, i, nf;
 
 	w = p->w[p->i++];
@@ -258,10 +276,12 @@ item(P *p)
 	}
 	set = nil;
 	quant(s, &l);
+	free(tagof(s, &l));
 	if(s[0] == '[' && l > 1 && !(l == 2 && s[1] == ']')){
 		set = sdup(s+1);
 		for(;;){
 			quant(set, &l);
+			free(tagof(set, &l));
 			if(l > 0 && set[l-1] == ']' && (l < 2 || set[l-2] != '\\'))
 				break;
 			if(p->i >= p->nw){
@@ -277,6 +297,7 @@ item(P *p)
 		}
 	}
 	q = quant(set != nil ? set : s, &l);
+	tag = tagof(set != nil ? set : s, &l);
 	if(set != nil){
 		set[l-1] = 0;
 		t = newtest(p, Tset);
@@ -296,10 +317,13 @@ item(P *p)
 	}else{
 		s = sdup(s);
 		s[l] = 0;
+		if(tag != nil && strcmp(s, "@") == 0)
+			perr(p, "@{%s}: write .{%s}", tag, tag);
 		t = simple(p, s);
 		free(s);
 	}
 	t->neg = neg;
+	t->tag = tag;
 	if(t->type == Tref && bind >= 0)
 		perr(p, "%s: a name bound to a name", w);
 	n = node(p, Ntok, nil, nil);
@@ -532,6 +556,7 @@ tokpatfree(Tpat *tp)
 		t = tp->tests[i];
 		if(t->type == Tname || t->type == Tlit)
 			free(t->s);
+		free(t->tag);
 		free(t->re);
 		free(t->set);
 		free(t);
