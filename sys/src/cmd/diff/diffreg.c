@@ -363,24 +363,26 @@ cmp(Biobuf* b1, Biobuf* b2)
 }
 
 void
-diffreg(char *f, char *t)
+diffreg(char *f, char *t, char *of, char *ot)
 {
 	Biobuf *b0, *b1;
 	int k;
 
 	binary = 0;
-	b0 = prepare(0, f);
+	b0 = prepare(0, f, of);
 	if (!b0)
 		return;
-	b1 = prepare(1, t);
+	b1 = prepare(1, t, ot);
 	if (!b1) {
 		Bterm(b0);
 		return;
 	}
 	if (binary){
 		// could use b0 and b1 but this is simpler.
-		if (cmp(b0, b1))
-			print("binary files %s %s differ\n", f, t);
+		if (cmp(b0, b1)) {
+			Bprint(&stdout, "binary files %s %s differ\n", of, ot);
+			anychange = 1;
+		}
 		Bterm(b0);
 		Bterm(b1);
 		return;
@@ -413,6 +415,7 @@ diffreg(char *f, char *t)
 	ixnew = MALLOC(long, len[1]+2);
 	Bseek(b0, 0, 0); Bseek(b1, 0, 0);
 	check(b0, b1);
+	slide();
 	output();
 	FREE(J); FREE(ixold); FREE(ixnew);
 	Bterm(b0); Bterm(b1);			/* ++++ */

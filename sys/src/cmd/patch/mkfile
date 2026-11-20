@@ -1,0 +1,9 @@
+</$objtype/mkfile
+
+TARG=patch
+OFILES=\
+	patch.$O\
+	sys.$O\
+
+BIN=/$objtype/bin
+</sys/src/cmd/mkone

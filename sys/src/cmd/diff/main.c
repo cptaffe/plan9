@@ -11,7 +11,7 @@ Biobuf	stdout;
 static char *tmp[] = {"/tmp/diff1XXXXXXXXXXX", "/tmp/diff2XXXXXXXXXXX"};
 static int whichtmp;
 static char *progname;
-static char usage[] = "diff [-abcefmnrw] file1 ... file2\n";
+static char usage[] = "diff [-abcefmnruw] [-U n] file1 ... file2\n";
 
 static void
 rmtmpfiles(void)
@@ -149,7 +149,7 @@ diff(char *f, char *t, int level)
 				fp, tp);
 	}
 	else if (REGULAR_FILE(fsb) && REGULAR_FILE(tsb))
-		diffreg(fp, tp);
+		diffreg(fp, tp, f, t);
 	else {
 		if (REGULAR_FILE(fsb)) {
 			if ((p = utfrrune(f, '/')) == 0)
@@ -157,7 +157,7 @@ diff(char *f, char *t, int level)
 			else
 				p++;
 			if (mkpathname(tb, tp, p) == 0)
-				diffreg(fp, tb);
+				diffreg(fp, tb, f, tb);
 		}
 		else {
 			if ((p = utfrrune(t, '/')) == 0)
@@ -165,7 +165,7 @@ diff(char *f, char *t, int level)
 			else
 				p++;
 			if (mkpathname(fb, fp, p) == 0)
-				diffreg(fb, tp);
+				diffreg(fb, tp, fb, t);
 		}
 	}
 	free(fsb);
@@ -192,7 +192,24 @@ main(int argc, char *argv[])
 			case 'n':
 			case 'c':
 			case 'a':
+			case 'u':
 				mode = *p;
+				break;
+
+			case 'U':
+				mode = 'u';
+				if (p[1]) {
+					lines = atoi(p+1);
+					p += strlen(p)-1;
+				}
+				else if (argc > 1) {
+					argc--;
+					lines = atoi(*++argv);
+				}
+				else
+					goto Usage;
+				if (lines < 0)
+					goto Usage;
 				break;
 
 			case 'w':
@@ -213,6 +230,7 @@ main(int argc, char *argv[])
 
 			case 'h':
 			default:
+			Usage:
 				progname = "Usage";
 				panic(2, usage);
 			}
