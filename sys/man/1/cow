@@ -85,6 +85,9 @@ Each removed file, in the order of their paths, takes one made file:
 of those with its text, the one with the same last element, then the one whose path shares the
 longest start with its own, then the first in the order of their paths.
 .I Spots
+quotes a name holding a control character, a double quote or a backslash as Git does, in
+double quotes with C's escapes.
+.I Spots
 leaves out Git's
 .B index
 line, so
@@ -92,11 +95,14 @@ line, so
 and
 .B git apply
 both take its output.
+It leaves binary files out of the patch, naming each on standard error as
+.BI "spots: binary: " path .
 .PP
 .IR Cowfs
 notes the SHA-1 of each file of the real tree as it copies it;
 .I spots
-warns of a file whose text has changed since then, as applying its patch would undo that change.
+warns of a file whose text has changed since then, or that has gone, as applying its patch would
+undo that change.
 The warning also catches a wrong
 .I base
 for the files cowfs copied or removed.
@@ -105,7 +111,7 @@ Work in a shell, keeping its changes apart, then save them as a patch:
 .IP
 .EX
 cow /tmp/e rc
-spots /tmp/e >/tmp/e.patch
+spots /tmp/e | patch
 .EE
 .SH SOURCE
 plan9web's
@@ -121,9 +127,16 @@ compares the files with APE's
 .IR diff ,
 which marks no missing newline at the end of a file;
 a patch of such a file adds one.
-A changed binary file shows as Git's
-.B Binary files
-line, which no patch applies.
+APE's
+.I patch
+ignores Git's headers, so it makes no empty file and sets no mode.
+.PP
+A name holding a newline breaks
+.IB dir /.cow/files ,
+a line each.
+Other bytes past ASCII stay as they are in a name, as Git writes them with
+.B core.quotepath
+off.
 .PP
 .I Spots
 finds a rename only when the text is the same;
