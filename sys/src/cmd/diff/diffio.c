@@ -17,40 +17,41 @@ static Biobuf *input[2];
 static char *file1, *file2;
 static int firstchange;
 static int noeol[2];
-static long linelen;
 static int eol;
 int lines = 3;
 
-#define MAXLINELEN	4096
+typedef struct Lbuf Lbuf;
+struct Lbuf {
+	char *s;
+	int m;
+};
+
 #define MIN(x, y)	((x) < (y) ? (x): (y))
 
-static int
-readline(Biobuf *bp, char *buf)
-{
-	int c;
-	char *p, *e;
+static Lbuf lb[2];
 
-	p = buf;
-	e = p + MAXLINELEN-1;
-	do {
-		c = Bgetc(bp);
-		if (c < 0) {
-			if (p == buf)
-				return -1;
-			break;
+static int
+readline(Biobuf *bp, Lbuf *b)
+{
+	int c, n;
+
+	n = 0;
+	while ((c = Bgetc(bp)) >= 0 && c != '\n') {
+		if (n+1 >= b->m) {
+			b->m = b->m ? 2*b->m : 128;
+			b->s = REALLOC(b->s, char, b->m);
 		}
-		if (c == '\n')
-			break;
-		*p++ = c;
-	} while (p < e);
-	*p = 0;
-	linelen = p - buf;
-	if (c != '\n' && c >= 0) {
-		while ((c = Bgetc(bp)) >= 0 && c != '\n')
-			linelen++;
+		b->s[n++] = c;
 	}
+	if (c < 0 && n == 0)
+		return -1;
+	if (b->m == 0) {
+		b->m = 128;
+		b->s = MALLOC(char, b->m);
+	}
+	b->s[n] = 0;
 	eol = c == '\n';
-	return p - buf;
+	return n;
 }
 
 #define HALFLONG 16
@@ -63,7 +64,7 @@ readline(Biobuf *bp, char *buf)
  * summing 1-s complement in 16-bit hunks
  */
 static int
-readhash(Biobuf *bp, char *buf)
+readhash(Biobuf *bp, Lbuf *b, int *h)
 {
 	long sum;
 	unsigned shift;
@@ -72,9 +73,9 @@ readhash(Biobuf *bp, char *buf)
 
 	sum = 1;
 	shift = 0;
-	if ((len = readline(bp, buf)) == -1)
-		return 0;
-	p = buf;
+	if ((len = readline(bp, b)) == -1)
+		return -1;
+	p = b->s;
 	switch(bflag)	/* various types of white space handling */
 	{
 	case 0:
@@ -115,7 +116,10 @@ readhash(Biobuf *bp, char *buf)
 		break;
 	}
 	sum = low(sum) + high(sum);
-	return ((short)low(sum) + (short)high(sum));
+	*h = (short)low(sum) + (short)high(sum);
+	if (*h == 0)
+		*h = 1;
+	return 0;
 }
 
 Biobuf *
@@ -124,7 +128,7 @@ prepare(int i, char *arg, char *orig)
 	struct line *p;
 	int j, h;
 	Biobuf *bp;
-	char *cp, buf[MAXLINELEN];
+	char *cp, buf[1024];
 	int nbytes;
 	Rune r;
 
@@ -135,7 +139,7 @@ prepare(int i, char *arg, char *orig)
 	}
 	if (binary)
 		return bp;
-	nbytes = Bread(bp, buf, MIN(1024, MAXLINELEN));
+	nbytes = Bread(bp, buf, sizeof buf);
 	if (nbytes > 0) {
 		cp = buf;
 		while (cp < buf+nbytes-UTFmax) {
@@ -153,7 +157,7 @@ prepare(int i, char *arg, char *orig)
 	}
 	p = MALLOC(struct line, 3);
 	eol = 1;
-	for (j = 0; h = readhash(bp, buf); p[j].value = h)
+	for (j = 0; readhash(bp, &lb[0], &h) >= 0; p[j].value = h)
 		p = REALLOC(p, struct line, (++j+3));
 	noeol[i] = !eol;
 	if (noeol[i])
@@ -198,33 +202,29 @@ void
 check(Biobuf *bf, Biobuf *bt)
 {
 	int f, t, flen, tlen, fe, te;
-	long fl, tl;
-	char fbuf[MAXLINELEN], tbuf[MAXLINELEN];
 
 	ixold[0] = ixnew[0] = 0;
 	for (f = t = 1; f <= len[0]; f++) {
-		flen = readline(bf, fbuf);
+		flen = readline(bf, &lb[0]);
 		fe = eol;
-		fl = linelen;
-		ixold[f] = ixold[f-1] + linelen + 1;		/* ftell(bf) */
+		ixold[f] = ixold[f-1] + flen + 1;		/* ftell(bf) */
 		if (J[f] == 0)
 			continue;
 		do {
-			tlen = readline(bt, tbuf);
-			ixnew[t] = ixnew[t-1] + linelen + 1;	/* ftell(bt) */
+			tlen = readline(bt, &lb[1]);
+			ixnew[t] = ixnew[t-1] + tlen + 1;	/* ftell(bt) */
 		} while (t++ < J[f]);
 		te = eol;
-		tl = linelen;
 		if (bflag) {
-			flen = squishspace(fbuf);
-			tlen = squishspace(tbuf);
+			flen = squishspace(lb[0].s);
+			tlen = squishspace(lb[1].s);
 		}
-		if (flen != tlen || fe != te || !bflag && fl != tl || strcmp(fbuf, tbuf))
+		if (flen != tlen || fe != te || memcmp(lb[0].s, lb[1].s, flen))
 			J[f] = 0;
 	}
 	while (t <= len[1]) {
-		tlen = readline(bt, tbuf);
-		ixnew[t] = ixnew[t-1] + linelen + 1;	/* fseek(bt) */
+		tlen = readline(bt, &lb[1]);
+		ixnew[t] = ixnew[t-1] + tlen + 1;	/* fseek(bt) */
 		t++;
 	}
 }
@@ -389,12 +389,20 @@ change(int a, int b, int c, int d)
 		Bprint(&stdout, ".\n");
 }
 
+static int
+context(void)
+{
+	if (lines > len[0] + len[1])
+		return len[0] + len[1];
+	return lines;
+}
+
 int
 changeset(int i)
 {
 	int gap;
 
-	gap = 2*lines;
+	gap = 2*context();
 	if(mode == 'u')
 		gap++;
 	while(i+1<nchanges && changes[i].b+1+gap > changes[i+1].a)
@@ -428,10 +436,10 @@ flushchanges(void)
 		Bprint(&stdout, "--- %s\n+++ %s\n", file1, file2);
 	for(i=0; i<nchanges; ){
 		j = changeset(i);
-		a = changes[i].a-lines;
-		b = changes[j-1].b+lines;
-		c = changes[i].c-lines;
-		d = changes[j-1].d+lines;
+		a = changes[i].a-context();
+		b = changes[j-1].b+context();
+		c = changes[i].c-context();
+		d = changes[j-1].d+context();
 		if(a < 1)
 			a = 1;
 		if(c < 1)
