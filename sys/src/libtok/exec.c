@@ -269,7 +269,7 @@ step(Run *r, int *st, int pos)
 	}
 	if(!ok)
 		return 0;
-	if(k->br != 0 && i->nstars > 0){
+	if(k->link >= 0 && i->nstars > 0){
 		if(k->link < r->t0 || k->link >= r->t1)
 			return 0;
 		for(j = 0; j < i->nstars; j++){

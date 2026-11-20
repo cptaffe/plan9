@@ -184,18 +184,15 @@ separates alternatives; it binds more loosely than a list.
 So
 .B .*
 is any run of tokens.
-A repetition matches only balanced tokens: for each bracket among them,
-.BR ( ,
-.BR [ ,
-.B {
-or its match, its partner is among them too.
+A repetition matches only balanced tokens: for each bracket among them, its partner is among them
+too.
 So
 .B "( .* )"
-matches from a parenthesis to its own match, and a repetition never crosses an unmatched bracket.
-Brackets are tokens whose text is one of
-.B "()[]{}"
-and that are not comments; a closing bracket matches the nearest open one of its kind, and leaves any open
-brackets between them without a match.
+matches from a parenthesis to its own partner.
+The syntax program says which tokens are brackets and pairs them, and
+.I sift
+never looks at their text: a parenthesis the program leaves unpaired, as in half-typed text, is no
+bracket, and a block that only indentation makes has none.
 .PP
 A backslash before any other character quotes it, so
 .B \e*
