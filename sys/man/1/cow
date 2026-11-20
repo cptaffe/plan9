@@ -11,6 +11,9 @@ cow, spots \- run a command on a copy of this directory, and show what it change
 .PP
 .B spots
 .I dir
+[
+.I base
+]
 .SH DESCRIPTION
 .I Cow
 runs
@@ -41,9 +44,11 @@ files.
 .I Spots
 prints the changes kept in
 .I dir
-as a patch for the current directory, which must be the one
+as a patch for
+.IR base ,
+or the current directory without one, which must be the tree
 .I cow
-ran in.
+served.
 For each file that the command made, removed, or changed, it prints Git's header,
 .BI "diff --git a/" path " b/" path \f1,
 then
@@ -68,7 +73,17 @@ otherwise.
 The header alone shows an empty file made or removed.
 A file changed and then changed back, or made and then removed, does not appear, and
 directories appear only through their files.
-A rename shows as the old name's removal and the new name's creation.
+A file removed and a file made with the same text, which is not empty, show as a rename:
+.BI "diff --git a/" old " b/" new \f1,
+then the mode lines if the execute bit changed,
+.BR "similarity index 100%" ,
+.BI "rename from " old \f1,
+and
+.BI "rename to " new \f1,
+with no diff.
+Each removed file, in the order of their paths, takes one made file:
+of those with its text, the one with the same last element, then the one whose path shares the
+longest start with its own, then the first in the order of their paths.
 .I Spots
 leaves out Git's
 .B index
@@ -82,6 +97,9 @@ both take its output.
 notes the SHA-1 of each file of the real tree as it copies it;
 .I spots
 warns of a file whose text has changed since then, as applying its patch would undo that change.
+The warning also catches a wrong
+.I base
+for the files cowfs copied or removed.
 .SH EXAMPLES
 Work in a shell, keeping its changes apart, then save them as a patch:
 .IP
@@ -106,3 +124,7 @@ a patch of such a file adds one.
 A changed binary file shows as Git's
 .B Binary files
 line, which no patch applies.
+.PP
+.I Spots
+finds a rename only when the text is the same;
+a file renamed and changed shows as a removal and a creation.
