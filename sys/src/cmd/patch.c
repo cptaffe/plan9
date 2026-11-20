@@ -26,6 +26,7 @@ char	**made;
 int	nmade;
 int	nflag;
 int	rflag;
+int	zflag;
 int	strip = -1;
 int	committing;
 char	held[ERRMAX];
@@ -295,6 +296,9 @@ load(char *name, int fd)
 	}
 	if(rflag)
 		revpatch(pt);
+	if(zflag)
+		for(i = 0; i < pt->nd; i++)
+			pt->d[i].flags |= Pzero;
 	for(i = 0; i < pt->nd; i++)
 		if(apply(&pt->d[i]) < 0){
 			werrstr("%s:%d: %r", name, pt->d[i].lnum);
@@ -539,7 +543,7 @@ finish(void)
 void
 usage(void)
 {
-	fprint(2, "usage: %s [-nR] [-p n] [patch ...]\n", argv0);
+	fprint(2, "usage: %s [-nRz] [-p n] [patch ...]\n", argv0);
 	exits("usage");
 }
 
@@ -555,6 +559,9 @@ main(int argc, char **argv)
 		break;
 	case 'R':
 		rflag++;
+		break;
+	case 'z':
+		zflag++;
 		break;
 	case 'p':
 		strip = atoi(EARGF(usage()));

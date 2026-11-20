@@ -143,9 +143,12 @@ and
 .B Pcopy
 for a rename and a copy, and
 .B Pzero
-when the hunks show that the diff has no context, as
-.B diff -U0
-makes it.
+when the caller takes the diff as made with no context, as
+.I patch
+.B -z
+does;
+.I parsepatch
+never sets it.
 .B Lnum
 is the line of the patch where the diff begins.
 .I Parsepatch
@@ -204,7 +207,9 @@ The hunk applies where its old lines are exactly.
 .I Findhunk
 looks first at the line the hunk names plus
 .IR drift ,
-and then one line further each way in turn.
+and then one line further each way in turn, below before above, as
+.IR git 's
+apply does.
 A hunk that names the first line applies there or nowhere,
 and one with no context after its changes must end at the end of
 .IR t ,
