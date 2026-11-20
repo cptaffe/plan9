@@ -197,7 +197,7 @@ patch <0001-fix.patch
 patch -R <0001-fix.patch
 .EE
 .SH SOURCE
-.B /sys/src/cmd/patch.c
+.B /sys/src/cmd/patch
 .SH "SEE ALSO"
 .IR diff (1),
 .IR git (1),
