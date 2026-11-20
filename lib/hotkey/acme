@@ -21,6 +21,8 @@ cmd-k c	{/acme/bin/akey Comp}
 cmd-k e	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && echo -n ' |sibyl ' >/mnt/acme/$acmewin/tag}
 cmd-k s	{/acme/bin/akey Ask}
 cmd-k w	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && { rfork n; bind -b /acme/bin/$cputype /bin; w=`{/acme/bin/aword $acmewin | awk 'END { if(NR == 1 && length($0) <= 64 && $0 !~ /[\/ \t]/) print }' | sed 's/[.*+?^$|()\[\]\\]/\\&/g'}; ~ $#w 1 && adict -- $w }}
+# huh(1): the model's alternatives for the token at dot, in +Errors
+cmd-k h	{test -e /mnt/acme/index || mount $acmesrv /mnt/acme; ~ $#acmewin 1 && winid=$acmewin /acme/bin/$cputype/Huh -a}
 # +Act's options while Act -m has the window: 1 to 9 picks one, esc deletes the window
 mode act
 1	{test -e /srv/act.$user && echo 1 >>/srv/act.$user}

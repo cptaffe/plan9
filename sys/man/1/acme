@@ -696,6 +696,18 @@ loaded, it goes on in the window named by
 after the text and the line
 .BR (reloaded) ,
 rather than in a new one.
+Where
+.IR amux (4)
+runs,
+.I win
+reads its window through a session of its own, which holds the window's
+.BR event ,
+and gives the command another as
+.BR /dev/acme ;
+otherwise the command's
+.B /dev/acme
+is the window's directory in
+.BR /mnt/wsys .
 .PP
 .I Win
 is

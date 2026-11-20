@@ -175,9 +175,13 @@ With no
 .I Grap
 draws the window it runs in,
 .BR $winid ;
-with one, outside a window, or in a window whose events another program reads, as in
-.IR win ,
-it opens a new window, with the file's text if it exists.
+with one, outside a window, or in a window whose
+.B event
+another program holds through
+.IR amux (4),
+as
+.I win
+does, it opens a new window, with the file's text if it exists.
 Each change writes only the lines it changed into the body, so
 .B Put
 saves it, and diffs stay small.
