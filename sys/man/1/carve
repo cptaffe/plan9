@@ -184,6 +184,9 @@ write to standard output, before the text when
 .I carve
 reads standard input;
 an empty match falls at the start of a token;
+where sam's lists of threads overflow, as on nested repetitions that can match nothing,
+.I carve
+goes on;
 it parses the whole script before it reads a file, and an error leaves its file unwritten;
 and it has no
 .BR b ,

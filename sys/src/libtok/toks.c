@@ -317,6 +317,8 @@ tokfree(Toks *t)
 	if(t == nil)
 		return;
 	x = t->aux;
+	free(x->vis);
+	free(x->rank);
 	_tokinternfree(&x->text);
 	_tokinternfree(&x->names);
 	free(x);
@@ -356,4 +358,26 @@ tokbefore(Toks *t, long q)
 			hi = m;
 	}
 	return lo;
+}
+
+void
+_tokview(Toks *t, int **vis, int **rank)
+{
+	Tx *x;
+	int i, n;
+
+	x = t->aux;
+	if(x->rank == nil){
+		x->vis = emalloc((t->n+1)*sizeof x->vis[0]);
+		x->rank = emalloc((t->n+1)*sizeof x->rank[0]);
+		n = 0;
+		for(i = 0; i < t->n; i++){
+			x->rank[i] = n;
+			if(!t->t[i].comment)
+				x->vis[n++] = i;
+		}
+		x->rank[t->n] = n;
+	}
+	*vis = x->vis;
+	*rank = x->rank;
 }
