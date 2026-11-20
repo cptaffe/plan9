@@ -36,6 +36,9 @@ names, and writes the edited text to its standard output, as
 .IR sed (1)
 does.
 The edits keep every comment and blank that they do not replace.
+As sam does,
+.I carve
+drops each NUL from the text it reads, with a warning, and reads bad UTF-8 as U+FFFD.
 .PP
 The script holds sam's commands, one a line, with sam's addresses:
 .TP
