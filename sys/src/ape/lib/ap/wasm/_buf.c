@@ -491,7 +491,7 @@ takeall(void)
 int
 select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *timeout)
 {
-	int n, i, t, fd, id;
+	int n, i, t, fd, id, err;
 	fd_set rwant, ewant;
 	Muxbuf *b;
 
@@ -533,16 +533,18 @@ select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *timeo
 	for(fd = 0; fd < nfds; fd++) {
 		if((b = _fdinfo[fd].buf) == 0 || !(_fdinfo[fd].flags&FD_BUFFERED))
 			continue;
+		err = 0;
 		if(efds && FD_ISSET(fd, efds)) {
-			if(b->eof && b->n == 0)
+			if(b->eof && b->n == 0){
+				err = 1;
 				n++;
-			else{
+			}else{
 				FD_CLR(fd, efds);
 				FD_SET(fd, &ewant);
 			}
 		}
 		if(rfds && FD_ISSET(fd, rfds)) {
-			if(b->n > 0 || b->eof)
+			if(!err && (b->n > 0 || b->eof))
 				n++;
 			else{
 				FD_CLR(fd, rfds);
