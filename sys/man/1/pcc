@@ -227,6 +227,11 @@ at once; its handler runs, and the thread waits on.
 A thread that a handler ends in a wait, or that a handler takes out of one by
 .IR longjmp ,
 leaves the wait's queue and passes on a wakeup it had;
+the signal mask is each thread's, a new thread's its maker's, and a signal its thread blocks waits, pending, until
+.I sigprocmask
+or
+.I pthread_sigmask
+unblocks it;
 a lock it held stays held.
 .SH FILES
 .TF /$objtype/lib/ape/libap.a

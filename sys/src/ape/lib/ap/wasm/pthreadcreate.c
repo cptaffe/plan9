@@ -75,6 +75,7 @@ start(void *v)
 	a = __builtin_wasm_tls_align();
 	__wasm_init_tls((void*)(((uintptr_t)t->tls + a-1) & ~(a-1)));
 	p9web_fiber_setdata(t);
+	_psigblocked = t->mask;
 	pthread_exit(t->f(t->arg));
 }
 
@@ -127,6 +128,7 @@ pthread_create(pthread_t *id, const pthread_attr_t *a, void *(*f)(void *), void 
 	t->f = f;
 	t->arg = arg;
 	t->detached = a != NULL && a->detached;
+	t->mask = _psigblocked;
 	_thr[i] = t;
 	if((t->fiber = p9web_fiber_new(start, t, t->stk, n, t->abuf, Thrabuf, RFPROC|RFMEM|RFNOWAIT|RFNOTEG)) < 0){
 		_thr[i] = NULL;
