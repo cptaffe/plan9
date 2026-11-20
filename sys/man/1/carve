@@ -27,7 +27,8 @@ or
 .BR /lib/syn ,
 as
 .I sift
-does, and edits the file in place.
+does, and edits the file in place: it writes the new text to a temporary file beside it, with
+its mode, and renames that over the file, so the file changes whole or not at all.
 With no files,
 .I carve
 reads its standard input, whose language
