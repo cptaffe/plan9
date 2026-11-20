@@ -77,7 +77,7 @@ fn apply @{
 	# force re-reading env
 	rc -c '
 		echo applying $msg | sed 1q
-		date=`{seconds $date}
+		date=`{seconds -f ''Mon, 02 Jan 2006 15:04:05 -0700'' $date}
 		if(! files=`$nl{patch -p1 < $diffpath})
 			die ''patch failed''
 		for(f in $files){
