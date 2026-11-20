@@ -20,14 +20,10 @@ scrollgap(void)
 static Image*
 col(ulong v)
 {
-	Image *i;
-
-	if((i = allocimage(display, Rect(0, 0, 1, 1), screen->chan, 1, v)) == nil)
-		sysfatal("allocimage: %r");
-	return i;
+	return allocimage(display, Rect(0, 0, 1, 1), screen->chan, 1, v);
 }
 
-void
+int
 scrollinit(Scroll *s)
 {
 	Themecol *c;
@@ -40,6 +36,13 @@ scrollinit(Scroll *s)
 		v = 0xFFFFEAFF;
 	s->back = col(v);
 	s->bord = col(themecolor("bodyborder", DYellowgreen));
+	if(s->back == nil || s->bord == nil){
+		freeimage(s->back);
+		freeimage(s->bord);
+		s->back = s->bord = nil;
+		return -1;
+	}
+	return 0;
 }
 
 static Rectangle

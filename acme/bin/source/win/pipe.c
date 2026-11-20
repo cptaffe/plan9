@@ -3,6 +3,7 @@
 #include <fcall.h>
 #include <thread.h>
 #include <9p.h>
+#include <acme.h>
 #include "dat.h"
 
 typedef struct Wpid Wpid;
@@ -27,9 +28,9 @@ newpipewin(int pid, char *p)
 	Window *w;
 	Wpid *wp;
 
-	w = newwindow();
-	winname(w, p);
-	wintagwrite(w, "Send ", 5);
+	w = wnew();
+	wname(w, p);
+	wtag(w, "Send ");
 	wp = emalloc(sizeof(Wpid));
 	wp->pid = pid;
 	wp->w = w;
@@ -43,30 +44,26 @@ newpipewin(int pid, char *p)
 int
 pipecommand(Window *w, char *s)
 {
-	ulong q0, q1;
-	char tmp[32], *t;
+	uint q0, q1;
+	char *t;
 	int n, k;
 
 	while(*s==' ' || *s=='\t' || *s=='\n')
 		s++;
 	if(strcmp(s, "Delete")==0){
-		windel(w, 1);
+		wdel(w, 1);
 		threadexits(nil);
 		return 1;
 	}
 	if(strcmp(s, "Del")==0){
-		if(windel(w, 0))
+		if(wdel(w, 0))
 			threadexits(nil);
 		return 1;
 	}
 	if(strcmp(s, "Send") == 0){
-		if(w->addr < 0)
-			w->addr = winopenfile(w, "addr");
-		ctlprint(w->ctl, "addr=dot\n");
-		seek(w->addr, 0UL, 0);
-		if(read(w->addr, tmp, 2*12) == 2*12){
-			q0 = atol(tmp+0*12);
-			q1 = atol(tmp+1*12);
+		wctl(w, "addr=dot\n");
+		if((n = winreadaddr(w->a, &q1)) >= 0){
+			q0 = n;
 			if(q0 == q1){
 				t = nil;
 				k = 0;
@@ -85,7 +82,7 @@ pipecommand(Window *w, char *s)
 				}
 			}else{
 				t = emalloc((q1-q0)*UTFmax+2);
-				winread(w, q0, q1, t);
+				wbody(w, q0, q1, t);
 				k = strlen(t);
 			}
 			if(t!=nil && t[0]!='\0'){
@@ -106,15 +103,16 @@ void
 pipectl(void *v)
 {
 	Window *w;
+	Msg *m;
 	Event *e;
 
 	w = v;
-	proccreate(wineventproc, w, STACK);
+	proccreate(wevents, w, STACK);
 
-	windormant(w);
-	winsetaddr(w, "0", 0);
+	waddr(w, "0", 0);
 	for(;;){
-		e = recvp(w->cevent);
+		m = recvp(w->cevent);
+		e = &m->e;
 		switch(e->c1){
 		default:
 		Unknown:
@@ -129,21 +127,19 @@ pipectl(void *v)
 
 		case 'K':
 			if(strchr("xXlL", e->c2) != nil)
-				winwriteevent(w, e);
+				wwrite(w, m);
 			break;
 
 		case 'M':
 			switch(e->c2){
 			case 'x':
 			case 'X':
-				execevent(w, e, pipecommand);
+				execevent(w, m, pipecommand);
 				break;
 
 			case 'l':	/* reflect all searches back to acme */
 			case 'L':
-				if(e->flag & 2)
-					recvp(w->cevent);
-				winwriteevent(w, e);
+				wwrite(w, m);
 				break;
 
 			case 'I':	/* modify away; we don't care */
