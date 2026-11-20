@@ -1,6 +1,6 @@
 .TH TOK 2
 .SH NAME
-tokparse, tokfree, tokat, tokbefore, tokhas, tokcomp, tokpatfree, toknbind, tokbindname, tokexec, tokbexec \- match patterns of tokens
+tokparse, tokfree, tokat, tokbefore, tokhas, tokcomp, tokpatfree, tokncap, tokcapname, tokexec, tokbexec \- match patterns of tokens
 .SH SYNOPSIS
 .ta \w'Toks*\ \ \ 'u
 .B #include <u.h>
@@ -33,10 +33,10 @@ Tpat*	tokcomp(char *pat)
 void	tokpatfree(Tpat *p)
 .PP
 .B
-int	toknbind(Tpat *p)
+int	tokncap(Tpat *p)
 .PP
 .B
-char*	tokbindname(Tpat *p, int i)
+char*	tokcapname(Tpat *p, int i)
 .PP
 .B
 int	tokexec(Tpat *p, Toks *t, int t0, int t1, int from, Tmatch *m)
@@ -120,14 +120,16 @@ or begins with
 .PP
 .I Tokcomp
 compiles a pattern, or returns nil and sets the error string.
-.I Toknbind
-gives the number of names the pattern binds, at most
-.BR Tmaxbind ,
+A group and a bound name each capture, numbered from 0 in the order they open; a name is one
+capture however often the pattern binds it.
+.I Tokncap
+gives the number of captures, at most
+.BR Tmaxcap ,
 and
-.I tokbindname
-the
-.IR i th
-of them, in the order the pattern first names them.
+.I tokcapname
+the name of the
+.IR i th,
+or nil for a group.
 .PP
 .I Tokexec
 finds the leftmost longest match among the tokens
@@ -145,10 +147,14 @@ the match is the tokens
 to
 .BR m->t1 \-1,
 and
-.BI m->bind[ i ]
-is the token bound to the
+.BI m->cap[ i ]
+holds the tokens the
 .IR i th
-name, or \-1.
+capture matched, from
+.BI m->cap[ i ][0]
+to
+.BI m->cap[ i ][1]\-1\f1,
+or \-1 in both if it matched nothing.
 A match that names no comment skips comments, so it neither starts nor ends on one.
 .I Tokbexec
 finds, among the same tokens, the match that ends last, and of those the longest:
@@ -166,6 +172,11 @@ A bad regular expression in a pattern calls
 .IR regexp (2));
 a program that defines one that returns, and sets the error string, gets that string from
 .IR tokcomp .
+.PP
+Among the ways a match can capture, these routines choose as
+.IR sam (1)
+does: its threads run in sam's order, and of two that reach the same state, the one that started
+first wins.
 .PP
 The matcher is a Pike VM: a thread is a state of the compiled pattern with its bound tokens and, for
 each repetition around it, the bracket that closes the outermost group it has entered; two threads in the same

@@ -15,6 +15,7 @@ enum
 	Ncat,
 	Nalt,
 	Nrep,
+	Ngrp,
 	Nempty,
 };
 
@@ -118,8 +119,8 @@ bindof(P *p, char *s, int n)
 	for(i = 0; i < tp->nbind; i++)
 		if(strncmp(tp->bname[i], s, n) == 0 && tp->bname[i][n] == 0)
 			return i;
-	if(tp->nbind == Tmaxbind){
-		perr(p, "more than %d names", Tmaxbind);
+	if(tp->nbind == Tmaxcap){
+		perr(p, "more than %d names", Tmaxcap);
 		return -1;
 	}
 	tp->bname[i] = emalloc(n+1);
@@ -248,6 +249,7 @@ item(P *p)
 			return n;
 		}
 		w = p->w[p->i++];
+		n = node(p, Ngrp, n, nil);
 		q = 0;
 		if(strcmp(w, "\\)*") == 0)
 			q = '*';
@@ -377,6 +379,16 @@ emit(P *p, int op)
 	return tp->ni++;
 }
 
+static int
+newcap(P *p)
+{
+	if(p->p->ncap == Tmaxcap){
+		perr(p, "more than %d groups and names", Tmaxcap);
+		return -1;
+	}
+	return p->p->ncap++;
+}
+
 static Node**
 spine(Node *n, int type, int *np)
 {
@@ -396,6 +408,43 @@ spine(Node *n, int type, int *np)
 }
 
 static void
+number(P *p, Node *n)
+{
+	Node **v;
+	int k, nv, c;
+
+	switch(n->type){
+	case Ngrp:
+		if((c = newcap(p)) < 0)
+			return;
+		n->op = p->p->ngrp++;
+		p->p->capbind[c] = -1;
+		p->p->capgrp[c] = n->op;
+		number(p, n->l);
+		break;
+	case Ntok:
+		if(n->bind >= 0 && p->p->bcap[n->bind] < 0){
+			if((c = newcap(p)) < 0)
+				return;
+			p->p->bcap[n->bind] = c;
+			p->p->capbind[c] = n->bind;
+			p->p->capgrp[c] = -1;
+		}
+		break;
+	case Ncat:
+	case Nalt:
+		v = spine(n, n->type, &nv);
+		for(k = 0; k < nv; k++)
+			number(p, v[k]);
+		free(v);
+		break;
+	case Nrep:
+		number(p, n->l);
+		break;
+	}
+}
+
+static void
 gen(P *p, Node *n)
 {
 	Inst *i;
@@ -404,6 +453,14 @@ gen(P *p, Node *n)
 
 	switch(n->type){
 	case Nempty:
+		break;
+	case Ngrp:
+		s = n->op;
+		a = emit(p, Igopen);
+		p->p->i[a].grp = s;
+		gen(p, n->l);
+		a = emit(p, Igclose);
+		p->p->i[a].grp = s;
 		break;
 	case Ntok:
 		a = emit(p, Itok);
@@ -425,19 +482,15 @@ gen(P *p, Node *n)
 	case Nalt:
 		v = spine(n, Nalt, &nv);
 		j = emalloc(nv*sizeof j[0]);
-		for(k = 0; k < nv; k++){
-			a = -1;
-			if(k < nv-1){
-				a = emit(p, Isplit);
-				p->p->i[a].x = a+1;
-			}
+		for(k = nv-1; k > 0; k--){
+			a = emit(p, Isplit);
+			p->p->i[a].x = a+1;
 			gen(p, v[k]);
-			if(k < nv-1){
-				j[k] = emit(p, Ijmp);
-				p->p->i[a].y = p->p->ni;
-			}
+			j[k] = emit(p, Ijmp);
+			p->p->i[a].y = p->p->ni;
 		}
-		for(k = 0; k < nv-1; k++)
+		gen(p, v[0]);
+		for(k = nv-1; k > 0; k--)
 			p->p->i[j[k]].x = p->p->ni;
 		free(j);
 		free(v);
@@ -454,24 +507,24 @@ gen(P *p, Node *n)
 		switch(n->op){
 		case '*':
 			b = emit(p, Isplit);
-			p->p->i[b].x = b+1;
+			p->p->i[b].y = b+1;
 			gen(p, n->l);
 			c = emit(p, Ijmp);
 			p->p->i[c].x = b;
-			p->p->i[b].y = p->p->ni;
+			p->p->i[b].x = p->p->ni;
 			break;
 		case '+':
 			b = p->p->ni;
 			gen(p, n->l);
 			c = emit(p, Isplit);
-			p->p->i[c].x = b;
-			p->p->i[c].y = c+1;
+			p->p->i[c].y = b;
+			p->p->i[c].x = c+1;
 			break;
 		case '?':
 			b = emit(p, Isplit);
-			p->p->i[b].x = b+1;
+			p->p->i[b].y = b+1;
 			gen(p, n->l);
-			p->p->i[b].y = p->p->ni;
+			p->p->i[b].x = p->p->ni;
 			break;
 		}
 		p->nstk--;
@@ -509,6 +562,7 @@ tokcomp(char *pat)
 
 	memset(&p, 0, sizeof p);
 	p.p = tp = emalloc(sizeof *tp);
+	memset(tp->bcap, 0xff, sizeof tp->bcap);
 	s = sdup(pat);
 	for(i = 0; s[i] != 0; i++)
 		if(s[i] == '\n')
@@ -526,6 +580,8 @@ tokcomp(char *pat)
 	n = alt(&p);
 	if(p.i < p.nw)
 		perr(&p, "%s: no \\( before it", p.w[p.i]);
+	if(p.err[0] == 0)
+		number(&p, n);
 	if(p.err[0] == 0){
 		gen(&p, n);
 		emit(&p, Imatch);
@@ -571,15 +627,15 @@ tokpatfree(Tpat *tp)
 }
 
 int
-toknbind(Tpat *p)
+tokncap(Tpat *p)
 {
-	return p->nbind;
+	return p->ncap;
 }
 
 char*
-tokbindname(Tpat *p, int i)
+tokcapname(Tpat *p, int i)
 {
-	if(i < 0 || i >= p->nbind)
+	if(i < 0 || i >= p->ncap || p->capbind[i] < 0)
 		return nil;
-	return p->bname[i];
+	return p->bname[p->capbind[i]];
 }

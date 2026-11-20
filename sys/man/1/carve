@@ -56,6 +56,8 @@ and these commands:
 .TP
 .B d
 .TP
+.BI m " addr" " " t " addr"
+.TP
 .BI s/ pattern / text /
 .TP
 .BI x/ pattern / " cmd" " " y/ pattern / " cmd"
@@ -85,37 +87,50 @@ Then
 .I carve
 has the syntax program lex the text again for the next command.
 .PP
+As in sam, dot starts at
+.BR #0 ,
+so a script that works on the whole text begins with
+.BR , .
+A group,
+.B \e(
+to
+.BR \e) ,
+captures what it matches, and so does a binding
+.IB x : item\f1,
+numbered with the groups in the order they open.
 In the text of
 .BR s ,
 .B &
-stands for the match and
+stands for the match,
 .BI \e n\f1,
 for
 .I n
-from 1 to 9, for the token bound to the
+from 1 to 9, for the
 .IR n th
-name of the pattern, in the order the pattern first names them.
-In the text of
-.BR a ,
+capture,
+.BI \e x
+for the token bound to
+.IR x ,
+.B \en
+for a newline and
+.BI \e c
+for any other character
+.IR c .
+A name in the text is the longest of the pattern's names that it begins with, so
+.I carve
+refuses a binding named
+.BR n .
+.BR A ,
 .B c
 and
-.BR i ,
-.BI \e n
-stands for the
-.IR n th
-bound token of the match that the nearest enclosing
-.B x
-or
-.B g
-found, and
-.B \e\e
-for a backslash.
+.B i
+take their text literally, as in sam.
 .SH EXAMPLES
 Make each increment by one an
 .BR ++ :
 .IP
 .EX
-carve -l c 'x/x:@ident = :x + 1/ c/\e1++/' <old.c >new.c
+carve -l c ',s/x:@ident = :x + 1/\ex++/g' <old.c >new.c
 .EE
 .PP
 Swap the first two arguments of the calls of
@@ -123,7 +138,7 @@ Swap the first two arguments of the calls of
 whose arguments are single tokens, in place:
 .IP
 .EX
-carve 'x/memmove ( x:. , y:. , z:. )/ c/memmove(\e2, \e1, \e3)/' *.c
+carve ',s/memmove ( x:. , y:. , z:. )/memmove(\ey, \ex, \ez)/g' *.c
 .EE
 .PP
 Rename a variable everywhere but in comments and strings:
@@ -152,30 +167,11 @@ if any file failed.
 .SH BUGS
 .I Carve
 differs from sam on purpose:
-its patterns are of tokens, and its
-.BI \e n
-stand for bound names, not groups;
-.BR a ,
-.B c
-and
-.B i
-take bound names from the enclosing
-.B x
-or
-.BR g ,
-and
-.B \e\e
-in their text, even in the form of lines that ends with a
-.B .
-line;
-dot starts as the whole text, not
-.BR #0 ,
-so a script need not begin with
-.BR , ;
+its patterns are of tokens, and a binding captures as a group does;
 .B =
 puts the file's name first when
 .I carve
-edits files;
+edits files, as acme's Edit does;
 .BR p ,
 .B =
 and
@@ -184,7 +180,7 @@ write to standard output, before the text when
 .I carve
 reads standard input;
 an empty match falls at the start of a token;
-it parses the whole script before it reads a file;
+it parses the whole script before it reads a file, and an error leaves its file unwritten;
 and it has no
 .BR b ,
 .BR B ,
@@ -192,11 +188,9 @@ and it has no
 .BR e ,
 .BR f ,
 .BR k ,
-.BR m ,
 .BR n ,
 .BR q ,
 .BR r ,
-.BR t ,
 .BR u ,
 .BR w ,
 .BR X ,
@@ -206,4 +200,5 @@ and it has no
 or the addresses
 .B '
 and
-.BR \&" .
+.BR \&" ,
+which an interactive carve will have.

@@ -11,6 +11,11 @@ enum
 {
 	Left,
 	All,
+
+	Spc = 0,
+	Sstart,
+	Slast,
+	Sfix,
 };
 
 struct List
@@ -18,6 +23,10 @@ struct List
 	int	*v;
 	int	n;
 	int	m;
+	uint	*hgen;
+	int	*hidx;
+	int	nh;
+	uint	gen;
 };
 
 struct Run
@@ -27,21 +36,19 @@ struct Run
 	int	t0;
 	int	t1;
 	int	w;
+	int	ub;
+	int	gb;
 	int	mode;
-	int	end;
 	List	cur;
 	List	nxt;
-	List	stk;
 	List	seen;
 	int	*work;
-	uint	*hgen;
-	int	*hidx;
-	int	nh;
-	uint	gen;
+	int	*tmp;
 	int	found;
 	int	b0;
 	int	b1;
-	int	bind[Tmaxbind];
+	int	*best;
+	int	cj;
 };
 
 static int*
@@ -62,15 +69,14 @@ static uint
 keyhash(Run *r, int *st)
 {
 	uint h;
-	int i, c, n;
+	int i, c;
 
-	h = st[0]*2654435761U;
-	n = 2+r->p->nstar;
-	for(i = 2; i < n; i++)
-		h = (h ^ st[i]) * 16777619U;
-	for(; i < r->w; i++){
+	h = st[Spc]*2654435761U ^ st[Slast];
+	for(i = r->ub; i < r->gb; i++){
 		c = st[i];
-		h = (h ^ (c < 0 ? -1 : r->t->t[c].id)) * 16777619U;
+		if(i >= r->ub+r->p->nstar)
+			c = c < 0 ? -1 : r->t->t[c].id;
+		h = (h ^ c) * 16777619U;
 	}
 	return h;
 }
@@ -78,15 +84,14 @@ keyhash(Run *r, int *st)
 static int
 keyeq(Run *r, int *a, int *b)
 {
-	int i, n, x, y;
+	int i, x, y;
 
-	if(a[0] != b[0])
+	if(a[Spc] != b[Spc] || a[Slast] != b[Slast])
 		return 0;
-	n = 2+r->p->nstar;
-	for(i = 2; i < n; i++)
+	for(i = r->ub; i < r->ub+r->p->nstar; i++)
 		if(a[i] != b[i])
 			return 0;
-	for(; i < r->w; i++){
+	for(; i < r->gb; i++){
 		x = a[i];
 		y = b[i];
 		if(x == y)
@@ -98,119 +103,90 @@ keyeq(Run *r, int *a, int *b)
 }
 
 static void
-rehash(Run *r)
+rehash(Run *r, List *l)
 {
 	int i, j, nh;
 
-	nh = r->nh ? 2*r->nh : 256;
-	free(r->hgen);
-	free(r->hidx);
-	r->hgen = emalloc(nh*sizeof r->hgen[0]);
-	r->hidx = emalloc(nh*sizeof r->hidx[0]);
-	r->nh = nh;
-	for(i = 0; i < r->seen.n; i++){
-		j = keyhash(r, r->seen.v+i*r->w) & (nh-1);
-		while(r->hgen[j] == r->gen)
+	nh = l->nh ? 2*l->nh : 256;
+	free(l->hgen);
+	free(l->hidx);
+	l->hgen = emalloc(nh*sizeof l->hgen[0]);
+	l->hidx = emalloc(nh*sizeof l->hidx[0]);
+	l->nh = nh;
+	if(l->gen == 0)
+		l->gen = 1;
+	for(i = 0; i < l->n; i++){
+		j = keyhash(r, l->v+i*r->w) & (nh-1);
+		while(l->hgen[j] == l->gen)
 			j = (j+1) & (nh-1);
-		r->hgen[j] = r->gen;
-		r->hidx[j] = i;
+		l->hgen[j] = l->gen;
+		l->hidx[j] = i;
 	}
 }
 
 static int
-seen(Run *r, int *st)
+find(Run *r, List *l, int *st)
 {
 	int j;
 
-	if(2*(r->seen.n+1) > r->nh)
-		rehash(r);
-	j = keyhash(r, st) & (r->nh-1);
-	for(; r->hgen[j] == r->gen; j = (j+1) & (r->nh-1))
-		if(keyeq(r, r->seen.v+r->hidx[j]*r->w, st))
-			return 1;
-	r->hgen[j] = r->gen;
-	r->hidx[j] = r->seen.n;
-	put(r, &r->seen, st);
-	return 0;
+	if(2*(l->n+1) > l->nh)
+		rehash(r, l);
+	j = keyhash(r, st) & (l->nh-1);
+	for(; l->hgen[j] == l->gen; j = (j+1) & (l->nh-1))
+		if(keyeq(r, l->v+l->hidx[j]*r->w, st))
+			return l->hidx[j];
+	l->hgen[j] = l->gen;
+	l->hidx[j] = l->n;
+	put(r, l, st);
+	return -1;
 }
 
 static void
-newgen(Run *r)
+clear(List *l)
 {
-	r->gen++;
-	if(r->gen == 0){
-		memset(r->hgen, 0, r->nh*sizeof r->hgen[0]);
-		r->gen = 1;
+	l->n = 0;
+	l->gen++;
+	if(l->gen == 0){
+		if(l->hgen != nil)
+			memset(l->hgen, 0, l->nh*sizeof l->hgen[0]);
+		l->gen = 1;
 	}
-	r->seen.n = 0;
+}
+
+static void
+add(Run *r, List *l, int *st)
+{
+	int i, *v;
+
+	if((i = find(r, l, st)) < 0)
+		return;
+	v = l->v+i*r->w;
+	if(st[Sstart] >= v[Sstart])
+		return;
+	memmove(v, st, r->w*sizeof v[0]);
+	if(l == &r->cur && i <= r->cj)
+		put(r, l, st);
 }
 
 static void
 record(Run *r, int *st)
 {
-	int s, better;
+	int s, e, better;
 
-	s = st[1];
+	s = st[Sstart];
+	e = st[Slast];
 	if(!r->found)
 		better = 1;
 	else if(r->mode == Left)
-		better = s < r->b0 || s == r->b0 && r->end > r->b1;
+		better = s < r->b0 || s == r->b0 && e > r->b1;
 	else
-		better = r->end > r->b1 || r->end == r->b1 && s < r->b0;
+		better = e > r->b1 || e == r->b1 && s < r->b0;
 	if(!better)
 		return;
 	r->found = 1;
 	r->b0 = s;
-	r->b1 = r->end;
-	memmove(r->bind, st+2+r->p->nstar, r->p->nbind*sizeof r->bind[0]);
-}
-
-static void
-closure(Run *r, List *l, int *st0)
-{
-	Inst *i;
-	int *st, *u;
-
-	r->stk.n = 0;
-	put(r, &r->stk, st0);
-	st = r->work;
-	u = st+2;
-	while(r->stk.n > 0){
-		r->stk.n--;
-		memmove(st, r->stk.v+r->stk.n*r->w, r->w*sizeof st[0]);
-		if(seen(r, st))
-			continue;
-		i = &r->p->i[st[0]];
-		switch(i->op){
-		case Itok:
-			put(r, l, st);
-			break;
-		case Ijmp:
-			st[0] = i->x;
-			put(r, &r->stk, st);
-			break;
-		case Isplit:
-			st[0] = i->y;
-			put(r, &r->stk, st);
-			st[0] = i->x;
-			put(r, &r->stk, st);
-			break;
-		case Isbeg:
-			u[i->star] = -1;
-			st[0]++;
-			put(r, &r->stk, st);
-			break;
-		case Isend:
-			if(u[i->star] == -1){
-				st[0]++;
-				put(r, &r->stk, st);
-			}
-			break;
-		case Imatch:
-			record(r, st);
-			break;
-		}
-	}
+	r->b1 = e;
+	memmove(r->best, st, r->w*sizeof st[0]);
 }
 
 static int
@@ -249,11 +225,11 @@ step(Run *r, int *st, int pos)
 	Test *t;
 	int *u, *cap, j, s, c, ok;
 
-	i = &r->p->i[st[0]];
+	i = &r->p->i[st[Spc]];
 	t = i->t;
 	tt = r->t->t;
 	k = &tt[pos];
-	u = st+2;
+	u = st+r->ub;
 	cap = u+r->p->nstar;
 	if(t->type == Tref){
 		c = cap[t->ref];
@@ -285,69 +261,150 @@ step(Run *r, int *st, int pos)
 				return 0;
 		}
 	}
-	st[0]++;
+	st[Spc]++;
+	st[Slast] = pos+1;
 	return 1;
+}
+
+static void
+chain(Run *r, int *st, int pos)
+{
+	Inst *i;
+	int *u, *g, *v, k;
+
+	u = st+r->ub;
+	g = st+r->gb;
+	for(;;){
+		if((k = find(r, &r->seen, st)) >= 0){
+			v = r->seen.v+k*r->w;
+			if(st[Sstart] >= v[Sstart])
+				return;
+			v[Sstart] = st[Sstart];
+		}
+		if(r->mode == Left && r->found && st[Sstart] > r->b0)
+			return;
+		i = &r->p->i[st[Spc]];
+		switch(i->op){
+		case Itok:
+			if(pos < r->t1 && step(r, st, pos))
+				add(r, &r->nxt, st);
+			return;
+		case Ijmp:
+			st[Spc] = i->x;
+			break;
+		case Isplit:
+			memmove(r->tmp, st, r->w*sizeof st[0]);
+			r->tmp[Spc] = i->y;
+			add(r, &r->cur, r->tmp);
+			st[Spc] = i->x;
+			break;
+		case Isbeg:
+			u[i->star] = -1;
+			st[Spc]++;
+			break;
+		case Isend:
+			if(u[i->star] != -1)
+				return;
+			st[Spc]++;
+			break;
+		case Igopen:
+			g[2*i->grp] = pos;
+			g[2*i->grp+1] = -1;
+			st[Spc]++;
+			break;
+		case Igclose:
+			if(st[Slast] > g[2*i->grp])
+				g[2*i->grp+1] = st[Slast];
+			else
+				g[2*i->grp] = g[2*i->grp+1] = st[Slast];
+			st[Spc]++;
+			break;
+		case Imatch:
+			record(r, st);
+			return;
+		}
+	}
 }
 
 static int
 run(Run *r, int from)
 {
 	List l;
-	int *st, *v, pos, j, n, stale;
+	int *st, pos, j;
 
-	st = emalloc(r->w*sizeof st[0]);
-	newgen(r);
-	stale = 0;
+	st = r->work;
+	clear(&r->cur);
+	clear(&r->nxt);
+	r->cj = -1;
 	for(pos = from; pos <= r->t1; pos++){
-		if(pos < r->t1 && r->t->t[pos].comment && !r->p->comments){
-			stale = 1;
+		if(pos < r->t1 && r->t->t[pos].comment && !r->p->comments)
 			continue;
-		}
-		if(stale){
-			newgen(r);
-			for(j = 0; j < r->cur.n; j++)
-				seen(r, r->cur.v+j*r->w);
-			stale = 0;
-		}
 		if(r->mode == All || !r->found){
 			memset(st, 0xff, r->w*sizeof st[0]);
-			st[0] = 0;
-			st[1] = pos;
-			r->end = pos;
-			closure(r, &r->cur, st);
+			st[Spc] = 0;
+			st[Sstart] = pos;
+			st[Slast] = pos;
+			add(r, &r->cur, st);
 		}
-		if(pos == r->t1)
-			break;
 		if(r->cur.n == 0){
 			if(r->found && r->mode == Left)
 				break;
 			continue;
 		}
-		newgen(r);
-		r->nxt.n = 0;
-		r->end = pos+1;
-		n = r->cur.n;
-		for(j = 0; j < n; j++){
-			v = r->cur.v+j*r->w;
-			if(r->mode == Left && r->found && v[1] > r->b0)
-				continue;
-			memmove(st, v, r->w*sizeof st[0]);
-			if(step(r, st, pos))
-				closure(r, &r->nxt, st);
+		clear(&r->seen);
+		clear(&r->nxt);
+		for(j = 0; j < r->cur.n; j++){
+			r->cj = j;
+			memmove(st, r->cur.v+j*r->w, r->w*sizeof st[0]);
+			chain(r, st, pos);
 		}
+		r->cj = -1;
 		l = r->cur;
 		r->cur = r->nxt;
 		r->nxt = l;
 	}
-	free(st);
 	return r->found;
+}
+
+static void
+fill(Run *r, Tmatch *m)
+{
+	Tpat *p;
+	int i, b, g, *st;
+
+	p = r->p;
+	st = r->best;
+	m->t0 = r->b0;
+	m->t1 = r->b1;
+	for(i = 0; i < Tmaxcap; i++){
+		m->cap[i][0] = m->cap[i][1] = -1;
+		if(i >= p->ncap)
+			continue;
+		if((b = p->capbind[i]) >= 0){
+			if(st[r->ub+p->nstar+b] >= 0){
+				m->cap[i][0] = st[r->ub+p->nstar+b];
+				m->cap[i][1] = m->cap[i][0]+1;
+			}
+		}else if((g = p->capgrp[i]) >= 0 && st[r->gb+2*g+1] >= 0){
+			m->cap[i][0] = st[r->gb+2*g];
+			m->cap[i][1] = st[r->gb+2*g+1];
+		}
+	}
+}
+
+static void
+freelist(List *l)
+{
+	free(l->v);
+	free(l->hgen);
+	free(l->hidx);
 }
 
 static int
 texec(Tpat *p, Toks *t, int t0, int t1, int from, int mode, Tmatch *m)
 {
 	Run r;
-	int i, ok;
+	int ok;
 
 	if(t0 < 0)
 		t0 = 0;
@@ -365,22 +422,21 @@ texec(Tpat *p, Toks *t, int t0, int t1, int from, int mode, Tmatch *m)
 	r.t0 = t0;
 	r.t1 = t1;
 	r.mode = mode;
-	r.w = 2+p->nstar+p->nbind;
+	r.ub = Sfix;
+	r.gb = Sfix+p->nstar+p->nbind;
+	r.w = r.gb+2*p->ngrp;
 	r.work = emalloc(r.w*sizeof r.work[0]);
+	r.tmp = emalloc(r.w*sizeof r.tmp[0]);
+	r.best = emalloc(r.w*sizeof r.best[0]);
 	ok = run(&r, from);
-	if(ok && m != nil){
-		m->t0 = r.b0;
-		m->t1 = r.b1;
-		for(i = 0; i < Tmaxbind; i++)
-			m->bind[i] = i < p->nbind ? r.bind[i] : -1;
-	}
-	free(r.cur.v);
-	free(r.nxt.v);
-	free(r.stk.v);
-	free(r.seen.v);
+	if(ok && m != nil)
+		fill(&r, m);
+	freelist(&r.cur);
+	freelist(&r.nxt);
+	freelist(&r.seen);
 	free(r.work);
-	free(r.hgen);
-	free(r.hidx);
+	free(r.tmp);
+	free(r.best);
 	return ok;
 }
 
