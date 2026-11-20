@@ -21,4 +21,22 @@ extern int	strncasecmp(const char *, const char *, size_t);
 }
 #endif
 
+#if _POSIX_C_SOURCE >= 200809L
+#ifndef _LOCALE_T
+#define _LOCALE_T
+typedef struct __locale *locale_t;
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern int strcasecmp_l(const char *, const char *, locale_t);
+extern int strncasecmp_l(const char *, const char *, size_t, locale_t);
+
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 #endif

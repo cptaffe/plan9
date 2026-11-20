@@ -45,4 +45,21 @@ extern char *nl_langinfo(nl_item);
 }
 #endif
 
+#if _POSIX_C_SOURCE >= 200809L
+#ifndef _LOCALE_T
+#define _LOCALE_T
+typedef struct __locale *locale_t;
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern char *nl_langinfo_l(nl_item, locale_t);
+
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 #endif

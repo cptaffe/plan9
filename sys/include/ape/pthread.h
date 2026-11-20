@@ -10,6 +10,8 @@
  */
 
 #include <stddef.h>
+#include <time.h>
+#include <sched.h>
 
 typedef int pthread_t;
 typedef int pthread_key_t;
@@ -17,9 +19,12 @@ typedef struct { int done; } pthread_once_t;
 typedef struct { int locked; int type; } pthread_mutex_t;
 typedef struct { int type; } pthread_mutexattr_t;
 typedef struct { int detached; } pthread_attr_t;
+typedef struct { int waiting; } pthread_cond_t;
+typedef struct { int clock; } pthread_condattr_t;
 
 #define PTHREAD_ONCE_INIT	{0}
 #define PTHREAD_MUTEX_INITIALIZER	{0, 0}
+#define PTHREAD_COND_INITIALIZER	{0}
 #define PTHREAD_KEYS_MAX	128
 #define PTHREAD_DESTRUCTOR_ITERATIONS	4
 
@@ -61,6 +66,15 @@ extern int pthread_mutex_destroy(pthread_mutex_t *);
 extern int pthread_mutex_lock(pthread_mutex_t *);
 extern int pthread_mutex_trylock(pthread_mutex_t *);
 extern int pthread_mutex_unlock(pthread_mutex_t *);
+
+extern int pthread_condattr_init(pthread_condattr_t *);
+extern int pthread_condattr_destroy(pthread_condattr_t *);
+extern int pthread_cond_init(pthread_cond_t *, const pthread_condattr_t *);
+extern int pthread_cond_destroy(pthread_cond_t *);
+extern int pthread_cond_signal(pthread_cond_t *);
+extern int pthread_cond_broadcast(pthread_cond_t *);
+extern int pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
+extern int pthread_cond_timedwait(pthread_cond_t *, pthread_mutex_t *, const struct timespec *);
 
 #ifdef __cplusplus
 }

@@ -40,6 +40,10 @@ sbrk(unsigned long n)
 	char *b;
 
 	b = (char*)(((unsigned long)bloc + 7) & ~7UL);
+	if(n > ~0UL - 7 - (unsigned long)b){
+		errno = ENOMEM;
+		return (void *)-1;
+	}
 	n += 7;
 	n &= ~7;
 	if(grow((unsigned long)b + n) < 0)

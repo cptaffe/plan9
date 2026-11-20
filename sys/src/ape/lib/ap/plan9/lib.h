@@ -72,6 +72,7 @@ extern int	rforkfn(int, void(*)(void*), void*);	/* lib9.h's */
 extern void	_finish(int, char *);
 extern char	*_ultoa(char *, unsigned long);
 extern int	_notehandler(void *, char *);
+extern char	*_atpath(int, const char *, char *, int);
 extern void	_notetramp(int, void (*)(int, char*, Ureg*), Ureg*);
 extern void	_syserrno(void);
 extern int	_getpw(int *, char **, char **);
