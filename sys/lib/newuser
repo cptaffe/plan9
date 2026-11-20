@@ -28,12 +28,8 @@ fn cd { builtin cd $* && awd }
 switch($service){
 case terminal
 	# sound is shared: mixfs binds over /dev/audio, so a second play mixes with the first
-	if(test -e /dev/audio && ! grep -s '^mix ' /dev/volume >/dev/null){
-		audio/mixfs &
-		mix=$apid
-		while(test -e /proc/$mix/status && ! grep -s '^mix ' /dev/volume >/dev/null)
-			sleep 0.1
-	}
+	if(test -e /dev/audio && ! grep -s '^mix ' /dev/volume >/dev/null)
+		audio/mixfs
 	plumber
 	dropped &
 	prompt=('% ' '	')
