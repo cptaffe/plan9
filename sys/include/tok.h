@@ -9,7 +9,7 @@ typedef struct Tnames	Tnames;
 
 enum
 {
-	Tmaxbind = 16,
+	Tmaxcap = 16,
 };
 
 struct Tnames
@@ -42,7 +42,7 @@ struct Tmatch
 {
 	int	t0;
 	int	t1;
-	int	bind[Tmaxbind];
+	int	cap[Tmaxcap][2];
 };
 
 Toks*	tokparse(char *text, long ntext, char *lines, long nlines);
@@ -53,8 +53,8 @@ int	tokhas(Tnames *n, char *name);
 
 Tpat*	tokcomp(char *pat);
 void	tokpatfree(Tpat *p);
-int	toknbind(Tpat *p);
-char*	tokbindname(Tpat *p, int i);
+int	tokncap(Tpat *p);
+char*	tokcapname(Tpat *p, int i);
 int	tokexec(Tpat *p, Toks *t, int t0, int t1, int from, Tmatch *m);
 int	tokbexec(Tpat *p, Toks *t, int t0, int t1, Tmatch *m);
 

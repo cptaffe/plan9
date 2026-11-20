@@ -18,6 +18,8 @@ enum
 	Ijmp,
 	Isbeg,
 	Isend,
+	Igopen,
+	Igclose,
 	Imatch,
 };
 
@@ -41,6 +43,7 @@ struct Inst
 	Test	*t;
 	int	bind;
 	int	star;
+	int	grp;
 	int	*stars;
 	int	nstars;
 };
@@ -51,7 +54,12 @@ struct Tpat
 	int	ni;
 	int	nstar;
 	int	nbind;
-	char	*bname[Tmaxbind];
+	char	*bname[Tmaxcap];
+	int	ngrp;
+	int	ncap;
+	int	capbind[Tmaxcap];
+	int	capgrp[Tmaxcap];
+	int	bcap[Tmaxcap];
 	int	comments;
 	Test	**tests;
 	int	ntests;
