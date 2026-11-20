@@ -110,19 +110,19 @@ strip(char *s, int p, int lnum)
 		free(s);
 		return nil;
 	}
-	if(*q == '/'){
-		werrstr("%d: %s: an absolute name; -p strips its start", lnum, q);
-		free(s);
-		return nil;
-	}
-	if(!islocal(q)){
-		werrstr("%d: %s: not a local name", lnum, q);
-		free(s);
-		return nil;
-	}
-	t = strdupn(q, strlen(q));
+	t = cleanname(strdupn(q, strlen(q)));
 	free(s);
-	return cleanname(t);
+	if(*t == '/'){
+		werrstr("%d: %s: an absolute name; -p strips its start", lnum, t);
+		free(t);
+		return nil;
+	}
+	if(!islocal(t)){
+		werrstr("%d: %s: not a local name", lnum, t);
+		free(t);
+		return nil;
+	}
+	return t;
 }
 
 static int
