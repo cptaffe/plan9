@@ -16,6 +16,10 @@
 #define _POSIX_PRIO_IO -1
 #define _POSIX_SYNC_IO -1
 #define _POSIX_VDISABLE -1
+#if _POSIX_C_SOURCE >= 199309L
+#define _POSIX_TIMERS 200809L
+#define _POSIX_MONOTONIC_CLOCK 200809L
+#endif
 
 #ifndef _SIZE_T
 #define _SIZE_T
@@ -70,6 +74,9 @@ typedef long ssize_t;
 #define _SC_PAGESIZE		12	/* getpagesize's */
 #define _SC_PAGE_SIZE		_SC_PAGESIZE
 #endif
+#ifdef _BSD_EXTENSION
+#define _SC_PHYS_PAGES		13
+#endif
 
 /* pathconf argument */
 #define _PC_LINK_MAX		1
@@ -98,7 +105,7 @@ extern int execle(const char *, const char *, const char *,  ...);
 extern int execve(const char *, const char **, const char **);
 extern int execlp(const char *, const char *, ...);
 extern int execvp(const char *, const char **);
-extern void _exit(int);
+extern void _exit(int) __attribute__((__noreturn__));
 extern unsigned int alarm(unsigned int);
 extern int pause(void);
 extern unsigned int sleep(unsigned int);
@@ -165,6 +172,9 @@ extern ssize_t readlink(const char *, char *, size_t);
 extern char *getcwd(char *, size_t);
 extern int unlink(const char *);
 extern int rmdir(const char *);
+#if _POSIX_C_SOURCE >= 200809L
+extern int unlinkat(int, const char *, int);
+#endif
 extern int rename(const char *, const char *);
 extern int access(const char *, int);
 extern long pathconf(const char *, int);
@@ -184,6 +194,9 @@ extern ssize_t read(int, void *, size_t);
 extern ssize_t write(int, const void *, size_t);
 #ifdef __TYPES_H
 extern int ftruncate(int, off_t);
+#if _POSIX_C_SOURCE >= 200809L || defined(_SUSV2_SOURCE)
+extern int truncate(const char *, off_t);
+#endif
 extern off_t lseek(int, off_t, int);
 extern ssize_t pread(int, void *, size_t, off_t);
 extern ssize_t pwrite(int, const void *, size_t, off_t);

@@ -34,9 +34,9 @@ extern void *calloc(size_t, size_t);
 extern void free(void *);
 extern void *malloc(size_t);
 extern void *realloc(void *, size_t);
-extern void abort(void);
+extern void abort(void) __attribute__((__noreturn__));
 extern int atexit(void (*func)(void));
-extern void exit(int);
+extern void exit(int) __attribute__((__noreturn__));
 extern char *getenv(const char *);
 #if _POSIX_C_SOURCE >= 200112L
 extern int setenv(const char *, const char *, int);
@@ -86,7 +86,7 @@ extern void _Exit(int);
 #if __STDC_VERSION__ >= 201112L || __cplusplus >= 201103L
 extern void *aligned_alloc(size_t, size_t);
 extern int at_quick_exit(void (*)(void));
-extern void quick_exit(int);
+extern void quick_exit(int) __attribute__((__noreturn__));
 #endif
 
 #ifdef __cplusplus

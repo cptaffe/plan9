@@ -1,0 +1,173 @@
+.TH LMFS 4
+.SH NAME
+lmfs, aux/llama \- a language model served as files
+.SH SYNOPSIS
+.B lmfs
+[
+.B -D
+] [
+.B -b
+.I bytes
+] [
+.B -e
+.I engine
+] [
+.B -l
+.I dir
+] [
+.B -m
+.I mtpt
+] [
+.B -s
+.I srvname
+] [
+.I model
+]
+.SH DESCRIPTION
+.I Lmfs
+serves a language model's files on
+.I mtpt
+.RB ( /mnt/lm
+by default, or none if only
+.B -s
+is given), and posts itself as
+.BI /srv/ srvname
+if
+.B -s
+is given.
+Its files and their answers are those of
+.IR lmsim (4),
+which describes them:
+.BR models ,
+.BR clone ,
+and each session's
+.BR ctl ,
+.BR data ,
+.B top
+and
+.BR embed .
+A model is a GGUF file in
+.I dir
+.RB ( /lib/lm ),
+named for the file without
+.BR .gguf ;
+a model's package adds its file there.
+A session starts with
+.IR model ,
+or the first of
+.BR models .
+.PP
+The model runs in
+.BR aux/llama ,
+.IR engine 's
+default, a program of llama.cpp's on ggml's CPU backend, in one thread.
+.I Lmfs
+starts one for a model's tokenizer and one for the model, and talks to each on a pipe,
+a request a line, so the model's work runs beside the server and never holds up
+another session's open, read or
+.BR ctl .
+It loads a model once, for every session that names it.
+.I Bytes
+.RB ( -b ,
+3 GB by default, of wasm32's 4)
+is one bound for every engine's model, caches and scratch, as the engine measures its heap:
+a model that would pass it fails to load, and its sessions' reads fail with the reason, which
+.B ctl
+gives as
+.BR error .
+An engine keeps as many sequences as fit, and fails if none does.
+.I Lmfs
+holds 64 MB of requests' text at most, and a write past that fails, and keeps 1 MB of a
+request's answer unread before its work waits.
+An engine that fails to load is not started again for 2 seconds, then 4, up to a minute.
+A session's
+.B ctx
+has an engine of its own, and a model's engine for another
+.B ctx
+ends when its work does.
+.PP
+.I Lmfs
+cuts a text into parts as
+.IR lmsim (4)
+says, and scores each with the
+.B ctx
+tokens before it, and with the model's start-of-text token before the text's first.
+It keeps each part's bits and ranks by the hash of its tokens, those before it,
+the model's SHA-256, the backend and
+.BR ctx ,
+for 8 million tokens.
+The engine keeps the model's state for the parts it scored last: a transformer's keys and
+values, or a recurrent model's state every 256 tokens, so an edit inside a part scores again
+only from the edit.
+It decodes in blocks of 64 tokens at fixed places, so a part's bits do not depend on what
+it decoded before, and
+.B data
+gives a part's lines a block at a time, as the model scores them.
+A byte that is not UTF-8 is its byte's token.
+.B Embed
+gives the model's last hidden state, the mean over the span's tokens, of unit length.
+.PP
+.B Freq
+gives each token's slot by
+.IR lmsim (4)'s
+rule, with each token's probability from a softmax, in double precision, of the model's
+logits.
+The engine runs a block a token at a time, from the start-of-text token, when it encodes as
+when it decodes, so the two add the same sums in the same order, and on the CPU in wasm those
+sums are the same on every machine.
+It keeps each block of a set in a sequence of its own, and runs a block that has lost its
+sequence to another again from its start.
+A block is at most
+.B ctx
++ 4096 tokens.
+The engine takes
+.BR freq 's
+work a few tokens at a time, and the other files' requests go first.
+.PP
+.B Ctl
+takes
+.BR model ,
+.B backend
+.RB ( float ;
+.B exact
+is not built) and
+.B ctx
+(up to
+.BR maxctx ,
+8192), and
+.BI digits " n\fR,"
+the decimal places of
+.BR data 's
+and
+.BR top 's
+bits, 2 by default and 17 at most.
+.BR Settings ,
+for
+.IR lmz 's
+header, names the model, its SHA-256, the backend and the engine's pinned settings, not
+.BR ctx .
+A read gives the
+.B sha256
+as
+.B loading
+until the engine has loaded the model.
+.PP
+The packages are downloads: Granite-4.0-H-350M is 366 MB and Qwen3-0.6B 639 MB.
+.SH EXAMPLES
+.EX
+% pkg add qwen3-0.6b
+% lmfs
+% echo the cat sat on the mat. | bits
+.EE
+.SH SOURCE
+.B src/cmd/lmfs
+.SH SEE ALSO
+.IR lmsim (4),
+.IR bits (1),
+.IR pkg (1),
+.B doc/words.md
+.SH BUGS
+A set of more blocks than the engine has sequences runs each block again from its start at
+every step, and takes time in proportion to the square of its length.
+The engine scores one part at a time, not parts in batches.
+On the CPU in wasm, a model of half a billion weights scores 5 to 15 tokens a second.

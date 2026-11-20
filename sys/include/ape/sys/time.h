@@ -51,5 +51,6 @@ struct itimerval {
 
 extern int getitimer(int, struct itimerval *);
 extern int setitimer(int, const struct itimerval *, struct itimerval *);
+extern int utimes(const char *, const struct timeval [2]);
 
 #endif /* __SYSTIME_H */

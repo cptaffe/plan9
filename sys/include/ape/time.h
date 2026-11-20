@@ -96,4 +96,21 @@ extern long timezone;	/* XSI: tzset's, seconds west of GMT */
 extern int daylight;
 #endif
 
+#if _POSIX_C_SOURCE >= 200809L
+#ifndef _LOCALE_T
+#define _LOCALE_T
+typedef struct __locale *locale_t;
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern size_t strftime_l(char *, size_t, const char *, const struct tm *, locale_t);
+
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 #endif /* __TIME_H */
