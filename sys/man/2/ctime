@@ -193,7 +193,7 @@ A
 .B Tm
 holds no fraction of a second, so
 .L .000
-writes zeros and
+writes zeros, nine at most, and
 .L .999
 nothing.
 .I Tmparse
@@ -210,7 +210,31 @@ and names match in either case.
 A part the layout lacks is the least it can be: January, the first, the year 0, midnight.
 Without a zone in
 .IR s ,
-the date is Greenwich's; with only a name, the offset is the local zone's if the name is the local zone's, and 0 if not.
+the date is Greenwich's.
+.L UTC
+under
+.LR MST ,
+or
+.L Z
+under a
+.L Z0700
+part, makes the date Greenwich's whatever else
+.I s
+says; otherwise an offset in numbers wins over a name.
+With only a name, the offset is the local zone's if the name is the local zone's, and 0 if not, so a name such as
+.L GMT+10
+labels the date and does not move it, as in Go.
+Under
+.LR MST ,
+.I tmparse
+also reads an offset written as
+.LR -0700 ,
+the form
+.I tmfmt
+writes there for a zone with no name, so what
+.I tmfmt
+writes reads back.
+A fraction's point may be a period or a comma, whichever the layout has, and at most nine of its digits count.
 .I Tmparse
 sets
 .BR wday ,
@@ -236,8 +260,17 @@ does not.
 .IR time (2),
 .IR init (8)
 .SH BUGS
-A zone's name longer than three letters loses the rest in
-.BR Tm .
+A
+.B Tm
+holds a zone's name of at most three letters.
+.I Tmparse
+keeps no name for a longer one, such as
+.L GMT+10
+or
+.LR CHAST ,
+and
+.I tmfmt
+then writes the offset in numbers.
 .PP
 The return values point to static data
 whose content is overwritten by each call.
