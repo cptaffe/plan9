@@ -1347,6 +1347,7 @@ Init	tnamesinit[] =
 	TFILE,		0,	"FILE",
 	TOLD,		0,	"OLD",
 	TDOT,		0,	"DOT",
+	TVEC,		0,	"VEC",
 	-1,		0,	0,
 };
 
@@ -1395,6 +1396,7 @@ Init	qnamesinit[] =
 	TUNSIGNED,	0,	"UNSIGNED",
 	TSIGNED,	0,	"SIGNED",
 	TDOT,		0,	"DOT",
+	TVEC,		0,	"VEC",
 	TFILE,		0,	"FILE",
 	TOLD,		0,	"OLD",
 	-1,		0,	0,
@@ -1514,6 +1516,10 @@ Init	onamesinit[] =
 	OFAS,		0,	"FAS",
 	OREGPAIR,	0,	"REGPAIR",
 	OEXREG,		0,	"EXREG",
+	OVLOAD,		0,	"VLOAD",
+	OVRLOAD,	0,	"VRLOAD",
+	OVSPLAT,	0,	"VSPLAT",
+	OVSUM,		0,	"VSUM",
 	OEND,		0,	"END",
 	-1,		0,	0,
 };

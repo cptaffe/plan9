@@ -4,8 +4,8 @@
 #include "iolib.h"
 #include <errno.h>
 
-ssize_t
-getdelim(char **lp, size_t *np, int delim, FILE *f)
+static ssize_t
+ugetdelim(char **lp, size_t *np, int delim, FILE *f)
 {
 	char *s;
 	size_t n, m;
@@ -34,6 +34,17 @@ getdelim(char **lp, size_t *np, int delim, FILE *f)
 		return -1;
 	(*lp)[n] = '\0';
 	return n;
+}
+
+ssize_t
+getdelim(char **lp, size_t *np, int delim, FILE *f)
+{
+	ssize_t r;
+
+	flockfile(f);
+	r = ugetdelim(lp, np, delim, f);
+	funlockfile(f);
+	return r;
 }
 
 ssize_t

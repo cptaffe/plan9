@@ -129,6 +129,12 @@ and
 .BR bodysel ,
 a bare color is the background.
 .TP
+.I page
+.B back
+around the image, as
+.IR page (1)
+says.
+.TP
 style files
 Acme's
 .B style

@@ -26,6 +26,7 @@
 #define O_CLOEXEC	0x20000
 #define AT_FDCWD	(-100)
 #define AT_SYMLINK_NOFOLLOW	0x100
+#define AT_REMOVEDIR	0x200
 #endif
 
 #define	F_DUPFD		0	/* Duplicate fildes */
@@ -65,6 +66,9 @@ extern "C" {
 extern int fcntl(int, int, ...);
 extern int open(const char *, int, ...);
 extern int creat(const char *, mode_t);
+#if _POSIX_C_SOURCE >= 200809L
+extern int openat(int, const char *, int, ...);
+#endif
 
 #ifdef __cplusplus
 }

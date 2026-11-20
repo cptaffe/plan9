@@ -27,3 +27,9 @@ strncasecmp(const char *s1, const char *s2, size_t n)
 		return 0;
 	return -*(uchar*)s2;
 }
+
+int
+strncasecmp_l(const char *s1, const char *s2, size_t n, struct __locale *l)
+{
+	return strncasecmp(s1, s2, n);
+}

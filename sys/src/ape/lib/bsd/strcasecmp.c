@@ -26,3 +26,9 @@ strcasecmp(const char *s1, const char *s2)
 	}
 	return -*(uchar*)s2;
 }
+
+int
+strcasecmp_l(const char *s1, const char *s2, struct __locale *l)
+{
+	return strcasecmp(s1, s2);
+}

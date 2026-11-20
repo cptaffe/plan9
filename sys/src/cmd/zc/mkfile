@@ -12,6 +12,7 @@ OFILES=\
 	sgen.$O\
 	swt.$O\
 	txt.$O\
+	vgen.$O\
 
 HFILES=\
 	gc.h\

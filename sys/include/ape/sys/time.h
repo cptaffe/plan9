@@ -21,6 +21,9 @@ struct timezone {
 #endif
 #endif /* __TIMEVAL__ */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern int gettimeofday(struct timeval *, struct timezone *);
 
 #ifdef _BSD_EXTENSION
@@ -51,5 +54,9 @@ struct itimerval {
 
 extern int getitimer(int, struct itimerval *);
 extern int setitimer(int, const struct itimerval *, struct itimerval *);
+extern int utimes(const char *, const struct timeval [2]);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* __SYSTIME_H */

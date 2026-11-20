@@ -21,7 +21,11 @@ extern int setjmp(jmp_buf);
 extern void longjmp(jmp_buf, int);
 
 #ifdef _POSIX_SOURCE
-extern long _psigblocked;
+#ifdef __cplusplus
+extern thread_local long _psigblocked;
+#else
+extern _Thread_local long _psigblocked;
+#endif
 #define	sigsetjmp(buf, savemask)	((buf)[0] = (savemask), (buf)[1] = _psigblocked, setjmp(&(buf)[2]))
 extern void siglongjmp(sigjmp_buf, int);
 #endif
