@@ -1,0 +1,298 @@
+.TH SIFT 1
+.SH NAME
+sift \- find a pattern of tokens
+.SH SYNOPSIS
+.B sift
+[
+.B -l
+.I lang
+] [
+.B -n
+]
+.I pattern
+[
+.I file ...
+]
+.SH DESCRIPTION
+.I Sift
+finds a pattern of lexical tokens, not of characters, in each
+.IR file .
+White space and comments do not count, so a match can span lines.
+For each file,
+.I sift
+runs the syntax program that the rules in
+.B $home/lib/syn
+or else
+.B /lib/syn
+give for its name, sends it the file's text with the request
+.BR body ,
+asks for its tokens with
+.BR tokens ,
+and matches the pattern against them.
+A rule is an
+.IR ndb (6)
+entry:
+.B syn=
+names the language,
+.B cmd=
+is an
+.IR rc (1)
+command that runs the program, and
+.B file=
+is a regular expression that the file's name must match.
+The first entry whose
+.B file=
+matches wins.
+.I Sift
+reports a file that no rule covers and goes on to the next.
+With no files,
+.I sift
+reads its standard input, whose language
+.B -l
+names;
+.B -l
+also names the language of every file given.
+.PP
+.I Sift
+prints each match as an address,
+.IB file :# q0 ,# q1\f1,
+in runes, as
+.IR sam (1)
+and
+.IR plumb (1)
+take it.
+A match in standard input has no name before it.
+With
+.BR -n ,
+.I sift
+prints each line that a match covers instead, after its name and number,
+.IB file : n :\f1.
+.PP
+.I Sift
+finds the leftmost longest match, then looks for the next one after its end, as
+.IR sam 's
+.B x
+command does.
+.SS Patterns
+A pattern is a list of tokens separated by blanks.
+Each item matches one token:
+.TF @name{tag}
+.TP
+.I text
+the token whose text is
+.IR text .
+.TP
+.B .
+any token.
+.TP
+.BI @ name
+a token one of whose names is
+.I name
+or begins with
+.IB name . \f1;
+so
+.B @function
+matches
+.B function
+and
+.BR function.call .
+The names are the program's, as
+.IR syn (4)
+lists them: a highlight name, such as
+.BR keyword ,
+.B string
+or
+.BR variable.parameter ,
+and a lexical name for a token no highlight covers, such as
+.BR ident ,
+.B oper
+or
+.BR punct .
+.TP
+.BI @ name { tag }
+a token, named as before, inside a range that the program tags
+.IR tag ,
+such as
+.B reference.call
+or
+.BR definition.function ;
+.I tag
+matches by its dotted prefix, as
+.I name
+does.
+.TP
+.BI / re
+a token whose text holds a match of the regular expression
+.I re
+(see
+.IR regexp (6)).
+.TP
+.BI [ "a b ..." ]
+a token that matches one of the items
+.IR a ,
+.IR b ,
+\&... ,
+each a text,
+.BI @ name
+or
+.BI / re\f1.
+.TP
+.BI ^ item
+a token that
+.I item
+does not match.
+.TP
+.IB x : item
+a token that
+.I item
+matches, bound to the name
+.IR x .
+.TP
+.BI : x
+a token with the same text as the one bound to
+.IR x .
+.PD
+.PP
+A match binds a name once: a second
+.IB x : item
+for the same
+.I x
+matches only a token whose text is the bound one, as
+.BI : x
+does.
+A
+.BI : x
+that comes before any binding of
+.I x
+in a match matches nothing, and
+.BI ^: x
+there matches any token.
+.PP
+An item followed by
+.B *
+repeats zero or more times, by
+.B \e+
+one or more times, and by
+.B \e?
+zero or one time.
+.B \e(
+and
+.B \e)
+group items, and
+.B \e|
+separates alternatives; it binds more loosely than a list.
+So
+.B .*
+is any run of tokens.
+A repetition matches only balanced tokens: for each bracket among them,
+.BR ( ,
+.BR [ ,
+.B {
+or its match, its partner is among them too.
+So
+.B "( .* )"
+matches from a parenthesis to its own match, and a repetition never crosses an unmatched bracket.
+Brackets are tokens whose text is one of
+.B "()[]{}"
+and that are not comments; a closing bracket matches the nearest open one of its kind, and leaves any open
+brackets between them without a match.
+.PP
+A backslash before any other character quotes it, so
+.B \e*
+is the token
+.BR * ,
+and
+.B \e/=
+is the token
+.BR /= .
+A word that is only
+.BR * ,
+.BR [ ,
+.BR ] ,
+.B ^
+or
+.B :
+is that token.
+.PP
+.I Sift
+skips tokens named
+.B comment
+unless the pattern names them, with
+.B @comment
+or a name that begins
+.BR comment. .
+.SH EXAMPLES
+Find the statements that add one to a variable, whatever the spacing:
+.IP
+.EX
+sift 'x:@ident = :x + 1' *.c
+.EE
+.PP
+Find a block that calls
+.I malloc
+and never
+.I free
+after it:
+.IP
+.EX
+sift '{ .* malloc ^free* }' *.c
+.EE
+.PP
+Find the calls inside the function
+.IR main ,
+as lines:
+.IP
+.EX
+sift -n 'main ( .* ) { .* @function.call{reference.call} ( .* ) .* }' *.c
+.EE
+.SH FILES
+.TF $home/lib/syn
+.TP
+.B $home/lib/syn
+the rules, read in place of
+.BR /lib/syn .
+.SH SOURCE
+plan9web's
+.B src/cmd/sift
+and
+.BR /sys/src/libtok ;
+.I tok.md
+in its
+.B doc
+explains the design.
+.SH SEE ALSO
+.IR carve (1),
+.IR grep (1),
+.IR sam (1),
+.IR tok (2),
+.IR syn (4)
+.br
+Gerard Holzmann, Cobra's
+.I tgrep
+and its
+.I pe
+command, whose patterns these are.
+.SH DIAGNOSTICS
+The exit status is
+.B "no matches"
+if nothing matched, and
+.B errors
+if
+.I sift
+could not read or lex a file, or found no rule for it.
+.SH BUGS
+These patterns differ from Cobra's:
+a name matches by its dotted prefix; braces after a name ask for a tag;
+every repetition matches only balanced tokens, not
+.B .*
+alone; and a regular expression must hold no blank.
+Cobra's location constraints,
+.BI < n >
+and
+.BI @ n " (" expr ),
+are not implemented.
+.PP
+A regular expression that ends in
+.B *
+loses it to repetition, as any item does; put the end in a group,
+.BR "/(ab*)" .

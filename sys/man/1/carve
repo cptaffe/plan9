@@ -1,0 +1,209 @@
+.TH CARVE 1
+.SH NAME
+carve \- edit with sam's language on patterns of tokens
+.SH SYNOPSIS
+.B carve
+[
+.B -l
+.I lang
+]
+.I script
+[
+.I file ...
+]
+.SH DESCRIPTION
+.I Carve
+runs a
+.IR sam (1)
+.I script
+on each
+.IR file ,
+whose patterns are patterns of tokens, as
+.IR sift (1)
+gives them, in place of regular expressions.
+It finds each file's syntax program by the rules of
+.B $home/lib/syn
+or
+.BR /lib/syn ,
+as
+.I sift
+does, and edits the file in place.
+With no files,
+.I carve
+reads its standard input, whose language
+.B -l
+names, and writes the edited text to its standard output, as
+.IR sed (1)
+does.
+The edits keep every comment and blank that they do not replace.
+.PP
+The script holds sam's commands, one a line, with sam's addresses:
+.TP
+.BR , " " ; " " . " " $
+.PD 0
+.TP
+.BI # n " " n
+.TP
+.BR + " " -
+.TP
+.BI / pattern / " " ? pattern ?
+.PD
+.PP
+and these commands:
+.TP
+.BI a/ text / " " c/ text / " " i/ text /
+.PD 0
+.TP
+.B d
+.TP
+.BI s/ pattern / text /
+.TP
+.BI x/ pattern / " cmd" " " y/ pattern / " cmd"
+.TP
+.BI g/ pattern / " cmd" " " v/ pattern / " cmd"
+.TP
+.B p
+.TP
+.B =
+.TP
+.BI | cmd " " < cmd " " > cmd
+.TP
+.BR { " " }
+.PD
+.PP
+They mean what they mean in sam.
+A pattern matches whole tokens: a match begins at the start of a token and ends at the end of one.
+A search from a place begins at the first token that starts there or after it, and a command on a
+range, such as
+.B x
+or
+.BR s ,
+sees only the tokens wholly inside the range.
+Each command runs on the text from before it, and its changes take effect when it
+ends, as in sam; they must come in order through the text and must not overlap.
+Then
+.I carve
+has the syntax program lex the text again for the next command.
+.PP
+In the text of
+.BR s ,
+.B &
+stands for the match and
+.BI \e n\f1,
+for
+.I n
+from 1 to 9, for the token bound to the
+.IR n th
+name of the pattern, in the order the pattern first names them.
+In the text of
+.BR a ,
+.B c
+and
+.BR i ,
+.BI \e n
+stands for the
+.IR n th
+bound token of the match that the nearest enclosing
+.B x
+or
+.B g
+found, and
+.B \e\e
+for a backslash.
+.SH EXAMPLES
+Make each increment by one an
+.BR ++ :
+.IP
+.EX
+carve -l c 'x/x:@ident = :x + 1/ c/\e1++/' <old.c >new.c
+.EE
+.PP
+Swap the first two arguments of the calls of
+.I memmove
+whose arguments are single tokens, in place:
+.IP
+.EX
+carve 'x/memmove ( x:. , y:. , z:. )/ c/memmove(\e2, \e1, \e3)/' *.c
+.EE
+.PP
+Rename a variable everywhere but in comments and strings:
+.IP
+.EX
+carve ',s/count/n/g' file.c
+.EE
+.SH SOURCE
+plan9web's
+.B src/cmd/sift
+and
+.B /sys/src/libtok
+.SH SEE ALSO
+.IR sam (1),
+.IR sift (1),
+.IR tok (2),
+.IR syn (4)
+.SH DIAGNOSTICS
+An error, such as a search that finds nothing or changes out of order, ends the script for that
+file;
+.I carve
+writes nothing for it and goes on to the next.
+The exit status is
+.B errors
+if any file failed.
+.SH BUGS
+.I Carve
+differs from sam on purpose:
+its patterns are of tokens, and its
+.BI \e n
+stand for bound names, not groups;
+.BR a ,
+.B c
+and
+.B i
+take bound names from the enclosing
+.B x
+or
+.BR g ,
+and
+.B \e\e
+in their text, even in the form of lines that ends with a
+.B .
+line;
+dot starts as the whole text, not
+.BR #0 ,
+so a script need not begin with
+.BR , ;
+.B =
+puts the file's name first when
+.I carve
+edits files;
+.BR p ,
+.B =
+and
+.B >
+write to standard output, before the text when
+.I carve
+reads standard input;
+an empty match falls at the start of a token;
+it parses the whole script before it reads a file;
+and it has no
+.BR b ,
+.BR B ,
+.BR D ,
+.BR e ,
+.BR f ,
+.BR k ,
+.BR m ,
+.BR n ,
+.BR q ,
+.BR r ,
+.BR t ,
+.BR u ,
+.BR w ,
+.BR X ,
+.BR Y ,
+.BR ! ,
+.BR cd ,
+or the addresses
+.B '
+and
+.BR \&" .
