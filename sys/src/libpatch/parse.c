@@ -95,7 +95,7 @@ unquote(char *s, int n, char **out)
 }
 
 static char*
-strip(char *s, int p)
+strip(char *s, int p, int lnum)
 {
 	char *t, *q;
 
@@ -106,13 +106,23 @@ strip(char *s, int p)
 		q = t+1;
 	}
 	if(p >= 0 || *q == 0){
-		werrstr("cannot strip a component from %s", s);
+		werrstr("%d: cannot strip a component from %s", lnum, s);
+		free(s);
+		return nil;
+	}
+	if(*q == '/'){
+		werrstr("%d: %s: an absolute name; -p strips its start", lnum, q);
+		free(s);
+		return nil;
+	}
+	if(!islocal(q)){
+		werrstr("%d: %s: not a local name", lnum, q);
 		free(s);
 		return nil;
 	}
 	t = strdupn(q, strlen(q));
 	free(s);
-	return t;
+	return cleanname(t);
 }
 
 static int
@@ -481,7 +491,7 @@ gitdiff(Rd *r, Diff *d, char *s, int n, int p)
 		b = nil;
 		d->flags |= Pdel;
 	}
-	if(a != nil && (d->old = strip(a, p)) == nil || b != nil && (d->new = strip(b, p)) == nil)
+	if(a != nil && (d->old = strip(a, p, d->lnum)) == nil || b != nil && (d->new = strip(b, p, d->lnum)) == nil)
 		goto Err1;
 	a = b = nil;
 	if(d->old == nil && d->new == nil){
@@ -521,11 +531,11 @@ plaindiff(Rd *r, Diff *d, int p)
 		werrstr("%d: no file name", d->lnum);
 		return -1;
 	}
-	if(a != nil && (d->old = strip(a, p)) == nil){
+	if(a != nil && (d->old = strip(a, p, d->lnum)) == nil){
 		free(b);
 		return -1;
 	}
-	if(b != nil && (d->new = strip(b, p)) == nil)
+	if(b != nil && (d->new = strip(b, p, d->lnum)) == nil)
 		return -1;
 	return hunks(r, d);
 }
