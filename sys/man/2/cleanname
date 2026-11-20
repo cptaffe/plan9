@@ -1,6 +1,6 @@
 .TH CLEANNAME 2
 .SH NAME
-cleanname \- clean a path name
+cleanname, islocal \- clean a path name, and tell a local one
 .SH SYNOPSIS
 .B #include <u.h>
 .br
@@ -8,6 +8,9 @@ cleanname \- clean a path name
 .sp
 .B
 char*	cleanname(char *filename)
+.PP
+.B
+int	islocal(char *filename)
 .SH DESCRIPTION
 .I Cleanname
 takes a
@@ -28,7 +31,30 @@ can return is two bytes: the null-terminated string
 Therefore
 .I filename
 must contain room for at least two bytes.
+.PP
+.I Islocal
+returns 1 when
+.I filename
+is local, a name that stays within the directory it is taken from, as Go's
+.B filepath.IsLocal
+has it, and 0 when it is not.
+A local name is not empty, does not begin with
+.B /
+or
+.BR # ,
+and does not begin with
+.B ..
+once cleaned, so
+.B a/../b
+is local and
+.B a/../../b
+is not.
+It leaves
+.I filename
+as it was.
 .SH SOURCE
 .B /sys/src/libc/port/cleanname.c
+.br
+.B /sys/src/libc/port/islocal.c
 .SH SEE ALSO
 .IR cleanname (1)
