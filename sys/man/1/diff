@@ -201,6 +201,14 @@ Except in rare circumstances,
 .I diff
 finds a smallest sufficient set of file
 differences.
+Where a group of changes could sit higher or lower, because the lines at its edges repeat,
+.I diff
+puts it where a change in the other file meets it,
+or else where its edges fall at blank lines and at the least indented lines,
+as
+.IR git 's
+indent heuristic does,
+so that an added function begins with its first line and ends with its own brace.
 .SH FILES
 .B /tmp/diff[12]
 .SH SOURCE

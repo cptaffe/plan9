@@ -255,6 +255,29 @@ sameline(int k, int a, int b)
 	return 1;
 }
 
+int
+lineindent(int k, int l)
+{
+	long *ix, n, o;
+	int c, ind;
+
+	ix = k ? ixnew : ixold;
+	n = ix[l] - ix[l-1];
+	Bseek(input[k], ix[l-1], 0);
+	ind = 0;
+	for (o = 0; o < n && (c = Bgetc(input[k])) >= 0; o++) {
+		if (!isspace(c))
+			return ind;
+		if (c == ' ')
+			ind++;
+		else if (c == '\t')
+			ind += 8 - ind%8;
+		if (ind >= 200)
+			return 200;
+	}
+	return -1;
+}
+
 static void
 range(int a, int b, char *separator)
 {

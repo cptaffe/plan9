@@ -283,7 +283,79 @@ struct Group {
 	int e;
 };
 
+typedef struct Score Score;
+struct Score {
+	int ind;
+	int pen;
+};
+
+enum {
+	Maxblank = 20,
+	Maxslide = 100,
+};
+
 static char *chg[2];
+static short *ind[2];
+
+static int
+indent(int k, int l)
+{
+	if (ind[k][l] == -2)
+		ind[k][l] = lineindent(k, l);
+	return ind[k][l];
+}
+
+static void
+split(int k, int l, Score *s)
+{
+	int i, in, pre, preb, post, postb, b, any;
+
+	in = l > len[k] ? -1 : indent(k, l);
+	pre = -1;
+	preb = 0;
+	for (i = l-1; i >= 1; i--) {
+		if ((pre = indent(k, i)) != -1)
+			break;
+		if (++preb == Maxblank) {
+			pre = 0;
+			break;
+		}
+	}
+	post = -1;
+	postb = 0;
+	for (i = l+1; i <= len[k]; i++) {
+		if ((post = indent(k, i)) != -1)
+			break;
+		if (++postb == Maxblank) {
+			post = 0;
+			break;
+		}
+	}
+	if (pre == -1 && preb == 0)
+		s->pen += 1;
+	if (l > len[k])
+		s->pen += 21;
+	b = in == -1 ? 1 + postb : 0;
+	any = preb + b != 0;
+	s->pen += -30*(preb + b) + 6*b;
+	if (in == -1)
+		in = post;
+	s->ind += in;
+	if (in == -1 || pre == -1 || in == pre)
+		return;
+	if (in > pre)
+		s->pen += any ? 10 : -4;
+	else if (post != -1 && post > in)
+		s->pen += any ? 17 : 24;
+	else
+		s->pen += any ? 17 : 23;
+}
+
+static int
+worse(Score *a, Score *b)
+{
+	return 60*((a->ind > b->ind) - (a->ind < b->ind)) + a->pen - b->pen > 0;
+}
 
 static void
 first(int k, Group *g)
@@ -343,7 +415,8 @@ static void
 compact(int k)
 {
 	Group g, o;
-	int n, top, align;
+	int n, top, align, e, best;
+	Score sc, bs;
 
 	first(k, &g);
 	first(!k, &o);
@@ -368,6 +441,26 @@ compact(int k)
 					up(k, &g);
 					prev(!k, &o);
 				}
+			else if (g.e != top) {
+				e = top;
+				if (g.e - n - 1 > e)
+					e = g.e - n - 1;
+				if (g.e - Maxslide > e)
+					e = g.e - Maxslide;
+				for (best = -1; e <= g.e; e++) {
+					sc.ind = sc.pen = 0;
+					split(k, e, &sc);
+					split(k, e - n, &sc);
+					if (best < 0 || !worse(&sc, &bs)) {
+						bs = sc;
+						best = e;
+					}
+				}
+				while (g.e > best) {
+					up(k, &g);
+					prev(!k, &o);
+				}
+			}
 		}
 		if (next(k, &g) < 0)
 			break;
@@ -384,6 +477,9 @@ slide(void)
 		chg[k] = MALLOC(char, len[k]+2);
 		memset(chg[k], k, len[k]+2);
 		chg[k][0] = chg[k][len[k]+1] = 0;
+		ind[k] = MALLOC(short, len[k]+2);
+		for (i = 0; i <= len[k]+1; i++)
+			ind[k][i] = -2;
 	}
 	for (i = 1; i <= len[0]; i++) {
 		chg[0][i] = J[i] == 0;
@@ -401,8 +497,10 @@ slide(void)
 			j++;
 		J[i] = j++;
 	}
-	FREE(chg[0]);
-	FREE(chg[1]);
+	for (k = 0; k < 2; k++) {
+		FREE(chg[k]);
+		FREE(ind[k]);
+	}
 }
 
 static void
