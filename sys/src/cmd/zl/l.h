@@ -89,6 +89,7 @@ enum
 	WI32EXTEND8	= 0xc0,
 	WI32EXTEND16	= 0xc1,
 	WPREFIX	= 0xfc,
+	WPREFIXV	= 0xfd,
 	WVOID	= 0x40,
 };
 
@@ -194,6 +195,7 @@ extern	char*	entry;
 extern	char**	exports;
 extern	int	nexport;
 extern	int	rflag;
+extern	int	simd;
 extern	Rel*	rels;
 extern	int	nrel;
 extern	Sym*	cursym;

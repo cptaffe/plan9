@@ -298,6 +298,11 @@ enum
 	OREGPAIR,
 	OEXREG,
 
+	OVLOAD,
+	OVRLOAD,
+	OVSPLAT,
+	OVSUM,
+
 	OEND
 };
 enum
@@ -323,6 +328,7 @@ enum
 	TUNION,
 	TENUM,
 	TDOT,
+	TVEC,
 	NTYPE,
 
 	TAUTO	= NTYPE,
@@ -388,7 +394,6 @@ enum
 	BSTRUCT		= 1L<<TSTRUCT,
 	BUNION		= 1L<<TUNION,
 	BENUM		= 1L<<TENUM,
-	BFILE		= 1L<<TFILE,
 	BDOT		= 1L<<TDOT,
 	BCONSTNT	= 1L<<TCONSTNT,
 	BVOLATILE	= 1L<<TVOLATILE,
@@ -484,6 +489,7 @@ EXTERN	int	packflg;
 EXTERN	int	fproundflg;
 EXTERN	int	fieldsysv;
 EXTERN	int	vlongreg;
+EXTERN	int	vecwidth;
 EXTERN	int	profileflg;
 EXTERN	int	ncontin;
 EXTERN	int	newvlongcode;
@@ -775,6 +781,15 @@ vlong	convvtox(vlong, int);
  * machcap
  */
 int	machcap(Node*);
+
+/*
+ * vec
+ */
+int	veccap(int, int);
+void	vecfn(Node*);
+int	vecop(int);
+int	tcomv(Node*);
+int	isvec(Node*);
 
 #pragma	varargck	argpos	warn	2
 #pragma	varargck	argpos	diag	2
