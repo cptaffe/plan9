@@ -532,7 +532,8 @@ and opens the file it guards under the
 lock, which its opens of
 .BR body ,
 .BR data ,
-.B xdata
+.BR xdata ,
+.B style
 and
 .B rdevent
 also take, so that none of the
