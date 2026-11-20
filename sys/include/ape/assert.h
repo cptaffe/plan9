@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-extern void _assert(char *, unsigned);
+extern void _assert(const char *, unsigned) __attribute__((__noreturn__));
 
 #ifdef __cplusplus
 }

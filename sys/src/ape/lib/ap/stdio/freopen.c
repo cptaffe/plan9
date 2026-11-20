@@ -14,7 +14,7 @@
  * a+ a+b ab+	open to read and write, positioned at eof, creating if non-existant.
  * C11: an x after w makes it fail if the file is there.
  */
-FILE *freopen(const char *name, const char *mode, FILE *f){
+static FILE *ufreopen(const char *name, const char *mode, FILE *f){
 	int m;
 
 	if(f->state!=CLOSED){
@@ -69,4 +69,15 @@ FILE *freopen(const char *name, const char *mode, FILE *f){
 	f->wp=0;
 	f->lp=0;
 	return f;
+}
+
+FILE *
+freopen(const char *name, const char *mode, FILE *f)
+{
+	FILE *r;
+
+	flockfile(f);
+	r = ufreopen(name, mode, f);
+	funlockfile(f);
+	return r;
 }

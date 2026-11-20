@@ -2,7 +2,17 @@
 #define __ERRNO
 #pragma lib "/$M/lib/ape/libap.a"
 
+#ifdef __wasm__
+#ifdef __cplusplus
+extern "C" int *__errno(void);
+#else
+extern int *__errno(void);
+#endif
+#define errno (*__errno())
+#else
 extern int errno;
+#define errno errno
+#endif
 
 #define EDOM	1000
 #define ERANGE	1001

@@ -66,6 +66,9 @@ struct Reprog{
 	Reinst	firstinst[5];	/* .text */
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern Reprog	*regcomp(char*);
 extern Reprog	*regcomplit(char*);
 extern Reprog	*regcompnl(char*);
@@ -74,4 +77,7 @@ extern int	regexec(Reprog*, char*, Resub*, int);
 extern void	regsub(char*, char*, int, Resub*, int);
 extern int	rregexec(Reprog*, wchar_t*, Resub*, int);
 extern void	rregsub(wchar_t*, wchar_t*, int, Resub*, int);
+#ifdef __cplusplus
+}
+#endif
 #endif

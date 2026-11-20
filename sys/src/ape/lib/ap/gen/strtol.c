@@ -7,7 +7,7 @@ long
 strtol(const char *nptr, char **endptr, int base)
 {
 	const char *p;
-	long n, nn;
+	unsigned long n, lim;
 	int c, ovfl, v, neg, ndig;
 
 	p = nptr;
@@ -64,6 +64,7 @@ strtol(const char *nptr, char **endptr, int base)
 	/*
 	 * Non-empty sequence of digits
 	 */
+	lim = neg? (unsigned long)LONG_MAX+1: LONG_MAX;
 	for(;; p++,ndig++){
 		c = *p;
 		v = base;
@@ -75,10 +76,10 @@ strtol(const char *nptr, char **endptr, int base)
 			v = c - 'A' + 10;
 		if(v >= base)
 			break;
-		nn = n*base + v;
-		if(nn < n)
+		if(n > (lim - v)/base)
 			ovfl = 1;
-		n = nn;
+		else
+			n = n*base + v;
 	}
 
     Return:
@@ -93,6 +94,6 @@ strtol(const char *nptr, char **endptr, int base)
 		return LONG_MAX;
 	}
 	if(neg)
-		return -n;
+		return n? -(long)(n-1) - 1: 0;
 	return n;
 }
