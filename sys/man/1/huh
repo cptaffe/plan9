@@ -1,0 +1,296 @@
+.TH HUH 1
+.SH NAME
+Huh, Bits \- mark the surprising parts of an acme window's text
+.SH SYNOPSIS
+.B Huh
+[
+.B -a
+] [
+.B -m
+.I lmdir
+] [
+.B -t
+.I bpc
+] [
+.B -s
+.I bits
+] [
+.B -r
+.I rank
+] [
+.B -p
+.I penalty
+] [
+.B -l
+.I runes
+]
+.PP
+.B Bits
+[
+.B -m
+.I lmdir
+] [
+.B -t
+.I bpc
+] [
+.B -s
+.I bits
+] [
+.B -r
+.I rank
+] [
+.B -p
+.I penalty
+] [
+.B -l
+.I runes
+]
+.SH DESCRIPTION
+.I Huh
+and
+.I Bits
+color the text of the
+.IR acme (1)
+window
+.B $winid
+by what a language model makes of it: how many bits each token costs, from
+.IR lmfs ,
+or
+.IR lmsim (4)
+in tests, mounted on
+.I lmdir
+.RB ( /mnt/lm ).
+If
+.I lmdir
+has no
+.BR clone ,
+it mounts
+.B /srv/lm
+there, as
+.B lmsim
+.B -s
+.B lm
+posts it, since acme runs a command in acme's own namespace.
+Each is meant to be run from the window's tag.
+One of them follows a window at a time, as the window's
+.B event
+has one owner: a second program on a window, under
+.IR amux (4),
+cannot open it and exits, and one that starts on a window whose
+.I astyles
+layers already include its own deletes its layer and exits.
+To change one for the other, turn the first off by its name in the tag, then start the other.
+.I Huh
+marks the parts that cost the most, where something new or something wrong is going on;
+.I Bits
+colors every segment of the text in one of seven bands of bits a rune, and draws the text as a strip in a
+window of its own.
+.PP
+Each writes a layer of
+.IR astyles (4)
+on the window,
+.B huh
+or
+.BR bits .
+It makes the layer, opens the window's
+.B event
+file, and then reads its body, so that no edit falls between.
+It writes the text to a session of
+.IR lmdir 's
+.B data
+file, splits the tokens it gets back into segments, as
+.IR segment (1)
+does, and writes the layer.
+Then it follows the window's edits, by the
+.B I
+and
+.B D
+events, in a copy of the body: after each one it writes the whole copy to
+.B data
+on a new open and closes the old one, which drops what was left of it, segments again from the
+segment before the change to the one after it, and writes the layer again, under
+.IR astyles 's
+.B seq
+guard, so a layer from an older text is not kept.
+.PP
+.I Huh
+marks two kinds of runs:
+.TF stretches
+.TP
+.B stretches
+segments whose bits a rune pass
+.I bpc
+(4.5), in the color
+.BR huh ;
+.TP
+.B spikes
+tokens that cost more than
+.I bits
+(15) or stood below
+.I rank
+(50) among the model's guesses, as the word the token is in, in
+.BR huhspike ,
+a stronger color, even inside a stretch.
+.PD
+.LP
+The colors are tints the programs give in their layers' own color lines, each with an opacity,
+so that
+.IR astyles (4)
+blends them over the text's other colors in either theme.
+It leaves out the text's first 40 tokens, which cost many bits for lack of context.
+The limits are the same for every file, so a mark means the same in each.
+.I Penalty
+and
+.I runes
+are
+.IR segment 's
+.B -p
+and
+.BR -l .
+.PP
+.I Bits
+colors each segment in its color,
+.B bits0
+to
+.BR bits6 ,
+by its bits a rune: under 0.5, 0.5 to 1, 1 to 2, 2 to 3, 3 to 4.5, 4.5 to 6, and 6 or more.
+It also opens a drawn window, named for the file with
+.BR +Bits ,
+that shows the text as a strip, a row for each of its lines and a block for each word, in its
+band's color, and beside it a bar for each paragraph, from
+.B bits
+.BR -p :
+its length the paragraph's bits alone, and its dark part those the text before it already had.
+Button 1 on the strip selects its token in the text's window and shows it;
+button 1 on a bar, its paragraph's start.
+Button 3 shows the token's alternatives, as below.
+.PP
+The program reaches the window's files through
+.IR acme (2).
+It takes the window's events by reading the window's
+.B event
+file, whoever else reads it.
+Of the window's events:
+.TF Bits
+.TP
+.B Huh
+(in
+.IR Huh 's
+window) or
+.B Bits
+(in
+.IR Bits 's)
+ends the program, so the same word in the tag turns it on and off.
+.TP
+.B Get
+is written back; the program reads the reloaded body and colors it again.
+.TP
+.B Del
+is written back, and the program ends.
+.TP
+Button 3
+clicked, not swept, on a mark (in
+.IR Huh )
+or on colored text (in
+.IR Bits ),
+writes to the window's
+.B +Errors
+a line for the token clicked and one for each of the run's three costliest tokens:
+the token's address in the file, the token, its bits and rank, and the model's five likeliest
+tokens in its place, from
+.IR lmdir 's
+.BR top ,
+each with its bits.
+B3 on a line shows its token.
+The alternatives tell a misspelling, whose likeliest token is the right spelling, from a new
+idea.
+.PD
+.LP
+Every other event goes back to acme, which handles it as it would have.
+However the program ends, by an event, a failure of
+.IR lmdir ,
+or a note, it deletes its layer and its own window, and closes the event files.
+Del or
+.B Bits
+in
+.IR Bits 's
+own window ends it too.
+.PP
+.B Huh
+.B -a
+writes the alternatives for the token at the window's dot to
+.B +Errors
+and exits, in any window, with or without
+.I Huh
+or
+.IR Bits ;
+.B cmd-k
+.B h
+in
+.B /lib/hotkey/acme
+runs it on the window with the focus.
+.SH FILES
+.TF /lib/astyles
+.TP
+.B /lib/astyles
+places
+.B bits
+below
+.B highlight
+.TP
+.B /lib/hotkey/acme
+.B cmd-k
+.B h
+.PD
+.SH EXAMPLES
+In a window's tag, with
+.IR lmsim (4)
+or an
+.I lmfs
+on
+.BR /mnt/lm :
+.IP
+.EX
+Huh Bits
+.EE
+.SH SOURCE
+.B src/cmd/huh
+.SH SEE ALSO
+.IR acme (1),
+.IR bits (1),
+.IR segment (1),
+.IR acme (2),
+.IR acme (4),
+.IR amux (4),
+.IR astyles (4),
+.IR lmsim (4),
+.IR theme (6),
+.B doc/words.md
+.SH BUGS
+The limits
+.IR bpc ,
+.I bits
+and
+.IR rank ,
+the bands' bounds, and
+.IR segment 's
+penalty and least length are placeholders, set on
+.IR lmsim 's
+model of bytes; the real model's scores over the tree's text will set them.
+.PP
+A command with a chorded argument loses the argument when written back.
+.PP
+On acme alone, without
+.IR amux (4),
+a window that
+.IR win (1)
+or another program reads gets no events after the program ends: acme keeps one reader of
+.BR event ,
+and the program's read takes the other's place.
+Under
+.IR amux ,
+Huh and Bits leave a window whose
+.B event
+another session holds, as
+.IR win 's
+does.

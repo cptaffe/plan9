@@ -4,8 +4,10 @@
 #include <signal.h>
 #include <unistd.h>
 
+extern pid_t _getpid(void);
+
 int
 raise(int sig)
 {
-	return kill(getpid(), sig);
+	return kill(_getpid(), sig);
 }

@@ -40,6 +40,9 @@ enum
 };
 
 /* allocation */
+#ifdef __cplusplus
+extern "C" {
+#endif
 void	mpsetminbits(int n);	/* newly created mpint's get at least n bits */
 mpint*	mpnew(int n);		/* create a new mpint with at least n bits */
 void	mpfree(mpint *b);
@@ -180,4 +183,7 @@ Mfield *gmfield(mpint*);
 Mfield *cnfield(mpint*);
 
 #pragma	varargck	type	"B"	mpint*
+#ifdef __cplusplus
+}
+#endif
 #endif

@@ -731,6 +731,46 @@ viewer(Document *dd)
 }
 
 Image *gray;
+Image *checker;
+
+static int
+hasalpha(ulong c)
+{
+	for(; c; c >>= 8)
+		if(TYPE(c) == CAlpha)
+			return 1;
+	return 0;
+}
+
+static void
+drawim(Image *dst, Rectangle r)
+{
+	Image *dark;
+	Point sp;
+	int n;
+
+	if(!hasalpha(im->chan)){
+		drawop(dst, r, im, nil, addpt(im->r.min, subpt(r.min, ul)), S);
+		return;
+	}
+	if(checker == nil){
+		n = scalesize(display, 8);
+		checker = xallocimage(display, Rect(0, 0, 2*n, 2*n), RGB24, 1, 0xFFFFFFFF);
+		dark = xallocimage(display, Rect(0, 0, 1, 1), RGB24, 1, 0xCCCCCCFF);
+		if(checker == nil || dark == nil){
+			fprint(2, "checker out of memory: %r\n");
+			wexits("mem");
+		}
+		draw(checker, Rect(n, 0, 2*n, n), dark, nil, ZP);
+		draw(checker, Rect(0, n, n, 2*n), dark, nil, ZP);
+		freeimage(dark);
+	}
+	if(rectclip(&r, rectaddpt(im->r, subpt(ul, im->r.min))) == 0)
+		return;
+	sp = addpt(im->r.min, subpt(r.min, ul));
+	drawop(dst, r, checker, nil, subpt(r.min, ul), S);
+	draw(dst, r, im, nil, sp);
+}
 
 /*
  * A draw operation that touches only the area contained in bot but not in top.
@@ -834,7 +874,9 @@ translate(Point delta)
 	drawdiff(screen, insetrect(r, -2), r, display->black, nil, ZP, S);
 
 	/* fill in image where it used to be off the screen. */
-	if(rectclip(&or, screen->r))
+	if(hasalpha(im->chan))
+		drawim(screen, r);
+	else if(rectclip(&or, screen->r))
 		drawdiff(screen, r, rectaddpt(or, delta), im, nil, im->r.min, S);
 	else
 		drawop(screen, r, im, nil, im->r.min, S);
@@ -853,7 +895,7 @@ redraw(Image *screen)
 	ulrange.min = subpt(screen->r.min, Pt(Dx(im->r), Dy(im->r)));
 
 	ul = pclip(ul, ulrange);
-	drawop(screen, screen->r, im, nil, subpt(im->r.min, subpt(ul, screen->r.min)), S);
+	drawim(screen, screen->r);
 
 	if(im->repl)
 		return;
@@ -867,7 +909,7 @@ redraw(Image *screen)
 
 	/* gray for the rest */
 	if(gray == nil) {
-		gray = xallocimage(display, Rect(0,0,1,1), RGB24, 1, 0x888888FF);
+		gray = xallocimage(display, Rect(0,0,1,1), RGB24, 1, themecolor("back", 0x888888FF));
 		if(gray == nil) {
 			fprint(2, "g out of memory: %r\n");
 			wexits("mem");

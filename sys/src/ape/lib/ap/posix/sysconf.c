@@ -38,6 +38,10 @@ sysconf(int name)
 		return L_cuserid;
 	case _SC_PAGESIZE:
 		return getpagesize();
+	case _SC_PHYS_PAGES:
+		if(sizeof(void*) < sizeof(long long))
+			return (long)((1ULL<<(8*sizeof(void*))) / getpagesize());
+		return LONG_MAX / getpagesize();
 	}
 	errno = EINVAL;
 	return -1;

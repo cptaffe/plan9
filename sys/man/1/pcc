@@ -165,6 +165,91 @@ Operating System Interface standard (POSIX, 1003.1-1990, ISO 9945-1).
 In order to access the POSIX routines, source programs should
 define the preprocessor constant
 .BR _POSIX_SOURCE .
+.PP
+On wasm, POSIX threads
+.RB ( pthread_create )
+and C11's
+.RB ( thrd_create )
+are processes that share the program's memory
+.RB ( rfork(RFPROC|RFMEM) ,
+see
+.IR fork (2)),
+each with a fiber of its own,
+as
+.IR thread (2)'s
+procs are.
+One runs at a time.
+A thread runs until it makes a system call that waits,
+or waits for a mutex, a condition variable or a join,
+or calls
+.I sched_yield
+or
+.IR nanosleep ;
+then another may run.
+A program with threads is rewritten by asyncify at those calls.
+.I Errno
+and
+.B _Thread_local
+variables are each thread's;
+destructors of C++'s
+.B thread_local
+objects run when their thread ends.
+Each thread has its own block of thread-local storage, which
+.I wasm-ld
+lays out only for shared memory: so
+.I pcc
+compiles with the atomics and bulk memory features, links with
+.B --shared-memory
+and a maximum of 4 GB, and then clears the memory's shared flag and its maximum.
+That is safe because a program's threads are fibers in its one instance, which share no
+memory with another, and atomic instructions are valid on unshared memory;
+the step is there because WebKit fails to make many shared memories with a large maximum at once.
+.PP
+A thread's process has its own pid and, made with
+.BR RFNOTEG ,
+its own note group, but to POSIX the threads are one process:
+.I getpid
+gives the first thread's pid in every thread,
+a
+.I kill
+of it and an interrupt reach the first thread,
+and
+.I raise
+and
+.I abort
+post the note to the calling thread's own process, whose handler runs there.
+.I Pthread_kill
+posts it to the thread's.
+A note whose default action ends the process ends the program,
+from any thread, with the note as its status.
+A note reaches a thread that waits for a mutex, a condition variable, a join or a stream
+at once; its handler runs, and the thread waits on.
+A thread that a handler ends in a wait, or that a handler takes out of one by
+.IR longjmp ,
+leaves the wait's queue and passes on a wakeup it had;
+the signal mask is each thread's, a new thread's its maker's, and a signal its thread blocks waits, pending, until
+.I sigprocmask
+or
+.I pthread_sigmask
+unblocks it;
+a lock it held stays held.
+.PP
+As on Plan 9,
+.IR rc (1)
+runs a command in the foreground in its own note group;
+only a command started with
+.B &
+or by
+.B rfork
+gets another.
+So
+.I kill
+of pid 0, and a term, hangup or kill note posted to the group,
+reach the interactive
+.I rc
+too, and
+.I rc
+exits on such a note it does not trap.
 .SH FILES
 .TF /$objtype/lib/ape/libap.a
 .TP
@@ -203,3 +288,23 @@ handlers are only minimally implemented.
 always fails, because Plan 9 doesn't support multiple links to a file.
 The functions related to setting effective user and group ids
 cannot be implemented because the concept doesn't exist in Plan 9.
+.PP
+No thread is preempted: one that spins on a variable another thread sets,
+with no call that waits and no
+.IR sched_yield ,
+never lets that thread run, and hangs.
+Each stdio stream has a lock, taken by every stdio call and by
+.IR flockfile ;
+the
+.I getc
+and
+.I putc
+macros take it when the buffer is empty or full, or when any thread holds it,
+so that they wait for a holder of
+.IR flockfile .
+.I Exit
+flushes the streams without their locks, as another thread may hold one for good.
+A program with threads cannot
+.IR fork ;
+.I posix_spawn
+works.

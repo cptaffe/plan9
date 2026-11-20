@@ -442,15 +442,16 @@ static void
 features(Buf *m)
 {
 	static char *f[] = {
-		"mutable-globals", "nontrapping-fptoint", "bulk-memory", "bulk-memory-opt", "sign-ext", "multivalue", "call-indirect-overlong", "exception-handling",
+		"mutable-globals", "nontrapping-fptoint", "bulk-memory", "bulk-memory-opt", "sign-ext", "multivalue", "call-indirect-overlong", "exception-handling", "simd128",
 	};
 	Buf b;
-	int i;
+	int i, n;
 
 	memset(&b, 0, sizeof b);
 	bname(&b, "target_features");
-	buleb(&b, nelem(f));
-	for(i=0; i<nelem(f); i++) {
+	n = nelem(f) - !simd;
+	buleb(&b, n);
+	for(i=0; i<n; i++) {
 		bput(&b, '+');
 		bname(&b, f[i]);
 	}

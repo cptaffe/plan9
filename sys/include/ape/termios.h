@@ -131,6 +131,9 @@ struct termios {
 	cc_t		c_cc[NCCS];	/* control characters */
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern speed_t cfgetospeed(const struct termios *);
 extern int cfsetospeed(struct termios *, speed_t);
 extern speed_t cfgetispeed(const struct termios *);
@@ -146,4 +149,7 @@ extern int tcflush(int, int);
 extern int tcflow(int, int);
 extern int tcsendbreak(int, int);
 
+#ifdef __cplusplus
+}
+#endif
 #endif
