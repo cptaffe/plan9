@@ -3,6 +3,10 @@
 seconds \- convert human-readable date (and time) to seconds since epoch
 .SH SYNOPSIS
 .B seconds
+[
+.B -f
+.I layout
+]
 .I date
 \&...
 .SH DESCRIPTION
@@ -30,6 +34,22 @@ Unambiguous time-zone names are understood (i.e., not
 or time zones may be written as
 .IR ±hhmm .
 Case is ignored.
+.PP
+The
+.B -f
+option reads each
+.I date
+by
+.I layout
+instead, as
+.I tmparse
+in
+.IR ctime (2)
+reads it, by Go's layouts: as the date
+.L "Mon Jan 2 15:04:05 MST 2006"
+would look, so
+.L "seconds -f 2006-01-02 2011-05-23"
+prints the start of 23 May 2011.
 .SH EXAMPLES
 Print the names of all files under
 .L \&.
