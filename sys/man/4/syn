@@ -38,12 +38,15 @@ them, and passes each request to the program of its document's language.
 and
 .IR Tree (1)
 are its clients.
-It has a reader process for each program, which passes that program's answers to it on a
-channel, so a program never waits on a full pipe while
+It has a reader and a writer process for each program, which pass that program's answers and
+requests to and from it on channels, so a program never waits on a full pipe while
 .I syn
-writes to it, and
+writes to it, a program's death kills only its writer, and
 .I syn
 answers each request in turn.
+A program that dies is run again at the next request of one of its documents, and given each of
+its documents' text; edit numbers stay the client's, and a span from before the restart is answered
+whole.
 Given a file, or with
 .B -l
 standard input in
@@ -105,12 +108,17 @@ language, before its text: a
 name, or a file's name, which the entries'
 .B file=
 expressions match.
-It has no answer.
+The name is the rest of the line, so it may hold spaces.
+It is answered by
+.BI lang " id language"\f1,
+the
+.B syn=
+name found, or by
+.BI error " id " "no language"\f1,
+and a document of no language has every later request answered so too.
 To
 .I syn
-it comes first, and a document of no language has every request answered by
-.BI error " id " "no language"\f1;
-the programs take it and do nothing.
+it comes first; a program answers it with its own language.
 .TP
 .BI body " id n"
 followed by
@@ -286,7 +294,10 @@ forgets document
 .PD
 .PP
 The program answers an error with
-.BI error " id why"\f1.
+.BI error " id why"\f1,
+as
+.BI error " id " "bad length"
+for a body, tree, tags or check whose length is not a number of bytes.
 The program keeps a document's parse from one request to the next, whichever they are.
 For the C text
 .LR "int x = f(1);" ,
@@ -722,3 +733,6 @@ only the name
 .PP
 .B Injection.combined
 is not followed: each range is a document of its own.
+.PP
+A C macro's body, parsed as C by itself, is mostly an error of the parse, so its brackets pair
+nothing.
