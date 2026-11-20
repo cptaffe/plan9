@@ -54,19 +54,23 @@ names;
 also names the language of every file given.
 .PP
 .I Sift
-prints each match as an address,
+prints each match as acme's
+.B =
+command prints an address:
 .IB file :# q0 ,# q1\f1,
-in runes, as
+in runes, which
 .IR sam (1)
 and
 .IR plumb (1)
-take it.
-A match in standard input has no name before it.
+take.
 With
 .BR -n ,
-.I sift
-prints each line that a match covers instead, after its name and number,
-.IB file : n :\f1.
+it prints the lines instead,
+.IB file : l1
+or
+.IB file : l1 , l2\f1,
+and then each line that the match covers, indented by a tab.
+A match in standard input has no name before it.
 .PP
 .I Sift
 finds the leftmost longest match, then looks for the next one after its end, as
@@ -256,6 +260,15 @@ as lines:
 .IP
 .EX
 sift -n 'main ( .* ) { .* @function.call{reference.call} ( .* ) .* }' *.c
+.EE
+.PP
+A block that only indentation makes has no brackets, so in Python a pattern keeps to a function by
+its tag; this finds the calls of
+.I open
+inside functions:
+.IP
+.EX
+sift -n 'open{definition.function} ( .* )' *.py
 .EE
 .SH FILES
 .TF $home/lib/syn
