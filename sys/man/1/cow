@@ -1,0 +1,108 @@
+.TH COW 1
+.SH NAME
+cow, spots \- run a command on a copy of this directory, and show what it changed
+.SH SYNOPSIS
+.B cow
+.I dir
+.I cmd
+[
+.I arg ...
+]
+.PP
+.B spots
+.I dir
+.SH DESCRIPTION
+.I Cow
+runs
+.I cmd
+in a new name space where
+.IR cowfs (4)
+serves the current directory, with every change kept in
+.IR dir ,
+so that the real files do not change.
+.I Dir
+may be relative to the current directory;
+.I cow
+makes it if it does not exist.
+.I Cow
+refuses a
+.I dir
+that holds anything, or one inside the current directory.
+The command's standard output and error are its own:
+.I cow
+prints only its own errors.
+It keeps the changes whatever the command's status, and exits with that status.
+.PP
+.I Cow
+serves only the current directory and what lies below it.
+A command that changes to a directory outside it, or that names a file there, works on the real
+files.
+.PP
+.I Spots
+prints the changes kept in
+.I dir
+as a patch for the current directory, which must be the one
+.I cow
+ran in.
+For each file that the command made, removed, or changed, it prints Git's header,
+.BI "diff --git a/" path " b/" path \f1,
+then
+.B new file mode
+or
+.B deleted file mode
+for a file the command made or removed,
+or
+.B old mode
+and
+.B new mode
+when the execute bit changed,
+and then the unified diff,
+against
+.B /dev/null
+for a file made or removed.
+A mode is
+.B 100755
+when the owner may execute the file, and
+.B 100644
+otherwise.
+The header alone shows an empty file made or removed.
+A file changed and then changed back, or made and then removed, does not appear, and
+directories appear only through their files.
+A rename shows as the old name's removal and the new name's creation.
+.I Spots
+leaves out Git's
+.B index
+line, so
+.B patch -p1
+and
+.B git apply
+both take its output.
+.PP
+.IR Cowfs
+notes the SHA-1 of each file of the real tree as it copies it;
+.I spots
+warns of a file whose text has changed since then, as applying its patch would undo that change.
+.SH EXAMPLES
+Work in a shell, keeping its changes apart, then save them as a patch:
+.IP
+.EX
+cow /tmp/e rc
+spots /tmp/e >/tmp/e.patch
+.EE
+.SH SOURCE
+plan9web's
+.B rc/bin/cow
+and
+.B rc/bin/spots
+.SH SEE ALSO
+.IR diff (1),
+.IR cowfs (4)
+.SH BUGS
+.I Spots
+compares the files with APE's
+.IR diff ,
+which marks no missing newline at the end of a file;
+a patch of such a file adds one.
+A changed binary file shows as Git's
+.B Binary files
+line, which no patch applies.
