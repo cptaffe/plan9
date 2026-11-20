@@ -16,10 +16,8 @@ FILE *fdopen(const int fd, const char *mode){
 	FILE *f;
 	if(fd==-1) return NULL;
 	for(f=_IO_stream;f!=&_IO_stream[FOPEN_MAX];f++)
-		if(f->state==CLOSED && ftrylockfile(f)==0){
-			funlockfile(f);
+		if(f->state==CLOSED && ftrylockfile(f)==0)
 			break;
-		}
 	if(f==&_IO_stream[FOPEN_MAX])
 		return NULL;
 	f->fd=fd;
@@ -31,5 +29,6 @@ FILE *fdopen(const int fd, const char *mode){
 	f->lp=0;
 	if(mode[0]=='a')
 		lseek(f->fd, 0, SEEK_END);
+	funlockfile(f);
 	return f;
 }
