@@ -75,7 +75,9 @@ findhunk(Diff *d, Hunk *h, Text *t, int lo, int drift)
 		at = hi;
 	if(at < lo)
 		at = lo;
-	for(f = at, b = at-1; f <= hi || b >= lo; f++, b--){
+	if(match(t, at, &h->old))
+		return at;
+	for(f = at+1, b = at-1; f <= hi || b >= lo; f++, b--){
 		if(f <= hi && match(t, f, &h->old))
 			return f;
 		if(b >= lo && match(t, b, &h->old))
