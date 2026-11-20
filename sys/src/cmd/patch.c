@@ -16,6 +16,8 @@ struct File
 	int	dirty;
 	int	edit;
 	char	*tmp;
+	char	*bak;
+	int	state;
 };
 
 File	*files;
@@ -25,6 +27,15 @@ int	nmade;
 int	nflag;
 int	rflag;
 int	strip = -1;
+int	committing;
+char	held[ERRMAX];
+
+enum
+{
+	Saved = 1,
+	Placed,
+	Chmod,
+};
 
 void*
 emalloc(ulong n)
@@ -297,7 +308,7 @@ load(char *name, int fd)
 int
 changed(File *f)
 {
-	if(!f->dirty)
+	if(!f->dirty || !f->exists && !f->had)
 		return 0;
 	if(f->exists != f->had || f->perm != f->operm)
 		return 1;
@@ -375,6 +386,11 @@ cleanup(void)
 int
 catch(void*, char *msg)
 {
+	if(committing && strncmp(msg, "sys:", 4) != 0){
+		if(held[0] == 0)
+			strecpy(held, held+sizeof held, msg);
+		return 1;
+	}
 	if(strcmp(msg, "interrupt") == 0 || strcmp(msg, "hangup") == 0 || strcmp(msg, "alarm") == 0){
 		cleanup();
 		exits(msg);
@@ -413,41 +429,111 @@ writetmp(File *f)
 }
 
 int
-commit(File *f)
+move(char *from, char *to)
 {
 	Dir d;
 
-	if(f->tmp != nil){
-		if(f->had && remove(f->path) < 0){
-			werrstr("remove %s: %r", f->path);
-			return -1;
-		}
-		nulldir(&d);
-		d.name = base(f->path);
-		if(dirwstat(f->tmp, &d) < 0){
-			werrstr("rename %s to %s: %r; its new text is in %s", f->tmp, d.name, f->tmp);
-			f->tmp = nil;
-			return -1;
-		}
-		free(f->tmp);
-		f->tmp = nil;
-		return 0;
-	}
-	if(f->exists){
-		nulldir(&d);
-		d.mode = f->perm;
-		if(dirwstat(f->path, &d) < 0){
-			werrstr("chmod %s: %r", f->path);
-			return -1;
-		}
-		return 0;
-	}
-	if(remove(f->path) < 0){
-		werrstr("remove %s: %r", f->path);
+	nulldir(&d);
+	d.name = base(to);
+	if(dirwstat(from, &d) < 0){
+		werrstr("rename %s to %s: %r", from, d.name);
 		return -1;
 	}
-	rmparent(f->path);
 	return 0;
+}
+
+int
+setperm(char *path, ulong perm)
+{
+	Dir d;
+
+	nulldir(&d);
+	d.mode = perm;
+	if(dirwstat(path, &d) < 0){
+		werrstr("chmod %s: %r", path);
+		return -1;
+	}
+	return 0;
+}
+
+void
+undo(void)
+{
+	int i;
+	File *f;
+
+	for(i = nfiles-1; i >= 0; i--){
+		f = &files[i];
+		switch(f->state){
+		case Chmod:
+			setperm(f->path, f->operm);
+			break;
+		case Placed:
+			move(f->path, f->tmp);
+			if(f->bak != nil)
+				move(f->bak, f->path);
+			break;
+		case Saved:
+			move(f->bak, f->path);
+			break;
+		}
+		f->state = 0;
+	}
+}
+
+int
+commit(void)
+{
+	int i;
+	File *f;
+
+	for(i = 0; i < nfiles; i++){
+		f = &files[i];
+		if(!changed(f) || !f->had || f->exists && f->tmp == nil)
+			continue;
+		f->bak = smprint("%s.patchold%d", f->path, getpid());
+		if(f->bak == nil)
+			sysfatal("smprint: %r");
+		if(move(f->path, f->bak) < 0){
+			free(f->bak);
+			f->bak = nil;
+			return -1;
+		}
+		f->state = Saved;
+	}
+	for(i = 0; i < nfiles; i++){
+		f = &files[i];
+		if(!changed(f) || !f->exists)
+			continue;
+		if(f->tmp != nil){
+			if(move(f->tmp, f->path) < 0)
+				return -1;
+			f->state = Placed;
+		}else{
+			if(setperm(f->path, f->perm) < 0)
+				return -1;
+			f->state = Chmod;
+		}
+	}
+	return 0;
+}
+
+void
+finish(void)
+{
+	int i;
+	File *f;
+
+	for(i = 0; i < nfiles; i++){
+		f = &files[i];
+		if(f->bak != nil && remove(f->bak) < 0)
+			fprint(2, "%s: remove %s: %r\n", argv0, f->bak);
+		if(changed(f) && !f->exists)
+			rmparent(f->path);
+		free(f->tmp);
+		f->tmp = nil;
+	}
+	nmade = 0;
 }
 
 void
@@ -460,7 +546,7 @@ usage(void)
 void
 main(int argc, char **argv)
 {
-	int i, fd, bad;
+	int i, fd;
 	File *f;
 
 	ARGBEGIN{
@@ -507,18 +593,17 @@ main(int argc, char **argv)
 			exits("write");
 		}
 	}
-	bad = 0;
-	for(i = 0; i < nfiles; i++){
-		f = &files[i];
-		if(!changed(f))
-			continue;
-		if(commit(f) < 0){
-			fprint(2, "%s: %r\n", argv0);
-			bad++;
-			continue;
-		}
-		print("%s\n", f->path);
+	committing = 1;
+	if(commit() < 0){
+		fprint(2, "%s: %r\n", argv0);
+		undo();
+		cleanup();
+		exits("commit");
 	}
-	nmade = 0;
-	exits(bad ? "commit" : nil);
+	finish();
+	committing = 0;
+	for(i = 0; i < nfiles; i++)
+		if(changed(&files[i]))
+			print("%s\n", files[i].path);
+	exits(held[0] ? held : nil);
 }
