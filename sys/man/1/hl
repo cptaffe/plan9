@@ -30,18 +30,27 @@ writing their layers in
 .I astyles
 .RB ( /mnt/astyles ).
 .PP
-A window whose file the first rule of
+.I Hl
+runs one
+.IR syn ,
+the syntax programs' router (see
+.IR syn (4)),
+and names each window to it by the window's file;
+a window whose file the first rule of
 .B $home/lib/syn
 or
 .B /lib/syn
-matches is colored by that rule's language, by its syntax program (see
-.IR syn (4)).
+matches is colored by that rule's language.
 .I Hl
-gives a window's grammar its body once, under acme's
+gives
+.I syn
+a window's body once, under acme's
 .B seq
 guard, and then its edits, from the window's
 .BR rdevent ,
-and writes in its layer only the runs that the grammar says may have changed,
+and writes in its layer only the runs that
+.I syn
+says may have changed since the edit as of which it last wrote the layer,
 each under the
 .B seq
 of the edits it reflects, so that
@@ -49,41 +58,27 @@ of the edits it reflects, so that
 refuses colors for text that has since changed,
 and
 .I hl
-colors that text again after the next edits.
+colors that text again from that same edit after the next edits.
 A Get, an edit whose text
 .B rdevent
-leaves out, or a grammar that has lost the document
+leaves out, or a program that has lost the document
 has
 .I hl
 give the body again.
-.PP
-A language's program gives the text of a language it does not have,
-such as a markdown file's fenced block of code, as one run,
-.BI ts/ lang\f1,
-or
-.BI ts/ lang / name
-for the run that the text takes when there is no program for
-.IR lang .
-.I Hl
-gives that text to the program of the first rule with a
-.B fence=
-of
-.IR lang ,
-and puts the program's runs where the text is.
-The program gets the block's edits as the window's program does,
-and a block whose bounds an edit crosses is given again.
-So a block marked
+.I Syn
+gives a fenced block of code in a markdown file to the program of the rule with the block's
+name among its
+.BR fence= ,
+so a block marked
 .B sh
 is colored as
 .BR bash .
 .PP
 .I Hl
-starts each language's program once, by its rule's
-.B cmd=
-and
-.IR rc (1),
-and keeps it for every window in its language.
-It sends a program the requests
+sends
+.I syn
+the requests
+.BR lang ,
 .BR body ,
 .BR insert ,
 .BR delete ,
@@ -110,14 +105,15 @@ capture names to
 .IR theme (6)
 names
 .TP
+.B /bin/syn
+the router
+.TP
 .BI /bin/ts/ lang
 a language's program
 .PD
 .SH SOURCE
 plan9web's
 .B src/cmd/hl.c
-and
-.B src/cmd/synrules.c
 .SH SEE ALSO
 .IR acme (1),
 .IR Tree (1),
