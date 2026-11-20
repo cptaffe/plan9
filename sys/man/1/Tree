@@ -21,8 +21,11 @@ or
 .BR /lib/syn ,
 and the parse is its program's answer to a
 .B tree
-request (see
-.IR syn (4)).
+request, which
+.I Tree
+asks of the one
+.IR syn (4)
+it runs.
 Given
 .IR winid ,
 it shows that window instead of
