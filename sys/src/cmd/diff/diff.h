@@ -22,5 +22,6 @@ void diffreg(char *, char *, char *, char *);
 Biobuf *prepare(int, char *, char *);
 void panic(int, char *, ...);
 void check(Biobuf *, Biobuf *);
+int sameline(int, int, int);
 void change(int, int, int, int);
 void flushchanges(void);

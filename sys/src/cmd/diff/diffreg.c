@@ -277,6 +277,134 @@ unravel(int p)
 		J[q->x+pref] = q->y+pref;
 }
 
+typedef struct Group Group;
+struct Group {
+	int s;
+	int e;
+};
+
+static char *chg[2];
+
+static void
+first(int k, Group *g)
+{
+	g->s = g->e = 1;
+	while (chg[k][g->e])
+		g->e++;
+}
+
+static int
+next(int k, Group *g)
+{
+	if (g->e > len[k])
+		return -1;
+	g->s = g->e+1;
+	for (g->e = g->s; chg[k][g->e]; g->e++)
+		;
+	return 0;
+}
+
+static int
+prev(int k, Group *g)
+{
+	if (g->s <= 1)
+		return -1;
+	g->e = g->s-1;
+	for (g->s = g->e; chg[k][g->s-1]; g->s--)
+		;
+	return 0;
+}
+
+static int
+down(int k, Group *g)
+{
+	if (g->e > len[k] || !sameline(k, g->s, g->e))
+		return -1;
+	chg[k][g->s++] = 0;
+	chg[k][g->e++] = 1;
+	while (chg[k][g->e])
+		g->e++;
+	return 0;
+}
+
+static int
+up(int k, Group *g)
+{
+	if (g->s <= 1 || !sameline(k, g->s-1, g->e-1))
+		return -1;
+	chg[k][--g->s] = 1;
+	chg[k][--g->e] = 0;
+	while (chg[k][g->s-1])
+		g->s--;
+	return 0;
+}
+
+static void
+compact(int k)
+{
+	Group g, o;
+	int n, top, align;
+
+	first(k, &g);
+	first(!k, &o);
+	for (;;) {
+		if (g.e > g.s) {
+			do {
+				n = g.e - g.s;
+				align = -1;
+				while (up(k, &g) == 0)
+					prev(!k, &o);
+				top = g.e;
+				if (o.e > o.s)
+					align = g.e;
+				while (down(k, &g) == 0) {
+					next(!k, &o);
+					if (o.e > o.s)
+						align = g.e;
+				}
+			} while (n != g.e - g.s);
+			if (g.e != top && align >= 0)
+				while (o.e == o.s) {
+					up(k, &g);
+					prev(!k, &o);
+				}
+		}
+		if (next(k, &g) < 0)
+			break;
+		next(!k, &o);
+	}
+}
+
+static void
+slide(void)
+{
+	int i, j, k;
+
+	for (k = 0; k < 2; k++) {
+		chg[k] = MALLOC(char, len[k]+2);
+		memset(chg[k], k, len[k]+2);
+		chg[k][0] = chg[k][len[k]+1] = 0;
+	}
+	for (i = 1; i <= len[0]; i++) {
+		chg[0][i] = J[i] == 0;
+		if (J[i])
+			chg[1][J[i]] = 0;
+	}
+	compact(0);
+	compact(1);
+	for (i = j = 1; i <= len[0]; i++) {
+		if (chg[0][i]) {
+			J[i] = 0;
+			continue;
+		}
+		while (chg[1][j])
+			j++;
+		J[i] = j++;
+	}
+	FREE(chg[0]);
+	FREE(chg[1]);
+}
+
 static void
 output(void)
 {
@@ -415,6 +543,7 @@ diffreg(char *f, char *t, char *of, char *ot)
 	ixnew = MALLOC(long, len[1]+2);
 	Bseek(b0, 0, 0); Bseek(b1, 0, 0);
 	check(b0, b1);
+	slide();
 	output();
 	FREE(J); FREE(ixold); FREE(ixnew);
 	Bterm(b0); Bterm(b1);			/* ++++ */
