@@ -212,6 +212,13 @@ fits the image to the width of the window, and
 .B h
 to its height.
 .PP
+An image's transparent parts show over a checkerboard of white and light gray squares,
+the same in every theme.
+Around the image the window is gray, or the color
+.B back
+of the theme
+.RI ( theme (6)).
+.PP
 .I Page
 calls
 .IR gs (1)
@@ -241,7 +248,8 @@ Preview this manual in a new window.
 .IR gs (1),
 .IR jpg (1),
 .IR tex (1),
-.IR troff (1)
+.IR troff (1),
+.IR theme (6)
 .SH SOURCE
 .B /sys/src/cmd/page
 .SH DIAGNOSTICS
