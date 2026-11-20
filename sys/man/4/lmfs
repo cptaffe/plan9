@@ -71,7 +71,10 @@ starts one for a model's tokenizer and one for the model, and talks to each on a
 a request a line, so the model's work runs beside the server and never holds up
 another session's open, read or
 .BR ctl .
-It loads a model once, for every session that names it.
+It loads a model once, for every session that names it,
+and at its start only a
+.I model
+named on its command line.
 .I Bytes
 .RB ( -b ,
 3 GB by default, of wasm32's 4)
