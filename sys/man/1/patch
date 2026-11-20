@@ -4,7 +4,7 @@ patch \- apply unified diffs
 .SH SYNOPSIS
 .B patch
 [
-.B -nR
+.B -nRz
 ]
 [
 .B -p
@@ -94,14 +94,14 @@ A rename removes the old file.
 A hunk applies where its old lines, its context and the lines it removes, are in the file exactly.
 .I Patch
 looks first at the line the hunk names, moved by as many lines as the hunk before it moved,
-and then one line further each way in turn, through the file.
+and then one line further each way in turn, below before above, through the file.
 A hunk that names the first line must apply there, and one with no context after its
 changes must end at the end of the file, as
 .IR git 's
-apply holds them.
-When a diff's hunks show that it has no context, as
+apply holds them; so a diff made with no context, as
 .B diff -U0
-makes it, only a hunk that adds lines before the first must apply at the start.
+makes it, needs
+.BR -z .
 The hunks of a file apply in their order, each after the one before.
 .PP
 The options are:
@@ -135,6 +135,13 @@ would apply them and print the files they would change, but write nothing.
 .TP
 .B -R
 Apply the diffs in reverse, from the new files to the old.
+.TP
+.B -z
+Take the diffs as made with no context, as
+.IR git 's
+apply
+.B --unidiff-zero
+does: a hunk is held only when it adds lines before the first, and the rest go by their numbers.
 .PP
 .I Patch
 writes each file's new text to a temporary file beside it,
@@ -176,12 +183,5 @@ patch -R <0001-fix.patch
 An error names the patch, the line of the diff's header, the file and the cause,
 such as the line of a hunk that does not apply.
 .SH BUGS
-A diff with no context whose one hunk names the first line looks like a diff of the whole file,
-and must match the whole file, as
-.IR git 's
-apply without
-.B --unidiff-zero
-takes it.
-.PP
 .B -R
 refuses a copy.

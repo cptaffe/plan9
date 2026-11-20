@@ -556,10 +556,6 @@ check(Diff *d)
 			werrstr("%d: deleted file's hunk has new lines", h->lnum);
 			return -1;
 		}
-		if(h->lead == 0 && (i > 0 || h->oldln + (h->oldcnt == 0) > 1))
-			d->flags |= Pzero;
-		if(h->trail == 0 && i < d->nh-1)
-			d->flags |= Pzero;
 	}
 	if(d->flags&Pnew && d->flags&Pdel){
 		werrstr("%d: diff of /dev/null and /dev/null", d->lnum);
