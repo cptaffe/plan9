@@ -1,6 +1,6 @@
 .TH CTIME 2
 .SH NAME
-ctime, localtime, gmtime, asctime, tm2sec, timezone \- convert date and time
+ctime, localtime, gmtime, asctime, tm2sec, tmfmt, tmparse, tmsec, timezone \- convert date and time
 .SH SYNOPSIS
 .B #include <u.h>
 .br
@@ -21,6 +21,15 @@ char*	asctime(Tm *tm)
 .PP
 .B
 long	tm2sec(Tm *tm)
+.PP
+.B
+char*	tmfmt(Tm *tm, char *layout)
+.PP
+.B
+int	tmparse(Tm *tm, char *layout, char *s)
+.PP
+.B
+vlong	tmsec(Tm *tm)
 .PP
 .B
 /env/timezone
@@ -112,13 +121,124 @@ Greenwich Mean Time is represented by
 .EX
 GMT 0
 .EE
+.PP
+.I Tmfmt
+and
+.I tmparse
+write and read a date by a layout, as Go's time package does.
+A layout writes one date,
+.IP
+.EX
+Mon Jan 2 15:04:05 MST 2006
+.EE
+.PP
+that is, 15:04:05 on January 2, 2006, in a zone 7 hours west of Greenwich, as the date should look.
+Each of its parts stands for that part of the date, and everything else is itself:
+.TF Z07:00:00
+.TP
+.B 2006 06
+the year, with four digits or two
+.TP
+.B "January Jan 1 01"
+the month, by name or abbreviation, or by number, with or without a leading 0
+.TP
+.B "Monday Mon"
+the day of the week
+.TP
+.B "2 _2 02"
+the day of the month, with neither, a space or a 0 to make two digits
+.TP
+.B "__2 002"
+the day of the year, with spaces or zeros to make three digits
+.TP
+.B "15 3 03"
+the hour, of 24 with two digits, or of 12 with one or two
+.TP
+.B "4 04 5 05"
+the minute and the second, with one digit or two
+.TP
+.B "PM pm"
+.L AM
+or
+.LR PM ,
+in either case
+.TP
+.B MST
+the zone's name
+.TP
+.B "-0700 -07:00 -07 -070000 -07:00:00"
+the zone's offset from Greenwich, with or without colons, minutes and seconds
+.TP
+.B "Z0700 Z07:00 Z07 Z070000 Z07:00:00"
+the same, but
+.L Z
+for Greenwich itself
+.TP
+.B ".000 .999"
+a fraction of a second, with as many digits as the zeros, or as many as needed up to the nines;
+a comma may stand for the point
+.PD
+.PP
+They take a part only where it cannot start a longer one, and
+.L Jan
+and
+.L Mon
+only where a lower-case letter does not follow.
+.I Tmfmt
+returns the text of
+.I tm
+by the layout, in memory from
+.IR malloc (2).
+A
+.B Tm
+holds no fraction of a second, so
+.L .000
+writes zeros and
+.L .999
+nothing.
+.I Tmparse
+reads the date in
+.I s
+by the layout into
+.IR tm ,
+and returns 0, or \-1 with the error string set when
+.I s
+does not fit the layout or names a day that does not exist.
+A space in the layout matches any run of spaces in
+.IR s ,
+and names match in either case.
+A part the layout lacks is the least it can be: January, the first, the year 0, midnight.
+Without a zone in
+.IR s ,
+the date is Greenwich's; with only a name, the offset is the local zone's if the name is the local zone's, and 0 if not.
+.I Tmparse
+sets
+.BR wday ,
+.BR yday ,
+.B zone
+and
+.B tzoff
+too.
+.I Tmsec
+returns the seconds since the start of 1970 GMT of the date in
+.IR tm ,
+by its fields and
+.BR tzoff ,
+as
+.I tm2sec
+does not.
 .SH SOURCE
 .B /sys/src/libc/9sys
+.br
+.B /sys/src/libc/port/tmfmt.c
 .SH "SEE ALSO"
 .IR date (1),
 .IR time (2),
 .IR init (8)
 .SH BUGS
+A zone's name longer than three letters loses the rest in
+.BR Tm .
+.PP
 The return values point to static data
 whose content is overwritten by each call.
 .PP

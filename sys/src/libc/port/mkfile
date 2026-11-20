@@ -104,6 +104,7 @@ CFILES=\
 	strtoull.c\
 	tan.c\
 	tanh.c\
+	tmfmt.c\
 	tokenize.c\
 	toupper.c\
 	utfecpy.c\
