@@ -42,6 +42,17 @@ and the lines of its header.
 A name ends at a tab, and a name in double quotes has C's escapes.
 .B /dev/null
 as the old name makes the new file, and as the new name removes the old one.
+Every other name must be local, as
+.IR islocal (2)
+says: not absolute, not beginning with
+.BR # ,
+and not leading out of the directory once cleaned.
+.I Patch
+cleans each name, so
+.B ./f
+and
+.B f
+are one file.
 Of
 .IR git 's
 header,
@@ -127,9 +138,13 @@ Apply the diffs in reverse, from the new files to the old.
 .PP
 .I Patch
 writes each file's new text to a temporary file beside it,
-.IB file .patch pid\f1,
-and only when it has written every one does it remove each old file and rename the temporary one in its place.
-If a write fails or an interrupt comes before then, it removes the temporary files and the directories it made.
+.IB file .patch pid\f1.
+When it has written them all, it moves each old file aside, to
+.IB file .patchold pid\f1,
+puts the temporary files in their places, and only then removes the old files.
+If any step fails, it puts back what it moved and removes the temporary files and the directories it made,
+so the files are as they were.
+It holds an interrupt off while it does this, and acts on it after, and it prints the names when it has done.
 It makes the directories a new file needs, and removes those that a removed file leaves empty.
 .SH EXAMPLES
 Turn a copy of the tree
@@ -161,10 +176,6 @@ patch -R <0001-fix.patch
 An error names the patch, the line of the diff's header, the file and the cause,
 such as the line of a hunk that does not apply.
 .SH BUGS
-.I Patch
-does not replace a file atomically:
-it removes the file and then renames the temporary one, and if the rename fails it says where the new text is.
-.PP
 A diff with no context whose one hunk names the first line looks like a diff of the whole file,
 and must match the whole file, as
 .IR git 's
