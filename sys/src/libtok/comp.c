@@ -164,7 +164,7 @@ simple(P *p, char *w)
 		}
 		if(t->s[0] == 0)
 			perr(p, "%s: @ needs a name", w);
-		if(_tokname("comment", t->s))
+		if(_tokname(t->s, "comment"))
 			p->p->comments = 1;
 		return t;
 	}
