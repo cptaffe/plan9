@@ -77,7 +77,9 @@ fn apply @{
 	# force re-reading env
 	rc -c '
 		echo applying $msg | sed 1q
-		date=`{seconds -f ''Mon, 02 Jan 2006 15:04:05 -0700'' $date}
+		date=`{echo $date | sed ''s/[ 	]*\([^()]*\)[ 	]*$//''}
+		if(! date=`{seconds -f ''Mon, 2 Jan 2006 15:04:05 -0700'' $"date})
+			die ''bad date:'' $date
 		if(! files=`$nl{patch -p1 < $diffpath})
 			die ''patch failed''
 		for(f in $files){
