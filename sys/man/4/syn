@@ -51,12 +51,15 @@ When more than 256 edits of one document wait,
 drops them and queues the document's text in their place, so a burst of edits, as an
 .IR acme (1)
 .B Edit
-makes, costs a slow program one body, and the program goes on.
-A program is dead only when its answers end, as when it exits or a write to it fails, and then
-its reader and writer end and their pipes close.
+makes, costs a slow program one body, and the program goes on; the edits after it are numbered
+from it, and a span from before it is answered whole.
+A program is dead only when its answers end, as when it exits, or when a write to it fails, and
+then
+.I syn
+kills its note group, and its reader and writer end and their pipes close.
 A program that dies is run again at the next request of one of its documents, and given each of
-its documents' text; edit numbers stay the client's, and a span from before the restart is answered
-whole.
+its documents' language and text; edit numbers stay the client's, and a span from before the
+restart is answered whole.
 A program that ends before it answers anything cannot start;
 .I syn
 does not run it again for each request, but answers them
@@ -64,6 +67,8 @@ does not run it again for each request, but answers them
 until a
 .B lang
 names it again or the rules change.
+When the rules change, an open document goes to the program of the entry that now serves its
+name, with its language and text.
 Given a file, or with
 .B -l
 standard input in
@@ -137,10 +142,11 @@ To
 .I syn
 it comes first, and
 .I syn
-gives it to the program, which answers it with its own language; if the program cannot start,
+gives it to the program, which answers it with its own language, before each document's text,
+as to the program of a fenced block; if the program cannot start,
 .I syn
 answers
-.BI error " id " "cannot start"1.
+.BI error " id " "cannot start"\f1.
 .TP
 .BI body " id n"
 followed by
