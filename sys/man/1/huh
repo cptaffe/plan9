@@ -310,6 +310,11 @@ or
 .B /lib/huh
 as for
 .IR Huh .
+The cutoffs stop at a floor of 1.7 bits a rune, near the 90th percentile of the scores over the
+tree's docs, man pages and C, so a bland text gets less than its share, or nothing, and a text
+under twice
+.I width
+tokens gets nothing.
 A stretch is a run of tokens above the cutoff for 1.5 times the density that holds a token above
 the cutoff for the density, and is at least
 .I tokens
