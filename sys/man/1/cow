@@ -95,11 +95,19 @@ line, so
 and
 .B git apply
 both take its output.
-It leaves binary files out of the patch, naming each on standard error as
+It leaves out of the patch each binary file, one with a NUL byte anywhere in either version,
+naming it on standard error as
 .BI "spots: binary: " path ,
-and then exits with status
-.B binary
-so that a pipeline knows the patch is partial.
+and each file whose name begins with
+.BR # ,
+which
+.IR patch (1)
+would take for a device and refuse, naming it as
+.BI "spots: device name: " path .
+It then exits with status
+.BR binary ,
+.BR "device name" ,
+or both, so that a pipeline knows the patch is partial.
 .PP
 .IR Cowfs
 notes the SHA-1 of each file of the real tree as it copies it;
@@ -129,6 +137,13 @@ and
 Bytes past ASCII stay as they are in a name, as Git writes them with
 .B core.quotepath
 off.
+.PP
+.I Spots
+leaves a file out whole, so when the command removes a file that
+.I spots
+leaves out and makes a directory of its name, or the reverse,
+.I patch
+refuses the whole patch.
 .PP
 .I Spots
 finds a rename only when the text is the same;
