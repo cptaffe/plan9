@@ -22,6 +22,16 @@ sigemptyset(sigset_t *set)
 	return 0;
 }
 
+static int
+valid(int signo)
+{
+	if(signo < SIGHUP || signo > SIGXFSZ){
+		errno = EINVAL;
+		return 0;
+	}
+	return 1;
+}
+
 int
 sigfillset(sigset_t *set)
 {
@@ -34,11 +44,9 @@ sigaddset(sigset_t *set, int signo)
 {
 	int b;
 
-	b = BITSIG(signo);
-	if(!(b&stdsigs)){
-		errno = EINVAL;
+	if(!valid(signo))
 		return -1;
-	}
+	b = BITSIG(signo);
 	*set |= b;
 	return 0;
 }
@@ -48,11 +56,9 @@ sigdelset(sigset_t *set, int signo)
 {
 	int b;
 
-	b = BITSIG(signo);
-	if(!(b&stdsigs)){
-		errno = EINVAL;
+	if(!valid(signo))
 		return -1;
-	}
+	b = BITSIG(signo);
 	*set &= ~b;
 	return 0;
 }
@@ -62,10 +68,8 @@ sigismember(const sigset_t *set, int signo)
 {
 	int b;
 
-	b = BITSIG(signo);
-	if(!(b&stdsigs)){
-		errno = EINVAL;
+	if(!valid(signo))
 		return -1;
-	}
+	b = BITSIG(signo);
 	return (b&*set)? 1 : 0;
 }
