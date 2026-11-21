@@ -136,7 +136,6 @@ void
 output(void)
 {
 	int i;
-	char buf[4096];
 	char *s;
 
 	if(!nflag)
@@ -147,8 +146,13 @@ output(void)
 		if(!pflag && (s = dirbuf[i].prefix)) {
 			if(strcmp(s, "/") ==0)	/* / is a special case */
 				s = "";
-			sprint(buf, "%s/%s", s, dirbuf[i].d->name);
-			format(dirbuf[i].d, buf);
+			s = smprint("%s/%s", s, dirbuf[i].d->name);
+			if(s == nil){
+				fprint(2, "ls: malloc fail\n");
+				exits("malloc fail");
+			}
+			format(dirbuf[i].d, s);
+			free(s);
 		} else
 			format(dirbuf[i].d, dirbuf[i].d->name);
 	}
@@ -181,10 +185,10 @@ dowidths(Dir *db)
 		n = sprint(buf, "%ud", db->dev);
 		if(n > vwidth)
 			vwidth = n;
-		n = sprint(buf, "%q", db->uid);
+		n = snprint(buf, sizeof buf, "%q", db->uid);
 		if(n > uwidth)
 			uwidth = n;
-		n = sprint(buf, "%q", db->gid);
+		n = snprint(buf, sizeof buf, "%q", db->gid);
 		if(n > gwidth)
 			gwidth = n;
 		n = sprint(buf, "%llud", db->length);
