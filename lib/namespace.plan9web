@@ -1,4 +1,5 @@
-# the page's file servers: what is dropped on it, and what it saves
+# the page's file servers: what is dropped on it, what it saves, and what it opens
 mount /srv/drop /mnt/drop
 mount -c /srv/download /mnt/download
+mount /srv/browser /mnt/browser
 bind -c '#L' /mnt/term
