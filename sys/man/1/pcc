@@ -302,6 +302,17 @@ and
 macros take it when the buffer is empty or full, or when any thread holds it,
 so that they wait for a holder of
 .IR flockfile .
+.IR Getc_unlocked ,
+.IR getchar_unlocked ,
+.I putc_unlocked
+and
+.I putchar_unlocked
+are
+.IR getc ,
+.IR getchar ,
+.I putc
+and
+.IR putchar .
 .I Exit
 flushes the streams without their locks, as another thread may hold one for good.
 A program with threads cannot
