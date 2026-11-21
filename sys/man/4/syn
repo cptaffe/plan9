@@ -39,14 +39,31 @@ and
 .IR Tree (1)
 are its clients.
 It has a reader and a writer process for each program, which pass that program's answers and
-requests to and from it on channels, so a program never waits on a full pipe while
+requests to and from it on channels.
+Requests wait in a queue of
+.IR syn 's
+own until the program's writer takes them, so
 .I syn
-writes to it, a program's death kills only its writer, and
+never waits on one program while another, or its client, could go on, and answers each request
+in turn.
+When more than 256 edits of one document wait,
 .I syn
-answers each request in turn.
+drops them and queues the document's text in their place, so a burst of edits, as an
+.IR acme (1)
+.B Edit
+makes, costs a slow program one body, and the program goes on.
+A program is dead only when its answers end, as when it exits or a write to it fails, and then
+its reader and writer end and their pipes close.
 A program that dies is run again at the next request of one of its documents, and given each of
 its documents' text; edit numbers stay the client's, and a span from before the restart is answered
 whole.
+A program that ends before it answers anything cannot start;
+.I syn
+does not run it again for each request, but answers them
+.BI error " id " "cannot start"
+until a
+.B lang
+names it again or the rules change.
 Given a file, or with
 .B -l
 standard input in
@@ -118,7 +135,12 @@ name found, or by
 and a document of no language has every later request answered so too.
 To
 .I syn
-it comes first; a program answers it with its own language.
+it comes first, and
+.I syn
+gives it to the program, which answers it with its own language; if the program cannot start,
+.I syn
+answers
+.BI error " id " "cannot start"1.
 .TP
 .BI body " id n"
 followed by
