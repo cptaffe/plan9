@@ -130,13 +130,17 @@ A vector for a span of a text.
 .IB n /freq
 Each token's slot in the model's frequencies, and the token in a slot, for
 .IR lmz .
+.TP
+.IB n /gen
+What the model writes after a text.
 .PD
 .PP
 Each of
 .BR data ,
-.B top
-and
+.BR top ,
 .B embed
+and
+.B gen
 is a request and its answer on one open, as
 .IR factotum (4)'s
 .B rpc
@@ -210,6 +214,42 @@ counted from the byte n-grams, up to three bytes, in the span and, at half the w
 in the 16 bytes on either side of it.
 Spans with the same bytes near them get the same vector.
 It stands in for a model's vector, and knows nothing of meaning.
+.PP
+A request to
+.B gen
+is a line,
+.I "n temp seed"
+and any stops, then the text, which the model goes on from.
+The answer is the text the model writes, a token at a time, as it writes it, in whole runes:
+each token is drawn from the model's distribution given the text and the tokens before it, at
+temperature
+.IR temp ,
+0 to 100, by a generator that
+.I seed
+starts, so a request made again gives the same answer;
+.I temp
+0 takes the likeliest token each time.
+A stop is a field as
+.IR tokenize (2)
+gives it, so one in quotes may hold spaces;
+the answer ends before the first stop it would hold, at
+.IR lmfs 's
+model's end of a turn, or after
+.I n
+tokens, 1 to 65536, and then the read after its text fails with
+.BI "the limit of " n " tokens" \f1.
+The text and
+.I n
+are at most
+.B ctx
++ 4097 tokens, of which
+.IR lmsim 's
+are bytes.
+.I Lmsim
+sees the whole text; with
+.BR repeat ,
+it copies what followed the text's last bytes where they came before, so a test can lead it to
+write what it likes.
 .PP
 .B Freq
 takes several rounds on one open.
@@ -327,8 +367,10 @@ is slow or gone:
 answers wait.
 .TP
 .BI slow " ms"
-each part the model scores, and each block or step of
+each part the model scores, each block or step of
 .BR freq ,
+and each token of
+.BR gen ,
 takes
 .I ms
 more milliseconds; a new
