@@ -12,6 +12,7 @@ enum
 	AMAGIC		= 0xa119ed,	/* aligned_alloc's: next is the bucket's data, pad the size */
 	MAX2SIZE	= 32,
 	CUTOFF		= 12,
+	BIG		= 1<<20,
 };
 
 typedef struct Bucket Bucket;
@@ -30,6 +31,7 @@ struct Arena
 	Bucket	*btab[MAX2SIZE];
 };
 static Arena arena;
+static Bucket *bigs;
 
 #define datoff		((int)((Bucket*)0)->data)
 
@@ -40,10 +42,32 @@ malloc(size_t size)
 {
 	uint next;
 	int pow, n;
-	Bucket *bp, *nbp;
+	Bucket *bp, *nbp, **l, **best;
 
+	if(size > BIG){
+		if(size > 0x7fffffff - 64){
+			errno = ENOMEM;
+			return nil;
+		}
+		best = nil;
+		for(l = &bigs; (bp = *l) != nil; l = &bp->next)
+			if(bp->pad >= size && bp->pad/2 <= size && (best == nil || bp->pad < (*best)->pad))
+				best = l;
+		if(best != nil){
+			bp = *best;
+			*best = bp->next;
+		}else{
+			bp = sbrk((sizeof(Bucket)+size+7) & ~7);
+			if((intptr_t)bp == -1)
+				return nil;
+			bp->size = MAX2SIZE;
+			bp->pad = size;
+		}
+		bp->magic = MAGIC;
+		return bp->data;
+	}
 	for(pow = 1; pow < MAX2SIZE; pow++) {
-		if(size <= (1<<pow))
+		if(size <= ((size_t)1<<pow))
 			goto good;
 	}
 
@@ -60,7 +84,7 @@ good:
 		bp->magic = MAGIC;
 		return  bp->data;
 	}
-	size = sizeof(Bucket)+(1<<pow);
+	size = sizeof(Bucket)+((size_t)1<<pow);
 	size += 7;
 	size &= ~7;
 
@@ -112,7 +136,10 @@ free(void *ptr)
 		abort();
 
 	bp->magic = 0;
-	l = &arena.btab[bp->size];
+	if(bp->size == MAX2SIZE)
+		l = &bigs;
+	else
+		l = &arena.btab[bp->size];
 	bp->next = *l;
 	*l = bp;
 }
@@ -142,7 +169,7 @@ realloc(void *ptr, size_t n)
 		abort();
 
 	/* enough space in this bucket */
-	osize = 1<<bp->size;
+	osize = bp->size == MAX2SIZE ? bp->pad : (size_t)1<<bp->size;
 	if(osize >= n)
 		return ptr;
 

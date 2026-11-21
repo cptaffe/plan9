@@ -43,6 +43,9 @@ opsize(int as, int *cls)
 	case AMOVD:
 		*cls = 'F';
 		return 8;
+	case AVMOV:
+		*cls = 'X';
+		return 16;
 	}
 	return 0;
 }
@@ -150,6 +153,9 @@ rewrite(Adr *a, int as)
 	case 'F':
 	case 'f':
 		a->reg = KF64;
+		break;
+	case 'X':
+		a->reg = KV128;
 		break;
 	default:
 		a->reg = KI32;

@@ -1,0 +1,16 @@
+</$objtype/mkfile
+
+LIB=/$objtype/lib/libpatch.a
+OFILES=\
+	find.$O\
+	parse.$O\
+
+HFILES=/sys/include/patch.h\
+
+UPDATE=\
+	mkfile\
+	$HFILES\
+	${OFILES:%.$O=%.c}\
+	${LIB:/$objtype/%=/386/%}\
+
+</sys/src/cmd/mksyslib

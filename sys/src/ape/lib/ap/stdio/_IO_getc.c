@@ -2,7 +2,7 @@
  * pANS stdio -- _IO_getc
  */
 #include "iolib.h"
-int _IO_getc(FILE *f){
+static int ugetc(FILE *f){
 	int cnt;
 	switch(f->state){
 	default:	/* CLOSED, WR, ERR, EOF */
@@ -23,4 +23,18 @@ int _IO_getc(FILE *f){
 			return *f->rp++;
 		}
 	}
+}
+
+int
+_IO_getc(FILE *f)
+{
+	int r;
+
+	flockfile(f);
+	if(f->rp < f->wp)
+		r = *f->rp++;
+	else
+		r = ugetc(f);
+	funlockfile(f);
+	return r;
 }

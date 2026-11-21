@@ -7,8 +7,8 @@
 
 signed char _IO_orient[FOPEN_MAX];
 
-int
-fwide(FILE *f, int mode)
+static int
+ufwide(FILE *f, int mode)
 {
 	int i;
 
@@ -18,4 +18,15 @@ fwide(FILE *f, int mode)
 	if(_IO_orient[i] == 0 && mode != 0)
 		_IO_orient[i] = mode > 0? 1: -1;
 	return _IO_orient[i];
+}
+
+int
+fwide(FILE *f, int mode)
+{
+	int r;
+
+	flockfile(f);
+	r = ufwide(f, mode);
+	funlockfile(f);
+	return r;
 }

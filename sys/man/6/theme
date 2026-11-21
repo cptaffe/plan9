@@ -129,6 +129,12 @@ and
 .BR bodysel ,
 a bare color is the background.
 .TP
+.I page
+.B back
+around the image, as
+.IR page (1)
+says.
+.TP
 style files
 Acme's
 .B style
@@ -209,6 +215,22 @@ two colors, each piece edged in the other, and its moves
 with
 .BR tagsel 's
 for the move at dot.
+.TP
+.IR vt (1)
+.B back
+and
+.B text
+for its background and text, as
+.IR rio 's;
+.B ansi0
+to
+.B ansi15
+for the 16 colors a terminal's programs name by number,
+black, red, green, yellow, blue, magenta, cyan and white, then their bright ones.
+.I Avt
+takes the same 16 and shows its text in
+.BR body 's
+colors.
 .TP
 .IR grapw (1)
 .B back

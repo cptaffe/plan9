@@ -5,11 +5,14 @@
 
 FILE *_IO_sopenw(void){
 	FILE *f;
-	for(f=_IO_stream;f!=&_IO_stream[FOPEN_MAX];f++) if(f->state==CLOSED) break;
+	for(f=_IO_stream;f!=&_IO_stream[FOPEN_MAX];f++)
+		if(f->state==CLOSED && ftrylockfile(f)==0)
+			break;
 	if(f==&_IO_stream[FOPEN_MAX]) return NULL;
 	f->buf=f->rp=f->wp=0;
 	f->state=OPEN;
 	f->flags=STRING;
 	f->fd=-1;
+	funlockfile(f);
 	return f;
 }

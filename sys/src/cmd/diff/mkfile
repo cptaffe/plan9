@@ -6,6 +6,7 @@ OFILES=\
 	diffio.$O\
 	diffreg.$O\
 	main.$O\
+	slide.$O\
 
 HFILES=diff.h
 

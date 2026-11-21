@@ -4,12 +4,12 @@
 #include "iolib.h"
 
 void _IO_cleanup(void){
-	fflush(NULL);
+	_IO_flushall();
 }
 /*
  * Look this over for simplification
  */
-int _IO_putc(int c, FILE *f){
+static int uputc(int c, FILE *f){
 	int cnt;
 	static int first=1;
 	switch(f->state){
@@ -105,4 +105,18 @@ int _IO_putc(int c, FILE *f){
 	 * there's a vc bug preventing that from working
 	 */
 	return c&0xff;
+}
+
+int
+_IO_putc(int c, FILE *f)
+{
+	int r;
+
+	flockfile(f);
+	if(f->wp < f->rp)
+		r = *f->wp++ = c;
+	else
+		r = uputc(c, f);
+	funlockfile(f);
+	return r;
 }

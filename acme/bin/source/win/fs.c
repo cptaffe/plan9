@@ -3,6 +3,7 @@
 #include <fcall.h>
 #include <thread.h>
 #include <9p.h>
+#include <acme.h>
 #include "dat.h"
 
 Channel *fschan;
@@ -44,9 +45,9 @@ fsflush(Req *r)
 static void
 fswrite(Req *r)
 {
-	static Event *e[4];	/* ours, not the one from event.h */
+	static Msg *e[4];
 	static int n, partial;
-	Event *ep;
+	Msg *ep;
 	int i, j, ei, nb, wid, pid;
 	Rune rune;
 	char *s;
@@ -77,8 +78,9 @@ fswrite(Req *r)
 
 	if(e[0] == nil){
 		for(i=0; i<nelem(e); i++){
-			e[i] = emalloc(sizeof(Event));
-			e[i]->c1 = 'S';
+			e[i] = emalloc(sizeof(Msg));
+			e[i]->e.c1 = 'S';
+			e[i]->b = emalloc(OUTSIZE*UTFmax+1);
 		}
 	}
 
@@ -90,8 +92,8 @@ fswrite(Req *r)
 	 */
 	assert((int)r->ifcall.count >= 0);
 	nb = r->ifcall.count;
-	if (partial + nb >= sizeof ep->b)
-		sysfatal("EVENTSIZE < MAXRPC; increase EVENTSIZE & recompile");
+	if (partial + nb >= OUTSIZE*UTFmax+1)
+		sysfatal("OUTSIZE < MAXRPC; increase OUTSIZE & recompile");
 	memmove(ep->b+partial, r->ifcall.data, nb);
 	nb += partial;
 	ep->b[nb] = '\0';
@@ -103,7 +105,7 @@ fswrite(Req *r)
 		nb = j;
 		t[j] = '\0';
 	}
-	ei = nb>EVENTSIZE? EVENTSIZE: nb;
+	ei = nb>OUTSIZE? OUTSIZE: nb;
 	/* process bytes into runes, transferring terminal partial runes into next buffer */
 	for(i=j=0; i<ei && fullrune(ep->b+i, ei-i); i+=wid,j++)
 		wid = chartorune(&rune, ep->b+i);

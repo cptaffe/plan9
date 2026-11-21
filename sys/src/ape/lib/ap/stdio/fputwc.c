@@ -6,8 +6,8 @@
 #include <limits.h>
 #include <string.h>
 
-wint_t
-fputwc(wchar_t c, FILE *f)
+static wint_t
+ufputwc(wchar_t c, FILE *f)
 {
 	char b[MB_LEN_MAX];
 	mbstate_t st;
@@ -37,11 +37,33 @@ putwchar(wchar_t c)
 	return fputwc(c, stdout);
 }
 
-int
-fputws(const wchar_t *s, FILE *f)
+static int
+ufputws(const wchar_t *s, FILE *f)
 {
 	for(; *s; s++)
 		if(fputwc(*s, f) == WEOF)
 			return EOF;
 	return 0;
+}
+
+wint_t
+fputwc(wchar_t c, FILE *f)
+{
+	wint_t r;
+
+	flockfile(f);
+	r = ufputwc(c, f);
+	funlockfile(f);
+	return r;
+}
+
+int
+fputws(const wchar_t *s, FILE *f)
+{
+	int r;
+
+	flockfile(f);
+	r = ufputws(s, f);
+	funlockfile(f);
+	return r;
 }

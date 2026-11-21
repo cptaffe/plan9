@@ -6,7 +6,7 @@
 
 #define BIGN (BUFSIZ/2)
 
-size_t fread(void *p, size_t recl, size_t nrec, FILE *f){
+static size_t ufread(void *p, size_t recl, size_t nrec, FILE *f){
 	char *s;
 	int n, d, c;
 
@@ -42,4 +42,15 @@ size_t fread(void *p, size_t recl, size_t nrec, FILE *f){
 		return (s-(char*)p)/recl;
 	else
 		return s-(char*)p;
+}
+
+size_t
+fread(void *p, size_t recl, size_t nrec, FILE *f)
+{
+	size_t r;
+
+	flockfile(f);
+	r = ufread(p, recl, nrec, f);
+	funlockfile(f);
+	return r;
 }

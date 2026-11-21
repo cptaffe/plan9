@@ -23,8 +23,10 @@ rname(int r)
 		snprint(s, 8, "R%d", r);
 	else if(r < FREG)
 		snprint(s, 8, "V%d", r-VREG);
-	else
+	else if(r < XREG)
 		snprint(s, 8, "F%d", r-FREG);
+	else
+		snprint(s, 8, "X%d", r-XREG);
 	return s;
 }
 

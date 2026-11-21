@@ -38,6 +38,9 @@ enum
 	RFREND		= (1<<13)
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern char *argv0;
 #define	ARGBEGIN	for((argv0||(argv0=*argv)),argv++,argc--;\
 			    argv[0] && argv[0][0]=='-' && argv[0][1];\
@@ -76,4 +79,7 @@ extern	unsigned long	getfsr(void);
 extern	void		setfcr(unsigned long);
 extern	void		setfsr(unsigned long);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

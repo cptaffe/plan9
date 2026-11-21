@@ -116,7 +116,7 @@ struct {				/* Sed program input control block */
 	};
 } prog;
 
-Rune	genbuf[LBSIZE];			/* Miscellaneous buffer */
+Rune	genbuf[LBSIZE+1];		/* Miscellaneous buffer */
 
 FileCache	*fhead = 0;		/* Head of File Cache Chain */
 FileCache	*ftail = 0;		/* Tail of File Cache Chain */
@@ -139,12 +139,13 @@ int	gflag;
 
 int	dolflag;			/* Set when at true EOF */
 int	sflag;				/* Set when substitution done */
+int	cut;
 int	jflag;				/* Set when jump required */
 int	delflag;			/* Delete current line when set */
 
 long	lnum = 0;			/* Input line count */
 
-char	fname[MAXFILES][40];		/* File name cache */
+char	*fname[MAXFILES];		/* File name cache */
 Biobuf	*fcode[MAXFILES];		/* File ID cache */
 int	nfiles = 0;			/* Cache fill point */
 
@@ -185,6 +186,7 @@ void	execute(void);
 void	fcomp(void);
 long	getrune(void);
 Rune	*gline(Rune *);
+int	room(Rune *);
 int	match(Reprog *, Rune *);
 void	newfile(enum PTYPE, char *);
 int 	opendata(void);
@@ -194,7 +196,7 @@ void	quit(char *, ...);
 int	rline(Rune *, Rune *);
 Label	*search(Label *);
 int	substitute(SedCom *);
-char	*text(char *);
+char	*text(void);
 Rune	*stext(Rune *, Rune *);
 int	ycomp(SedCom *);
 char *	trans(int c);
@@ -207,6 +209,7 @@ main(int argc, char **argv)
 
 	lnum = 0;
 	Binit(&fout, 1, OWRITE);
+	fname[nfiles] = "";
 	fcode[nfiles++] = &fout;
 	compfl = 0;
 
@@ -265,6 +268,7 @@ void
 fcomp(void)
 {
 	int	i;
+	char	*tp1;
 	Label	*lpt;
 	Rune	*tp;
 	SedCom	*pt, *pt1;
@@ -316,6 +320,8 @@ swit:
 		case '{':
 			rep->command = BCOM;
 			rep->negfl = !rep->negfl;
+			if(depth >= DEPTH)
+				quit("Too deeply nested {'s: %S", linebuf);
 			cmpend[depth++] = &rep->lb1;
 			if(++rep >= pend)
 				quit("Too many commands: %S", linebuf);
@@ -544,15 +550,16 @@ jtcommon:
 				cp++;
 				if(*cp++ !=  L' ')
 					quit(CGMES, L"s", linebuf);
-				text(fname[nfiles]);
+				tp1 = text();
 				for(i = nfiles - 1; i >= 0; i--)
-					if(cmp(fname[nfiles], fname[i]) == 0) {
+					if(cmp(tp1, fname[i]) == 0) {
+						free(tp1);
 						rep->fcode = fcode[i];
 						goto done;
 					}
 				if(nfiles >= MAXFILES)
 					quit("Too many files in w commands 1");
-				rep->fcode = open_file(fname[nfiles]);
+				rep->fcode = open_file(tp1);
 			}
 			break;
 
@@ -560,9 +567,10 @@ jtcommon:
 			rep->command = WCOM;
 			if(*cp++ != L' ')
 				quit(CGMES, L"w", linebuf);
-			text(fname[nfiles]);
+			tp1 = text();
 			for(i = nfiles - 1; i >= 0; i--)
-				if(cmp(fname[nfiles], fname[i]) == 0) {
+				if(cmp(tp1, fname[i]) == 0) {
+					free(tp1);
 					rep->fcode = fcode[i];
 					goto done;
 				}
@@ -572,7 +580,7 @@ jtcommon:
 					nfiles, MAXFILES);
 				errexit();
 			}
-			rep->fcode = open_file(fname[nfiles]);
+			rep->fcode = open_file(tp1);
 			break;
 
 		case 'x':
@@ -611,6 +619,7 @@ open_file(char *name)
 		quit("Cannot create %s", name);
 	Binit(bp, fd, OWRITE);
 	Bseek(bp, 0, 2);
+	fname[nfiles] = name;
 	fcode[nfiles++] = bp;
 	return bp;
 }
@@ -660,13 +669,13 @@ compile(void)
 		if (c == L'\0' || c == L'\n')
 			quit(TMMES, linebuf);
 		if (c == L'\\') {
-			if (ep >= expbuf+sizeof(expbuf))
+			if (ep+UTFmax >= expbuf+sizeof(expbuf))
 				quit(TMMES, linebuf);
 			ep += runetochar(ep, &c);
 			if ((c = *cp++) == L'n')
 				c = L'\n';
 		}
-		if (ep >= expbuf + sizeof(expbuf))
+		if (ep+UTFmax >= expbuf + sizeof(expbuf))
 			quit(TMMES, linebuf);
 		ep += runetochar(ep, &c);
 	} while ((c = *cp++) != seof);
@@ -687,7 +696,7 @@ newfile(enum PTYPE type, char *name)
 	if (type == P_ARG)
 		prog.curr = name;
 	else if ((prog.bp = Bopen(name, OREAD)) == 0)
-		quit("Cannot open pattern-file: %s\n", name);
+		quit("Cannot open pattern-file: %s", name);
 	prog.type = type;
 }
 
@@ -700,8 +709,9 @@ rline(Rune *buf, Rune *end)
 	while ((c = getrune()) >= 0) {
 		r = c;
 		if (r == '\\') {
-			if (buf <= end)
-				*buf++ = r;
+			if (buf >= end)
+				quit("Script line too long");
+			*buf++ = r;
 			if ((c = getrune()) < 0)
 				break;
 			r = c;
@@ -709,8 +719,9 @@ rline(Rune *buf, Rune *end)
 			*buf = '\0';
 			return 1;
 		}
-		if (buf <= end)
-			*buf++ = r;
+		if (buf >= end)
+			quit("Script line too long");
+		*buf++ = r;
 	}
 	*buf = '\0';
 	return -1;
@@ -789,12 +800,15 @@ rcmp(Rune *a, Rune *b)		/* compare runes */
 }
 
 char *
-text(char *p)		/* extract character string */
+text(void)		/* extract character string */
 {
 	Rune r;
+	char *s, *p;
 
 	while(*cp == ' ' || *cp == '\t')
 		cp++;
+	if ((s = p = malloc(UTFmax*runestrlen(cp)+1)) == nil)
+		quit("Out of memory");
 	while (*cp) {
 		if ((r = *cp++) == '\\' && (r = *cp++) == '\0')
 			break;
@@ -803,8 +817,8 @@ text(char *p)		/* extract character string */
 				cp++;
 		p += runetochar(p, &r);
 	}
-	*p++ = '\0';
-	return p;
+	*p = '\0';
+	return s;
 }
 
 Rune *
@@ -1011,6 +1025,7 @@ substitute(SedCom *ipc)
 
 	if(!match(ipc->re1, linebuf))
 		return 0;
+	cut = 0;
 
 	/*
 	 * we have at least one match.  some patterns, e.g. '$' or '^', can
@@ -1061,15 +1076,14 @@ dosub(Rune *rhsbuf)
 				errexit();
 			}
 		}
-		*sp++ = c;
-		if (sp >= &genbuf[LBSIZE])
-			fprint(2, "sed: Output line too long.\n");
+		if (room(sp))
+			*sp++ = c;
 	}
 	lp = loc2;
 	loc2 = sp - genbuf + linebuf;
-	while (*sp++ = *lp++)
-		if (sp >= &genbuf[LBSIZE])
-			fprint(2, "sed: Output line too long.\n");
+	while (*lp && room(sp))
+		*sp++ = *lp++;
+	*sp = 0;
 	lp = linebuf;
 	sp = genbuf;
 	while (*lp++ = *sp++)
@@ -1080,12 +1094,20 @@ dosub(Rune *rhsbuf)
 Rune *
 place(Rune *sp, Rune *l1, Rune *l2)
 {
-	while (l1 < l2) {
+	while (l1 < l2 && room(sp))
 		*sp++ = *l1++;
-		if (sp >= &genbuf[LBSIZE])
-			fprint(2, "sed: Output line too long.\n");
-	}
 	return sp;
+}
+
+int
+room(Rune *sp)
+{
+	if (sp < &genbuf[LBSIZE])
+		return 1;
+	if (!cut)
+		fprint(2, "sed: Output line too long.\n");
+	cut = 1;
+	return 0;
 }
 
 char *
@@ -1124,8 +1146,7 @@ command(SedCom *ipc)
 	case ACOM:
 		*aptr++ = ipc;
 		if(aptr >= abuf+MAXADDS)
-			quit("sed: Too many appends after line %ld\n",
-				(char *)lnum);
+			quit("Too many appends after line %ld", lnum);
 		*aptr = 0;
 		break;
 	case CCOM:
@@ -1164,13 +1185,11 @@ command(SedCom *ipc)
 		spend = p1 - 1;
 		break;
 	case CGCOM:
-		*spend++ = '\n';
-		p1 = spend;
-		p2 = holdsp;
-		while(*p1++ = *p2++)
-			if(p1 >= lbend)
-				break;
-		spend = p1 - 1;
+		if(spend < lbend)
+			*spend++ = '\n';
+		for(p2 = holdsp; *p2 && spend < lbend; )
+			*spend++ = *p2++;
+		*spend = 0;
 		break;
 	case HCOM:
 		p1 = holdsp;
@@ -1179,13 +1198,11 @@ command(SedCom *ipc)
 		hspend = p1 - 1;
 		break;
 	case CHCOM:
-		*hspend++ = '\n';
-		p1 = hspend;
-		p2 = linebuf;
-		while(*p1++ = *p2++)
-			if(p1 >= hend)
-				break;
-		hspend = p1 - 1;
+		if(hspend < hend)
+			*hspend++ = '\n';
+		for(p2 = linebuf; *p2 && hspend < hend; )
+			*hspend++ = *p2++;
+		*hspend = 0;
 		break;
 	case ICOM:
 		for(rp = ipc->text; *rp; rp++)
@@ -1235,7 +1252,8 @@ command(SedCom *ipc)
 	case CNCOM:
 		if(aptr > abuf)
 			arout();
-		*spend++ = '\n';
+		if(spend < lbend)
+			*spend++ = '\n';
 		if((execp = gline(spend)) == 0) {
 			delflag = 1;
 			break;
@@ -1260,8 +1278,7 @@ cpcom:
 	case RCOM:
 		*aptr++ = ipc;
 		if(aptr >= &abuf[MAXADDS])
-			quit("sed: Too many reads after line %ld\n",
-				(char *)lnum);
+			quit("Too many reads after line %ld", lnum);
 		*aptr = 0;
 		break;
 	case SCOM:
@@ -1332,7 +1349,6 @@ arout(void)
 {
 	int	c;
 	char	*s;
-	char	buf[128];
 	Rune	*p1;
 	Biobuf	*fi;
 
@@ -1342,10 +1358,11 @@ arout(void)
 				Bputrune(&fout, *p1);
 			Bputc(&fout, '\n');
 		} else {
-			for(s = buf, p1 = (*aptr)->text; *p1; p1++)
-				s += runetochar(s, p1);
-			*s = '\0';
-			if((fi = Bopen(buf, OREAD)) == 0)
+			if((s = smprint("%S", (*aptr)->text)) == nil)
+				quit("Out of memory");
+			fi = Bopen(s, OREAD);
+			free(s);
+			if(fi == 0)
 				continue;
 			while((c = Bgetc(fi)) >= 0)
 				Bputc(&fout, c);

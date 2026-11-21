@@ -11,19 +11,82 @@ QLock _winseqlk;
 Win*
 newwin(void)
 {
-	char buf[100];
+	char buf[100], err[ERRMAX];
 	int fd, id, n;
+	Win *w;
 
-	if((fd = open("/mnt/acme/new/ctl", ORDWR|OCEXEC)) < 0)
-		sysfatal("open new/ctl: %r");
-	n = read(fd, buf, sizeof buf-1);
-	if(n <= 0)
-		sysfatal("read new/ctl: %r");
+	if((fd = open("/mnt/acme/new/ctl", ORDWR|OCEXEC)) < 0){
+		werrstr("open /mnt/acme/new/ctl: %r");
+		return nil;
+	}
+	if((n = read(fd, buf, sizeof buf-1)) <= 0){
+		if(n == 0)
+			werrstr("eof");
+		werrstr("read /mnt/acme/new/ctl: %r");
+		close(fd);
+		return nil;
+	}
 	buf[n] = 0;
-	id = atoi(buf);
-	if(id == 0)
-		sysfatal("read new/ctl: malformed message: %s", buf);
-	return openwin(id, fd);
+	if((id = atoi(buf)) == 0){
+		close(fd);
+		werrstr("new/ctl: bad id %.20q", buf);
+		return nil;
+	}
+	if((w = openwin(id, fd)) == nil){
+		rerrstr(err, sizeof err);
+		write(fd, "delete", 6);
+		close(fd);
+		werrstr("%s", err);
+	}
+	return w;
+}
+
+static int
+sess(Win *w)
+{
+	char buf[64], s[16];
+	int n;
+
+	if(w->dir[0] != 0)
+		return 0;
+	snprint(buf, sizeof buf, "/mnt/amux/%d", w->id);
+	if(access(buf, AEXIST) < 0){
+		snprint(w->dir, sizeof w->dir, "/mnt/acme/%d", w->id);
+		return 0;
+	}
+	snprint(buf, sizeof buf, "/mnt/amux/%d/clone", w->id);
+	if((w->clone = open(buf, ORDWR|OCEXEC)) < 0){
+		werrstr("open %s: %r", buf);
+		return -1;
+	}
+	if((n = read(w->clone, s, sizeof s-1)) <= 0){
+		if(n == 0)
+			werrstr("eof");
+		werrstr("read %s: %r", buf);
+		close(w->clone);
+		w->clone = -1;
+		return -1;
+	}
+	s[n] = 0;
+	snprint(w->dir, sizeof w->dir, "/mnt/amux/%d/%d", w->id, atoi(s));
+	return 0;
+}
+
+char*
+_winpath(Win *w, char *name, char *buf, int n)
+{
+	if(sess(w) < 0)
+		return nil;
+	snprint(buf, n, "%s/%s", w->dir, name);
+	return buf;
+}
+
+char*
+winpath(Win *w)
+{
+	if(sess(w) < 0)
+		return nil;
+	return w->dir;
 }
 
 Win*
@@ -32,14 +95,29 @@ openwin(int id, int ctl)
 	char buf[100];
 	Win *w;
 
-	if(ctl < 0){
-		snprint(buf, sizeof buf, "/mnt/acme/%d/ctl", id);
-		if((ctl = open(buf, ORDWR|OCEXEC)) < 0)
-			sysfatal("open %s: %r", buf);
-	}
 	w = emalloc(sizeof *w);
+	memset(w, 0, sizeof *w);
 	w->id = id;
-	w->ctl = ctl;
+	w->clone = w->actl = -1;
+	if(sess(w) < 0){
+		free(w);
+		return nil;
+	}
+	w->ctl = -1;
+	if(w->clone < 0)
+		w->ctl = ctl;
+	if(w->ctl < 0){
+		snprint(buf, sizeof buf, "%s/ctl", w->dir);
+		if((w->ctl = open(buf, ORDWR|OCEXEC)) < 0){
+			werrstr("open %s: %r", buf);
+			if(w->clone >= 0)
+				close(w->clone);
+			free(w);
+			return nil;
+		}
+	}
+	if(w->clone >= 0)
+		w->actl = ctl;
 	w->tag = w->body = w->addr = w->event = w->data = w->xdata = w->rdevent = -1;
 	w->next = nil;
 	w->prev = last;
@@ -71,6 +149,11 @@ winclosefiles(Win *w)
 	fdclose(&w->data);
 	fdclose(&w->xdata);
 	fdclose(&w->rdevent);
+	fdclose(&w->actl);
+	if(w->clone >= 0){
+		fdclose(&w->clone);
+		w->dir[0] = 0;
+	}
 	w->eb.n = w->rb.n = 0;
 }
 
@@ -110,12 +193,15 @@ _winopen(Win *w, char *name, int mode)
 	char buf[100];
 	int fd;
 
-	snprint(buf, sizeof buf, "/mnt/acme/%d/%s", w->id, name);
-	if(!_winguarded(name))
-		return open(buf, mode);
-	qlock(&_winseqlk);
+	if(_winpath(w, name, buf, sizeof buf) == nil)
+		return -1;
+	if(_winguarded(name))
+		qlock(&_winseqlk);
 	fd = open(buf, mode);
-	qunlock(&_winseqlk);
+	if(fd < 0)
+		werrstr("open %s: %r", buf);
+	if(_winguarded(name))
+		qunlock(&_winseqlk);
 	return fd;
 }
 
@@ -138,21 +224,19 @@ _winfd(Win *w, char *name)
 		return &w->xdata;
 	if(strcmp(name, "rdevent") == 0)
 		return &w->rdevent;
-	sysfatal("bad window file name %s", name);
+	werrstr("no window file %s", name);
 	return nil;
 }
 
 int
-_wfid(Win *w, char *name)
+_winfid(Win *w, char *name)
 {
 	int *fd;
 
-	fd = _winfd(w, name);
-	if(*fd < 0){
+	if((fd = _winfd(w, name)) == nil)
+		return -1;
+	if(*fd < 0)
 		*fd = _winopen(w, name, (strcmp(name, "rdevent") == 0 ? OREAD : ORDWR)|OCEXEC);
-		if(*fd < 0)
-			sysfatal("open /mnt/acme/%d/%s: %r", w->id, name);
-	}
 	return *fd;
 }
 
@@ -168,17 +252,59 @@ winfd(Win *w, char *name, int mode)
 	return _winopen(w, name, mode);
 }
 
+static int
+islock(char *p)
+{
+	return strncmp(p, "lock", 4) == 0 || strncmp(p, "unlock", 6) == 0;
+}
+
+static int
+lockfd(Win *w)
+{
+	char buf[64];
+
+	if(w->actl < 0){
+		snprint(buf, sizeof buf, "/mnt/acme/%d/ctl", w->id);
+		if((w->actl = open(buf, ORDWR|OCEXEC)) < 0)
+			werrstr("open %s: %r", buf);
+	}
+	return w->actl;
+}
+
 int
 winctl(Win *w, char *fmt, ...)
 {
-	char *s;
+	char *s, *p, *e, *q;
 	va_list arg;
-	int n;
+	int n, fd, k, lk;
 
 	va_start(arg, fmt);
-	s = evsmprint(fmt, arg);
+	s = _winevsmprint(fmt, arg);
 	va_end(arg);
-	n = pwrite(_wfid(w, "ctl"), s, strlen(s), 0);
+	if((fd = _winfid(w, "ctl")) < 0){
+		free(s);
+		return -1;
+	}
+	if(w->clone < 0){
+		n = pwrite(fd, s, strlen(s), 0);
+		free(s);
+		return n;
+	}
+	n = 0;
+	for(p = s; *p != 0; p = e){
+		lk = islock(p);
+		e = p;
+		do{
+			q = strchr(e, '\n');
+			e = q != nil ? q+1 : e+strlen(e);
+		}while(*e != 0 && islock(e) == lk);
+		k = lk ? lockfd(w) : fd;
+		if(k < 0 || pwrite(k, p, e-p, 0) != e-p){
+			n = -1;
+			break;
+		}
+		n += e-p;
+	}
 	free(s);
 	return n;
 }
@@ -191,7 +317,7 @@ winname(Win *w, char *fmt, ...)
 	int n;
 
 	va_start(arg, fmt);
-	s = evsmprint(fmt, arg);
+	s = _winevsmprint(fmt, arg);
 	va_end(arg);
 	n = winctl(w, "name %s\n", s);
 	free(s);
@@ -203,12 +329,14 @@ winprint(Win *w, char *name, char *fmt, ...)
 {
 	char *s;
 	va_list arg;
-	int n;
+	int n, fd;
 
+	if((fd = _winfid(w, name)) < 0)
+		return -1;
 	va_start(arg, fmt);
-	s = evsmprint(fmt, arg);
+	s = _winevsmprint(fmt, arg);
 	va_end(arg);
-	n = write(_wfid(w, name), s, strlen(s));
+	n = write(fd, s, strlen(s));
 	free(s);
 	return n;
 }
@@ -218,12 +346,14 @@ winaddr(Win *w, char *fmt, ...)
 {
 	char *s;
 	va_list arg;
-	int n;
+	int n, fd;
 
+	if((fd = _winfid(w, "addr")) < 0)
+		return -1;
 	va_start(arg, fmt);
-	s = evsmprint(fmt, arg);
+	s = _winevsmprint(fmt, arg);
 	va_end(arg);
-	n = write(_wfid(w, "addr"), s, strlen(s));
+	n = write(fd, s, strlen(s));
 	free(s);
 	return n;
 }
@@ -233,11 +363,15 @@ winreadaddr(Win *w, uint *q1)
 {
 	char buf[40], *p;
 	uint q0;
-	int n;
+	int n, fd;
 
-	n = pread(_wfid(w, "addr"), buf, sizeof buf-1, 0);
-	if(n <= 0)
+	if((fd = _winfid(w, "addr")) < 0)
 		return -1;
+	if((n = pread(fd, buf, sizeof buf-1, 0)) <= 0){
+		if(n == 0)
+			werrstr("empty addr");
+		return -1;
+	}
 	buf[n] = 0;
 	q0 = strtoul(buf, &p, 10);
 	if(q1)
@@ -248,25 +382,35 @@ winreadaddr(Win *w, uint *q1)
 int
 winread(Win *w, char *file, void *a, int n)
 {
-	return read(_wfid(w, file), a, n);
+	int fd;
+
+	if((fd = _winfid(w, file)) < 0)
+		return -1;
+	return read(fd, a, n);
 }
 
 int
 winwrite(Win *w, char *file, void *a, int n)
 {
-	return write(_wfid(w, file), a, n);
+	int fd;
+
+	if((fd = _winfid(w, file)) < 0)
+		return -1;
+	return write(fd, a, n);
 }
 
 char*
 winmread(Win *w, char *file)
 {
 	char *buf;
-	int n, tot, m;
+	int n, tot, m, fd;
 
+	if((fd = _winfid(w, file)) < 0)
+		return nil;
 	m = 128;
 	buf = emalloc(m+1);
 	tot = 0;
-	while((n = read(_wfid(w, file), buf+tot, m-tot)) > 0){
+	while((n = read(fd, buf+tot, m-tot)) > 0){
 		tot += n;
 		if(tot >= m){
 			m += 128;
@@ -284,20 +428,27 @@ winmread(Win *w, char *file)
 vlong
 winseek(Win *w, char *file, vlong n, int type)
 {
+	int fd;
+
+	if((fd = _winfid(w, file)) < 0)
+		return -1;
 	if(strcmp(file, "event") == 0)
 		w->eb.n = 0;
 	else if(strcmp(file, "rdevent") == 0)
 		w->rb.n = 0;
-	return seek(_wfid(w, file), n, type);
+	return seek(fd, n, type);
 }
 
 int
 winwriteevent(Win *w, Event *e)
 {
 	char buf[100];
+	int fd;
 
+	if((fd = _winfid(w, "event")) < 0)
+		return -1;
 	snprint(buf, sizeof buf, "%c%c%d %d \n", e->c1, e->c2, e->q0, e->q1);
-	return write(_wfid(w, "event"), buf, strlen(buf));
+	return write(fd, buf, strlen(buf));
 }
 
 int

@@ -1,6 +1,7 @@
 #define	NSNAME	8
 #define	NSYM	50
 #define	NREG	32
+#define	NXREG	16
 #define	NOREG	127
 #define NOPROF	(1<<0)
 #define DUPOK	(1<<1)
@@ -26,7 +27,11 @@ enum
 	FREGMIN		= FREG+2,
 	FREGMAX		= FREG+NREG-1,
 
-	NALLREG		= 3*NREG,
+	XREG		= 3*NREG,
+	XREGMIN		= XREG,
+	XREGMAX		= XREG+NXREG-1,
+
+	NALLREG		= 3*NREG+NXREG,
 	REGARG		= -1,
 };
 
@@ -37,6 +42,7 @@ enum
 	KI64,
 	KF32,
 	KF64,
+	KV128,
 };
 
 enum	as
@@ -127,6 +133,24 @@ enum	as
 	ADECL,
 	ACASE,
 	ABCASE,
+
+	AVMOV,
+	AVLOADW,
+	AVLOADH,
+	AVLOADHU,
+	AVLOADB,
+	AVLOADBU,
+	AVREV,
+	AVSPLAT,
+	AVADD,
+	AVSUB,
+	AVMUL,
+	AVAND,
+	AVOR,
+	AVXOR,
+	AVNEG,
+	AVNOT,
+	AVSUM,
 
 	ALAST,
 };

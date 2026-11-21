@@ -1,0 +1,50 @@
+.TH WEB 1
+.SH NAME
+web \- open a URL in the browser
+.SH SYNOPSIS
+.B web
+.I url
+\&...
+.SH DESCRIPTION
+.I Web
+opens each
+.I url
+in a new tab of the browser that runs the system,
+by writing it to
+.BR /mnt/browser/open .
+Only
+.B http
+and
+.B https
+URLs open; a write of another is an error.
+.PP
+A browser opens a tab only soon after a click or a key in its page.
+Later, as when a program runs
+.I web
+by itself, the page shows a bar with the link to click instead.
+.PP
+.I Web
+is the plumber's start command for URLs in
+.BR /sys/lib/plumb/basic ,
+so B3 on a URL in
+.IR acme (1)
+opens it.
+.SH FILES
+.TP
+.B /mnt/browser/open
+each line written is a URL the page opens;
+.B /lib/namespace.plan9web
+mounts it from
+.B /srv/browser
+.SH SOURCE
+.B /rc/bin/web
+.SH SEE ALSO
+.IR plumb (1),
+.IR plumber (4)
+.SH DIAGNOSTICS
+A URL that is not
+.B http
+or
+.B https
+gives
+.LR "not an http or https url" .

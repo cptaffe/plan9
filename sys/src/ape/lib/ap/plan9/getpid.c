@@ -5,8 +5,10 @@
 #include <errno.h>
 #include "sys9.h"
 
+pid_t _grouppid;
+
 pid_t
-getpid(void)
+_getpid(void)
 {
 	int n, f;
 	char pidbuf[15];
@@ -19,4 +21,12 @@ getpid(void)
 		n = atoi(pidbuf);
 	_CLOSE(f);
 	return n;
+}
+
+pid_t
+getpid(void)
+{
+	if(_grouppid)
+		return _grouppid;
+	return _getpid();
 }

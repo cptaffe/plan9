@@ -346,6 +346,7 @@ rowdump(Row *row, char *file)
 	Column *c;
 	Window *w, *w1;
 	Text *t;
+	static Rune Lpluserrors[] = { '+', 'E', 'r', 'r', 'o', 'r', 's', 0 };
 
 	if(row->ncol == 0)
 		return FALSE;
@@ -406,6 +407,8 @@ rowdump(Row *row, char *file)
 			wincommit(w, &w->body);
 			wincommit(w, &w->tag);
 			t = &w->body;
+			if(t->file->nname>=7 && runeeq(Lpluserrors, 7, t->file->name+(t->file->nname-7), 7))
+				continue;
 			/* windows owned by others get special treatment */
 			if(w->nopen[QWevent] > 0)
 				if(w->dumpstr == nil)

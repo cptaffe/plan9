@@ -2,6 +2,17 @@
  * pANS stdio -- feof
  */
 #include "iolib.h"
-int feof(FILE *f){
+static int ufeof(FILE *f){
 	return f->state==END;
+}
+
+int
+feof(FILE *f)
+{
+	int r;
+
+	flockfile(f);
+	r = ufeof(f);
+	funlockfile(f);
+	return r;
 }
