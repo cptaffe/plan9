@@ -66,6 +66,23 @@ The models, one a line:
 has one,
 .BR ngram .
 .TP
+.B ctl
+The server's settings, which apply to every session.
+A read gives
+.BR kv ,
+the type of the model's cached keys:
+.B f16
+by default, or
+.BR q8_0 ,
+ggml's 8 bits in blocks of 32 with a scale each, which hold a longer
+.B ctx
+in the same memory and move a token's bits by about a sixth of a bit.
+A write of
+.BI kv " type"
+sets it for the requests opened after it;
+.IR lmsim 's
+answers are the same with either.
+.TP
 .B clone
 Opening it makes a session,
 .IR n ,
@@ -81,6 +98,8 @@ A read gives
 .BR model ,
 .BR backend ,
 .BR ctx ,
+.B kv
+(the server's),
 .B sha256
 (the model's table),
 .B device
@@ -88,7 +107,9 @@ A read gives
 .B maxctx
 (the longest
 .B ctx
-the model takes),
+the model takes: the smaller of the context it was trained on and what its device holds of its
+keys and values, at the server's
+.BR kv ),
 .B scored
 (how many tokens the model has scored, in every session, not counting those the cache gave),
 and
@@ -308,7 +329,10 @@ answers are the same with either, but neither shares the other's cache.
 .TP
 .BI ctx " n"
 the context of each part, 0 to
-.BR maxctx .
+.BR maxctx ;
+a larger
+.I n
+fails.
 .TP
 .BI digits " n"
 the places of
@@ -320,8 +344,8 @@ bits, 0 to 17, 2 by default; tests that need the model's exact numbers take 17.
 .LP
 These act on every session, for tests of a client when
 .I lmfs
-is slow or gone:
-.TF slow\ \fIms\fP
+is slow or gone, or on another device:
+.TF maxctx\ \fIn\fP
 .TP
 .B stall
 answers wait.
@@ -340,6 +364,16 @@ answers and writes fail.
 .TP
 .B go
 ends all three.
+.TP
+.BI maxctx " n"
+.B ctl
+gives
+.I n
+as
+.BR maxctx ,
+8192 by default, for tests of a client on a device that holds more or less;
+.B go
+leaves it.
 .PD
 .LP
 And this changes the model, for tests of what context does:
