@@ -694,7 +694,7 @@ newfile(enum PTYPE type, char *name)
 	if (type == P_ARG)
 		prog.curr = name;
 	else if ((prog.bp = Bopen(name, OREAD)) == 0)
-		quit("Cannot open pattern-file: %s\n", name);
+		quit("Cannot open pattern-file: %s", name);
 	prog.type = type;
 }
 
@@ -1139,8 +1139,7 @@ command(SedCom *ipc)
 	case ACOM:
 		*aptr++ = ipc;
 		if(aptr >= abuf+MAXADDS)
-			quit("sed: Too many appends after line %ld\n",
-				(char *)lnum);
+			quit("Too many appends after line %ld", lnum);
 		*aptr = 0;
 		break;
 	case CCOM:
@@ -1277,8 +1276,7 @@ cpcom:
 	case RCOM:
 		*aptr++ = ipc;
 		if(aptr >= &abuf[MAXADDS])
-			quit("sed: Too many reads after line %ld\n",
-				(char *)lnum);
+			quit("Too many reads after line %ld", lnum);
 		*aptr = 0;
 		break;
 	case SCOM:
