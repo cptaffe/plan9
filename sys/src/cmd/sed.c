@@ -131,6 +131,7 @@ Rune	*spend = linebuf;		/* End of input data */
 Rune	*cp;				/* Current scan point in linebuf */
 
 Rune	holdsp[LBSIZE+1];		/* Hold buffer */
+Rune	*hend = holdsp+LBSIZE;		/* End of hold buffer */
 Rune	*hspend = holdsp;		/* End of hold data */
 
 int	nflag;				/* Command line flags */
@@ -138,6 +139,7 @@ int	gflag;
 
 int	dolflag;			/* Set when at true EOF */
 int	sflag;				/* Set when substitution done */
+int	cut;
 int	jflag;				/* Set when jump required */
 int	delflag;			/* Delete current line when set */
 
@@ -184,7 +186,7 @@ void	execute(void);
 void	fcomp(void);
 long	getrune(void);
 Rune	*gline(Rune *);
-void	toolong(Rune *);
+int	room(Rune *);
 int	match(Reprog *, Rune *);
 void	newfile(enum PTYPE, char *);
 int 	opendata(void);
@@ -1023,6 +1025,7 @@ substitute(SedCom *ipc)
 
 	if(!match(ipc->re1, linebuf))
 		return 0;
+	cut = 0;
 
 	/*
 	 * we have at least one match.  some patterns, e.g. '$' or '^', can
@@ -1073,17 +1076,13 @@ dosub(Rune *rhsbuf)
 				errexit();
 			}
 		}
-		if (sp >= &genbuf[LBSIZE])
-			quit("Output line too long at line %ld", lnum);
-		*sp++ = c;
+		if (room(sp))
+			*sp++ = c;
 	}
 	lp = loc2;
 	loc2 = sp - genbuf + linebuf;
-	while (*lp) {
-		if (sp >= &genbuf[LBSIZE])
-			quit("Output line too long at line %ld", lnum);
+	while (*lp && room(sp))
 		*sp++ = *lp++;
-	}
 	*sp = 0;
 	lp = linebuf;
 	sp = genbuf;
@@ -1095,12 +1094,20 @@ dosub(Rune *rhsbuf)
 Rune *
 place(Rune *sp, Rune *l1, Rune *l2)
 {
-	while (l1 < l2) {
-		if (sp >= &genbuf[LBSIZE])
-			quit("Output line too long at line %ld", lnum);
+	while (l1 < l2 && room(sp))
 		*sp++ = *l1++;
-	}
 	return sp;
+}
+
+int
+room(Rune *sp)
+{
+	if (sp < &genbuf[LBSIZE])
+		return 1;
+	if (!cut)
+		fprint(2, "sed: Output line too long.\n");
+	cut = 1;
+	return 0;
 }
 
 char *
@@ -1178,14 +1185,11 @@ command(SedCom *ipc)
 		spend = p1 - 1;
 		break;
 	case CGCOM:
-		if(spend - linebuf + 1 + (hspend - holdsp) > LBSIZE)
-			quit("Pattern space too long at line %ld", lnum);
-		*spend++ = '\n';
-		p1 = spend;
-		p2 = holdsp;
-		while(*p1++ = *p2++)
-			;
-		spend = p1 - 1;
+		if(spend < lbend)
+			*spend++ = '\n';
+		for(p2 = holdsp; *p2 && spend < lbend; )
+			*spend++ = *p2++;
+		*spend = 0;
 		break;
 	case HCOM:
 		p1 = holdsp;
@@ -1194,14 +1198,11 @@ command(SedCom *ipc)
 		hspend = p1 - 1;
 		break;
 	case CHCOM:
-		if(hspend - holdsp + 1 + (spend - linebuf) > LBSIZE)
-			quit("Hold space too long at line %ld", lnum);
-		*hspend++ = '\n';
-		p1 = hspend;
-		p2 = linebuf;
-		while(*p1++ = *p2++)
-			;
-		hspend = p1 - 1;
+		if(hspend < hend)
+			*hspend++ = '\n';
+		for(p2 = linebuf; *p2 && hspend < hend; )
+			*hspend++ = *p2++;
+		*hspend = 0;
 		break;
 	case ICOM:
 		for(rp = ipc->text; *rp; rp++)
@@ -1251,7 +1252,8 @@ command(SedCom *ipc)
 	case CNCOM:
 		if(aptr > abuf)
 			arout();
-		*spend++ = '\n';
+		if(spend < lbend)
+			*spend++ = '\n';
 		if((execp = gline(spend)) == 0) {
 			delflag = 1;
 			break;
@@ -1394,14 +1396,6 @@ quit(char *fmt, ...)
 	errexit();
 }
 
-void
-toolong(Rune *addr)
-{
-	if (addr == linebuf)
-		quit("Input line too long at line %ld", lnum);
-	quit("Pattern space too long at line %ld", lnum);
-}
-
 Rune *
 gline(Rune *addr)
 {
@@ -1418,18 +1412,13 @@ gline(Rune *addr)
 		p = addr;
 		for (c = (peekc? peekc: Bgetrune(f)); c >= 0; c = Bgetrune(f)) {
 			if (c == '\n') {
-				if (p > lbend)
-					toolong(addr);
 				if ((peekc = Bgetrune(f)) < 0 && fhead == 0)
 					dolflag = 1;
 				*p = '\0';
 				return p;
 			}
-			if (c) {
-				if (p >= lbend)
-					toolong(addr);
+			if (c && p < lbend)
 				*p++ = c;
-			}
 		}
 		/* return partial final line, adding implicit newline */
 		if(p != addr) {
