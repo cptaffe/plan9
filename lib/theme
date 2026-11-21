@@ -33,6 +33,24 @@ chesscheck	ff8a8a
 chesscomment	7d8594
 chesserror	ff8a8a
 
+# vt(1) and avt: the 16 colors a terminal's programs name
+ansi0	3b4252
+ansi1	e06c75
+ansi2	98c379
+ansi3	e5c07b
+ansi4	61afef
+ansi5	c678dd
+ansi6	56b6c2
+ansi7	abb2bf
+ansi8	838b9a
+ansi9	ff8a8a
+ansi10	b5e0a0
+ansi11	f0d58c
+ansi12	8cc4f5
+ansi13	d7a6f0
+ansi14	89dce4
+ansi15	f2f2ea
+
 # grapw(1): text and back are its ink and paper, ltext a point under the mouse
 grapsel	e8747c
 
