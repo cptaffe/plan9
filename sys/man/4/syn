@@ -56,7 +56,12 @@ from it, and a span from before it is answered whole.
 A program is dead only when its answers end, as when it exits, or when a write to it fails, and
 then
 .I syn
-kills its note group, and its reader and writer end and their pipes close.
+kills its note group, whatever
+.I syn
+is doing, and its reader and writer end and their pipes close.
+When
+.I syn
+exits, it kills the note group of each program it runs.
 A program that dies is run again at the next request of one of its documents, and given each of
 its documents' language and text; edit numbers stay the client's, and a span from before the
 restart is answered whole.
