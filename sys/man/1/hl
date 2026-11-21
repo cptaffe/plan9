@@ -65,20 +65,25 @@ leaves out, or a program that has lost the document
 has
 .I hl
 give the body again.
-Requests wait in a queue of
-.IR hl 's
-own until
-.IR syn 's
-pipe takes them, and
+A span answered
+.B lost
+or
+.B "program gone"
+has
 .I hl
+give the body again too, and one answered
+.B stale
+has it ask for the window's runs whole, by
+.BR "span" " id " - .
+.I Hl
 gives up on
 .I syn
-only when its answers end; past 256 waiting edits of a window,
-.I hl
-drops them and gives the window's body in their place.
-A window whose program cannot start, or whose body
+only when its answers end, and then runs it again.
+A window whose program cannot start, whose body
 .I syn
-does not answer with runs, is left as it is until a Get or Put, when
+does not answer with runs, whose span it answers with another error, or whose language a
+.I syn
+run again does not know, is left as it is until a Get or Put, when
 .I hl
 names it to
 .I syn
