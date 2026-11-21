@@ -13,6 +13,7 @@ fork(void)
 {
 	int n;
 
+	_pausebuf();
 	n = _PROCFORK(RFENVG|RFFDG|RFPROC);
 	if(n < 0)
 		_syserrno();

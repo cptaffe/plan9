@@ -37,6 +37,7 @@ rforkfn(int flags, void (*f)(void*), void *a)
 
 	s.f = f;
 	s.a = a;
+	_pausebuf();
 	n = _RFORKFN(flags, start, &s);
 	if(n < 0)
 		_syserrno();

@@ -73,6 +73,7 @@ extern void	_closebuf(int);
 extern int _readbuf(int, void*, int, int);
 extern int _peekbuf(int, void*, int, int);
 extern void	_detachbuf(void);
+extern void	_pausebuf(void);
 extern int	_bufpipe(int);
 extern int	_bufmove(int);
 extern int	rforkfn(int, void(*)(void*), void*);	/* lib9.h's */

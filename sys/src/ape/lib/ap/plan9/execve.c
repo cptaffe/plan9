@@ -36,7 +36,7 @@ execve(const char *name, const char *argv[], const char *envp[])
 		}else if(flags&FD_ISOPEN){
 			ss = _ultoa(ss, n);
 			*ss++ = ' ';
-			ss = _ultoa(ss, flags);
+			ss = _ultoa(ss, flags&~(FD_BUFFERED|FD_BUFFEREDX));
 			*ss++ = ' ';
 			ss = _ultoa(ss, fi->oflags);
 			*ss++ = '\n';
