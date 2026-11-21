@@ -1,22 +1,13 @@
 .TH HUH 1
 .SH NAME
-Huh, Huh+, Huh-, Bits, huh \- mark the surprising parts of an acme window's text
+Huh, Huh+, Huh-, Bits, huh \- highlight the dense, unusual parts of an acme window's text
 .SH SYNOPSIS
 .B Huh
 [
-.B -a
+.B -t
 ] [
 .B -m
 .I lmdir
-] [
-.B -s
-.I bits
-] [
-.B -w
-.I width
-] [
-.B -l
-.I tokens
 ] [
 .I density
 ]
@@ -145,17 +136,10 @@ highlights, in the color
 .BR huh ,
 the stretches that
 .I huh
-prints, below, with
-.IR bits ,
-.I width
-and
-.I tokens
-as its
-.BR -s ,
-.B -w
-and
-.BR -l ,
-and segments nothing.
+prints, below, at its defaults, and segments nothing.
+What it lights is where the model spends its bits: names, terms, code and figures, more than a
+sentence that is merely new to the text.
+It is meant for prose; code mostly falls under the floor, below.
 Once a text is first scored and has been idle for a second,
 .I Huh
 holds its cutoffs and remembers its highlights.
@@ -171,22 +155,21 @@ does, only when the runes above the held cutoff differ from the density's share 
 While a text is first scored, the cutoffs come from the tokens scored so far;
 Get, a new text and a change of density start afresh.
 .PP
-The density is the share of the text that
-.I Huh
-highlights, in percent, 10 by default, from 5 to 30.
-.B /lib/huh
-sets the default and
+The density, in percent, from 5 to 30, sets the cutoff a highlight enters by, 10 by default; with
+the leaving cutoff and whole words, the highlights cover a little more of a dense text, about 13%
+of the tree's docs, and less of a bland one.
 .B $home/lib/huh
-the user's, by a line
+holds the user's choice, a line
 .BI density " n"\f1,
-the second overriding the first.
+over the default.
 .I Huh+
 and
 .IR Huh- ,
 links to
 .IR Huh ,
-raise and lower it by 5 and write
-.BR $home/lib/huh ,
+raise and lower it by 5, write
+.BR $home/lib/huh
+and print the new density,
 as
 .I Huh
 with a
@@ -196,7 +179,7 @@ does, swept in the tag as
 they need no window.
 A running
 .I Huh
-reads the files again when they change, and marks again by the new density at once.
+reads the file again when it changes, and marks again by the new density at once.
 .PP
 The colors are tints the programs give in their layers' own color lines, each with an opacity,
 so that
@@ -229,7 +212,7 @@ Button 1 on the strip selects its token in the text's window and shows it;
 button 1 on a bar, its paragraph's start.
 Button 3 on the strip writes the token's alternatives, as
 .I Huh
-.B -a
+.B -t
 does, below.
 .PP
 The program reaches the window's files through
@@ -251,7 +234,7 @@ in
 own window ends it too.
 .PP
 .B Huh
-.B -a
+.B -t
 writes the alternatives for the token at the window's dot to
 .B +Errors
 and exits, in any window, with or without
@@ -304,12 +287,10 @@ Each token's score is the clipped bits over the runes of a window of
 tokens around it (32 by default), weighted by a triangle that falls off from the token.
 The cutoff is the score above which the tokens cover
 .I density
-percent of the text's runes, from
-.B $home/lib/huh
-or
-.B /lib/huh
-as for
-.IR Huh .
+percent of the text's runes, 10 by default; unlike
+.IR Huh ,
+.I huh
+reads no file.
 The cutoffs stop at a floor of 1.7 bits a rune, near the 90th percentile of the scores over the
 tree's docs, man pages and C, so a bland text gets less than its share, or nothing, and a text
 under twice
@@ -322,6 +303,8 @@ tokens long (4 by default);
 .B -l
 .B 0
 keeps every one.
+A stretch's ends move out to the blanks around the words they fall in, up to 32 runes, so a
+highlight holds whole words, and stretches that then meet are one.
 A stretch's score is its tokens' scores, weighted by their runes.
 With
 .BR -a ,
@@ -332,11 +315,11 @@ bits and their places.
 .SH FILES
 .TF /lib/astyles
 .TP
-.B /lib/huh
-the default density
-.TP
 .B $home/lib/huh
-the user's density
+the user's density, written by
+.I Huh+
+and
+.IR Huh-
 .TP
 .B /lib/astyles
 places
