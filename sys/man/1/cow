@@ -133,9 +133,23 @@ names only
 .PP
 .I Spots
 ends with an error when it cannot do its work in full.
+It keeps its temporary files in a directory of its own,
+.BI /tmp/spots. pid . n\f1,
+taking the first
+.I n
+from 1 to 100 whose directory it can make, and removes only that one, when it ends or takes a note;
+when it can make none, it prints
+.B "spots: cannot make a temporary directory"
+and exits with status
+.BR tmp .
 When it cannot list the files that changed, because
 .I walk
-warns or a program it runs fails, it prints
+warns or fails, or
+.IR awk ,
+.I sort
+or
+.I mkdir
+fails, it prints
 .B "spots: cannot list the changes"
 and exits with status
 .BR list .
@@ -147,14 +161,15 @@ and exits with status
 .BR freq .
 When
 .I awk
-or
+fails as it makes the patch, it prints
+.B "spots: cannot make the patch"
+and exits with status
+.BR awk ,
+and when
 .I diff
-fails, it exits, before any patch for a failed
-.IR diff ,
-with status
-.B awk
-or
-.BR diff .
+fails, it exits with status
+.BR diff ,
+before it prints any of the patch.
 .PP
 .IR Cowfs
 notes the SHA-1 of each file of the real tree as it copies it;
