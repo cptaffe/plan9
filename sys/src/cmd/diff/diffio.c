@@ -18,6 +18,7 @@ static char *file1, *file2;
 static int firstchange;
 static int noeol[2];
 static int eol;
+static int nul;
 int lines = 3;
 
 typedef struct Lbuf Lbuf;
@@ -41,6 +42,8 @@ readline(Biobuf *bp, Lbuf *b)
 			b->m = b->m ? 2*b->m : 128;
 			b->s = REALLOC(b->s, char, b->m);
 		}
+		if (c == 0)
+			nul = 1;
 		b->s[n++] = c;
 	}
 	if (c < 0 && n == 0)
@@ -128,9 +131,6 @@ prepare(int i, char *arg, char *orig)
 	struct line *p;
 	int j, h;
 	Biobuf *bp;
-	char *cp, buf[1024];
-	int nbytes;
-	Rune r;
 
 	bp = Bopen(arg, OREAD);
 	if (!bp) {
@@ -139,26 +139,16 @@ prepare(int i, char *arg, char *orig)
 	}
 	if (binary)
 		return bp;
-	nbytes = Bread(bp, buf, sizeof buf);
-	if (nbytes > 0) {
-		cp = buf;
-		while (cp < buf+nbytes-UTFmax) {
-			/*
-			 * heuristic for a binary file in the
-			 * brave new UNICODE world
-			 */
-			cp += chartorune(&r, cp);
-			if (r == 0 || (r > 0x7f && r <= 0xa0)) {
-				binary++;
-				return bp;
-			}
-		}
-		Bseek(bp, 0, 0);
-	}
 	p = MALLOC(struct line, 3);
 	eol = 1;
+	nul = 0;
 	for (j = 0; readhash(bp, &lb[0], &h) >= 0; p[j].value = h)
 		p = REALLOC(p, struct line, (++j+3));
+	if (nul) {
+		binary++;
+		FREE(p);
+		return bp;
+	}
 	noeol[i] = !eol;
 	if (noeol[i])
 		p[j].value ^= 1<<20;
