@@ -65,6 +65,17 @@ leaves out, or a program that has lost the document
 has
 .I hl
 give the body again.
+Requests wait in a queue of
+.IR hl 's
+own until
+.IR syn 's
+pipe takes them, and
+.I hl
+gives up on
+.I syn
+only when its answers end; past 256 waiting edits of a window,
+.I hl
+drops them and gives the window's body in their place.
 A window whose program cannot start, or whose body
 .I syn
 does not answer with runs, is left as it is until a Get or Put, when
