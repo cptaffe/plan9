@@ -65,6 +65,13 @@ leaves out, or a program that has lost the document
 has
 .I hl
 give the body again.
+A window whose program cannot start, or whose body
+.I syn
+does not answer with runs, is left as it is until a Get or Put, when
+.I hl
+names it to
+.I syn
+again.
 .I Syn
 gives a fenced block of code in a markdown file to the program of the rule with the block's
 name among its
