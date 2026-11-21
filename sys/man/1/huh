@@ -88,14 +88,16 @@ there, as
 .B lm
 posts it, since acme runs a command in acme's own namespace.
 Each is meant to be run from the window's tag.
-One of them follows a window at a time, as the window's
+Each follows the window by its
+.BR rdevent ,
+so it leaves the window's
 .B event
-has one owner: a second program on a window, under
-.IR amux (4),
-cannot open it and exits, and one that starts on a window whose
+to acme or another program, and both can follow one window.
+One that starts on a window whose
 .I astyles
-layers already include its own deletes its layer and exits.
-To change one for the other, turn the first off by its name in the tag, then start the other.
+layers already include its own deletes that layer and its own, and exits; the program whose
+layer is gone sees so within a quarter second and ends.
+So the same word in the tag turns it on and off.
 .I Huh
 highlights the stretches where the text's information is, those that cost the most;
 .I Bits
@@ -109,8 +111,12 @@ on the window,
 or
 .BR bits .
 It makes the layer, opens the window's
-.B event
-file, and then reads its body, so that no edit falls between.
+.B rdevent
+file from the window's
+.BR seq ,
+and then reads its body under the same
+.BR seq ,
+so that no edit falls between.
 It writes the text to a session of
 .IR lmdir 's
 .B data
@@ -221,53 +227,23 @@ band's color, and beside it a bar for each paragraph, from
 its length the paragraph's bits alone, and its dark part those the text before it already had.
 Button 1 on the strip selects its token in the text's window and shows it;
 button 1 on a bar, its paragraph's start.
-Button 3 shows the token's alternatives, as below.
+Button 3 on the strip writes the token's alternatives, as
+.I Huh
+.B -a
+does, below.
 .PP
 The program reaches the window's files through
 .IR acme (2).
-It takes the window's events by reading the window's
-.B event
-file, whoever else reads it.
-Of the window's events:
-.TF Bits
-.TP
-.B Huh
-(in
-.IR Huh 's
-window) or
-.B Bits
-(in
-.IR Bits 's)
-ends the program, so the same word in the tag turns it on and off.
-.TP
-.B Get
-is written back; the program reads the reloaded body and colors it again.
-.TP
-.B Del
-is written back, and the program ends.
-.TP
-Button 3
-clicked, not swept, on a mark (in
-.IR Huh )
-or on colored text (in
-.IR Bits ),
-writes to the window's
-.B +Errors
-a line for the token clicked and one for each of the run's three costliest tokens:
-the token's address in the file, the token, its bits and rank, and the model's five likeliest
-tokens in its place, from
-.IR lmdir 's
-.BR top ,
-each with its bits.
-B3 on a line shows its token.
-The alternatives tell a misspelling, whose likeliest token is the right spelling, from a new
-idea.
-.PD
-.LP
-Every other event goes back to acme, which handles it as it would have.
-However the program ends, by an event, a failure of
+Acme handles every event in the text's window itself; the program only watches them.
+After a
+.BR Get ,
+it reads the reloaded body and colors it again.
+When the window is deleted its
+.B rdevent
+ends, and so does the program.
+However the program ends, by the window's deletion, a failure of
 .IR lmdir ,
-or a note, it deletes its layer and its own window, and closes the event files.
+its layer's deletion or a note, it deletes its layer and its own window.
 Del or
 .B Bits
 in
@@ -287,6 +263,13 @@ or
 in
 .B /lib/hotkey/acme
 runs it on the window with the focus.
+The line gives the token's address in the file, the token, its bits and rank, and the model's
+five likeliest tokens in its place, from
+.IR lmdir 's
+.BR top ,
+each with its bits; button 3 on the line shows the token.
+The alternatives tell a misspelling, whose likeliest token is the right spelling, from a new
+idea.
 .PP
 The command
 .I huh
@@ -393,20 +376,3 @@ the bands' bounds and
 penalty and least length are placeholders, set on
 .IR lmsim 's
 model of bytes; the real model's scores over the tree's text will set them.
-.PP
-A command with a chorded argument loses the argument when written back.
-.PP
-On acme alone, without
-.IR amux (4),
-a window that
-.IR win (1)
-or another program reads gets no events after the program ends: acme keeps one reader of
-.BR event ,
-and the program's read takes the other's place.
-Under
-.IR amux ,
-Huh and Bits leave a window whose
-.B event
-another session holds, as
-.IR win 's
-does.
