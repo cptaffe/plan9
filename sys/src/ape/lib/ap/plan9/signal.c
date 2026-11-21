@@ -56,7 +56,17 @@ void	(*_sighdlr[MAXSIG+1])(int, char*, Ureg*); /* 0 initialized: SIG_DFL */
 static int
 dflign(int sig)
 {
-	return sig == SIGCHLD || sig == SIGCONT || sig == SIGURG || sig == SIGWINCH;
+	switch(sig){
+	case SIGCHLD:
+	case SIGCONT:
+	case SIGURG:
+	case SIGWINCH:
+	case SIGTSTP:
+	case SIGTTIN:
+	case SIGTTOU:
+		return 1;
+	}
+	return 0;
 }
 
 static void
