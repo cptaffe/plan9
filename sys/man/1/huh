@@ -1,6 +1,6 @@
 .TH HUH 1
 .SH NAME
-Huh, Bits, huh \- mark the surprising parts of an acme window's text
+Huh, Huh+, Huh-, Bits, huh \- mark the surprising parts of an acme window's text
 .SH SYNOPSIS
 .B Huh
 [
@@ -17,7 +17,13 @@ Huh, Bits, huh \- mark the surprising parts of an acme window's text
 ] [
 .B -l
 .I tokens
+] [
+.I density
 ]
+.PP
+.B Huh+
+.br
+.B Huh-
 .PP
 .B Bits
 [
@@ -148,6 +154,34 @@ The cutoffs move only when the text has been idle for a second and the whole ans
 until then the tokens an edit changed are judged against the cutoffs as they stand, so the
 highlights near an edit change at once and the rest stay as they were.
 While a text is first scored, the cutoffs come from the tokens scored so far.
+.PP
+The density is the share of the text that
+.I Huh
+highlights, in percent, 10 by default, from 5 to 30.
+.B /lib/huh
+sets the default and
+.B $home/lib/huh
+the user's, by a line
+.BI density " n"\f1,
+the second overriding the first.
+.I Huh+
+and
+.IR Huh- ,
+links to
+.IR Huh ,
+raise and lower it by 5 and write
+.BR $home/lib/huh ,
+as
+.I Huh
+with a
+.I density
+does, swept in the tag as
+.BR "Huh 15" ;
+they need no window.
+A running
+.I Huh
+reads the files again when they change, and marks again by the new density at once.
+.PP
 The colors are tints the programs give in their layers' own color lines, each with an opacity,
 so that
 .IR astyles (4)
@@ -275,7 +309,12 @@ window of
 tokens around it (16 by default), weighted by a triangle that falls off from the token.
 The cutoff is the score above which the tokens cover
 .I density
-percent of the text's runes (10 by default).
+percent of the text's runes, from
+.B $home/lib/huh
+or
+.B /lib/huh
+as for
+.IR Huh .
 A stretch is a run of tokens above the cutoff for 1.3 times the density that holds a token above
 the cutoff for the density, and is at least
 .I tokens
@@ -292,6 +331,12 @@ Nothing is parsed: the text is plain text to the model, and every stretch comes 
 bits and their places.
 .SH FILES
 .TF /lib/astyles
+.TP
+.B /lib/huh
+the default density
+.TP
+.B $home/lib/huh
+the user's density
 .TP
 .B /lib/astyles
 places
@@ -312,7 +357,7 @@ on
 .BR /mnt/lm :
 .IP
 .EX
-Huh Bits
+Huh+ Huh- Huh Bits
 .EE
 .SH SOURCE
 .B src/cmd/huh
