@@ -24,6 +24,10 @@ extern char *user_from_uid(uid_t, int);
 extern int uid_from_user(const char *, uid_t *);
 #endif
 extern struct passwd *getpwnam(const char *);
+#if defined(_REENTRANT_SOURCE) || _POSIX_C_SOURCE >= 199506L
+extern int getpwnam_r(const char *, struct passwd *, char *, size_t, struct passwd **);
+extern int getpwuid_r(uid_t, struct passwd *, char *, size_t, struct passwd **);
+#endif
 #ifdef _BSD_EXTENSION
 extern struct passwd *getpwent(void);
 extern void setpwent(void);

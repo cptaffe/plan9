@@ -8,7 +8,7 @@
 extern char **environ;
 
 int
-execve(const char *name, const char *argv[], const char *envp[])
+execve(const char *name, char *const argv[], char *const envp[])
 {
 	int n, f, i;
 	char **e, *ss, *se;
@@ -109,7 +109,7 @@ execve(const char *name, const char *argv[], const char *envp[])
 			_CLOSE(f);
 		}
 	}
-	n = _EXEC(name, argv);
+	n = _EXEC(name, (char**)argv);
 	_syserrno();
 	return n;
 }
