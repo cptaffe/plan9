@@ -98,7 +98,11 @@ file, and then reads its body, so that no edit falls between.
 It writes the text to a session of
 .IR lmdir 's
 .B data
-file, splits the tokens it gets back into segments, as
+file, after a preamble, the window's name as its tag has it, a colon and a blank line, as
+.IR bits (1)
+writes a file's, and leaves out the answer's lines for the preamble; a window with no name gets
+none.
+It splits the tokens it gets back into segments, as
 .IR segment (1)
 does, and writes the layer.
 Then it follows the window's edits, by the
@@ -137,7 +141,6 @@ The colors are tints the programs give in their layers' own color lines, each wi
 so that
 .IR astyles (4)
 blends them over the text's other colors in either theme.
-It leaves out the text's first 40 tokens, which cost many bits for lack of context.
 The limits are the same for every file, so a mark means the same in each.
 .I Penalty
 and
