@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 char*
-strdup(char *p)
+strdup(const char *p)
 {
 	int n;
 	char *np;

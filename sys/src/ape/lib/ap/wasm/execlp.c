@@ -17,7 +17,7 @@ execlp(const char *name, const char *arg0, ...)
 	va_end(ap);
 	if(v == 0)
 		return -1;
-	r = execvp(name, (const char**)v);
+	r = execvp(name, v);
 	free(v);
 	return r;
 }

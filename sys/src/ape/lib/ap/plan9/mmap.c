@@ -85,3 +85,32 @@ msync(void *addr, size_t n, int flags)
 	errno = ENOMEM;
 	return -1;
 }
+
+int
+mprotect(void *addr, size_t n, int prot)
+{
+	(void)addr;
+	(void)n;
+	(void)prot;
+	return 0;
+}
+
+int
+posix_madvise(void *addr, size_t n, int advice)
+{
+	(void)addr;
+	(void)n;
+	if(advice < POSIX_MADV_NORMAL || advice > POSIX_MADV_DONTNEED)
+		return EINVAL;
+	return 0;
+}
+
+int
+madvise(void *addr, size_t n, int advice)
+{
+	if(posix_madvise(addr, n, advice) != 0){
+		errno = EINVAL;
+		return -1;
+	}
+	return 0;
+}
