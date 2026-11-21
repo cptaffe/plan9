@@ -1,6 +1,6 @@
 .TH HUH 1
 .SH NAME
-Huh, Bits \- mark the surprising parts of an acme window's text
+Huh, Bits, huh \- mark the surprising parts of an acme window's text
 .SH SYNOPSIS
 .B Huh
 [
@@ -44,6 +44,31 @@ Huh, Bits \- mark the surprising parts of an acme window's text
 ] [
 .B -l
 .I runes
+]
+.PP
+.B huh
+[
+.B -a
+] [
+.B -m
+.I lmdir
+] [
+.B -d
+.I density
+] [
+.B -l
+.I tokens
+] [
+.B -s
+.I bits
+] [
+.B -w
+.I width
+] [
+.B -n
+.I name
+] [
+.I file ...
 ]
 .SH DESCRIPTION
 .I Huh
@@ -232,6 +257,53 @@ or
 in
 .B /lib/hotkey/acme
 runs it on the window with the focus.
+.PP
+The command
+.I huh
+scores each
+.IR file ,
+or its standard input, once, and prints a line for each highlighted stretch:
+.IP
+.EX
+README.md:#2210,#2398 3.41
+.EE
+.LP
+its address and its score.
+A file goes to the model after its preamble, as in
+.IR bits (1),
+and its addresses are
+.IR file :# q0 ,# q1 .
+Standard input has no name, so it gets no preamble and its addresses are
+.RI # q0 ,# q1
+alone;
+.B -n
+gives it
+.I name
+for both.
+.PP
+Each token's bits are clipped at
+.I bits
+(15 by default) and spread over its runes, and each token's score is the clipped bits over the runes of a
+window of
+.I width
+tokens around it (16 by default), weighted by a triangle that falls off from the token.
+The cutoff is the score above which the tokens cover
+.I density
+percent of the text's runes (10 by default).
+A stretch is a run of tokens above the cutoff for 1.3 times the density that holds a token above
+the cutoff for the density, and is at least
+.I tokens
+tokens long (4 by default);
+.B -l
+.B 0
+keeps every one.
+A stretch's score is its tokens' scores, weighted by their runes.
+With
+.BR -a ,
+.I huh
+prints every stretch, a run of tokens above the median score, highlighted or not.
+Nothing is parsed: the text is plain text to the model, and every stretch comes from the tokens'
+bits and their places.
 .SH FILES
 .TF /lib/astyles
 .TP
