@@ -6,6 +6,7 @@ enum
 	I64	= 0x7e,
 	F32	= 0x7d,
 	F64	= 0x7c,
+	V128	= 0x7b,
 };
 
 static	Buf*	b;
@@ -24,6 +25,7 @@ static	long	frame;
 static	long	total;
 static	int	result;
 static	int	usesp;
+int	simd;
 
 static int
 cls(int r)
@@ -32,7 +34,9 @@ cls(int r)
 		return 'R';
 	if(r < FREG)
 		return 'V';
-	return 'F';
+	if(r < XREG)
+		return 'F';
+	return 'X';
 }
 
 static void
@@ -836,6 +840,9 @@ locals(Sig *sg)
 		case 'V':
 			t = I64;
 			break;
+		case 'X':
+			t = V128;
+			break;
 		default:
 			t = F64;
 			break;
@@ -851,6 +858,9 @@ locals(Sig *sg)
 		case KF64:
 			ty[ng++] = F64;
 			break;
+		case KV128:
+			ty[ng++] = V128;
+			break;
 		default:
 			ty[ng++] = I32;
 			break;
@@ -863,6 +873,132 @@ locals(Sig *sg)
 		bput(b, ty[i]);
 	}
 	free(ty);
+}
+
+static void
+vop(int o)
+{
+	simd = 1;
+	op(WPREFIXV);
+	buleb(b, o);
+}
+
+static void
+vget(Adr *a)
+{
+	if(a->type == D_LOCAL)
+		op2(WLOCALGET, varloc[a->offset]);
+	else
+		lget(a->reg);
+}
+
+static void
+vset(Adr *a)
+{
+	if(a->type == D_LOCAL)
+		op2(WLOCALSET, varloc[a->offset]);
+	else
+		lset(a->reg);
+}
+
+static void
+vmov(Prog *p)
+{
+	long off;
+
+	if(p->to.type == D_OREG) {
+		off = maddr(&p->to);
+		vget(&p->from);
+		vop(0x0b);
+		buleb(b, 2);
+		buleb(b, (ulong)off);
+		return;
+	}
+	if(p->from.type == D_OREG) {
+		off = maddr(&p->from);
+		vop(0x00);
+		buleb(b, 2);
+		buleb(b, (ulong)off);
+	} else
+		vget(&p->from);
+	vset(&p->to);
+}
+
+static void
+vload(Prog *p)
+{
+	long off;
+
+	off = maddr(&p->from);
+	switch(p->as) {
+	case AVLOADW:
+		vop(0x00);
+		buleb(b, 2);
+		break;
+	case AVLOADH:
+		vop(0x03);
+		buleb(b, 1);
+		break;
+	case AVLOADHU:
+		vop(0x04);
+		buleb(b, 1);
+		break;
+	default:
+		vop(0x5c);
+		buleb(b, 0);
+		break;
+	}
+	buleb(b, (ulong)off);
+	switch(p->as) {
+	case AVLOADB:
+		vop(0x87);
+		vop(0xa7);
+		break;
+	case AVLOADBU:
+		vop(0x89);
+		vop(0xa9);
+		break;
+	}
+	lset(p->to.reg);
+}
+
+static void
+varith(Prog *p)
+{
+	static int o[] = { 0xae, 0xb1, 0xb5, 0x4e, 0x50, 0x51 };
+
+	lget(p->reg != NOREG ? p->reg : p->to.reg);
+	lget(p->from.reg);
+	vop(o[p->as - AVADD]);
+	lset(p->to.reg);
+}
+
+static void
+vsum(Prog *p)
+{
+	int i;
+
+	for(i=0; i<4; i++) {
+		lget(p->from.reg);
+		vop(0x1b);
+		bput(b, i);
+		if(i > 0)
+			op(WI32ADD);
+	}
+	lset(p->to.reg);
+}
+
+static void
+vrev(Prog *p)
+{
+	int i;
+
+	lget(p->from.reg);
+	lget(p->from.reg);
+	vop(0x0d);
+	for(i=0; i<16; i++)
+		bput(b, (3-i/4)*4 + i%4);
+	lset(p->to.reg);
 }
 
 static void	ins(Prog*);
@@ -1359,6 +1495,45 @@ ins(Prog *p)
 		break;
 	case AUNDEF:
 		op(WUNREACHABLE);
+		break;
+	case AVMOV:
+		vmov(p);
+		break;
+	case AVLOADW:
+	case AVLOADH:
+	case AVLOADHU:
+	case AVLOADB:
+	case AVLOADBU:
+		vload(p);
+		break;
+	case AVREV:
+		vrev(p);
+		break;
+	case AVSPLAT:
+		opnd(&p->from, 'R');
+		vop(0x11);
+		lset(p->to.reg);
+		break;
+	case AVADD:
+	case AVSUB:
+	case AVMUL:
+	case AVAND:
+	case AVOR:
+	case AVXOR:
+		varith(p);
+		break;
+	case AVNEG:
+		lget(p->from.reg);
+		vop(0xa1);
+		lset(p->to.reg);
+		break;
+	case AVNOT:
+		lget(p->from.reg);
+		vop(0x4d);
+		lset(p->to.reg);
+		break;
+	case AVSUM:
+		vsum(p);
 		break;
 	}
 

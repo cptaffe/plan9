@@ -2,41 +2,17 @@
 #include <libc.h>
 #include <thread.h>
 #include <acme.h>
-
-void*
-emalloc(uint n)
-{
-	void *v;
-
-	v = mallocz(n, 1);
-	if(v == nil)
-		sysfatal("out of memory");
-	return v;
-}
-
-void*
-erealloc(void *v, uint n)
-{
-	v = realloc(v, n);
-	if(v == nil)
-		sysfatal("out of memory");
-	return v;
-}
+#include "impl.h"
 
 char*
-estrdup(char *s)
+_winevsmprint(char *s, va_list v)
 {
-	s = strdup(s);
-	if(s == nil)
-		sysfatal("out of memory");
-	return s;
-}
+	char *t;
 
-char*
-evsmprint(char *s, va_list v)
-{
-	s = vsmprint(s, v);
-	if(s == nil)
+	if((s = vsmprint(s, v)) == nil)
 		sysfatal("out of memory");
-	return s;
+	t = emalloc(strlen(s)+1);
+	strcpy(t, s);
+	free(s);
+	return t;
 }

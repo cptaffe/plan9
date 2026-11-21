@@ -15,7 +15,7 @@ struct Scroll
 
 int	scrollwid(void);
 int	scrollgap(void);
-void	scrollinit(Scroll*);
+int	scrollinit(Scroll*);
 void	scrolldraw(Image*, Scroll*);
 void	scrollmouse(Mousectl*, Scroll*, void (*)(Scroll*, vlong, void*), void*);
 

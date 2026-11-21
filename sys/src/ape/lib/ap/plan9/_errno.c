@@ -7,10 +7,10 @@
 
 /* see also: ../stdio/strerror.c, with errno-> string mapping */
 
-char _plan9err[ERRMAX];
+_TLS char _plan9err[ERRMAX];
 
 static struct errmap {
-	int	errno;
+	int	num;
 	char	*ename;
 } map[] = {
 	/* from /sys/src/9/port/errstr.h */
@@ -114,6 +114,7 @@ void
 _syserrno(void)
 {
 	int i;
+	char buf[ERRMAX];
 
 	if(_ERRSTR(_plan9err, sizeof _plan9err) < 0)
 		errno = EINVAL;
@@ -121,7 +122,8 @@ _syserrno(void)
 		for(i = 0; i < NERRMAP; i++)
 			if(strstr(_plan9err, map[i].ename) != 0)
 				break;
-		_ERRSTR(_plan9err, sizeof _plan9err);
-		errno = (i < NERRMAP)? map[i].errno : EINVAL;
+		strcpy(buf, _plan9err);
+		_ERRSTR(buf, sizeof buf);
+		errno = (i < NERRMAP)? map[i].num : EINVAL;
 	}
 }

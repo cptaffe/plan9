@@ -11,9 +11,15 @@ typedef int sig_atomic_t;
  *      void handler(int sig, char *, struct Ureg *)
  * where the char * is the Plan 9 message and Ureg is defined in <ureg.h>
  */
+#ifdef __cplusplus
+#define SIG_DFL ((void (*)(int))0)
+#define SIG_ERR ((void (*)(int))-1)
+#define SIG_IGN ((void (*)(int))1)
+#else
 #define SIG_DFL ((void (*)())0)
 #define SIG_ERR ((void (*)())-1)
 #define SIG_IGN ((void (*)())1)
+#endif
 
 #define	SIGHUP	1	/* hangup */
 #define	SIGINT	2	/* interrupt */
@@ -56,7 +62,11 @@ extern const char *const sys_signame[NSIG];
 extern "C" {
 #endif
 
+#ifdef __cplusplus
+extern void (*signal(int, void (*)(int)))(int);
+#else
 extern void (*signal(int, void (*)()))();
+#endif
 extern int raise(int);
 
 #ifdef __cplusplus
@@ -67,7 +77,11 @@ extern int raise(int);
 
 typedef long sigset_t;
 struct sigaction {
+#ifdef __cplusplus
+	void		(*sa_handler)(int);
+#else
 	void		(*sa_handler)();
+#endif
 	sigset_t	sa_mask;
 	int		sa_flags;
 };
@@ -108,6 +122,8 @@ extern int sigaction(int, const struct sigaction *, struct sigaction *);
 extern int sigprocmask(int, sigset_t *, sigset_t *);
 extern int sigpending(sigset_t *);
 extern int sigsuspend(const sigset_t *);
+extern int pthread_kill(int, int);
+extern int pthread_sigmask(int, const sigset_t *, sigset_t *);
 
 #ifdef __cplusplus
 }

@@ -2,7 +2,7 @@
  * pANS stdio -- gets
  */
 #include "iolib.h"
-char *gets(char *as){
+static char *ugets(char *as){
 #ifdef secure
 	stdin->flags|=ERR;
 	return NULL;
@@ -14,4 +14,15 @@ char *gets(char *as){
 	else return NULL;
 	return as;
 #endif
+}
+
+char *
+gets(char *as)
+{
+	char *r;
+
+	flockfile(stdin);
+	r = ugets(as);
+	funlockfile(stdin);
+	return r;
 }

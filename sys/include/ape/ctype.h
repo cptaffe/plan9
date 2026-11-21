@@ -39,6 +39,7 @@ enum
 };
 
 extern unsigned char _ctype[];
+#ifndef __cplusplus
 #define	isalnum(c)	(_ctype[(unsigned char)(c)]&(_ISupper|_ISlower|_ISdigit))
 #define	isalpha(c)	(_ctype[(unsigned char)(c)]&(_ISupper|_ISlower))
 #define	iscntrl(c)	(_ctype[(unsigned char)(c)]&_IScntrl)
@@ -50,9 +51,40 @@ extern unsigned char _ctype[];
 #define	isspace(c)	(_ctype[(unsigned char)(c)]&_ISspace)
 #define	isupper(c)	(_ctype[(unsigned char)(c)]&_ISupper)
 #define	isxdigit(c)	(_ctype[(unsigned char)(c)]&_ISxdigit)
+#endif
 
 #ifdef _BSD_EXTENSION
 #define	isascii(c) (((unsigned int)(c))<0x80)
+#endif
+
+#if _POSIX_C_SOURCE >= 200809L
+#ifndef _LOCALE_T
+#define _LOCALE_T
+typedef struct __locale *locale_t;
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern int isalnum_l(int, locale_t);
+extern int isalpha_l(int, locale_t);
+extern int isblank_l(int, locale_t);
+extern int iscntrl_l(int, locale_t);
+extern int isdigit_l(int, locale_t);
+extern int isgraph_l(int, locale_t);
+extern int islower_l(int, locale_t);
+extern int isprint_l(int, locale_t);
+extern int ispunct_l(int, locale_t);
+extern int isspace_l(int, locale_t);
+extern int isupper_l(int, locale_t);
+extern int isxdigit_l(int, locale_t);
+extern int tolower_l(int, locale_t);
+extern int toupper_l(int, locale_t);
+
+#ifdef __cplusplus
+}
+#endif
 #endif
 
 #endif /* __CTYPE */

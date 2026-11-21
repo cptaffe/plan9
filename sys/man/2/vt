@@ -1,6 +1,6 @@
 .TH VT 2
 .SH NAME
-vtnew, vtdumb, vtfree, vtresize, vtreset, vtwrite, vtframe, vtkey, vtpaste, vtmouse, vtfocus, vtwidth \- a terminal's screen, with nothing drawn
+vtnew, vtdumb, vtfree, vtresize, vtreset, vtwrite, vtframe, vtkey, vtpaste, vtmouse, vtfocus, vtwidth, vtrgb \- a terminal's screen, with nothing drawn
 .SH SYNOPSIS
 .ta \w'void* 'u
 .B #include <u.h>
@@ -46,6 +46,12 @@ int	vtfocus(Vt *vt, int in, char *buf, int n)
 .PP
 .B
 int	vtwidth(Rune r)
+.PP
+.B
+ulong	vtrgb(ulong c, ulong *pal, ulong def)
+.PP
+.B
+extern ulong	vtansi[16]
 .PP
 .B
 void*	emalloc(ulong n)
@@ -110,6 +116,28 @@ A color is
 or'd with one of the 256 colors, or
 .B Vrgb
 or'd with 0xRRGGBB.
+.I Vtrgb
+gives a color as 0xRRGGBB:
+.I def
+for
+.BR Vdefault ,
+.IR pal 's
+entry for one of the first 16 colors, or
+.BR vtansi 's
+if
+.I pal
+is nil,
+and xterm's 240 for the others.
+.B Vtansi
+holds the 16
+.IR vt (1)
+shows with no theme;
+.IR vt (1)
+and
+.I avt
+take theirs from the theme
+(see
+.IR theme (6)).
 A cell's
 .B link
 is the index in

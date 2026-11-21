@@ -8,6 +8,8 @@
 
 typedef ulong Time;
 
+static char *layout;
+
 enum {
 	AM, PM, HR24,
 
@@ -224,7 +226,16 @@ convert(char *timestr)
 {
 	char *copy;
 	Time tstime;
+	Tm tm;
 
+	if (layout != nil) {
+		if (tmparse(&tm, layout, timestr) < 0) {
+			fprint(2, "%s: %r\n", argv0);
+			return 1;
+		}
+		print("%lld\n", tmsec(&tm));
+		return 0;
+	}
 	copy = strdup(timestr);
 	if (copy == nil)
 		sysfatal("out of memory");
@@ -241,7 +252,7 @@ convert(char *timestr)
 static void
 usage(void)
 {
-	fprint(2, "usage: %s date-time ...\n", argv0);
+	fprint(2, "usage: %s [-f layout] date-time ...\n", argv0);
 	exits("usage");
 }
 
@@ -252,6 +263,9 @@ main(int argc, char **argv)
 
 	sts = 0;
 	ARGBEGIN{
+	case 'f':
+		layout = EARGF(usage());
+		break;
 	default:
 		usage();
 	}ARGEND

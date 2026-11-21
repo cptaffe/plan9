@@ -4,7 +4,11 @@ diff \- differential file comparator
 .SH SYNOPSIS
 .B diff
 [
-.B -abcefmnrw
+.B -abcefmnruw
+]
+[
+.B -U
+.I n
 ]
 .I file1 ... file2
 .SH DESCRIPTION
@@ -143,10 +147,75 @@ The
 .B -a
 flag displays the entire file as context.
 .PP
+The
+.B -u
+option prints a unified diff, the form
+.IR patch (1)
+reads.
+A header of two lines,
+.BI "--- " file1
+and
+.BI "+++ " file2 ,
+gives the names as typed, so
+.B /dev/null
+shows as itself.
+Each group of changes follows, headed by a line
+.IP
+.BI "@@ -" l , n " +" l , n " @@"
+.PP
+that gives the first line and the number of lines of the group in each file.
+A group of one line gives no number, and an empty group gives the line before it,
+so an empty file shows as
+.BR -0,0 .
+Then come the lines, each marked with a space when both files have it,
+.L -
+when only
+.I file1
+does, and
+.L +
+when only
+.I file2
+does.
+Three lines of context surround each change, and changes whose context meets share a group.
+The
+.BI -U " n"
+option prints a unified diff with
+.I n
+lines of context.
+Under
+.BR -r ,
+.B -u
+compares a file in only one of the trees with
+.BR /dev/null .
+.PP
+A file with a NUL byte anywhere is binary, and of two binary files
+.I diff
+says only whether they differ, so no NUL reaches its output.
+.PP
+A file whose last line has no newline differs from one whose last line has.
+In every form but those of
+.B -e
+and
+.BR -f ,
+the line
+.L "\e No newline at end of file"
+follows such a line.
+.PP
 Except in rare circumstances,
 .I diff
 finds a smallest sufficient set of file
 differences.
+Where a group of changes could sit higher or lower, because the lines at its edges repeat,
+.I diff
+puts it where a change in the other file meets it,
+or else where its edges fall at blank lines and at the least indented lines,
+as
+.IR git 's
+indent heuristic does,
+so that an added function begins with its first line and ends with its own brace.
+The heuristic's weights are those of
+.IR git 's
+xdiff.
 .SH FILES
 .B /tmp/diff[12]
 .SH SOURCE
@@ -155,7 +224,8 @@ differences.
 .IR cmp (1),
 .IR comm (1),
 .IR ed (1),
-.IR idiff (1)
+.IR idiff (1),
+.IR patch (1)
 .SH DIAGNOSTICS
 Exit status is the empty string
 for no differences,
@@ -174,3 +244,7 @@ When running
 .I diff
 on directories, the notion of what is a text
 file is open to debate.
+.PP
+A unified diff cannot show an empty file, so
+.B -u
+prints nothing for one that is new or removed.

@@ -22,6 +22,7 @@ start(void *v)
 
 	s = v;
 	_detachbuf();
+	_grouppid = 0;
 	_sessleader = 0;
 	_itimerms = 0;
 	(*s->f)(s->a);

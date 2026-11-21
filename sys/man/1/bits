@@ -9,6 +9,9 @@ bits \- how much information each part of a text carries, according to a languag
 .B -m
 .I dir
 ] [
+.B -n
+.I name
+] [
 .I file
 ]
 .SH DESCRIPTION
@@ -23,6 +26,17 @@ by
 or
 .IR lmsim (4)),
 and prints the model's answer.
+.PP
+A text read from
+.I file
+goes to the model after a preamble, the file's name, a colon and a blank line, as a reader starts
+knowing what the file is, so that the first words don't cost many bits for lack of context.
+The answer's lines for the preamble are left out, and the rest are given as offsets into the
+text.
+Standard input has no name and gets no preamble, unless
+.B -n
+gives it
+.IR name .
 .PP
 With no option it prints a line for each token:
 .IP
@@ -58,7 +72,7 @@ the first takes any blank lines before it, so the paragraphs tile the text.
 .I Bits
 is the paragraph's cost given the text before it, the sum of its tokens' bits,
 .I alone
-its cost as a text of its own, and
+its cost as a text of its own, with no preamble, and
 .I shared
 the difference: how much of it the text has already said.
 .B -p

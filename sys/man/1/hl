@@ -4,9 +4,6 @@ hl \- tree-sitter's colors in acme's windows
 .SH SYNOPSIS
 .B hl
 [
-.B -a
-.I acme
-] [
 .B -s
 .I astyles
 ]
@@ -24,8 +21,13 @@ It waits for
 an acme's
 .B /srv
 file, and follows its windows, mounted on
-.I acme
-.RB ( /mnt/acme ),
+.BR /mnt/acme ,
+through
+.IR amux (4)
+sessions when
+.B /mnt/amux
+has them (see
+.IR acme (2)),
 writing their layers in
 .I astyles
 .RB ( /mnt/astyles ).
@@ -140,6 +142,8 @@ plan9web's
 .SH SEE ALSO
 .IR acme (1),
 .IR Tree (1),
+.IR acme (2),
+.IR amux (4),
 .IR astyles (4),
 .IR syn (4),
 .IR theme (6)

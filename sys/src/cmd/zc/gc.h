@@ -164,6 +164,7 @@ int	Sconv(Fmt*);
 int	Nconv(Fmt*);
 
 void	regopt(Prog*);
+void	vcgen(Node*, Node*);
 
 #pragma	varargck	type	"A"	int
 #pragma	varargck	type	"D"	Adr*

@@ -2,9 +2,13 @@ win on p9web (github.com/cptaffe/plan9web): Plan 9's win, as this tree has it (9
 Plan 9's libthread and lib9p, objtype wasm (plan9web's mk/n9). p9web's Acme is a fork with
 plan9port's ways: the changes are for it.
 
-Changes for p9web (this branch's commit):
-	main.c	output is held until it goes in under seq (winput)
-	win.c	output goes in under the window's seq (winguard, winput)
+Changes for p9web:
+	main.c	output is held until it goes in under seq (wput)
+	win.c	output goes in under the window's seq (wguard, wput)
+	win.c	a window is libacme's Win (acme(2)), so an amux(4) session where amux runs
+	main.c	execevent takes libacme's Event, its expansion and argument in it
+	main.c	the command gets an amux session of its own as /dev/acme, or /mnt/wsys/$id
+	fs.c	output goes on the channel as a Msg, beside acme's events
 
 win serves cons and consctl (lib9p) and mounts them before /dev in its namespace; rc reads and
 writes them. A note to rc's note group is an interrupt (Del, or ^C).

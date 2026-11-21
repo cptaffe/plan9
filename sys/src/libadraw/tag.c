@@ -25,6 +25,7 @@ static void	layout(Tagx*, int);
 static void	newbody(Tagx*);
 static void	send1(Tagx*, Event*);
 
+
 static Rune Lfile[] = { '.', '-', '+', '/', ':', '@', 0 };
 static Rune Lhttp[] = { 'h', 't', 't', 'p', ':', '/', '/', 0 };
 static Rune Lhttps[] = { 'h', 't', 't', 'p', 's', ':', '/', '/', 0 };
@@ -95,7 +96,7 @@ colorargs(char *s, ulong *bg, ulong *fg)
 	char *f[3], *b;
 	int n, ok;
 
-	b = strdup(s);
+	b = _adrawstrdup(s);
 	n = tokenize(b, f, nelem(f));
 	ok = n == 0 || (n == 2 && hexcol(f[0], bg) && hexcol(f[1], fg));
 	free(b);
@@ -185,7 +186,7 @@ text(Tagx *t, uint q0, uint q1)
 		q1 = t->ns;
 	if(q0 > q1)
 		q0 = q1;
-	return smprint("%.*S", q1-q0, t->s+q0);
+	return _adrawsmprint("%.*S", q1-q0, t->s+q0);
 }
 
 static void
@@ -193,7 +194,7 @@ snap(Tagx *t)
 {
 	char *s;
 
-	s = smprint("%.*S", t->ns, t->s);
+	s = _adrawsmprint("%.*S", t->ns, t->s);
 	lock(&t->sl);
 	free(t->snap);
 	t->snap = s;
@@ -331,9 +332,7 @@ insert(Tagx *t, uint q, Rune *r, int n)
 		return;
 	if(q > t->ns)
 		q = t->ns;
-	t->s = realloc(t->s, (t->ns+n+1)*sizeof(Rune));
-	if(t->s == nil)
-		sysfatal("tag: %r");
+	t->s = erealloc(t->s, (t->ns+n+1)*sizeof(Rune));
 	memmove(t->s+q+n, t->s+q, (t->ns-q)*sizeof(Rune));
 	memmove(t->s+q, r, n*sizeof(Rune));
 	t->ns += n;
@@ -385,7 +384,7 @@ readfile(char *name)
 	s = nil;
 	n = 0;
 	for(;;){
-		s = realloc(s, n+8192+1);
+		s = erealloc(s, n+8192+1);
 		if((m = read(fd, s+n, 8192)) <= 0)
 			break;
 		n += m;
@@ -441,7 +440,7 @@ paste(Tagx *t, int selectall)
 	}
 	cut(t, 0, 1);
 	n = utflen(s);
-	r = runesmprint("%s", s);
+	r = _adrawrunesmprint("%s", s);
 	free(s);
 	q0 = t->q0;
 	insert(t, q0, r, n);
@@ -716,7 +715,7 @@ parsetag(Tagx *t, int *len)
 	int i, n;
 
 	lock(&t->sl);
-	r = runesmprint("%s", t->snap ? t->snap : "");
+	r = _adrawrunesmprint("%s", t->snap ? t->snap : "");
 	unlock(&t->sl);
 	n = runestrlen(r);
 	pipe = runestrstr(r, Lspacepipe);
@@ -740,7 +739,7 @@ dirname(Tagx *t, char *name)
 	int i, slash;
 
 	if(name != nil && name[0] == '/')
-		return cleanname(strdup(name));
+		return cleanname(_adrawstrdup(name));
 	b = parsetag(t, &i);
 	slash = -1;
 	for(i--; i >= 0; i--)
@@ -749,13 +748,13 @@ dirname(Tagx *t, char *name)
 			break;
 		}
 	if(slash >= 0)
-		d = smprint("%.*S", slash+1, b);
+		d = _adrawsmprint("%.*S", slash+1, b);
 	else
 		d = nil;
 	free(b);
 	if(d == nil)
-		return name != nil ? cleanname(strdup(name)) : nil;
-	s = smprint("%s%s", d, name != nil ? name : "");
+		return name != nil ? cleanname(_adrawstrdup(name)) : nil;
+	s = _adrawsmprint("%s%s", d, name != nil ? name : "");
 	free(d);
 	return cleanname(s);
 }
@@ -770,7 +769,7 @@ wdir(Tagx *t)
 		free(d);
 		if(getwd(buf, sizeof buf) == nil)
 			return nil;
-		d = strdup(buf);
+		d = _adrawstrdup(buf);
 	}
 	return d;
 }
@@ -840,7 +839,7 @@ expandfile(Tagx *t, uint q0, uint q1, Expand *e)
 			e->q1--;
 			n--;
 		}
-		e->name = runesmprint("%.*S", n, r);
+		e->name = _adrawrunesmprint("%.*S", n, r);
 		e->nname = n;
 		return 1;
 	}
@@ -860,7 +859,7 @@ expandfile(Tagx *t, uint q0, uint q1, Expand *e)
 	for(i=0; i<nname; i++)
 		if(!isfilec(r[i]) && r[i] != ' ')
 			return 0;
-	s = smprint("%.*S", nname, r);
+	s = _adrawsmprint("%.*S", nname, r);
 	if(amin == q0){
 		b = s;
 		s = nil;
@@ -872,7 +871,7 @@ expandfile(Tagx *t, uint q0, uint q1, Expand *e)
 			return 0;
 		}
 	}
-	e->name = runesmprint("%s", b);
+	e->name = _adrawrunesmprint("%s", b);
 	e->nname = runestrlen(e->name);
 	free(b);
 	if(amin < e->q1)
@@ -911,7 +910,7 @@ readall(int fd)
 	s = nil;
 	n = 0;
 	for(;;){
-		s = realloc(s, n+8192+1);
+		s = erealloc(s, n+8192+1);
 		if((m = read(fd, s+n, 8192)) <= 0)
 			break;
 		n += m;
@@ -928,7 +927,7 @@ cmdname(char *s)
 		s++;
 	for(e=s; *e && *e!=' ' && *e!='\t' && *e!='\n'; e++)
 		;
-	n = smprint("%.*s", (int)(e-s), s);
+	n = _adrawsmprint("%.*s", (int)(e-s), s);
 	if((p = utfrrune(n, '/')) != nil)
 		memmove(n, p+1, strlen(p+1)+1);
 	return n;
@@ -1036,7 +1035,7 @@ xkill(Tagx *t, char *rest, char *arg)
 	int i, n, nbad, found, fd, pids[64], np, j;
 	Run *r;
 
-	s = strdup(rest != nil && *rest ? rest : arg != nil ? arg : "");
+	s = _adrawstrdup(rest != nil && *rest ? rest : arg != nil ? arg : "");
 	n = tokenize(s, f, nelem(f));
 	np = 0;
 	nbad = 0;
@@ -1264,10 +1263,10 @@ complete1(Tagx *t)
 	str = text(t, t->q0-nstr, t->q0);
 	path = text(t, t->q0-nstr-npath, t->q0-nstr);
 	if(npath>0 && path[0]=='/')
-		dir = strdup(path);
+		dir = _adrawstrdup(path);
 	else{
 		d = wdir(t);
-		dir = cleanname(smprint("%s/%s", d ? d : ".", path));
+		dir = cleanname(_adrawsmprint("%s/%s", d ? d : ".", path));
 		free(d);
 	}
 	rp = nil;
@@ -1283,7 +1282,7 @@ complete1(Tagx *t)
 			for(i=0; i<c->nfile; i++)
 				fprint(fd, " %s\n", c->filename[i]);
 		}else
-			rp = runesmprint("%s", c->string);
+			rp = _adrawrunesmprint("%s", c->string);
 		freecompletion(c);
 	}
 	close(fd);
@@ -1314,7 +1313,7 @@ event(int c1, int c2, uint q0, uint q1, uint oq0, uint oq1, int flag, char *s, c
 {
 	Event *e;
 
-	e = mallocz(sizeof *e, 1);
+	e = emalloc(sizeof *e);
 	e->c1 = c1;
 	e->c2 = c2;
 	e->q0 = q0;
@@ -1344,7 +1343,7 @@ isbuiltin(char *s)
 		s++;
 	for(n=0; s[n] && s[n]!=' ' && s[n]!='\t' && s[n]!='\n'; n++)
 		;
-	w = smprint("%.*s", n, s);
+	w = _adrawsmprint("%.*s", n, s);
 	for(b=builtins; *b; b++)
 		if(strcmp(*b, w) == 0)
 			break;
@@ -1359,7 +1358,7 @@ getarg(Tagx *t)
 
 	if(expand(t, t->q0, t->q1, &e)){
 		if(e.nname){
-			a = smprint("%S", e.name);
+			a = _adrawsmprint("%S", e.name);
 			free(e.name);
 			return a;
 		}
@@ -1416,7 +1415,7 @@ look3(Tagx *t, uint q0, uint q1)
 	if(!expand(t, q0, q1, &e))
 		return;
 	if(e.nname)
-		s = smprint("%S%.*S", e.name, e.a0>=0 ? e.q1-e.a0 : 0, t->s+(e.a0>=0 ? e.a0 : 0));
+		s = _adrawsmprint("%S%.*S", e.name, e.a0>=0 ? e.q1-e.a0 : 0, t->s+(e.a0>=0 ? e.a0 : 0));
 	else
 		s = text(t, e.q0, e.q1);
 	f = 0;
@@ -1443,10 +1442,10 @@ plumb1(Tagx *t, uint q0, uint q1)
 		q0 = q1;
 	if((fd = plumbopen("send", OWRITE)) < 0)
 		return;
-	m = mallocz(sizeof *m, 1);
-	m->src = strdup("acme");
+	m = emalloc(sizeof *m);
+	m->src = _adrawstrdup("acme");
 	m->wdir = wdir(t);
-	m->type = strdup("text");
+	m->type = _adrawstrdup("text");
 	if(q1 == q0){
 		if(t->q1>t->q0 && t->q0<=q0 && q0<=t->q1){
 			q0 = t->q0;
@@ -1481,7 +1480,7 @@ acmename(int id)
 	snprint(buf, sizeof buf, "/mnt/acme/%d/tag", id);
 	if((fd = open(buf, OREAD)) < 0)
 		return nil;
-	s = malloc(1024);
+	s = emalloc(1024);
 	n = read(fd, s, 1023);
 	close(fd);
 	if(n < 0)
@@ -1709,7 +1708,7 @@ spawn(Tagx *t, char *cmd, int fd0, int fd1, int fd2)
 		close(i);
 		return -1;
 	}
-	r = mallocz(sizeof *r, 1);
+	r = emalloc(sizeof *r);
 	r->pid = pid;
 	r->name = cmdname(cmd);
 	qlock(&t->lk);
@@ -1717,11 +1716,11 @@ spawn(Tagx *t, char *cmd, int fd0, int fd1, int fd2)
 	r->next = t->run;
 	t->run = r;
 	qunlock(&t->lk);
-	w = malloc(sizeof *w);
+	w = emalloc(sizeof *w);
 	w->t = t;
 	w->pid = pid;
-	w->name = strdup(r->name);
-	edit(t, 'a', strdup(r->name));
+	w->name = _adrawstrdup(r->name);
+	edit(t, 'a', _adrawstrdup(r->name));
 	proccreate(watchproc, w, 8192);
 	return pid;
 }
@@ -1733,11 +1732,11 @@ run(Tagx *t, char *s, char *arg)
 	int fd;
 
 	if(arg != nil){
-		q = quotestrdup(arg);
-		c = smprint("%s %s", s, q);
+		q = _adrawquote(arg);
+		c = _adrawsmprint("%s %s", s, q);
 		free(q);
 	}else
-		c = strdup(s);
+		c = _adrawstrdup(s);
 	fd = cons();
 	spawn(t, c, open("/dev/null", OREAD), fd, dup(fd, -1));
 	free(c);
@@ -1780,7 +1779,7 @@ dflt(Tagx *t, Event *e)
 	if(e->c2 != 'x' && e->c2 != 'X')
 		return;
 	if(e->nr > 0)
-		s = strdup(e->text);
+		s = _adrawstrdup(e->text);
 	else
 		s = text(t, e->q0, e->q1);
 	a = (e->flag&8) ? e->arg : nil;
@@ -1792,7 +1791,7 @@ dflt(Tagx *t, Event *e)
 	r = w+n;
 	while(*r==' ' || *r=='\t' || *r=='\n')
 		r++;
-	w = smprint("%.*s", n, w);
+	w = _adrawsmprint("%.*s", n, w);
 	if(strcmp(w, "Snarf") == 0)
 		cut(t, 1, 0);
 	else if(strcmp(w, "Cut") == 0)
@@ -1867,7 +1866,7 @@ setname(Tagx *t, char *name)
 
 	o = parsetag(t, &n);
 	free(o);
-	r = runesmprint("%s", name);
+	r = _adrawrunesmprint("%s", name);
 	delete(t, 0, n);
 	insert(t, 0, r, runestrlen(r));
 	free(r);
@@ -1930,9 +1929,9 @@ tagcmd(Tagx *t, char *name)
 
 	q = bar(t);
 	if(q == t->ns && (q == 0 || t->s[q-1] != ' '))
-		r = runesmprint(" %s ", name);
+		r = _adrawrunesmprint(" %s ", name);
 	else
-		r = runesmprint("%s ", name);
+		r = _adrawrunesmprint("%s ", name);
 	insert(t, q, r, runestrlen(r));
 	free(r);
 }
@@ -1943,7 +1942,7 @@ untagcmd(Tagx *t, char *name)
 	Rune *r;
 	uint q, n;
 
-	r = runesmprint("%s", name);
+	r = _adrawrunesmprint("%s", name);
 	n = runestrlen(r);
 	for(q=bar(t); q+n<=t->ns; q++)
 		if((q==0 || t->s[q-1]==' ') && runestrncmp(t->s+q, r, n) == 0
@@ -1961,7 +1960,7 @@ apply(Tagx *t, Edit *e)
 
 	if(!t->closed){
 		if(e->op == 'w'){
-			r = runesmprint("%s", e->s);
+			r = _adrawrunesmprint("%s", e->s);
 			insert(t, t->ns, r, runestrlen(r));
 			free(r);
 		}else if(e->op == 'a')
@@ -1981,7 +1980,7 @@ edit(Tagx *t, int op, char *s)
 {
 	Edit *e;
 
-	e = malloc(sizeof *e);
+	e = emalloc(sizeof *e);
 	e->op = op;
 	e->s = s;
 	if(t->busy == 0 && t->pid == getpid())
@@ -2114,12 +2113,30 @@ tagopen(Mousectl *mc, Keyboardctl *kc, char *name)
 {
 	Tag *tg;
 	Tagx *t;
-	Image *cols[NCOL];
+	Image *cols[NCOL], *im[4];
+	int i, n;
 
-	tg = mallocz(sizeof *tg, 1);
-	t = mallocz(sizeof *t, 1);
-	if(tg == nil || t == nil)
+	themecols(cols);
+	im[0] = allocimage(display, Rect(0,0,1,1), screen->chan, 0, DWhite);
+	im[1] = colimage(themecolor("but2", 0xAA0000FF));
+	im[2] = colimage(themecolor("but3", 0x006600FF));
+	im[3] = colimage(themecolor("modbutton", DMedblue));
+	n = 0;
+	for(i=0; i<NCOL; i++)
+		n += cols[i] == nil;
+	for(i=0; i<nelem(im); i++)
+		n += im[i] == nil;
+	if(n > 0){
+		for(i=0; i<NCOL; i++)
+			if(cols[i] != display->black)
+				freeimage(cols[i]);
+		for(i=0; i<nelem(im); i++)
+			freeimage(im[i]);
+		werrstr("tag colors: %r");
 		return nil;
+	}
+	tg = emalloc(sizeof *tg);
+	t = emalloc(sizeof *t);
 	tg->x = t;
 	t->tag = tg;
 	t->mc = mc;
@@ -2127,11 +2144,11 @@ tagopen(Mousectl *mc, Keyboardctl *kc, char *name)
 	t->pid = getpid();
 	t->eq0 = ~0;
 	tg->c = chancreate(sizeof(Event*), 32);
-	tg->mc = malloc(sizeof *tg->mc);
+	tg->mc = emalloc(sizeof *tg->mc);
 	*tg->mc = *mc;
 	tg->mc->c = chancreate(sizeof(Mouse), 0);
 	tg->mc->resizec = chancreate(sizeof(int), 2);
-	tg->kc = malloc(sizeof *tg->kc);
+	tg->kc = emalloc(sizeof *tg->kc);
 	*tg->kc = *kc;
 	tg->kc->c = chancreate(sizeof(Rune), 20);
 	t->wc = chancreate(sizeof(Event*), 32);
@@ -2142,15 +2159,14 @@ tagopen(Mousectl *mc, Keyboardctl *kc, char *name)
 	t->font = font;
 	t->all = screen->r;
 	t->expand = 1;
-	t->f = mallocz(sizeof(Frame), 1);
-	t->g = mallocz(sizeof(Frame), 1);
-	themecols(cols);
+	t->f = emalloc(sizeof(Frame));
+	t->g = emalloc(sizeof(Frame));
 	memmove(t->f->cols, cols, sizeof cols);
-	t->gb = allocimage(display, Rect(0,0,1,1), screen->chan, 0, DWhite);
-	t->but2 = colimage(themecolor("but2", 0xAA0000FF));
-	t->but3 = colimage(themecolor("but3", 0x006600FF));
-	t->mod = colimage(themecolor("modbutton", DMedblue));
-	t->s = runesmprint("%s Del Snarf |", name ? name : "");
+	t->gb = im[0];
+	t->but2 = im[1];
+	t->but3 = im[2];
+	t->mod = im[3];
+	t->s = _adrawrunesmprint("%s Del Snarf |", name ? name : "");
 	t->ns = runestrlen(t->s);
 	t->q0 = t->q1 = t->ns;
 	snap(t);
@@ -2199,7 +2215,7 @@ tagwriteevent(Tag *tg, Event *e)
 		werrstr("tag closed");
 		return -1;
 	}
-	p = malloc(sizeof *p);
+	p = emalloc(sizeof *p);
 	*p = *e;
 	sendp(tg->x->wc, p);
 	return 1;
@@ -2217,10 +2233,8 @@ tagctl(Tag *tg, char *fmt, ...)
 		return -1;
 	}
 	va_start(arg, fmt);
-	s = vsmprint(fmt, arg);
+	s = _adrawvsmprint(fmt, arg);
 	va_end(arg);
-	if(s == nil)
-		return -1;
 	r = 0;
 	for(p=s; *p; p=e){
 		if((e = strchr(p, '\n')) != nil)
@@ -2234,7 +2248,7 @@ tagctl(Tag *tg, char *fmt, ...)
 			r = -1;
 			continue;
 		}
-		edit(tg->x, 'c', strdup(p));
+		edit(tg->x, 'c', _adrawstrdup(p));
 	}
 	free(s);
 	return r;
@@ -2251,7 +2265,7 @@ tagwrite(Tag *tg, char *file, void *buf, int n)
 		werrstr("no file %s", file);
 		return -1;
 	}
-	edit(tg->x, 'w', smprint("%.*s", n, (char*)buf));
+	edit(tg->x, 'w', _adrawsmprint("%.*s", n, (char*)buf));
 	return n;
 }
 
@@ -2267,7 +2281,7 @@ tagmread(Tag *tg, char *file)
 		return nil;
 	}
 	lock(&t->sl);
-	s = strdup(t->snap ? t->snap : "");
+	s = _adrawstrdup(t->snap ? t->snap : "");
 	unlock(&t->sl);
 	return s;
 }
@@ -2298,9 +2312,9 @@ tagpipe(Tag *tg, char *cmd, char *in)
 		return nil;
 	}
 	if(p0[1] >= 0){
-		f = malloc(sizeof *f);
+		f = emalloc(sizeof *f);
 		f->fd = p0[1];
-		f->s = strdup(in);
+		f->s = _adrawstrdup(in);
 		proccreate(feedproc, f, 16384);
 	}
 	s = readall(p1[0]);

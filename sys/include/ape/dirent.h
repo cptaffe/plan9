@@ -35,6 +35,9 @@ struct dirent	*readdir(DIR *);
 #if _POSIX_C_SOURCE >= 200809L || defined(_BSD_EXTENSION)
 int		dirfd(DIR *);
 #endif
+#if _POSIX_C_SOURCE >= 200809L
+DIR		*fdopendir(int);
+#endif
 void		rewinddir(DIR *);
 int		closedir(DIR *);
 

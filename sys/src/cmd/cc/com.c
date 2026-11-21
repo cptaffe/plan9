@@ -76,6 +76,11 @@ tcomo(Node *n, int f)
 	n->addable = 0;
 	l = n->left;
 	r = n->right;
+	if(vecop(n->op) || (isvec(n) && n->op != ONAME)) {
+		if(tcomv(n))
+			goto bad;
+		return 0;
+	}
 
 	switch(n->op) {
 	default:
@@ -703,6 +708,10 @@ tcomo(Node *n, int f)
 	t = n->type;
 	if(t == T)
 		goto bad;
+	if(!vecop(n->op) && ((t->etype == TVEC && n->op != ONAME) || isvec(l) || isvec(r))) {
+		diag(n, "vector type in %O", n->op);
+		goto bad;
+	}
 	if(t->width < 0) {
 		snap(t);
 		if(t->width < 0) {
@@ -738,6 +747,88 @@ addaddr:
 
 bad:
 	n->type = T;
+	return 1;
+}
+
+int
+vecop(int o)
+{
+	return o >= OVLOAD && o <= OVSUM;
+}
+
+int
+isvec(Node *n)
+{
+	return n != Z && n->type != T && n->type->etype == TVEC;
+}
+
+int
+tcomv(Node *n)
+{
+	Node *l, *r;
+	Type *t;
+
+	l = n->left;
+	r = n->right;
+	t = n->type;
+	if(l == Z || tcom(l) || r != Z && tcom(r))
+		return 1;
+	switch(n->op) {
+	case OVLOAD:
+	case OVRLOAD:
+		if(!isvec(n) || l->type->etype != TIND || l->type->link == T || !typechl[l->type->link->etype])
+			goto bad;
+		break;
+	case OVSPLAT:
+		if(!isvec(n) || !typechl[l->type->etype])
+			goto bad;
+		break;
+	case OVSUM:
+		if(!isvec(l))
+			goto bad;
+		n->type = l->type->link;
+		break;
+	case OAS:
+		if(!isvec(l) || !isvec(r) || l->op != ONAME)
+			goto bad;
+		n->type = l->type;
+		break;
+	case ONEG:
+	case OCOM:
+		if(r != Z || !isvec(l))
+			goto bad;
+		n->type = l->type;
+		break;
+	case OADD:
+	case OSUB:
+	case OMUL:
+	case OAND:
+	case OOR:
+	case OXOR:
+		if(!isvec(l) || !isvec(r))
+			goto bad;
+		n->type = l->type;
+		break;
+	default:
+		goto bad;
+	}
+	switch(n->op) {
+	case OVLOAD:
+	case OVRLOAD:
+		t = l->type->link;
+		break;
+	case OVSUM:
+		t = n->type;
+		break;
+	default:
+		t = n->type->link;
+		break;
+	}
+	if(t == T || !veccap(n->op, t->etype))
+		goto bad;
+	return 0;
+bad:
+	diag(n, "bad vector %O: %T", n->op, t);
 	return 1;
 }
 
