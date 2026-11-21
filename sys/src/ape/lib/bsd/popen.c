@@ -25,7 +25,7 @@ struct a_child {
 	int	myside;
 	int	hisside;
 	int	to;
-	char	*cmd;
+	const char	*cmd;
 };
 
 static void
@@ -45,7 +45,7 @@ child(void *v)
 }
 
 FILE *
-popen(char *cmd, char *mode)
+popen(const char *cmd, const char *mode)
 {
 	int p[2];
 	int myside, hisside, pid;
