@@ -131,9 +131,6 @@ prepare(int i, char *arg, char *orig)
 	struct line *p;
 	int j, h;
 	Biobuf *bp;
-	char *cp, buf[1024];
-	int nbytes;
-	Rune r;
 
 	bp = Bopen(arg, OREAD);
 	if (!bp) {
@@ -142,22 +139,6 @@ prepare(int i, char *arg, char *orig)
 	}
 	if (binary)
 		return bp;
-	nbytes = Bread(bp, buf, sizeof buf);
-	if (nbytes > 0) {
-		cp = buf;
-		while (cp < buf+nbytes && fullrune(cp, buf+nbytes-cp)) {
-			/*
-			 * heuristic for a binary file in the
-			 * brave new UNICODE world
-			 */
-			cp += chartorune(&r, cp);
-			if (r == 0 || (r > 0x7f && r <= 0xa0)) {
-				binary++;
-				return bp;
-			}
-		}
-		Bseek(bp, 0, 0);
-	}
 	p = MALLOC(struct line, 3);
 	eol = 1;
 	nul = 0;

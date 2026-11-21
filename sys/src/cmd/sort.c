@@ -1550,12 +1550,14 @@ sort4(void *a, ulong n)
 void
 rsort4(Key ***a, ulong n, int b)
 {
-	Key ***ea, ***t, ***u, **t1, **u1, *k;
+	Key ***ea, ***t, ***u, **t1, **u1, *k, ***ma;
 	Key ***part[257];
 	static long count[257];
 	long clist[257+257], *cp, *cp1;
 	int c, lowc, higc;
+	ulong mn;
 
+again:
 	/*
 	 * pass 1 over all keys,
 	 * count the number of each key[b].
@@ -1639,19 +1641,39 @@ rsort4(Key ***a, ulong n, int b)
 
 	/*
 	 * pass 4 over all partitions.
-	 * call recursively.
+	 * call recursively on all but
+	 * the largest, and loop on it.
 	 */
 	b++;
 	t = a + clist[0];
 	count[256] = 0;
+	ma = t;
+	mn = 0;
 	for(cp1=clist+1; n=cp1[0]; cp1+=2) {
-		if(n > Threshold)
-			rsort4(t, n, b);
-		else
-		if(n > 1)
-			bsort4(t, n, b);
+		if(n > mn) {
+			ma = t;
+			mn = n;
+		}
 		t += n;
 	}
+	t = a + clist[0];
+	for(cp1=clist+1; n=cp1[0]; cp1+=2) {
+		if(t != ma) {
+			if(n > Threshold)
+				rsort4(t, n, b);
+			else
+			if(n > 1)
+				bsort4(t, n, b);
+		}
+		t += n;
+	}
+	if(mn > Threshold) {
+		a = ma;
+		n = mn;
+		goto again;
+	}
+	if(mn > 1)
+		bsort4(ma, mn, b);
 }
 
 /*
