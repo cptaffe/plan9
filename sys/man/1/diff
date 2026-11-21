@@ -188,6 +188,10 @@ Under
 compares a file in only one of the trees with
 .BR /dev/null .
 .PP
+A file with a NUL byte anywhere is binary, and of two binary files
+.I diff
+says only whether they differ, so no NUL reaches its output.
+.PP
 A file whose last line has no newline differs from one whose last line has.
 In every form but those of
 .B -e
