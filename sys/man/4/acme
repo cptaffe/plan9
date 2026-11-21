@@ -196,21 +196,11 @@ is always appended; the file offset is ignored.
 .B ctl
 may be read to recover the five numbers as held in the
 .B index
-file, described above, plus eight more fields: the width of the
+file, described above, plus seven more fields: the width of the
 window in pixels, the name of the font used in the window,
 the width of a tab character in pixels, whether there is anything to undo
-and to redo (1 or 0), the number of lines the body shows, the width
-of the digit 0 in pixels, a column's width in a fixed-width font,
-and how many times the window's
-.B event
-file is open.
-A program that would take over a window, such as one named by
-.BR $winid ,
-should leave one whose
-.B event
-file is open, as
-.IR win 's
-is, to its owner.
+and to redo (1 or 0), the number of lines the body shows, and the width
+of the digit 0 in pixels, a column's width in a fixed-width font.
 Text messages may be written to
 .B ctl
 to affect the window.
@@ -597,6 +587,14 @@ it replaces only those at the address, its runs' starts are relative to it,
 and its names are added to the window's.
 A run whose name the window has not given takes the theme's colours.
 Reading gives the window's names and runs.
+Under a
+.B seq
+guard, the open and each write fail with
+.L "seq mismatch"
+after an edit, and an edit between the last write and the close drops the writes;
+a close reports no error, so a writer that needs to know reads
+.B seq
+again after closing.
 .TP
 .B tag
 holds contents of the window tag.  It may be read at any byte offset.
@@ -693,6 +691,8 @@ and the guard written to its
 belong to the window, not to the file that set them, so one program's write to either,
 between another's and its use, moves the other's.
 .IR Astyles (4)
+without
+.IR amux (4)
 sets
 .B addr
 for each partial write of
@@ -701,4 +701,9 @@ an edit by
 .B addr
 and
 .B data
-while the window's styles change can land in the wrong place.
+while the window's styles change can land in the wrong place,
+and a whole write of
+.B style
+after another program's write to
+.B addr
+replaces only the styles at that address.

@@ -3,23 +3,27 @@
 #pragma lib "/$M/lib/ape/libap.a"
 
 /*
- * POSIX threads, as much as a process of one thread of control has: thread-specific data,
- * once, and mutexes. pthread_create says EAGAIN: the process has its one thread only. A
- * program that uses threads for their data (a library's state per thread) runs as it does
- * with one thread; one that needs a second thread to run at once does not run.
+ * POSIX threads. On wasm a thread is a process that shares this memory (rfork RFMEM), whose one
+ * fiber the kernel switches to at a call that waits; one thread runs at a time, and none is
+ * preempted: a thread that spins without a call, or a sched_yield, keeps the others waiting.
  */
 
 #include <stddef.h>
+#include <time.h>
+#include <sched.h>
 
 typedef int pthread_t;
 typedef int pthread_key_t;
 typedef struct { int done; } pthread_once_t;
-typedef struct { int locked; int type; } pthread_mutex_t;
+typedef struct { int locked; int type; pthread_t owner; void *wait; } pthread_mutex_t;
 typedef struct { int type; } pthread_mutexattr_t;
-typedef struct { int detached; } pthread_attr_t;
+typedef struct { int detached; size_t stacksize; } pthread_attr_t;
+typedef struct { void *wait; } pthread_cond_t;
+typedef struct { int clock; } pthread_condattr_t;
 
 #define PTHREAD_ONCE_INIT	{0}
-#define PTHREAD_MUTEX_INITIALIZER	{0, 0}
+#define PTHREAD_MUTEX_INITIALIZER	{0, 0, 0, 0}
+#define PTHREAD_COND_INITIALIZER	{0}
 #define PTHREAD_KEYS_MAX	128
 #define PTHREAD_DESTRUCTOR_ITERATIONS	4
 
@@ -41,10 +45,14 @@ extern int pthread_equal(pthread_t, pthread_t);
 extern int pthread_create(pthread_t *, const pthread_attr_t *, void *(*)(void *), void *);
 extern int pthread_join(pthread_t, void **);
 extern int pthread_detach(pthread_t);
+extern int pthread_kill(pthread_t, int);
 extern void pthread_exit(void *);
 extern int pthread_attr_init(pthread_attr_t *);
 extern int pthread_attr_destroy(pthread_attr_t *);
 extern int pthread_attr_setdetachstate(pthread_attr_t *, int);
+extern int pthread_attr_getdetachstate(const pthread_attr_t *, int *);
+extern int pthread_attr_setstacksize(pthread_attr_t *, size_t);
+extern int pthread_attr_getstacksize(const pthread_attr_t *, size_t *);
 
 extern int pthread_once(pthread_once_t *, void (*)(void));
 
@@ -61,6 +69,15 @@ extern int pthread_mutex_destroy(pthread_mutex_t *);
 extern int pthread_mutex_lock(pthread_mutex_t *);
 extern int pthread_mutex_trylock(pthread_mutex_t *);
 extern int pthread_mutex_unlock(pthread_mutex_t *);
+
+extern int pthread_condattr_init(pthread_condattr_t *);
+extern int pthread_condattr_destroy(pthread_condattr_t *);
+extern int pthread_cond_init(pthread_cond_t *, const pthread_condattr_t *);
+extern int pthread_cond_destroy(pthread_cond_t *);
+extern int pthread_cond_signal(pthread_cond_t *);
+extern int pthread_cond_broadcast(pthread_cond_t *);
+extern int pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
+extern int pthread_cond_timedwait(pthread_cond_t *, pthread_mutex_t *, const struct timespec *);
 
 #ifdef __cplusplus
 }

@@ -21,6 +21,7 @@
 #include <sys/time.h>
 #include <sys/select.h>
 #include "../plan9/sys9.h"
+#include "../plan9/dir.h"
 
 typedef struct Hdr Hdr;
 struct Hdr {
@@ -218,6 +219,7 @@ copystart(void *v)
 	int i;
 
 	c = v;
+	_grouppid = 0;
 	if(_muxsid == -1) {
 		_RFORK(RFNOTEG);
 		_muxsid = getpgrp();
@@ -421,6 +423,7 @@ timerstart(void *v)
 	int i;
 
 	(void)v;
+	_grouppid = 0;
 	setpgid(getpid(), _muxsid);
 	_NOTIFY(timerhandler);
 	for(i=0; i<OPEN_MAX; i++)
@@ -462,10 +465,33 @@ settimer(int t)
 	return 0;
 }
 
+static long
+waiting(int fd)
+{
+	Dir *d;
+	long n;
+
+	if((d = _dirfstat(fd)) == nil)
+		return 0;
+	n = d->length;
+	free(d);
+	return n;
+}
+
+static void
+takeall(void)
+{
+	int id;
+
+	while(waiting(mux[0]) > 0)
+		if(take(&id) == -1)
+			break;
+}
+
 int
 select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *timeout)
 {
-	int n, i, t, fd, id;
+	int n, i, t, fd, id, err;
 	fd_set rwant, ewant;
 	Muxbuf *b;
 
@@ -501,21 +527,24 @@ select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *timeo
 				n++;
 	}
 
+	takeall();
 	FD_ZERO(&rwant);
 	FD_ZERO(&ewant);
 	for(fd = 0; fd < nfds; fd++) {
 		if((b = _fdinfo[fd].buf) == 0 || !(_fdinfo[fd].flags&FD_BUFFERED))
 			continue;
+		err = 0;
 		if(efds && FD_ISSET(fd, efds)) {
-			if(b->eof && b->n == 0)
+			if(b->eof && b->n == 0){
+				err = 1;
 				n++;
-			else{
+			}else{
 				FD_CLR(fd, efds);
 				FD_SET(fd, &ewant);
 			}
 		}
 		if(rfds && FD_ISSET(fd, rfds)) {
-			if(b->n > 0 || b->eof)
+			if(!err && (b->n > 0 || b->eof))
 				n++;
 			else{
 				FD_CLR(fd, rfds);

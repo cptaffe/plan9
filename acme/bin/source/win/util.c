@@ -2,10 +2,11 @@
 #include <libc.h>
 #include <bio.h>
 #include <thread.h>
+#include <acme.h>
 #include "dat.h"
 
 void*
-emalloc(uint n)
+emalloc(ulong n)
 {
 	void *p;
 
@@ -13,6 +14,15 @@ emalloc(uint n)
 	if(p == nil)
 		error("can't malloc: %r");
 	memset(p, 0, n);
+	return p;
+}
+
+void*
+erealloc(void *p, ulong n)
+{
+	p = realloc(p, n);
+	if(p == nil && n != 0)
+		error("can't realloc: %r");
 	return p;
 }
 
@@ -77,14 +87,17 @@ error(char *fmt, ...)
 }
 
 void
-ctlprint(int fd, char *fmt, ...)
+wctl(Window *w, char *fmt, ...)
 {
-	int n;
+	char *s;
 	va_list arg;
 
 	va_start(arg, fmt);
-	n = vfprint(fd, fmt, arg);
+	s = vsmprint(fmt, arg);
 	va_end(arg);
-	if(n <= 0)
-		error("control file write error: %r");
+	if(s == nil)
+		error("can't malloc: %r");
+	if(winctl(w->a, "%s", s) <= 0)
+		error("write ctl: %r");
+	free(s);
 }

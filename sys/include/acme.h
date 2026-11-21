@@ -3,9 +3,10 @@
 
 /*
  * Acme's windows by their files in /mnt/acme (acme(4)), with plan9port's libacme's interface,
- * on open, read and write. The window's files are opened as they are first used and kept.
- * winreadrdevent reads rdevent as winreadevent reads event; winseqopen and winseqwrite are
- * guarded by seq. It needs <u.h>, <libc.h> and <thread.h> first. See acme(2).
+ * on open, read and write, through a session of amux(4) when /mnt/amux has the window. The
+ * window's files are opened as they are first used and kept. winreadrdevent reads rdevent as
+ * winreadevent reads event; winseqopen and winseqwrite are guarded by seq. It needs <u.h>,
+ * <libc.h> and <thread.h> first. See acme(2).
  */
 
 typedef struct Event	Event;
@@ -40,6 +41,9 @@ struct Winbuf
 struct Win
 {
 	int	id;
+	int	clone;
+	int	actl;
+	char	dir[48];
 	int	ctl;
 	int	tag;
 	int	body;
@@ -67,6 +71,7 @@ int	pipetowin(Win*, char*, int, char*, ...);
 char*	sysrun(char*, ...);
 int	winaddr(Win*, char*, ...);
 int	winctl(Win*, char*, ...);
+char*	winpath(Win*);
 int	windel(Win*, int);
 int	winfd(Win*, char*, int);
 char*	winmread(Win*, char*);
@@ -90,10 +95,8 @@ int	winseq(Win*);
 int	winseqopen(Win*, char*, int, int);
 int	winseqwrite(Win*, int, char*, void*, int);
 
-void*	erealloc(void*, uint);
-void*	emalloc(uint);
-char*	estrdup(char*);
-char*	evsmprint(char*, va_list);
+void*	emalloc(ulong);
+void*	erealloc(void*, ulong);
 
 #pragma	varargck	argpos	winaddr	2
 #pragma	varargck	argpos	winctl	2

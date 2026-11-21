@@ -1,159 +1,213 @@
 .TH PATCH 1
 .SH NAME
-patch \- simple patch creation and tracking system
+patch \- apply unified diffs
 .SH SYNOPSIS
-.B patch/create
-.I name
-.I email
-.I files ...
+.B patch
 [
-.B <
-.I description
+.B -nRz
 ]
-.PP
-.B patch/list
 [
-.I name ...
+.B -p
+.I n
 ]
-.PP
-.B patch/diff
-.I name
-.PP
-.B patch/apply
-.I name
-.PP
-.B patch/undo
-.I name
-.PP
-.B patch/note
-.I name
 [
-.B <
-.I note
+.I file ...
 ]
 .SH DESCRIPTION
-These scripts are a simple patch submission and tracking system
-used to propose additions or changes to Plan 9.
-There is no guarantee that any patch will be accepted, nor
-that it will be accepted verbatim.
-Each patch has a
-.I name
-(lowercase letters, numbers, dash, dot, and underscore only)
-and is stored in
-.BI /n/sources/patch/ name.
+.I Patch
+reads unified diffs, as
+.B diff -u
+and
+.I git
+write them, from the
+.I files
+or its standard input, and applies them to the files they name.
+It checks every diff before it writes any file:
+if one does not apply,
+.I patch
+says why and changes nothing.
+It prints the name of each file it changes, one a line, and both names of a renamed file.
 .PP
-.I Patch/create
-creates a new patch consisting of the changes to
-the listed text files from the distribution, reading
-a description of the patch from standard input:
-please provide an explanation of what the change is supposed to do,
-some context, and a rationale for the change.
-Please do not submit binary files.
-Test data or pointers to same to verify that the fix works are also welcome.
-When sending a patch, follow these guidelines:
-.IP • 3
-Before preparing the patch, run
-.I replica/pull
-and base your patch on current distribution source code.
-.IP •
-If this is a bug fix, explain the bug clearly.
-Don't assume the bug is obvious from the fix.
-.IP •
-If this is a new feature, explain it clearly.
-Don't assume it is obvious from the change.
-.IP •
-Make the new code look as much like the old code as possible:
-don't make gratuitous changes, and do follow the style of the old code.
-See
-.IR style (6)
-for the canonical Plan 9 coding style.
-.IP •
-If your patch changes externally-visible behaviour,
-update the manual page.
+.I Patch
+ignores the text before, between and after the diffs, such as the headers of a mail.
+A diff begins with a line
+.BI "--- " old
+and a line
+.BI "+++ " new ,
+or with
+.IR git 's
+line
+.BI "diff --git " "old new"
+and the lines of its header.
+A name ends at a tab, and a name in double quotes has C's escapes.
+.B /dev/null
+as the old name makes the new file, and as the new name removes the old one.
+Every other name must be local, as
+.IR islocal (2)
+says: not absolute, not beginning with
+.BR # ,
+and not leading out of the directory once cleaned.
+.I Patch
+cleans each name, so
+.B ./f
+and
+.B f
+are one file.
+Of
+.IR git 's
+header,
+.I patch
+takes
+.BR "new file mode" ,
+.BR "deleted file mode" ,
+.BR "old mode" ,
+.BR "new mode" ,
+.B rename from
+and
+.BR "rename to" ,
+and
+.B copy from
+and
+.BR "copy to" ,
+and skips the
+.B index
+and
+.B similarity
+lines.
+A diff with a header and no hunks still makes, removes, renames or copies its file:
+an empty file, a rename that changes nothing inside, a change of mode.
+A mode of
+.B 100755
+gives the file execute permission wherever it has read permission, and
+.B 100644
+takes execute permission away.
+.I Patch
+refuses a binary patch, and the modes of symbolic links and submodules.
 .PP
-The
-.I email
-address, if not
-.LR - ,
-will be sent notification messages when the patch is applied, rejected,
-or commented on.
-If rejected, the e-mail will contain a note explaining why and
-probably listing suggested changes and encouraging you to resubmit.
+Without
+.IR git 's
+header,
+.I patch
+changes the old file in place, or the new one when there is no old one.
+A rename removes the old file.
 .PP
-.I Patch/list
-displays information about the named patches,
-or all currently pending patches if none are specified.
+A hunk applies where its old lines, its context and the lines it removes, are in the file exactly.
+.I Patch
+looks first at the line the hunk names, moved by as many lines as the hunk before it moved,
+and then one line further each way in turn, below before above, through the file.
+A hunk that names the first line must apply there, and one with no context after its
+changes must end at the end of the file, as
+.IR git 's
+apply holds them; so a diff made with no context, as
+.B diff -U0
+makes it, needs
+.BR -z .
+The hunks of a file apply in their order, each after the one before.
 .PP
-.I Patch/diff
-shows a patch as diffs between the original
-source files and the patched source files.
-.PP
-.I Patch/apply
-applies the patch to the current source tree.
-It is intended to be run by the Plan 9 developers with
-.B pie
-as their root file system.
-If the source has changed since the patch was
-created,
-.I apply
-will report the conflict and not change any files.
-Before changing any files,
-.I patch/apply
-makes backup copies of the current source tree's
-files.  The backups are stored in the patch directory.
-.PP
-.I Patch/undo
-will copy the backups saved by
-.I patch/apply
-back into the source tree.
-It will not restore a backup if the file
-being replaced is not byte-identical to the one
-created by
-.I patch/apply.
-.SH EXAMPLES
-Propose a change to
-.IR pwd ,
-which you have modified locally:
-.IP
-.EX
-% patch/create pwd-errors user@host.dom /sys/src/cmd/pwd.c
-Fix pwd to print errors to fd 2 rather than 1.
-^D
-%
-.EE
-.PP
-Then the developers at Bell Labs run
-.IP
-.EX
-patch/diff pwd-errors
-.EE
-.PP
-to inspect the change (possibly viewing
-.B /n/sources/patch/pwd-errors/pwd.c
-to see the larger context).
-To make the change, they run
-.IP
-.EX
-patch/apply pwd-errors
-.EE
-.LP
-Otherwise they run
-.IP
-.EX
-% patch/note pwd-errors
-Pwd should definitely print errors to fd 1 because ...
-^D
-%
-.EE
-.PP
-to add a note to the
-.B /n/sources/pwd-errors/notes
-file.
-.SH FILES
-.B /n/sources/patch
-.SH SOURCE
-.B /rc/bin/patch
-.SH SEE ALSO
+The options are:
+.TP
+.BI -p " n"
+Remove from each name the shortest prefix that holds
+.I n
+slashes.
+By default
+.I n
+is 1 for a diff with
+.IR git 's
+header, whose names begin
+.B a/
+and
+.BR b/ ,
+and 0 for one without, since
 .IR diff (1)
-.br
-.B http://plan9.bell-labs.com/wiki/plan9/How_to_contribute
+gives the names as typed:
+.B "diff -u x x.new | patch"
+changes
+.BR x .
+The names of
+.IR git 's
+rename and copy lines have no such prefix, and lose one component fewer.
+.TP
+.B -n
+Check the diffs as
+.I patch
+would apply them and print the files they would change, but write nothing.
+.TP
+.B -R
+Apply the diffs in reverse, from the new files to the old.
+.TP
+.B -z
+Take the diffs as made with no context, as
+.IR git 's
+apply
+.B --unidiff-zero
+does: a hunk is held only when it adds lines before the first, and the rest go by their numbers.
+.PP
+.I Patch
+writes each file's new text to a temporary file beside it,
+.IB file .patch pid\f1.
+When it has written them all, it moves each old file aside, to
+.IB file .patchold pid\f1,
+puts the temporary files in their places, and only then removes the old files.
+If any step fails, it puts back what it moved and removes the temporary files and the directories it made,
+so the files are as they were;
+if it cannot put a file back, it says so, names the file that holds the old text, and exits with an error.
+A file and a directory of the same name may change places:
+.I patch
+moves the file aside before it makes the directory, and moves the directory aside, to
+.IB dir .patchold pid\f1,
+before it puts the file in its place, removing the old tree only when all is done.
+.I Patch
+refuses a patch that makes a file under a name the patch makes a file.
+If
+.I patch
+is killed while it commits, or cannot put files back, the old text of a file is in
+.IB file .patchold pid
+beside it, and its new text may be in
+.IB file .patch pid\f1;
+to put a file back, remove any new
+.I file
+and rename
+.IB file .patchold pid
+to
+.IR file ,
+and remove the
+.IB file .patch pid
+files.
+It holds an interrupt off while it does this, and acts on it after, and it prints the names when it has done.
+It makes the directories a new file needs, and removes those that a removed file leaves empty.
+.SH EXAMPLES
+Turn a copy of the tree
+.B old
+into
+.BR new :
+.IP
+.EX
+diff -ru old new >/tmp/p
+cd copy
+patch -p1 </tmp/p
+.EE
+.PP
+Apply a commit that
+.IR git (1)
+exported, and take it back:
+.IP
+.EX
+patch <0001-fix.patch
+patch -R <0001-fix.patch
+.EE
+.SH SOURCE
+.B /sys/src/cmd/patch
+.SH "SEE ALSO"
+.IR diff (1),
+.IR git (1),
+.IR patch (2)
+.SH DIAGNOSTICS
+An error names the patch, the line of the diff's header, the file and the cause,
+such as the line of a hunk that does not apply.
+.SH BUGS
+Lines after a hunk's counts run out are text between diffs, so a hunk that miscounts its lines
+loses the rest without a word.
+.PP
+.B -R
+refuses a copy.

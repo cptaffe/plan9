@@ -153,12 +153,12 @@ ocvt_x,	0,	0,	0,	0,	0,	0,	0,	/*  x  y  z  {  |  }  ~ ^? */
 0,	0,	0,	0,	0,	0,	0,	0,
 };
 
-static int nprint;
+static _Thread_local int nprint;
 /*
  * In wprintf's conversions (_vfprintfw), widths and precisions
  * count characters, not bytes: the bytes are UTF-8.
  */
-static int widemode;
+static _Thread_local int widemode;
 
 int
 _vfprintfw(FILE *f, const char *as, va_list args)
@@ -171,8 +171,8 @@ _vfprintfw(FILE *f, const char *as, va_list args)
 	return n;
 }
 
-int
-vfprintf(FILE *f, const char *as, va_list args)
+static int
+uvfprintf(FILE *f, const char *as, va_list args)
 {
 	int tfl, flags, width, precision;
 	unsigned char *s;
@@ -757,4 +757,15 @@ ocvt_flt(FILE *f, va_list *args, int flags, int width, int precision, char afmt)
 		nout++;
 	}
 	return nout;
+}
+
+int
+vfprintf(FILE *f, const char *as, va_list args)
+{
+	int r;
+
+	flockfile(f);
+	r = uvfprintf(f, as, args);
+	funlockfile(f);
+	return r;
 }

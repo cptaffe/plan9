@@ -21,6 +21,7 @@ ginit(void)
 	tfield = types[TLONG];
 	fieldsysv = 1;
 	vlongreg = 1;
+	vecwidth = 16;
 
 	typeword = typechlvp;
 	typeswitch = typechlv;
@@ -154,12 +155,16 @@ rclass(int r)
 		return 'R';
 	if(r < FREG)
 		return 'V';
-	return 'F';
+	if(r < XREG)
+		return 'F';
+	return 'X';
 }
 
 int
 tclass(Type *t)
 {
+	if(t->etype == TVEC)
+		return 'X';
 	if(typev[t->etype])
 		return 'V';
 	if(typefd[t->etype])
@@ -361,6 +366,10 @@ regalloc(Node *n, Node *tn, Node *o)
 		lo = FREGMIN;
 		hi = FREGMAX;
 		break;
+	case 'X':
+		lo = XREGMIN;
+		hi = XREGMAX;
+		break;
 	}
 	for(i=lo; i<=hi; i++)
 		if(reg[i] == 0)
@@ -552,6 +561,8 @@ loadop(int et)
 		return AMOVF;
 	case TDOUBLE:
 		return AMOVD;
+	case TVEC:
+		return AVMOV;
 	}
 	return AMOVW;
 }
@@ -578,6 +589,8 @@ copyop(int c)
 		return AMOVV;
 	case 'F':
 		return AMOVD;
+	case 'X':
+		return AVMOV;
 	}
 	return AMOVW;
 }
@@ -684,6 +697,10 @@ greg(Node *f, Node *t)
 	}
 	a = AGOK;
 	switch(fc) {
+	case 'X':
+		if(tc == 'X')
+			a = AVMOV;
+		break;
 	case 'R':
 		switch(tc) {
 		case 'R':
@@ -781,6 +798,10 @@ gmove(Node *f, Node *t)
 	tt = t->type->etype;
 	if(debug['O'])
 		print("gmove: %O[%T],%O[%T]\n", f->op, f->type, t->op, t->type);
+	if((ft == TVEC) != (tt == TVEC) || (tt == TVEC && f->op == OCONST)) {
+		diag(Z, "bad vector gmove %O[%T] -> %O[%T]", f->op, f->type, t->op, t->type);
+		return;
+	}
 	if(f->op == OCONST) {
 		if(ismem(t)) {
 			gconst(f, t, 1);

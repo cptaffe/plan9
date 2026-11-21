@@ -3,7 +3,8 @@ APE=/sys/src/ape
 LIB=/$objtype/lib/ape/libap.a
 OFILES=\
 	pthread.$O\
+	threads.$O\
 
 </sys/src/cmd/mksyslib
 
-CFLAGS=-c -D_POSIX_SOURCE
+CFLAGS=-c -D_POSIX_SOURCE -D_POSIX_C_SOURCE=200809L

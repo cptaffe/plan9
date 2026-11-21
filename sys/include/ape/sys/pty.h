@@ -10,9 +10,15 @@
 
 #pragma lib "/$M/lib/ape/libbsd.a"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 char*	ptsname(int);
 char*	ptmname(int);
 
 int	_getpty(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* !__SYS_UIO_H__ */

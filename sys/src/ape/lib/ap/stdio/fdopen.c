@@ -14,20 +14,21 @@
  */
 FILE *fdopen(const int fd, const char *mode){
 	FILE *f;
+	if(fd==-1) return NULL;
 	for(f=_IO_stream;f!=&_IO_stream[FOPEN_MAX];f++)
-		if(f->state==CLOSED)
+		if(f->state==CLOSED && ftrylockfile(f)==0)
 			break;
 	if(f==&_IO_stream[FOPEN_MAX])
 		return NULL;
 	f->fd=fd;
-	if(mode[0]=='a')
-		lseek(f->fd, 0, SEEK_END);
-	if(f->fd==-1) return NULL;
 	f->flags=0;
 	f->state=OPEN;
 	f->buf=0;
 	f->rp=0;
 	f->wp=0;
 	f->lp=0;
+	if(mode[0]=='a')
+		lseek(f->fd, 0, SEEK_END);
+	funlockfile(f);
 	return f;
 }

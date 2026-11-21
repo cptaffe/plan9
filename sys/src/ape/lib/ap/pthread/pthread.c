@@ -6,6 +6,8 @@
 #include <pthread.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 
 static struct {
 	int used;
@@ -179,4 +181,67 @@ pthread_mutex_unlock(pthread_mutex_t *m)
 		return EPERM;
 	m->locked--;
 	return 0;
+}
+
+int pthread_condattr_init(pthread_condattr_t *a) { a->clock = CLOCK_REALTIME; return 0; }
+int pthread_condattr_destroy(pthread_condattr_t *a) { return 0; }
+
+int
+pthread_cond_init(pthread_cond_t *c, const pthread_condattr_t *a)
+{
+	c->waiting = 0;
+	return 0;
+}
+
+int
+pthread_cond_destroy(pthread_cond_t *c)
+{
+	return c->waiting ? EBUSY : 0;
+}
+
+int pthread_cond_signal(pthread_cond_t *c) { return 0; }
+int pthread_cond_broadcast(pthread_cond_t *c) { return 0; }
+
+int
+pthread_cond_wait(pthread_cond_t *c, pthread_mutex_t *m)
+{
+	int n;
+
+	if(m->locked == 0)
+		return EPERM;
+	n = m->locked;
+	m->locked = 0;
+	c->waiting++;
+	pause();
+	c->waiting--;
+	m->locked = n;
+	return 0;
+}
+
+int
+pthread_cond_timedwait(pthread_cond_t *c, pthread_mutex_t *m, const struct timespec *t)
+{
+	struct timespec now, d;
+	int n, r;
+
+	if(t->tv_nsec < 0 || t->tv_nsec >= 1000000000)
+		return EINVAL;
+	if(m->locked == 0)
+		return EPERM;
+	clock_gettime(CLOCK_REALTIME, &now);
+	if(now.tv_sec > t->tv_sec || now.tv_sec == t->tv_sec && now.tv_nsec >= t->tv_nsec)
+		return ETIMEDOUT;
+	d.tv_sec = t->tv_sec - now.tv_sec;
+	d.tv_nsec = t->tv_nsec - now.tv_nsec;
+	if(d.tv_nsec < 0){
+		d.tv_sec--;
+		d.tv_nsec += 1000000000;
+	}
+	n = m->locked;
+	m->locked = 0;
+	c->waiting++;
+	r = nanosleep(&d, NULL);
+	c->waiting--;
+	m->locked = n;
+	return r < 0 ? 0 : ETIMEDOUT;
 }

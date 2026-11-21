@@ -4,6 +4,7 @@ LIB=/$objtype/lib/libadraw.a
 OFILES=\
 	scroll.$O\
 	tag.$O\
+	util.$O\
 
 HFILES=/sys/include/adraw.h\
 	impl.h\

@@ -3,7 +3,7 @@
  */
 #include "iolib.h"
 #include <string.h>
-int ungetc(int c, FILE *f){
+static int uungetc(int c, FILE *f){
 	if(c==EOF) return EOF;
 	switch(f->state){
 	default:	/* WR */
@@ -32,4 +32,15 @@ int ungetc(int c, FILE *f){
 			*--f->rp=c;
 		return (unsigned char)c;
 	}
+}
+
+int
+ungetc(int c, FILE *f)
+{
+	int r;
+
+	flockfile(f);
+	r = uungetc(c, f);
+	funlockfile(f);
+	return r;
 }

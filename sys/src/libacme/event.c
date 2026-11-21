@@ -7,11 +7,14 @@
 static int
 getec(int fd, Winbuf *b)
 {
+	int c;
+
 	if(b->n <= 0){
 		b->n = read(fd, b->buf, sizeof b->buf);
 		if(b->n <= 0){
+			c = b->n < 0 ? -2 : -1;
 			b->n = 0;
-			return -1;
+			return c;
 		}
 		b->p = b->buf;
 	}
@@ -28,9 +31,9 @@ geten(int fd, Winbuf *b, int *np)
 	while((c = getec(fd, b)) >= '0' && c <= '9')
 		n = n*10+c-'0';
 	if(c < 0)
-		return 0;
+		return c == -1 ? 0 : -1;
 	if(c != ' '){
-		werrstr("event number syntax");
+		werrstr("event: bad number");
 		return -1;
 	}
 	*np = n;
@@ -44,16 +47,16 @@ gete(int fd, Winbuf *b, Event *e)
 	char *p, *s;
 
 	if((c = getec(fd, b)) < 0)
-		return 0;
+		return c == -1 ? 0 : -1;
 	e->c1 = c;
 	if((c = getec(fd, b)) < 0)
-		return 0;
+		return c == -1 ? 0 : -1;
 	e->c2 = c;
 	if((r = geten(fd, b, &e->q0)) <= 0 || (r = geten(fd, b, &e->q1)) <= 0
 	|| (r = geten(fd, b, &e->flag)) <= 0 || (r = geten(fd, b, &e->nr)) <= 0)
 		return r;
 	if(e->nr > EVENTSIZE){
-		werrstr("event string too long");
+		werrstr("event: text too long");
 		return -1;
 	}
 	p = e->text;
@@ -61,16 +64,16 @@ gete(int fd, Winbuf *b, Event *e)
 		s = p;
 		do{
 			if((c = getec(fd, b)) < 0)
-				return 0;
+				return c == -1 ? 0 : -1;
 			*p++ = c;
 		}while(c >= Runeself && p-s < UTFmax && !fullrune(s, p-s));
 	}
 	*p = 0;
 	e->nb = p-e->text;
 	if((c = getec(fd, b)) < 0)
-		return 0;
+		return c == -1 ? 0 : -1;
 	if(c != '\n'){
-		werrstr("event syntax 2");
+		werrstr("event: no newline");
 		return -1;
 	}
 	return 1;
@@ -111,13 +114,21 @@ readev(int fd, Winbuf *b, Event *e, Event *x)
 int
 winreadevent(Win *w, Event *e)
 {
-	return readev(_wfid(w, "event"), &w->eb, e, &w->e2);
+	int fd;
+
+	if((fd = _winfid(w, "event")) < 0)
+		return -1;
+	return readev(fd, &w->eb, e, &w->e2);
 }
 
 int
 winreadrdevent(Win *w, Event *e)
 {
-	return readev(_wfid(w, "rdevent"), &w->rb, e, &w->r2);
+	int fd;
+
+	if((fd = _winfid(w, "rdevent")) < 0)
+		return -1;
+	return readev(fd, &w->rb, e, &w->r2);
 }
 
 int
