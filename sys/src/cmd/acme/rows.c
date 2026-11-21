@@ -391,6 +391,8 @@ rowdump(Row *row, char *file)
 			wincommit(w, &w->body);
 			wincommit(w, &w->tag);
 			t = &w->body;
+			if(t->file->nname>=7 && runeeq(L"+Errors", 7, t->file->name+(t->file->nname-7), 7))
+				continue;
 			/* windows owned by others get special treatment */
 			if(w->nopen[QWevent] > 0)
 				if(w->dumpstr == nil)

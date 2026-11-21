@@ -45,3 +45,21 @@ sketchpoint	0000cc
 sketchdim	777777
 sketchguide	bbbbbb
 grapsel	cc0000
+
+# vt(1) and avt: the 16 colors a terminal's programs name
+ansi0	000000
+ansi1	b3261e
+ansi2	2e7d32
+ansi3	8a6100
+ansi4	1f4fbf
+ansi5	8e3fa3
+ansi6	00737a
+ansi7	b8b8b8
+ansi8	5f5f5f
+ansi9	cc3329
+ansi10	34843a
+ansi11	946c00
+ansi12	2f63d6
+ansi13	a04bb8
+ansi14	0b7c85
+ansi15	ffffff

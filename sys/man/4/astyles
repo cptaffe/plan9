@@ -193,6 +193,31 @@ file a moment after a change, only the text that changed,
 under acme's
 .B seq
 guard.
+When the guard refuses a write, or acme's
+.B seq
+has moved when
+.I astyles
+closes the file, as acme may then have dropped the write,
+.I astyles
+writes the window's whole style again, under the new count.
+.PP
+Where
+.B $amuxsrv
+names the
+.B /srv
+file of an
+.IR amux (4),
+as
+.B acmestart
+sets it, or
+.B /mnt/amux
+has the window,
+.I astyles
+writes each window's style, and reads its
+.BR rdevent ,
+through a session of its own,
+so that its address and guard are not another program's.
+Otherwise it uses acme's window directory.
 .SH EXAMPLES
 Color the first word of window 3 in a layer named
 .BR mark :
@@ -220,13 +245,24 @@ plan9web's
 .SH SEE ALSO
 .IR acme (1),
 .IR acme (4),
+.IR amux (4),
 .IR theme (6)
 .SH BUGS
-A partial write of a window's styles sets acme's
+Without
+.IR amux (4),
+a partial write of a window's styles sets acme's
 .B addr
 for the window, which a program editing the window by
 .B addr
 and
 .B data
-may have just set; see
+may have just set,
+and a whole write takes the address another program last wrote; see
 .IR acme (4).
+With it, a program that writes acme's
+.B addr
+directly, around
+.IR amux ,
+can still move one of
+.IR astyles '
+writes.

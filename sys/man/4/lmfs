@@ -39,13 +39,15 @@ Its files and their answers are those of
 .IR lmsim (4),
 which describes them:
 .BR models ,
+.BR ctl ,
 .BR clone ,
 and each session's
 .BR ctl ,
 .BR data ,
-.B top
+.BR top ,
+.B embed
 and
-.BR embed .
+.BR gen .
 A model is a GGUF file in
 .I dir
 .RB ( /lib/lm ),
@@ -88,11 +90,11 @@ An engine keeps as many sequences as fit, and fails if none does.
 holds 64 MB of requests' text at most, and a write past that fails, and keeps 1 MB of a
 request's answer unread before its work waits.
 An engine that fails to load is not started again for 2 seconds, then 4, up to a minute.
-A session's
+Each
 .B ctx
-has an engine of its own, and a model's engine for another
-.B ctx
-ends when its work does.
+and
+.B kv
+has an engine of its own, and a model's engine for another ends when its work does.
 .PP
 .I Lmfs
 cuts a text into parts as
@@ -101,7 +103,9 @@ says, and scores each with the
 .B ctx
 tokens before it, and with the model's start-of-text token before the text's first.
 It keeps each part's bits and ranks by the hash of its tokens, those before it,
-the model's SHA-256, the backend and
+the model's SHA-256, the backend,
+.B kv
+and
 .BR ctx ,
 for 8 million tokens.
 The engine keeps the model's state for the parts it scored last: a transformer's keys and
@@ -133,6 +137,17 @@ The engine takes
 .BR freq 's
 work a few tokens at a time, and the other files' requests go first.
 .PP
+.B Gen
+reads its text with the model's special tokens where it names them, as
+.B <|im_start|>
+for Qwen3, so a client gives it the model's chat template, and writes each token as its text,
+special tokens too; the model's end-of-generation tokens end the answer and are not written.
+It draws each token from the 20 likeliest, at
+.IR temp ,
+on the CPU in double precision, and keeps the model's state for the text and the tokens it
+wrote, so a request whose text begins with the last one's reads only what is new, from the
+block it changed in.
+.PP
 .B Ctl
 takes
 .BR model ,
@@ -142,8 +157,8 @@ takes
 is not built) and
 .B ctx
 (up to
-.BR maxctx ,
-8192), and
+.BR maxctx ),
+and
 .BI digits " n\fR,"
 the decimal places of
 .BR data 's
@@ -165,6 +180,37 @@ A read gives the
 as
 .B loading
 until the engine has loaded the model.
+.B Maxctx
+is the smaller of the context the model was trained on (40,960 tokens for Qwen3-0.6B) and the
+longest whose keys and values, with a part's, fit the device beside the model and its scratch:
+#γ's session of 2 GiB on the GPU, and
+.I bytes
+on the CPU.
+A read gives it once an engine of the model at the server's
+.B kv
+has loaded, at any
+.BR ctx ,
+and else gives the word it gives for
+.BR sha256 ;
+until then a
+.B ctx
+past it fails at the engine's load.
+.PP
+The server's
+.B ctl
+takes
+.BR "kv f16" ,
+the default, or
+.BR "kv q8_0" ,
+for the engines started after it: q8_0 keeps the model's keys in 8 bits and its values in f16,
+so a device holds a longer
+.BR ctx :
+Qwen3-0.6B on the GPU holds 8192 at f16 and 11,776 at q8_0, and on the CPU 12,288 at f16.
+Its tokens on the GPU at q8_0 differ from the CPU's at f16 by about 0.17 of a bit on
+average, where f16's differ by 0.12.
+A request takes the
+.B kv
+of the moment it is opened.
 .PP
 The packages are downloads: Granite-4.0-H-350M is 366 MB and Qwen3-0.6B 639 MB.
 .SH EXAMPLES
@@ -172,6 +218,15 @@ The packages are downloads: Granite-4.0-H-350M is 366 MB and Qwen3-0.6B 639 MB.
 % pkg add qwen3-0.6b
 % lmfs
 % echo the cat sat on the mat. | bits
+.EE
+.PP
+Keep keys in 8 bits from the next engine on, and see the longest
+.B ctx
+then:
+.EX
+% echo kv q8_0 >/mnt/lm/ctl
+% echo the cat sat on the mat. | bits >/dev/null
+% <>/mnt/lm/clone { grep maxctx /mnt/lm/`{read}^/ctl }
 .EE
 .SH SOURCE
 .B src/cmd/lmfs
