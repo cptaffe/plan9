@@ -43,9 +43,10 @@ which describes them:
 and each session's
 .BR ctl ,
 .BR data ,
-.B top
+.BR top ,
+.B embed
 and
-.BR embed .
+.BR gen .
 A model is a GGUF file in
 .I dir
 .RB ( /lib/lm ),
@@ -132,6 +133,17 @@ A block is at most
 The engine takes
 .BR freq 's
 work a few tokens at a time, and the other files' requests go first.
+.PP
+.B Gen
+reads its text with the model's special tokens where it names them, as
+.B <|im_start|>
+for Qwen3, so a client gives it the model's chat template, and writes each token as its text,
+special tokens too; the model's end-of-generation tokens end the answer and are not written.
+It draws each token from the 20 likeliest, at
+.IR temp ,
+on the CPU in double precision, and keeps the model's state for the text and the tokens it
+wrote, so a request whose text begins with the last one's reads only what is new, from the
+block it changed in.
 .PP
 .B Ctl
 takes
