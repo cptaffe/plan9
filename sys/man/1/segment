@@ -21,8 +21,7 @@ It prints a line for each segment,
 .I "q0 q1 bpc"
 .LP
 its rune offsets and its bits a rune, the sum of its tokens' bits over its runes, to two places.
-It leaves out the text's first 40 tokens, which cost many bits for lack of context, and the
-segments tile the rest.
+The segments tile the text.
 .PP
 The method is PELT, by Killick, Fearnhead and Eckley, whose time is about linear in the text.
 A segment's cost is, for each of its tokens, the square of the token's bits a rune less the
