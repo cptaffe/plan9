@@ -66,6 +66,23 @@ The models, one a line:
 has one,
 .BR ngram .
 .TP
+.B ctl
+The server's settings, which apply to every session.
+A read gives
+.BR kv ,
+the type of the model's cached keys:
+.B f16
+by default, or
+.BR q8_0 ,
+ggml's 8 bits in blocks of 32 with a scale each, which hold a longer
+.B ctx
+in the same memory and move a token's bits by about a sixth of a bit.
+A write of
+.BI kv " type"
+sets it for the requests opened after it;
+.IR lmsim 's
+answers are the same with either.
+.TP
 .B clone
 Opening it makes a session,
 .IR n ,
@@ -81,6 +98,8 @@ A read gives
 .BR model ,
 .BR backend ,
 .BR ctx ,
+.B kv
+(the server's),
 .B sha256
 (the model's table),
 .B device
@@ -88,7 +107,9 @@ A read gives
 .B maxctx
 (the longest
 .B ctx
-the model takes),
+the model takes: the smaller of the context it was trained on and what its device holds of its
+keys and values, at the server's
+.BR kv ),
 .B scored
 (how many tokens the model has scored, in every session, not counting those the cache gave),
 and
@@ -130,13 +151,17 @@ A vector for a span of a text.
 .IB n /freq
 Each token's slot in the model's frequencies, and the token in a slot, for
 .IR lmz .
+.TP
+.IB n /gen
+What the model writes after a text.
 .PD
 .PP
 Each of
 .BR data ,
-.B top
-and
+.BR top ,
 .B embed
+and
+.B gen
 is a request and its answer on one open, as
 .IR factotum (4)'s
 .B rpc
@@ -210,6 +235,42 @@ counted from the byte n-grams, up to three bytes, in the span and, at half the w
 in the 16 bytes on either side of it.
 Spans with the same bytes near them get the same vector.
 It stands in for a model's vector, and knows nothing of meaning.
+.PP
+A request to
+.B gen
+is a line,
+.I "n temp seed"
+and any stops, then the text, which the model goes on from.
+The answer is the text the model writes, a token at a time, as it writes it, in whole runes:
+each token is drawn from the model's distribution given the text and the tokens before it, at
+temperature
+.IR temp ,
+0 to 100, by a generator that
+.I seed
+starts, so a request made again gives the same answer;
+.I temp
+0 takes the likeliest token each time.
+A stop is a field as
+.IR tokenize (2)
+gives it, so one in quotes may hold spaces;
+the answer ends before the first stop it would hold, at
+.IR lmfs 's
+model's end of a turn, or after
+.I n
+tokens, 1 to 65536, and then the read after its text fails with
+.BI "the limit of " n " tokens" \f1.
+The text and
+.I n
+are at most
+.B ctx
++ 4097 tokens, of which
+.IR lmsim 's
+are bytes.
+.I Lmsim
+sees the whole text; with
+.BR repeat ,
+it copies what followed the text's last bytes where they came before, so a test can lead it to
+write what it likes.
 .PP
 .B Freq
 takes several rounds on one open.
@@ -308,7 +369,10 @@ answers are the same with either, but neither shares the other's cache.
 .TP
 .BI ctx " n"
 the context of each part, 0 to
-.BR maxctx .
+.BR maxctx ;
+a larger
+.I n
+fails.
 .TP
 .BI digits " n"
 the places of
@@ -320,15 +384,17 @@ bits, 0 to 17, 2 by default; tests that need the model's exact numbers take 17.
 .LP
 These act on every session, for tests of a client when
 .I lmfs
-is slow or gone:
-.TF slow\ \fIms\fP
+is slow or gone, or on another device:
+.TF maxctx\ \fIn\fP
 .TP
 .B stall
 answers wait.
 .TP
 .BI slow " ms"
-each part the model scores, and each block or step of
+each part the model scores, each block or step of
 .BR freq ,
+and each token of
+.BR gen ,
 takes
 .I ms
 more milliseconds; a new
@@ -340,6 +406,16 @@ answers and writes fail.
 .TP
 .B go
 ends all three.
+.TP
+.BI maxctx " n"
+.B ctl
+gives
+.I n
+as
+.BR maxctx ,
+8192 by default, for tests of a client on a device that holds more or less;
+.B go
+leaves it.
 .PD
 .LP
 And this changes the model, for tests of what context does:

@@ -386,6 +386,26 @@ formatted manuscript.
 L. E. McMahon,
 `SED \(em A Non-interactive Text Editor',
 Unix Research System Programmer's Manual, Volume 2.
+.SH DIAGNOSTICS
+The pattern space and the hold space
+hold at most 8192 characters.
+An input line longer than that is cut to fit,
+as are the spaces a
+.BR G ,
+.B H
+or
+.B N
+command grows past it;
+an
+.B s
+command whose result is longer says
+.L "sed: Output line too long."
+and keeps its first 8192 characters.
+A script line longer than that stops
+.I sed
+with
+.LR "sed: Script line too long" .
+Groups in braces nest at most 20 deep.
 .SH BUGS
 If input is from a pipe, buffering may consume
 characters beyond a line on which a
