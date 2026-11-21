@@ -9,35 +9,20 @@ Huh, Bits, huh \- mark the surprising parts of an acme window's text
 .B -m
 .I lmdir
 ] [
-.B -t
-.I bpc
-] [
 .B -s
 .I bits
 ] [
-.B -r
-.I rank
-] [
-.B -p
-.I penalty
+.B -w
+.I width
 ] [
 .B -l
-.I runes
+.I tokens
 ]
 .PP
 .B Bits
 [
 .B -m
 .I lmdir
-] [
-.B -t
-.I bpc
-] [
-.B -s
-.I bits
-] [
-.B -r
-.I rank
 ] [
 .B -p
 .I penalty
@@ -106,7 +91,7 @@ cannot open it and exits, and one that starts on a window whose
 layers already include its own deletes its layer and exits.
 To change one for the other, turn the first off by its name in the tag, then start the other.
 .I Huh
-marks the parts that cost the most, where something new or something wrong is going on;
+highlights the stretches where the text's information is, those that cost the most;
 .I Bits
 colors every segment of the text in one of seven bands of bits a rune, and draws the text as a strip in a
 window of its own.
@@ -127,47 +112,48 @@ file, after a preamble, the window's name as its tag has it, a colon and a blank
 .IR bits (1)
 writes a file's, and leaves out the answer's lines for the preamble; a window with no name gets
 none.
-It splits the tokens it gets back into segments, as
+It marks the tokens it gets back and writes the layer;
+.I Bits
+splits them into segments first, as
 .IR segment (1)
-does, and writes the layer.
+does.
 Then it follows the window's edits, by the
 .B I
 and
 .B D
 events, in a copy of the body: after each one it writes the whole copy to
 .B data
-on a new open and closes the old one, which drops what was left of it, segments again from the
-segment before the change to the one after it, and writes the layer again, under
+on a new open and closes the old one, which drops what was left of it, marks again, and writes the layer again, under
 .IR astyles 's
 .B seq
 guard, so a layer from an older text is not kept.
 .PP
 .I Huh
-marks two kinds of runs:
-.TF stretches
-.TP
-.B stretches
-segments whose bits a rune pass
-.I bpc
-(4.5), in the color
-.BR huh ;
-.TP
-.B spikes
-tokens that cost more than
-.I bits
-(15) or stood below
-.I rank
-(50) among the model's guesses, as the word the token is in, in
-.BR huhspike ,
-a stronger color, even inside a stretch.
-.PD
-.LP
+highlights, in the color
+.BR huh ,
+the stretches that
+.I huh
+prints, below, with
+.IR bits ,
+.I width
+and
+.I tokens
+as its
+.BR -s ,
+.B -w
+and
+.BR -l ,
+and segments nothing.
+The cutoffs move only when the text has been idle for a second and the whole answer has come;
+until then the tokens an edit changed are judged against the cutoffs as they stand, so the
+highlights near an edit change at once and the rest stay as they were.
+While a text is first scored, the cutoffs come from the tokens scored so far.
 The colors are tints the programs give in their layers' own color lines, each with an opacity,
 so that
 .IR astyles (4)
 blends them over the text's other colors in either theme.
-The limits are the same for every file, so a mark means the same in each.
-.I Penalty
+.IR Bits '
+.I penalty
 and
 .I runes
 are
@@ -342,12 +328,7 @@ Huh Bits
 .IR theme (6),
 .B doc/words.md
 .SH BUGS
-The limits
-.IR bpc ,
-.I bits
-and
-.IR rank ,
-the bands' bounds, and
+The clip, the window, the bands' bounds, and
 .IR segment 's
 penalty and least length are placeholders, set on
 .IR lmsim 's
