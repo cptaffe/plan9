@@ -123,20 +123,9 @@ and
 .B rc/bin/spots
 .SH SEE ALSO
 .IR diff (1),
+.IR patch (1),
 .IR cowfs (4)
 .SH BUGS
-.I Spots
-compares the files with APE's
-.IR diff ,
-which marks no missing newline at the end of a file;
-a patch of such a file adds one.
-APE's
-.I patch
-ignores Git's headers, so it makes no empty file and sets no mode,
-drops a rename without a word, and without
-.B -p
-keeps only the last element of each name.
-.PP
 Bytes past ASCII stay as they are in a name, as Git writes them with
 .B core.quotepath
 off.
