@@ -110,7 +110,11 @@ only the first element counts, so
 .B d/#n
 stays in.
 Such a path never pairs as a rename, so moving a file to or from one shows as a removal and a
-whole new file.
+whole new file: the half under
+.B #
+is always left out, and the other half reaches the patch only as text, since
+.I spots
+leaves out a binary one as binary.
 It then exits with status
 .BR binary ,
 .BR "device name" ,
@@ -126,6 +130,31 @@ and
 .I spots
 names only
 .BR x .
+.PP
+.I Spots
+ends with an error when it cannot do its work in full.
+When it cannot list the files that changed, because
+.I walk
+warns or a program it runs fails, it prints
+.B "spots: cannot list the changes"
+and exits with status
+.BR list .
+When it cannot look through a file for NUL bytes, because
+.I freq
+fails or warns, it prints
+.B "spots: cannot look for NUL bytes"
+and exits with status
+.BR freq .
+When
+.I awk
+or
+.I diff
+fails, it exits, before any patch for a failed
+.IR diff ,
+with status
+.B awk
+or
+.BR diff .
 .PP
 .IR Cowfs
 notes the SHA-1 of each file of the real tree as it copies it;
