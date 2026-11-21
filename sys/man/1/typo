@@ -1,0 +1,149 @@
+.TH TYPO 1
+.SH NAME
+typo \- find possible typographical errors
+.SH SYNOPSIS
+.B typo
+[
+.B -1n
+]
+[
+.I file ...
+]
+.SH DESCRIPTION
+.I Typo
+reads the
+.I files
+(standard input if none) and prints each word in them that is not a common English word,
+with its index of peculiarity, in decreasing order of that index,
+words of the same index in alphabetical order.
+An index of 10 or more is peculiar: such a word holds a sequence of letters
+seen almost nowhere else in the document, and is often a misspelling.
+.PP
+The statistics are the document's own.
+.I Typo
+counts each digram and trigram of letters in its words,
+the start and end of a word counting as a letter, so that
+.L once
+gives the digrams
+.LR "\ o" ,
+.LR on ,
+.LR nc ,
+.L ce
+and
+.L "e\ "
+and the trigrams
+.LR "\ on" ,
+.LR onc ,
+.L nce
+and
+.LR "ce\ " .
+For each trigram
+.I xyz
+of a word it takes
+.IP
+.EX
+(log n(xy) + log n(yz))/2 \- log n(xyz)
+.EE
+.PP
+the log of a count of 0 or 1 being \-10, and the word's index is the largest of these, at least 0.
+The counts are approximate, as
+.IR typo 's
+always kept them: each is a small counter, incremented with a probability
+that falls as it grows, so that its value is about the logarithm of the count.
+They start from
+.BR /sys/lib/typo/salt ,
+the counts of a sample of English.
+The words of
+.B /sys/lib/typo/w2006
+are not printed.
+.PP
+A word is a run of two or more letters, any letter that Unicode counts as one,
+and its upper case is mapped into lower case.
+Lines that begin with
+.L .
+or
+.L '
+are
+.IR troff (1)
+requests and are ignored.
+An apostrophe within a word is dropped,
+.L %
+is ignored, and a word hyphenated at the end of a line is joined to its rest.
+.PP
+The output is three columns, by
+.IR pr (1),
+with the header
+.BI "Possible typo's in" " file"\f1.
+The options are:
+.TP
+.B -1
+Print one column, with no header or pages.
+.TP
+.B -n
+Start the counts from nothing, not from English:
+for a document in another language.
+.SH EXAMPLES
+.EX
+% typo -1 /sys/man/1/rc | sed 3q
+15 ctrl
+15 outstanding
+15 prefixing
+.EE
+.SH FILES
+.TF /sys/lib/typo/w2006
+.TP
+.B /sys/lib/typo/salt
+digram and trigram counts of English, as Research Unix kept them in
+.BR /usr/lib/salt
+.TP
+.B /sys/lib/typo/w2006
+common words, one a line
+.SH SOURCE
+plan9web's
+.B src/cmd/typo.c
+.SH SEE ALSO
+.IR spell (1),
+.IR deroff (1)
+.br
+Robert Morris and Lorinda L. Cherry,
+``Computer Detection of Typographical Errors'',
+.I IEEE Transactions on Professional Communication
+PC-18, 1 (March, 1975), pp. 54-64.
+.SH HISTORY
+.I Typo
+is Robert Morris and Lorinda Cherry's, of Bell Labs.
+It first appeared in the Third Edition of Research Unix (1973),
+and was much used until
+.I spell
+came in the Fifth.
+This one follows the Sixth Edition's
+.BR /usr/source/s2/typo.c ,
+whose output it gives for a document in ASCII,
+and its
+.B salt
+and
+.B w2006
+are that edition's
+.BR /usr/lib/salt
+and
+.BR /usr/lib/w2006 ,
+under Caldera's 2002 license for Research Unix through the Seventh Edition.
+The
+.B salt
+is from Rob Pike's copy, in
+.BR https://github.com/robpike/typo ,
+with a CR taken out before each of its 113 newlines,
+which a conversion to CRLF had put there.
+.PP
+The paper says that the index adopted was the root mean square of the trigrams' indices;
+the program took the largest, and so does this one.
+.SH BUGS
+Because of the mapping into lower case and the dropped apostrophes,
+a word may be hard to find in the original text:
+.L process's
+is printed as
+.LR processs .
+.PP
+Requests within a line and
+.IR troff 's
+escapes are read as text.
