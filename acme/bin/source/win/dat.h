@@ -1,5 +1,5 @@
 typedef struct Fsevent Fsevent;
-typedef struct Event Event;
+typedef struct Msg Msg;
 typedef struct Message Message;
 typedef struct Window Window;
 
@@ -8,8 +8,7 @@ enum
 	STACK		= 8192,
 	NPIPEDATA	= 8000,
 	NPIPE		= NPIPEDATA+32,
-	/* EVENTSIZE is really 256 in acme, but we use events internally and want bigger buffers */
-	EVENTSIZE	= 16*1024,
+	OUTSIZE	= 16*1024,
 	NEVENT		= 5,
 };
 
@@ -19,60 +18,38 @@ struct Fsevent
 	void	*r;
 };
 
-struct Event
+struct Msg
 {
-	int	c1;
-	int	c2;
-	int	q0;
-	int	q1;
-	int	flag;
+	Event	e;
+	char	*b;
 	int	nb;
 	int	nr;
-	char	b[EVENTSIZE*UTFmax+1];
-	Rune	r[EVENTSIZE+1];
 };
 
 struct Window
 {
-	/* file descriptors */
-	int		ctl;
-	int		event;
-	int		addr;
-	int		data;
-	int		body;
-	int		seq;
-
-	/* event input */
-	char		buf[512];
-	char		*bufp;
-	int		nbuf;
-	Event	e[NEVENT];
-
-	int		id;
-	int		open;
+	Win	*a;
+	int	id;
 	Channel	*cevent;
+	Msg	m[NEVENT];
 };
 
-extern	Window*	newwindow(void);
-extern	int		winopenfile(Window*, char*);
-extern	void		wintagwrite(Window*, char*, int);
-extern	void		winname(Window*, char*);
-extern	void		winwriteevent(Window*, Event*);
-extern	int		winread(Window*, uint, uint, char*);
-extern	int		windel(Window*, int);
-extern	void		wingetevent(Window*, Event*);
-extern	void		wineventproc(void*);
-extern	void		winclean(Window*);
-extern	int		winselect(Window*, char*, int);
-extern	int		winsetaddr(Window*, char*, int);
-extern	void		windormant(Window*);
-extern	Window*	oldwindow(char*, ulong*);
-extern	void		winsetdump(Window*, char*, char*);
-extern	int		winguard(Window*);
-extern	int		winput(Window*, uint, int, char*, int);
+extern	Window*	wnew(void);
+extern	Window*	wold(char*, ulong*);
+extern	void		wtag(Window*, char*);
+extern	void		wname(Window*, char*);
+extern	void		wdump(Window*, char*, char*);
+extern	void		wwrite(Window*, Msg*);
+extern	int		wbody(Window*, uint, uint, char*);
+extern	int		wdel(Window*, int);
+extern	void		wevents(void*);
+extern	int		waddr(Window*, char*, int);
+extern	int		wselect(Window*, char*, int);
+extern	void		wzap(Window*, char*);
+extern	int		wguard(Window*);
+extern	int		wput(Window*, uint, int, char*, int);
 
-extern	void		ctlprint(int, char*, ...);
-extern	void*	emalloc(uint);
+extern	void		wctl(Window*, char*, ...);
 extern	char*	estrdup(char*);
 extern	char*	estrstrdup(char*, char*);
 extern	char*	egrow(char*, char*, char*);
@@ -81,7 +58,7 @@ extern	void		error(char*, ...);
 
 extern	void		startpipe(void);
 extern	void		sendit(char*);
-extern	void		execevent(Window *w, Event *e, int (*)(Window*, char*));
+extern	void		execevent(Window *w, Msg *m, int (*)(Window*, char*));
 
 extern	void		mountcons(void);
 extern	void		fsloop(void*);
@@ -92,7 +69,7 @@ extern	int		pipecommand(Window*, char*);
 extern	void		pipectl(void*);
 
 #pragma	varargck	argpos	error	1
-#pragma	varargck	argpos	ctlprint	2
+#pragma	varargck	argpos	wctl	2
 
 extern	Window	*win;
 extern	Channel	*fschan, *writechan;

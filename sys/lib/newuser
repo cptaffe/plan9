@@ -1,14 +1,14 @@
 #!/bin/rc
 
-user=`{cat /dev/user}
+if(~ $#user 0)
+	user=`{cat /dev/user}
 home=/usr/$user
 if(test -f $home/lib/profile){
 	echo user directories already made
 	exit no
 }
 cd $home
-mkdir -p bin/rc bin/$cputype
-mkdir -p lib tmp
+mkdir -p bin/rc bin/$cputype lib/hotkey tmp
 bind -c $home/tmp /tmp
 
 cat > lib/profile <<'!'
@@ -20,20 +20,14 @@ test -e $home/lib/factotum && cat $home/lib/factotum >/mnt/factotum/ctl
 # $auth, the machine this page came from, serves its / to import(4): its /net, for /net/tcp, and
 # webfs, and to its accounts /adm and /mnt/keys. A passkey signs you in (factotum(4)'s webauthn):
 #	import ws!$auth!9p / /n/$auth; bind -a /n/$auth/net /net
-font = /lib/font/bit/Iosevka/12a/font,/lib/font/bit/Iosevka/24a/font
-test -e /mnt/font/Iosevka/m/r/12a/font && font = /mnt/font/Iosevka/m/r/12a/font
 EDITOR=E
 chessa=leela
 fn cd { builtin cd $* && awd }
 switch($service){
 case terminal
 	# sound is shared: mixfs binds over /dev/audio, so a second play mixes with the first
-	if(test -e /dev/audio && ! grep -s '^mix ' /dev/volume >/dev/null){
-		audio/mixfs &
-		mix=$apid
-		while(test -e /proc/$mix/status && ! grep -s '^mix ' /dev/volume >/dev/null)
-			sleep 0.1
-	}
+	if(test -e /dev/audio && ! grep -s '^mix ' /dev/volume >/dev/null)
+		audio/mixfs
 	plumber
 	dropped &
 	prompt=('% ' '	')
@@ -55,7 +49,6 @@ if(! test -e lib/pkg)
 # the packages the profile adds (pkg(1)): a name, a name and a hash, or a path, a line each
 git9
 !
-mkdir -p lib/hotkey
 if(! test -e lib/hotkey/acme)
 	cat > lib/hotkey/acme <<!
 # to update: cp /usr/$user/lib/hotkey/acme /mnt/hotkey/rules
@@ -99,27 +92,46 @@ that manual page: the plumber sends them to Acme.
 
 ## Keys
 
+### Editing
+
 | Key | Does |
 |---|---|
-| Cmd-S | Put: save the window |
-| Cmd-A | select the whole window |
-| Cmd-P | Search for a file or window |
-| Cmd-Shift-F | Search the files' text, by grep |
-| Cmd-B or F12 | Def: the definition of the word at the cursor |
-| Cmd-Shift-B | Refs: where it is used |
-| Cmd-I | Doc: its documentation, which follows the cursor |
-| Cmd-. | Act: the language server's fixes, then 1–9 picks, Esc cancels |
-| F2 | Rename: type the new name after it in the tag, then Esc and B2 |
-| Cmd-Shift-O | Syms: the file's functions and types |
-| Cmd-K, then R, I, T, D, F or C | Refs, Impls, Type, Diag, Fmt, Comp |
-| Cmd-K, then E | an instruction to sibyl for the selection, typed in the tag |
-| Cmd-K, then S | Ask: the selection's lines in the sibyl session, for a question |
-| Ctl-X Ctl-S, Ctl-X K | Emacs's: Put, and Del |
+| Cmd-S | Put: save the file |
+| Cmd-A | Select the whole window |
+| Ctl-X Ctl-S, Ctl-X K | Put and Del, as in Emacs |
 
-The language server's keys work in a file that a server is set up for (lspfs(4)).
-They are the rules in /lib/hotkey/acme and /lib/hotkey/acme.emacs, which
-lib/hotkey/acme here includes. Add your own below that include line, where a key
-you bind replaces the one it clashes with; its first line updates them (hotkey(1)).
+### Search
+
+| Key | Does |
+|---|---|
+| Cmd-P | Search: find a file or window by name |
+| Cmd-Shift-F | Search the files' text with grep |
+
+### Language server
+
+These work in a file that a language server is set up for (lspfs(4)).
+
+| Key | Does |
+|---|---|
+| Cmd-B or F12 | Def: go to the definition of the word at the cursor |
+| Cmd-Shift-B | Refs: list where it is used |
+| Cmd-I | Doc: show its documentation, which follows the cursor |
+| Cmd-. | Act: list the server's code actions in +Act; type 1–9 to run one, or Esc to cancel |
+| F2 | Rename: type the new name after Rename in the tag, then press Esc and B2 |
+| Cmd-Shift-O | Syms: list the file's functions and types |
+| Cmd-K, then R, I, T, D, F or C | Refs, Impls, Type, Diag, Fmt and Comp |
+
+### sibyl
+
+| Key | Does |
+|---|---|
+| Cmd-K, then E | Start a pipe to sibyl in the tag: type an instruction after it and B2 it, and sibyl rewrites the selection |
+| Cmd-K, then S | Ask: send the selected lines to the sibyl session, to ask about them |
+
+The keys are hotkey(1)'s rules, in /lib/hotkey/acme and /lib/hotkey/acme.emacs.
+Yours go in lib/hotkey/acme here, below its include line, and a key you bind
+there replaces the system's. To load your changes, run the command on its first
+line.
 
 ## Files
 

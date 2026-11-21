@@ -7,6 +7,9 @@
 
 #define NETPATHLEN 40
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern	int	accept(int, char*);
 extern	int	announce(char*, char*);
 extern	int	dial(char*, char*, char*, int*);
@@ -17,4 +20,7 @@ extern	int	reject(int, char*, char *);
 
 extern char    dialerrstr[64];
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* __LIBNET_H */

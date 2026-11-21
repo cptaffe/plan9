@@ -9,6 +9,7 @@ OFILES=\
 	9readn.$O\
 	9wait.$O\
 	9write.$O\
+	_atpath.$O\
 	_buf.$O\
 	_dirconv.$O\
 	_envsetup.$O\
@@ -45,6 +46,7 @@ OFILES=\
 	execve.$O\
 	execvp.$O\
 	fchdir.$O\
+	fchmodat.$O\
 	fcntl.$O\
 	fork.$O\
 	frexp.$O\
@@ -73,11 +75,13 @@ OFILES=\
 	lseek.$O\
 	malloc.$O\
 	mkdir.$O\
+	mkdirat.$O\
 	mkstemp.$O\
 	mmap.$O\
 	nan.$O\
 	nanosleep.$O\
 	open.$O\
+	openat.$O\
 	opendir.$O\
 	pause.$O\
 	pipe.$O\
@@ -91,6 +95,7 @@ OFILES=\
 	rforkfn.$O\
 	rlimit.$O\
 	rmdir.$O\
+	sched_yield.$O\
 	setgid.$O\
 	setitimer.$O\
 	setpgid.$O\
@@ -110,12 +115,16 @@ OFILES=\
 	times.$O\
 	timespec_get.$O\
 	tmpfile.$O\
+	truncate.$O\
 	ttyname.$O\
 	umask.$O\
 	vfork.$O\
 	uname.$O\
 	unlink.$O\
+	unlinkat.$O\
 	utime.$O\
+	utimensat.$O\
+	utimes.$O\
 	wait.$O\
 	write.$O\
 

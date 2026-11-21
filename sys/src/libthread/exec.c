@@ -3,8 +3,6 @@
 #include <thread.h>
 #include "threadimpl.h"
 
-#define PIPEMNT	"/mnt/temp"
-
 void
 procexec(Channel *pidc, char *prog, char *args[])
 {
@@ -29,25 +27,23 @@ procexec(Channel *pidc, char *prog, char *args[])
 	 * never return, and if it fails, return with errstr set.
 	 * Unfortunately, the exec happens in another proc since
 	 * we have to wait for the exec'ed process to finish.
-	 * To provide the semantics, we open a pipe with the
-	 * write end close-on-exec and hand it to the proc that
+	 * To provide the semantics, we make a pipe, open its
+	 * write end again close-on-exec and hand it to the proc that
 	 * is doing the exec.  If the exec succeeds, the pipe will
 	 * close so that our read below fails.  If the exec fails,
 	 * then the proc doing the exec sends the errstr down the
 	 * pipe to us.
 	 */
-	if(bind("#|", PIPEMNT, MREPL) < 0)
+	if(pipe(p->exec.fd) < 0)
 		goto Bad;
-	if((p->exec.fd[0] = open(PIPEMNT "/data", OREAD)) < 0){
-		unmount(nil, PIPEMNT);
-		goto Bad;
-	}
-	if((p->exec.fd[1] = open(PIPEMNT "/data1", OWRITE|OCEXEC)) < 0){
+	snprint(p->exitstr, ERRMAX, "/fd/%d", p->exec.fd[1]);
+	if((n = open(p->exitstr, OWRITE|OCEXEC)) < 0){
 		close(p->exec.fd[0]);
-		unmount(nil, PIPEMNT);
+		close(p->exec.fd[1]);
 		goto Bad;
 	}
-	unmount(nil, PIPEMNT);
+	close(p->exec.fd[1]);
+	p->exec.fd[1] = n;
 
 	/* exec in parallel via the scheduler */
 	assert(p->needexec==0);

@@ -2,12 +2,14 @@ APE=/sys/src/ape
 <$APE/config
 LIB=/$objtype/lib/ape/libap.a
 OFILES=\
+	dlfcn.$O\
 	libgen.$O\
 	realpath.$O\
 	getgrent.$O\
 	getpwent.$O\
 	langinfo.$O\
 	locale.$O\
+	locale_l.$O\
 	mkfifo.$O\
 	pathconf.$O\
 	setenv.$O\

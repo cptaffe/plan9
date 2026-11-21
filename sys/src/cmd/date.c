@@ -2,6 +2,14 @@
 #include <libc.h>
 
 int uflg, nflg;
+char *layout;
+
+void
+usage(void)
+{
+	fprint(2, "usage: date [-un] [-f layout] [seconds]\n");
+	exits("usage");
+}
 
 void
 main(int argc, char *argv[])
@@ -11,7 +19,8 @@ main(int argc, char *argv[])
 	ARGBEGIN{
 	case 'n':	nflg = 1; break;
 	case 'u':	uflg = 1; break;
-	default:	fprint(2, "usage: date [-un] [seconds]\n"); exits("usage");
+	case 'f':	layout = EARGF(usage()); break;
+	default:	usage();
 	}ARGEND
 
 	if(argc == 1)
@@ -21,6 +30,8 @@ main(int argc, char *argv[])
 
 	if(nflg)
 		print("%ld\n", now);
+	else if(layout != nil)
+		print("%s\n", tmfmt(uflg ? gmtime(now) : localtime(now), layout));
 	else if(uflg)
 		print("%s", asctime(gmtime(now)));
 	else

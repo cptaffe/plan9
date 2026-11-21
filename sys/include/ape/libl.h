@@ -5,6 +5,9 @@
 #endif
 #pragma lib "/$M/lib/ape/libl.a"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern int printable(int);
 extern void allprint(char);
 extern int yyracc(int);
@@ -12,4 +15,7 @@ extern int yyreject(void);
 extern void yyless(int);
 extern int yywrap(void);
 
+#ifdef __cplusplus
+}
+#endif
 #endif /* __LIBV_L */

@@ -97,4 +97,24 @@ extern int wcswidth(const wchar_t *, size_t);
 }
 #endif
 
+#if _POSIX_C_SOURCE >= 200809L
+#ifndef _LOCALE_T
+#define _LOCALE_T
+typedef struct __locale *locale_t;
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern size_t mbsnrtowcs(wchar_t *, const char **, size_t, size_t, mbstate_t *);
+extern size_t wcsnrtombs(char *, const wchar_t **, size_t, size_t, mbstate_t *);
+extern int wcscoll_l(const wchar_t *, const wchar_t *, locale_t);
+extern size_t wcsxfrm_l(wchar_t *, const wchar_t *, size_t, locale_t);
+
+#ifdef __cplusplus
+}
+#endif
+#endif
+
 #endif /* __WCHAR_H */

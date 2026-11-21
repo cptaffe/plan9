@@ -2,6 +2,7 @@
 
 LIB=/$objtype/lib/libvt.a
 OFILES=\
+	color.$O\
 	key.$O\
 	parse.$O\
 	screen.$O\

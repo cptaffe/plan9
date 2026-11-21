@@ -59,14 +59,14 @@ icvt_x,	0,	0,	0,	0,	0,	0,	0,	/*  x  y  z  {  |  }  ~ ^? */
 #define	nungetc(c, f)		(--nread, ungetc((c), f))
 #define	wgetc(c, f, out)	if(width--==0) goto out; (c)=ngetc(f)
 #define	wungetc(c, f)		(++width, nungetc(c, f))
-static int nread, ncvt;
-static const char *fmtp;
+static _Thread_local int nread, ncvt;
+static _Thread_local const char *fmtp;
 /*
  * In wscanf's conversions (_vfscanfw), and for those of wide
  * characters (%lc, %ls, %l[), a character is read whole, its UTF-8
  * bytes at once, and a width counts characters.
  */
-static int widemode;
+static _Thread_local int widemode;
 
 int
 _vfscanfw(FILE *f, const char *s, va_list args)
@@ -118,7 +118,7 @@ putmb(char **s, wchar_t **ws, char *b, int n)
 	return 1;
 }
 
-int vfscanf(FILE *f, const char *s, va_list args){
+static int uvfscanf(FILE *f, const char *s, va_list args){
 	int c, width, type, store;
 	nread=0;
 	ncvt=0;
@@ -553,4 +553,15 @@ Done:
 	if(s) *s='\0';
 	if(ws) *ws=0;
 	return 1;
+}
+
+int
+vfscanf(FILE *f, const char *s, va_list args)
+{
+	int r;
+
+	flockfile(f);
+	r = uvfscanf(f, s, args);
+	funlockfile(f);
+	return r;
 }

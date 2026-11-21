@@ -34,7 +34,7 @@ struct Scroll
 .fi
 .PP
 .B
-void	scrollinit(Scroll *s)
+int	scrollinit(Scroll *s)
 .PP
 .B
 void	scrolldraw(Image *dst, Scroll *s)
@@ -113,6 +113,7 @@ gives it acme's colors from the theme
 back, or acme's pale yellow, for the part that shows and
 .B bodyborder
 for the rest.
+It returns 0, or \-1 with the error string set if it cannot make the colors.
 .I Scrolldraw
 draws it in
 .IR dst .
@@ -200,6 +201,9 @@ The tag draws in acme's tag colors from the theme
 read when it opens, or in those its
 .B ctl
 gives.
+.I Tagopen
+returns nil, with the error string set, if it cannot make those colors,
+since each is an image the display must allocate.
 The program doesn't call
 .I getwindow
 itself, which would draw over the tag, and draws from a proc other than the one that
@@ -438,6 +442,19 @@ a program calls it from a proc of its own to go on drawing meanwhile, and runs i
 and
 .B >
 by it.
+.PP
+As
+.IR acme (2)'s
+library does, this one allocates with the program's
+.I emalloc
+and
+.IR erealloc ,
+of the types
+.B acme.h
+gives:
+neither returns if the memory cannot be had, and
+.I emalloc
+returns its memory zeroed.
 .SH SOURCE
 .B /sys/src/libadraw
 .SH SEE ALSO

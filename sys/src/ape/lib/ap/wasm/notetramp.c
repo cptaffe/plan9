@@ -20,8 +20,6 @@ _notetramp(int sig, void (*hdlr)(int, char*, Ureg*), Ureg *u)
 	_NOTED(0);	/* NCONT */
 }
 
-extern sigset_t	_psigblocked;
-
 void
 siglongjmp(sigjmp_buf j, int ret)
 {

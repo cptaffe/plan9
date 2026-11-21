@@ -33,6 +33,9 @@ struct Dynsym
 	char	*name;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 extern Dynsym*	dynfindsym(char*, Dynsym*, int);
 extern void	dynfreeimport(Dynobj*);
 extern void*	dynimport(Dynobj*, char*, unsigned long);
@@ -46,4 +49,7 @@ extern int	dyntabsize(Dynsym*);
 
 extern Dynsym	_exporttab[];	/* created by linker -x (when desired) */
 
+#ifdef __cplusplus
+}
+#endif
 #endif

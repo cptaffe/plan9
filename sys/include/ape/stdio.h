@@ -31,6 +31,7 @@ typedef struct{
 	int fd;		/* UNIX file pointer */
 	char flags;	/* bits for must free buffer on close, line-buffered */
 	char state;	/* last operation was read, write, position, error, eof */
+	char lk;	/* a thread holds the stream's lock */
 	unsigned char *buf;	/* pointer to i/o buffer */
 	unsigned char *rp;	/* read pointer (or write end-of-buffer) */
 	unsigned char *wp;	/* write pointer (or read end-of-buffer) */
@@ -108,7 +109,7 @@ long	ftell(FILE *);
 off_t	ftello(FILE *);
 size_t	fwrite(const void *, size_t, size_t, FILE *);
 int	getc(FILE *);
-#define	getc(f)	((f)->rp>=(f)->wp? _IO_getc(f): *(f)->rp++)
+#define	getc(f)	((f)->rp>=(f)->wp || (f)->lk? _IO_getc(f): *(f)->rp++)
 int	getchar(void);
 #define	getchar()	getc(stdin)
 char	*gets(char *);
@@ -116,7 +117,7 @@ void	perror(const char *);
 int	printf(const char *, ...);
 int	putc(int, FILE *);
 /* assignment to f->junk eliminates warnings about unused result of operation */
-#define	putc(c, f) ((f)->junk = ((f)->wp>=(f)->rp? \
+#define	putc(c, f) ((f)->junk = ((f)->wp>=(f)->rp || (f)->lk? \
 	_IO_putc(c, f): (*(f)->wp++ = (c))))
 int	putchar(int);
 #define	putchar(c)	putc(c, stdout)
@@ -167,6 +168,14 @@ char	*fgetln(FILE *, size_t *);
 void	flockfile(FILE *);
 int	ftrylockfile(FILE *);
 void	funlockfile(FILE *);
+int	getc_unlocked(FILE *);
+#define	getc_unlocked(f)	getc(f)
+int	getchar_unlocked(void);
+#define	getchar_unlocked()	getc(stdin)
+int	putc_unlocked(int, FILE *);
+#define	putc_unlocked(c, f)	putc(c, f)
+int	putchar_unlocked(int);
+#define	putchar_unlocked(c)	putc(c, stdout)
 #endif
 
 #ifdef _REENTRANT_SOURCE
@@ -174,9 +183,9 @@ char	*tmpnam_r(char *);
 char	*ctermid_r(char *);
 #endif
 
-#ifdef _BSD_EXTENSION
+#if _POSIX_C_SOURCE >= 2 || defined(_BSD_EXTENSION)
 #pragma lib "/$M/lib/ape/libbsd.a"
-FILE	*popen(char *, char *);
+FILE	*popen(const char *, const char *);
 int	pclose(FILE	*);
 #endif
 

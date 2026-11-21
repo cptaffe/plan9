@@ -6,6 +6,9 @@ segment \- runs of a text with even bits a rune
 [
 .B -p
 .I penalty
+] [
+.B -l
+.I runes
 ]
 .SH DESCRIPTION
 .I Segment
@@ -18,8 +21,7 @@ It prints a line for each segment,
 .I "q0 q1 bpc"
 .LP
 its rune offsets and its bits a rune, the sum of its tokens' bits over its runes, to two places.
-It leaves out the text's first 40 tokens, which cost many bits for lack of context, and the
-segments tile the rest.
+The segments tile the text.
 .PP
 The method is PELT, by Killick, Fearnhead and Eckley, whose time is about linear in the text.
 A segment's cost is, for each of its tokens, the square of the token's bits a rune less the
@@ -27,16 +29,37 @@ segment's, times the token's runes, and each segment costs the
 .I penalty
 besides (100 by default).
 A larger penalty gives fewer, longer segments.
+No segment is shorter than
+.I runes
+(16 by default), unless the whole text is.
+.PP
+The least length keeps one costly token, such as a misspelling's, out of a segment of its own:
+a span of
+.I L
+runes that costs
+.I B
+bits more than the text around it gains about
+.if t \fIB\fP\u\s-22\s+2\d/\fIL\fP
+.if n B^2/L
+by standing alone, against two penalties for its two cuts.
+At 16 runes and the default penalty, a token would need some 57 bits more than its neighbors,
+more than a model gives one token, and a token is rarely longer than 16 runes;
+a phrase or a sentence is longer, and still makes a segment.
+A spike is for the tool that reads the tokens, as
+.IR huh (1)
+does, not for
+.IR segment .
 .SH EXAMPLES
 .EX
 % bits doc/words.md | segment | sort -nr +2 | sed 3q
 .EE
 .SH SOURCE
 .B src/cmd/segment.c
+.br
+.B src/cmd/huh/pelt.c
 .SH SEE ALSO
 .IR bits (1),
+.IR huh (1),
 .IR lmsim (4)
 .SH BUGS
-The cost weighs a token by the square of its bits, so one costly token, a misspelling's,
-becomes a segment of its own unless the penalty is above about half the square of its bits.
-The default penalty is a guess, until a real model's scores set it.
+The default penalty and least length are guesses, until a real model's scores set them.

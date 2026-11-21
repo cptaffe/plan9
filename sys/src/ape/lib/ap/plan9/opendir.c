@@ -10,6 +10,8 @@
 
 #define DBLOCKSIZE 20
 
+static DIR *newdir(int);
+
 DIR *
 opendir(const char *filename)
 {
@@ -35,6 +37,30 @@ opendir(const char *filename)
 		return NULL;
 	}
 	_fdinfo[f].flags |= FD_CLOEXEC;
+	if((d = newdir(f)) == NULL)
+		close(f);
+	return d;
+}
+
+DIR *
+fdopendir(int f)
+{
+	struct stat sb;
+
+	if(fstat(f, &sb) < 0)
+		return NULL;
+	if(S_ISDIR(sb.st_mode) == 0) {
+		errno = ENOTDIR;
+		return NULL;
+	}
+	return newdir(f);
+}
+
+static DIR *
+newdir(int f)
+{
+	DIR *d;
+
 	d = (DIR *)malloc(sizeof(DIR) + DBLOCKSIZE*sizeof(struct dirent));
 	if(!d){
 		errno = ENOMEM;

@@ -26,6 +26,19 @@ lgamma(double x)
 	return gamma(x);
 }
 
+double
+lgamma_r(double x, int *sign)
+{
+	int s;
+	double r;
+
+	s = signgam;
+	r = lgamma(x);
+	*sign = signgam;
+	signgam = s;
+	return r;
+}
+
 /*
  * Γ(x): a product, for an integer it is exact for; else from lgamma
  */

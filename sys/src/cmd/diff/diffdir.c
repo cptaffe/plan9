@@ -56,6 +56,36 @@ isdotordotdot(char *p)
 	return 0;
 }
 
+static void
+diffnull(char *dir, char *name, int i, int level)
+{
+	char **d, **dp, p[MAXPATHLEN+1];
+	Dir *sb;
+
+	if (mkpathname(p, dir, name))
+		return;
+	if ((sb = dirstat(p)) == nil) {
+		panic(0, "cannot stat %s: %r\n", p);
+		return;
+	}
+	if ((sb->qid.type&QTDIR) && !rflag)
+		Bprint(&stdout, "Only in %s: %s\n", dir, name);
+	else if (sb->qid.type&QTDIR) {
+		d = scandir(p);
+		for (dp = d; *dp; dp++) {
+			if (!isdotordotdot(*dp))
+				diffnull(p, *dp, i, level+1);
+			FREE(*dp);
+		}
+		FREE(d);
+	}
+	else if (i == 0)
+		diff(p, "/dev/null", level);
+	else
+		diff("/dev/null", p, level);
+	free(sb);
+}
+
 void
 diffdir(char *f, char *t, int level)
 {
@@ -88,12 +118,16 @@ diffdir(char *f, char *t, int level)
 		if (res < 0) {
 			if (mode == 0 || mode == 'n')
 				Bprint(&stdout, "Only in %s: %s\n", f, from);
+			else if (mode == 'u')
+				diffnull(f, from, 0, level+1);
 			df++;
 			continue;
 		}
 		if (res > 0) {
 			if (mode == 0 || mode == 'n')
 				Bprint(&stdout, "Only in %s: %s\n", t, to);
+			else if (mode == 'u')
+				diffnull(t, to, 1, level+1);
 			dt++;
 			continue;
 		}

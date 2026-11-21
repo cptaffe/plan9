@@ -17,6 +17,8 @@ OFILES=\
 	compat.$O\
 	dpchk.$O\
 	omachcap.$O\
+	vec.$O\
+	oveccap.$O\
 
 HFILES=cc.h\
 	y.tab.h\

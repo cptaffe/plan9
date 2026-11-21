@@ -26,8 +26,20 @@ makes a session, a directory
 and reads as
 .IR n .
 The session lasts while any of its files is open.
-Each session has a WebGPU device of its own, with the adapter's limits,
-and its buffers, shader modules and pipelines are its own.
+The sessions share one WebGPU device, as the clients of
+.IR draw (3)
+share one screen, with the adapter's limits
+and those of the features
+.BR shader-f16 ,
+.B subgroups
+and
+.B chromium-experimental-subgroup-matrix
+that the adapter has.
+A session's buffers, shader modules and pipelines are its own,
+but a buffer it names another session of its user may attach, as
+.IR draw (3)
+names images.
+The device's queue runs the sessions' work in the order their writes come.
 .PP
 Reading
 .B ctl
@@ -40,7 +52,31 @@ and
 then the limits that matter for computing, a line for each with its value, such as
 .EX
 	maxStorageBufferBindingSize 4294967292
+	minStorageBufferOffsetAlignment 256
+	minUniformBufferOffsetAlignment 256
+	maxUniformBufferBindingSize 65536
 .EE
+among them the buffers' sizes and the alignments of a binding's offset,
+then a line
+.B maxbytes
+with the most bytes a session's buffers may take, its own and those it attached,
+then, where the adapter says them,
+.B subgroupMinSize
+and
+.BR subgroupMaxSize ;
+a line
+.B subgroupMatrix
+for each of the adapter's subgroup matrix shapes, with its component type, its result's type
+and its M, N and K, where the device has that feature;
+then a line
+.B features
+naming the features that the adapter has and each session's device asks for,
+and a line
+.B wgsl
+naming the WGSL language features the browser has, such as
+.BR packed_4x8_integer_dot_product .
+A shader that uses a feature enables it, as in
+.BR "enable f16;" .
 Where there is no WebGPU, in Node or in a browser without it,
 .B ctl
 reads
@@ -80,12 +116,37 @@ at
 .IR off ,
 both multiples of 4.
 .TP
+.BI c " src soff dst doff n"
+Copy
+.I n
+bytes of buffer
+.I src
+from
+.I soff
+into buffer
+.I dst
+at
+.IR doff ,
+all multiples of 4.
+.TP
 .BI s " id n source\fR[\fIn\fR]"
 Compile a shader module from WGSL.
 An error in it fails the write with its line, column and text.
 .TP
 .BI p " id module n entry\fR[\fIn\fR]"
 Make a compute pipeline of the module's entry point, with the bind group layout the shader declares.
+.TP
+.BI P " id module n k entry\fR[\fIn\fR] " "\fR(\fPm name\fR[\fIm\fR] \fIvalue\fR[8])[\fIk\fR]"
+Make a pipeline as
+.B p
+does, with
+.I k
+of the shader's override constants set:
+each
+.I value
+is a 64-bit IEEE number, little-endian, for the constant
+.IR name ,
+such as a workgroup's size.
 .TP
 .BI d " pipeline n id\fR[\fIn\fR] " "x y z"
 Dispatch
@@ -100,6 +161,30 @@ at binding
 .I i
 of group 0.
 .TP
+.BI D " pipeline n \fR(\fPgroup binding id off size\fR)[\fIn\fR] " "x y z"
+Dispatch as
+.B d
+does, with
+.I n
+bindings: buffer
+.I id
+from
+.IR off ,
+for
+.I size
+bytes or, if
+.I size
+is 0, to its end, at
+.I binding
+of
+.IR group .
+An offset is a multiple of the alignment
+.B ctl
+gives for its kind, storage or uniform.
+A uniform buffer is one with
+.BR UNIFORM ,
+0x40, in its usage; one buffer of slots, each bound by its offset, gives each dispatch its parameters.
+.TP
 .BI r " id off n"
 Copy
 .I n
@@ -111,20 +196,54 @@ the next reads of
 .B data
 give them.
 .TP
+.BI F " tag"
+A fence: when the GPU has done the messages before it, the next reads of
+.B data
+give the 4 bytes of
+.IR tag .
+.TP
+.BI N " id in n name\fR[\fIn\fR]"
+If
+.I in
+is 1, publish buffer
+.I id
+as
+.IR name ;
+if 0, withdraw the name, which must be the buffer's.
+A name is its user's, not the session's: only that user's sessions see it,
+and another user may publish the same name.
+It goes when the session that published it
+closes or the buffer goes.
+.TP
+.BI n " id n name\fR[\fIn\fR]"
+Make
+.I id
+the buffer published as
+.IR name ,
+which stays while any session holds it, though its maker frees it.
+.TP
 .BI f " id"
 Free a buffer, module or pipeline.
 .PP
-A write's messages go to the GPU in one submission, in order:
-a write into a buffer after a dispatch in the same write waits for the dispatch.
-The write returns when the GPU has done them and the bytes its
-.B r
-messages asked for are in hand; reads of
+A write's messages go to the GPU in order:
+a write into a buffer after a dispatch waits for the dispatch.
+The write returns when they reach the GPU's queue, before the GPU has done them,
+so a program can make its next messages while the GPU works.
+Reads of
 .B data
-then give those bytes, in the order asked, and an empty read after the last.
+give the bytes of the
+.B r
+and
+.B F
+messages, in the order asked, each once the GPU has done the messages before it,
+and an empty read when no more are to come.
+A read that waits for the GPU may be interrupted, and takes nothing:
+the next read gives those bytes.
 An error names the message and fails the write:
 the messages after it are not done, nor any part of a message it leaves unfinished,
 and the next write starts afresh;
-the messages before it may have taken effect, in part or whole.
+the messages before it may have taken effect, in part or whole,
+but its reads and fences give nothing.
 .PP
 A message's bytes, after its letter and numbers, are at most 64 MiB;
 a larger buffer is written in several
@@ -132,7 +251,7 @@ a larger buffer is written in several
 messages.
 A write fails if its reads would leave more than 64 MiB unread,
 or its buffers, modules and pipelines would make more than 16384 in the session,
-or its buffers more than 2 GiB.
+or its buffers, its own and those it attached, more than 2 GiB.
 A device has at most 32 sessions at once; opening
 .B clone
 when it has them fails.
@@ -153,9 +272,18 @@ then write
 and
 .BI r " 1 0 256"
 in one write, and read 256 bytes.
+.PP
+APE's
+.B libwebgpu
+carries out WebGPU's C interface,
+.BR <webgpu/webgpu.h> ,
+in these messages, so a program written for Dawn, such as ggml's WebGPU backend, runs on
+.BR #γ .
 .SH SOURCE
 plan9web's
 .B k/src/kernel/gpu.ts
+.br
+.B /sys/src/ape/lib/webgpu
 .SH "SEE ALSO"
 .IR draw (3),
 .IR zero (1)
@@ -164,4 +292,9 @@ plan9web's
 .br
 .B https://www.w3.org/TR/WGSL/
 .SH BUGS
-A session cannot share its buffers with another, nor wait on less than a whole write.
+A lost device ends every session that has it:
+their writes fail, and so do their reads, fences among them,
+that the GPU had not done,
+and the names of its buffers go.
+A session opened after it asks the browser for a new adapter and device,
+and a session whose device is lost before it has used it asks once more.
