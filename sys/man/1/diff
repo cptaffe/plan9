@@ -188,8 +188,7 @@ Under
 compares a file in only one of the trees with
 .BR /dev/null .
 .PP
-A file with a NUL byte anywhere, or a character from U+0080 to U+00A0 in its first 1024 bytes, is binary,
-and of two binary files
+A file with a NUL byte anywhere is binary, and of two binary files
 .I diff
 says only whether they differ, so no NUL reaches its output.
 .PP
