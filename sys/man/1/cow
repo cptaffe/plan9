@@ -95,19 +95,37 @@ line, so
 and
 .B git apply
 both take its output.
-It leaves out of the patch each binary file, one with a NUL byte anywhere in either version,
-naming it on standard error as
-.BI "spots: binary: " path ,
-and each file whose name begins with
+It leaves out of the patch each binary file whose text changed, one with a NUL byte anywhere in
+either version, naming it on standard error as
+.BI "spots: binary: " path \f1;
+the rename of a binary file and a change of its mode alone stay in the patch, as headers with no
+diff.
+It leaves out, too, each changed file whose path begins with
 .BR # ,
 which
 .IR patch (1)
 would take for a device and refuse, naming it as
-.BI "spots: device name: " path .
+.BI "spots: device name: " path \f1;
+only the first element counts, so
+.B d/#n
+stays in.
+Such a path never pairs as a rename, so moving a file to or from one shows as a removal and a
+whole new file.
 It then exits with status
 .BR binary ,
 .BR "device name" ,
 or both, so that a pipeline knows the patch is partial.
+A file left out may hold the only copy of another file's text:
+after
+.BR "mv y x" ,
+where
+.B x
+is binary, the patch removes
+.B y
+and
+.I spots
+names only
+.BR x .
 .PP
 .IR Cowfs
 notes the SHA-1 of each file of the real tree as it copies it;
@@ -139,9 +157,8 @@ Bytes past ASCII stay as they are in a name, as Git writes them with
 off.
 .PP
 .I Spots
-leaves a file out whole, so when the command removes a file that
-.I spots
-leaves out and makes a directory of its name, or the reverse,
+leaves a file out whole, so when the path of a file it leaves out, or of a directory that holds
+it, is a directory in one tree and a file in the other,
 .I patch
 refuses the whole patch.
 .PP
