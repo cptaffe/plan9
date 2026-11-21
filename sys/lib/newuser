@@ -1,14 +1,14 @@
 #!/bin/rc
 
-user=`{cat /dev/user}
+if(~ $#user 0)
+	user=`{cat /dev/user}
 home=/usr/$user
 if(test -f $home/lib/profile){
 	echo user directories already made
 	exit no
 }
 cd $home
-mkdir -p bin/rc bin/$cputype
-mkdir -p lib tmp
+mkdir -p bin/rc bin/$cputype lib/hotkey tmp
 bind -c $home/tmp /tmp
 
 cat > lib/profile <<'!'
@@ -49,7 +49,6 @@ if(! test -e lib/pkg)
 # the packages the profile adds (pkg(1)): a name, a name and a hash, or a path, a line each
 git9
 !
-mkdir -p lib/hotkey
 if(! test -e lib/hotkey/acme)
 	cat > lib/hotkey/acme <<!
 # to update: cp /usr/$user/lib/hotkey/acme /mnt/hotkey/rules
