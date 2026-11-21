@@ -16,35 +16,45 @@ extern int *J;
 static Biobuf *input[2];
 static char *file1, *file2;
 static int firstchange;
+static int noeol[2];
+static int eol;
+static int nul;
+int lines = 3;
 
-#define MAXLINELEN	4096
+typedef struct Lbuf Lbuf;
+struct Lbuf {
+	char *s;
+	int m;
+};
+
 #define MIN(x, y)	((x) < (y) ? (x): (y))
 
-static int
-readline(Biobuf *bp, char *buf)
-{
-	int c;
-	char *p, *e;
+static Lbuf lb[2];
 
-	p = buf;
-	e = p + MAXLINELEN-1;
-	do {
-		c = Bgetc(bp);
-		if (c < 0) {
-			if (p == buf)
-				return -1;
-			break;
+static int
+readline(Biobuf *bp, Lbuf *b)
+{
+	int c, n;
+
+	n = 0;
+	while ((c = Bgetc(bp)) >= 0 && c != '\n') {
+		if (n+1 >= b->m) {
+			b->m = b->m ? 2*b->m : 128;
+			b->s = REALLOC(b->s, char, b->m);
 		}
-		if (c == '\n')
-			break;
-		*p++ = c;
-	} while (p < e);
-	*p = 0;
-	if (c != '\n' && c >= 0) {
-		do c = Bgetc(bp);
-		while (c >= 0 && c != '\n');
+		if (c == 0)
+			nul = 1;
+		b->s[n++] = c;
 	}
-	return p - buf;
+	if (c < 0 && n == 0)
+		return -1;
+	if (b->m == 0) {
+		b->m = 128;
+		b->s = MALLOC(char, b->m);
+	}
+	b->s[n] = 0;
+	eol = c == '\n';
+	return n;
 }
 
 #define HALFLONG 16
@@ -57,7 +67,7 @@ readline(Biobuf *bp, char *buf)
  * summing 1-s complement in 16-bit hunks
  */
 static int
-readhash(Biobuf *bp, char *buf)
+readhash(Biobuf *bp, Lbuf *b, int *h)
 {
 	long sum;
 	unsigned shift;
@@ -66,9 +76,9 @@ readhash(Biobuf *bp, char *buf)
 
 	sum = 1;
 	shift = 0;
-	if ((len = readline(bp, buf)) == -1)
-		return 0;
-	p = buf;
+	if ((len = readline(bp, b)) == -1)
+		return -1;
+	p = b->s;
 	switch(bflag)	/* various types of white space handling */
 	{
 	case 0:
@@ -109,16 +119,19 @@ readhash(Biobuf *bp, char *buf)
 		break;
 	}
 	sum = low(sum) + high(sum);
-	return ((short)low(sum) + (short)high(sum));
+	*h = (short)low(sum) + (short)high(sum);
+	if (*h == 0)
+		*h = 1;
+	return 0;
 }
 
 Biobuf *
-prepare(int i, char *arg)
+prepare(int i, char *arg, char *orig)
 {
 	struct line *p;
 	int j, h;
 	Biobuf *bp;
-	char *cp, buf[MAXLINELEN];
+	char *cp, buf[1024];
 	int nbytes;
 	Rune r;
 
@@ -129,10 +142,10 @@ prepare(int i, char *arg)
 	}
 	if (binary)
 		return bp;
-	nbytes = Bread(bp, buf, MIN(1024, MAXLINELEN));
+	nbytes = Bread(bp, buf, sizeof buf);
 	if (nbytes > 0) {
 		cp = buf;
-		while (cp < buf+nbytes-UTFmax) {
+		while (cp < buf+nbytes && fullrune(cp, buf+nbytes-cp)) {
 			/*
 			 * heuristic for a binary file in the
 			 * brave new UNICODE world
@@ -146,17 +159,27 @@ prepare(int i, char *arg)
 		Bseek(bp, 0, 0);
 	}
 	p = MALLOC(struct line, 3);
-	for (j = 0; h = readhash(bp, buf); p[j].value = h)
+	eol = 1;
+	nul = 0;
+	for (j = 0; readhash(bp, &lb[0], &h) >= 0; p[j].value = h)
 		p = REALLOC(p, struct line, (++j+3));
+	if (nul) {
+		binary++;
+		FREE(p);
+		return bp;
+	}
+	noeol[i] = !eol;
+	if (noeol[i])
+		p[j].value ^= 1<<20;
 	len[i] = j;
 	file[i] = p;
 	input[i] = bp;			/*fix*/
 	if (i == 0) {			/*fix*/
-		file1 = arg;
+		file1 = orig;
 		firstchange = 0;
 	}
 	else
-		file2 = arg;
+		file2 = orig;
 	return bp;
 }
 
@@ -187,31 +210,81 @@ squishspace(char *buf)
 void
 check(Biobuf *bf, Biobuf *bt)
 {
-	int f, t, flen, tlen;
-	char fbuf[MAXLINELEN], tbuf[MAXLINELEN];
+	int f, t, flen, tlen, fe, te;
 
 	ixold[0] = ixnew[0] = 0;
-	for (f = t = 1; f < len[0]; f++) {
-		flen = readline(bf, fbuf);
+	for (f = t = 1; f <= len[0]; f++) {
+		flen = readline(bf, &lb[0]);
+		fe = eol;
 		ixold[f] = ixold[f-1] + flen + 1;		/* ftell(bf) */
 		if (J[f] == 0)
 			continue;
 		do {
-			tlen = readline(bt, tbuf);
+			tlen = readline(bt, &lb[1]);
 			ixnew[t] = ixnew[t-1] + tlen + 1;	/* ftell(bt) */
 		} while (t++ < J[f]);
+		te = eol;
 		if (bflag) {
-			flen = squishspace(fbuf);
-			tlen = squishspace(tbuf);
+			flen = squishspace(lb[0].s);
+			tlen = squishspace(lb[1].s);
 		}
-		if (flen != tlen || strcmp(fbuf, tbuf))
+		if (flen != tlen || fe != te || memcmp(lb[0].s, lb[1].s, flen))
 			J[f] = 0;
 	}
-	while (t < len[1]) {
-		tlen = readline(bt, tbuf);
+	while (t <= len[1]) {
+		tlen = readline(bt, &lb[1]);
 		ixnew[t] = ixnew[t-1] + tlen + 1;	/* fseek(bt) */
 		t++;
 	}
+}
+
+int
+sameline(int k, int a, int b)
+{
+	long *ix, n, o, m;
+	char x[512], y[512];
+
+	ix = k ? ixnew : ixold;
+	n = ix[a] - ix[a-1];
+	if (n != ix[b] - ix[b-1] || noeol[k] && (a == len[k]) != (b == len[k]))
+		return 0;
+	for (o = 0; o < n; o += m) {
+		m = n - o;
+		if (m > sizeof x)
+			m = sizeof x;
+		Bseek(input[k], ix[a-1]+o, 0);
+		if (Bread(input[k], x, m) != m)
+			return 0;
+		Bseek(input[k], ix[b-1]+o, 0);
+		if (Bread(input[k], y, m) != m)
+			return 0;
+		if (memcmp(x, y, m) != 0)
+			return 0;
+	}
+	return 1;
+}
+
+int
+lineindent(int k, int l)
+{
+	long *ix, n, o;
+	int c, ind;
+
+	ix = k ? ixnew : ixold;
+	n = ix[l] - ix[l-1];
+	Bseek(input[k], ix[l-1], 0);
+	ind = 0;
+	for (o = 0; o < n && (c = Bgetc(input[k])) >= 0; o++) {
+		if (!isspace(c))
+			return ind;
+		if (c == ' ')
+			ind++;
+		else if (c == '\t')
+			ind += 8 - ind%8;
+		if (ind >= 200)
+			return 200;
+	}
+	return -1;
 }
 
 static void
@@ -225,23 +298,24 @@ range(int a, int b, char *separator)
 static void
 fetch(long *f, int a, int b, Biobuf *bp, char *s)
 {
-	char buf[MAXLINELEN];
-	int maxb;
+	int c, i, maxb;
 
 	if(a <= 1)
 		a = 1;
-	if(bp == input[0])
-		maxb = len[0];
-	else
-		maxb = len[1];
+	i = bp != input[0];
+	maxb = len[i];
 	if(b > maxb)
 		b = maxb;
 	if(a > maxb)
 		return;
 	Bseek(bp, f[a-1], 0);
-	while (a++ <= b) {
-		readline(bp, buf);
-		Bprint(&stdout, "%s%s\n", s, buf);
+	for (; a <= b; a++) {
+		Bprint(&stdout, "%s", s);
+		while ((c = Bgetc(bp)) >= 0 && c != '\n')
+			Bputc(&stdout, c);
+		Bputc(&stdout, '\n');
+		if (a == maxb && noeol[i] && mode != 'e' && mode != 'f')
+			Bprint(&stdout, "\\ No newline at end of file\n");
 	}
 }
 
@@ -303,6 +377,7 @@ change(int a, int b, int c, int d)
 		break;
 	case 'c':
 	case 'a':
+	case 'u':
 		if(nchanges%1024 == 0)
 			changes = erealloc(changes, (nchanges+1024)*sizeof(changes[0]));
 		ch = &changes[nchanges++];
@@ -323,19 +398,38 @@ change(int a, int b, int c, int d)
 		Bprint(&stdout, ".\n");
 }
 
-enum
+static int
+context(void)
 {
-	Lines = 3,	/* number of lines of context shown */
-};
+	if (lines > len[0] + len[1])
+		return len[0] + len[1];
+	return lines;
+}
 
 int
 changeset(int i)
 {
-	while(i<nchanges && changes[i].b+1+2*Lines > changes[i+1].a)
+	int gap;
+
+	gap = 2*context();
+	if(mode == 'u')
+		gap++;
+	while(i+1<nchanges && changes[i].b+1+gap > changes[i+1].a)
 		i++;
 	if(i<nchanges)
 		return i+1;
 	return nchanges;
+}
+
+static void
+urange(int a, int b)
+{
+	if(b < a)
+		Bprint(&stdout, "%d,0", b);
+	else if(a == b)
+		Bprint(&stdout, "%d", a);
+	else
+		Bprint(&stdout, "%d,%d", a, b-a+1);
 }
 
 void
@@ -347,12 +441,14 @@ flushchanges(void)
 	if(nchanges == 0)
 		return;
 
+	if(mode == 'u')
+		Bprint(&stdout, "--- %s\n+++ %s\n", file1, file2);
 	for(i=0; i<nchanges; ){
 		j = changeset(i);
-		a = changes[i].a-Lines;
-		b = changes[j-1].b+Lines;
-		c = changes[i].c-Lines;
-		d = changes[j-1].d+Lines;
+		a = changes[i].a-context();
+		b = changes[j-1].b+context();
+		c = changes[i].c-context();
+		d = changes[j-1].d+context();
 		if(a < 1)
 			a = 1;
 		if(c < 1)
@@ -368,20 +464,28 @@ flushchanges(void)
 			d = len[1];
 			j = nchanges;
 		}
-		Bprint(&stdout, "%s:", file1);
-		range(a, b, ",");
-		Bprint(&stdout, " - ");
-		Bprint(&stdout, "%s:", file2);
-		range(c, d, ",");
-		Bputc(&stdout, '\n');
+		if(mode == 'u'){
+			Bprint(&stdout, "@@ -");
+			urange(a, b);
+			Bprint(&stdout, " +");
+			urange(c, d);
+			Bprint(&stdout, " @@\n");
+		}else{
+			Bprint(&stdout, "%s:", file1);
+			range(a, b, ",");
+			Bprint(&stdout, " - ");
+			Bprint(&stdout, "%s:", file2);
+			range(c, d, ",");
+			Bputc(&stdout, '\n');
+		}
 		at = a;
 		for(; i<j; i++){
-			fetch(ixold, at, changes[i].a-1, input[0], "  ");
-			fetch(ixold, changes[i].a, changes[i].b, input[0], "- ");
-			fetch(ixnew, changes[i].c, changes[i].d, input[1], "+ ");
+			fetch(ixold, at, changes[i].a-1, input[0], mode == 'u' ? " " : "  ");
+			fetch(ixold, changes[i].a, changes[i].b, input[0], mode == 'u' ? "-" : "- ");
+			fetch(ixnew, changes[i].c, changes[i].d, input[1], mode == 'u' ? "+" : "+ ");
 			at = changes[i].b+1;
 		}
-		fetch(ixold, at, b, input[0], "  ");
+		fetch(ixold, at, b, input[0], mode == 'u' ? " " : "  ");
 	}
 	nchanges = 0;
 }

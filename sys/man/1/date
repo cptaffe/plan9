@@ -24,6 +24,19 @@ Report Greenwich Mean Time (GMT) rather than local time.
 .B -n
 Report the date as the number of seconds since the
 epoch, 00:00:00 GMT, January 1, 1970.
+.TP
+.BI -f " layout"
+Print the date by
+.IR layout ,
+as
+.I tmfmt
+in
+.IR ctime (2)
+writes it: as the date
+.L "Mon Jan 2 15:04:05 MST 2006"
+would be written, so
+.L "date -f 2006-01-02"
+prints today's date in ISO 8601's form.
 .PP
 The conversion from Greenwich Mean Time to local time depends on the
 .B $timezone
@@ -56,3 +69,6 @@ into
 .B /sys/src/cmd/date.c
 .br
 .B /sys/src/cmd/clock.c
+.SH "SEE ALSO"
+.IR seconds (1),
+.IR ctime (2)
