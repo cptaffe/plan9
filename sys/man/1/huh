@@ -303,10 +303,12 @@ for both.
 .PP
 Each token's bits are clipped at
 .I bits
-(15 by default) and spread over its runes, and each token's score is the clipped bits over the runes of a
-window of
+(15 by default) and spread over its runes, less, in a text's first 512 tokens, a position
+baseline: the bits a rune the first tokens of the tree's docs cost beyond those later in them,
+since a text's start costs more for lack of context even after its preamble.
+Each token's score is the clipped bits over the runes of a window of
 .I width
-tokens around it (16 by default), weighted by a triangle that falls off from the token.
+tokens around it (32 by default), weighted by a triangle that falls off from the token.
 The cutoff is the score above which the tokens cover
 .I density
 percent of the text's runes, from
@@ -373,7 +375,10 @@ Huh+ Huh- Huh Bits
 .IR theme (6),
 .B doc/words.md
 .SH BUGS
-The clip, the window, the bands' bounds, and
+The window, the clip and the position baseline come from a measurement with Qwen3-0.6B over the
+tree's docs, man pages and C
+.RB ( doc/words.md );
+the bands' bounds and
 .IR segment 's
 penalty and least length are placeholders, set on
 .IR lmsim 's
