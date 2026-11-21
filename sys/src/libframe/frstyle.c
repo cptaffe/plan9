@@ -65,8 +65,9 @@ frstylesync(Frame *f)
  * Characters inserted strictly inside a run inherit that run's style.
  * At an exact run boundary the insert falls into the right neighbour —
  * we never extend the left run — so boundaries stay sharp until the next
- * compositor flush.  The last run is extended when p0 is at or past the
- * end of all runs (i.e. appending to the frame).
+ * compositor flush.  At or past the end of all runs (appending to the
+ * frame) the last run is extended only if it is style 0; characters past
+ * the runs are drawn in style 0, so a styled last run keeps its length.
  */
 void
 frstyleinsert(Frame *f, ulong p0, ulong n)
@@ -91,8 +92,7 @@ frstyleinsert(Frame *f, ulong p0, ulong n)
 		}
 		pos = segend;
 	}
-	/* At or past the end of all runs: extend the last run. */
-	if(f->nstyles > 0)
+	if(p0 == pos && f->styles[2*(f->nstyles-1)] == 0)
 		f->styles[2*(f->nstyles-1)+1] += n;
 }
 
