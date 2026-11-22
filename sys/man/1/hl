@@ -1,20 +1,11 @@
 .TH HL 1
 .SH NAME
-hl, ts \- tree-sitter's colors in acme's windows
+hl \- tree-sitter's colors in acme's windows
 .SH SYNOPSIS
 .B hl
 [
 .B -s
 .I astyles
-] [
-.B -t
-.I tsdir
-]
-.PP
-.BI /bin/ts/ lang
-[
-.B -q
-.I highlights.scm
 ]
 .SH DESCRIPTION
 .I Hl
@@ -41,31 +32,27 @@ writing their layers in
 .I astyles
 .RB ( /mnt/astyles ).
 .PP
-A window whose file the first rule of
-.B $home/lib/ts
-or
-.B /lib/ts
-matches is colored by that rule's grammar.
-A rule is a line,
-.BI ts= name
-.BI file= pattern
-[
-.BI fence= pattern
-]\f1,
-where
-.B file=
-is a
-.IR regexp (6)
-of the file's name, and
-.BR fence= ,
-of the other names of the rule's language,
-as a fenced block in markdown names it.
 .I Hl
-gives a window's grammar its body once, under acme's
+runs one
+.IR syn ,
+the syntax programs' router (see
+.IR syn (4)),
+and names each window to it by the window's file;
+a window whose file the first rule of
+.B $home/lib/syn
+or
+.B /lib/syn
+matches is colored by that rule's language.
+.I Hl
+gives
+.I syn
+a window's body once, under acme's
 .B seq
 guard, and then its edits, from the window's
 .BR rdevent ,
-and writes in its layer only the runs that the grammar says may have changed,
+and writes in its layer only the runs that
+.I syn
+says may have changed since the edit as of which it last wrote the layer,
 each under the
 .B seq
 of the edits it reflects, so that
@@ -73,300 +60,69 @@ of the edits it reflects, so that
 refuses colors for text that has since changed,
 and
 .I hl
-colors that text again after the next edits.
+colors that text again from that same edit after the next edits.
 A Get, an edit whose text
 .B rdevent
-leaves out, or a grammar that has lost the document
+leaves out, or a program that has lost the document
 has
 .I hl
 give the body again.
-.PP
-A grammar's program gives the text of a language it does not have,
-such as a markdown file's fenced block of code, as one run,
-.BI ts/ lang\f1,
+A span answered
+.B lost
 or
-.BI ts/ lang / name
-for the run that the text takes when there is no program for
-.IR lang .
+.B "program gone"
+has
+.I hl
+give the body again too, and one answered
+.B stale
+has it ask for the window's runs whole, by
+.BR "span" " id " - .
 .I Hl
-gives that text to
-.IR lang 's
-program, the grammar of the first rule whose
-.I name
-is
-.I lang
-or whose
-.B fence=
-pattern matches it, or else
-.BI /bin/ts/ lang
-if there is one,
-and puts the program's runs where the text is.
-The program gets the block's edits as the window's grammar does,
-and a block whose bounds an edit crosses is given again.
-So a block marked
+gives up on
+.I syn
+only when its answers end, and then runs it again.
+A window whose program cannot start, whose body
+.I syn
+does not answer with runs, whose span it answers with another error, or whose language a
+.I syn
+run again does not know, is left as it is until a Get or Put, when
+.I hl
+names it to
+.I syn
+again.
+.I Syn
+gives a fenced block of code in a markdown file to the program of the rule with the block's
+name among its
+.BR fence= ,
+so a block marked
 .B sh
 is colored as
 .BR bash .
 .PP
-Each grammar is a program,
-.IB tsdir / name
-.RB ( /bin/ts/ name ),
-that
-.I hl
-starts once and keeps for every window in its language.
-It reads requests on its standard input and answers some on its standard output:
-.TF delete\ id\ q0\ q1
-.TP
-.BI body " id n"
-followed by
-.I n
-bytes, the text of document
-.IR id ;
-answered by
-.BI runs " id m"
+.I Hl
+sends
+.I syn
+the requests
+.BR lang ,
+.BR body ,
+.BR insert ,
+.BR delete ,
+.B span
 and
-.I m
-bytes of runs, in the form of
-.IR astyles (4)'s
-.B style
-file.
-The program keeps each document's parse, so that a change is parsed again only where it is.
-.TP
-.BI insert " id q n"
-followed by
-.I n
-bytes, put in document
-.I id
-at rune
-.IR q .
-.TP
-.BI delete " id q0 q1"
-takes the runes
-.I q0
-to
-.I q1
-from it.
-.TP
-.BI span " id q0 q1"
-answered by
-.BI span " id r0 r1 m"
-and
-.I m
-bytes of the runs of the runes
-.I r0
-to
-.IR r1 ,
-counted from
-.IR r0 :
-the text whose runs may have changed since the last answer, and that of
-.I q0
-to
-.IR q1 ;
-or by
-.BI stale " id"
-if an edit could not be made.
-.TP
-.BI tree " id n"
-followed by
-.I n
-bytes, the text of document
-.IR id ;
-answered by
-.BI tree " id m"
-and
-.I m
-bytes: a line for each named node of the parse, root first and each node before its children,
-.IP
-.IB "depth start length type field"
-.IP
-where
-.I depth
-counts the named nodes above it,
-.I start
-and
-.I length
-are in runes,
-and
-.I field
-is the name the grammar gives the node's place in its parent, or
-.LR - .
-.TP
-.BI tree " id"
-with no text, answered by
-.BI delta " id m"
-and
-.I m
-bytes: what changed in the parse since the last answer to
-.BR tree ,
-as hunks (see below).
-.TP
-.BI check " id n"
-followed by
-.I n
-bytes, a text parsed alone and not kept; answered by
-.BI check " id k n\f1,"
-where
-.I k
-counts the parse's error and missing nodes and
-.I n
-its named nodes.
-.TP
-.BI tags " id n"
-followed by
-.I n
-bytes, the text of document
-.IR id ,
-or with no
-.I n
-the text as the program keeps it;
-answered by
-.BI tags " id m"
-and
-.I m
-bytes: a line for each match of the language's
-.BR tags.scm ,
-.IP
-.IB "start length type kind name-start name-length"
-.IP
-where
-.I kind
-is the match's capture, such as
-.B definition.function
-or
-.BR reference.call ,
-and the name is its
-.B @name
-capture's text;
-or, if the language has no
-.BR tags.scm ,
-by
-.BI error " id why"\f1.
-.TP
-.BI close " id"
-forgets document
-.IR id .
-.PD
-.PP
-The program keeps a document's parse from one request to the next, whichever they are.
-For the C text
-.LR "int x = f(1);" ,
-.B tree
-gives
-.IP
-.EX
-0 0 14 translation_unit -
-1 0 13 declaration -
-2 0 3 primitive_type type
-2 4 8 init_declarator declarator
-3 4 1 identifier declarator
-3 8 4 call_expression value
-4 8 1 identifier function
-4 9 3 argument_list arguments
-5 10 1 number_literal -
-.EE
-.PP
-which tree-sitter writes as
-.IP
-.EX
-(translation_unit (declaration type: (primitive_type)
-  declarator: (init_declarator declarator: (identifier)
-    value: (call_expression function: (identifier)
-      arguments: (argument_list (number_literal))))))
-.EE
-.PP
-A
-.B delta
-answer is the last
-.B tree
-or
-.B delta
-answer brought up to date.
-Each line of that answer not in a hunk stays, with its start and end moved by the
-.B insert
-and
-.B delete
-requests since, in order.
-An insert of
-.I k
-runes at
-.I q
-moves a start at or after
-.I q
-and an end after
-.I q
-by
-.IR k ,
-so it moves a node that starts there and does not lengthen one that ends there.
-A delete of
-.I q0
-to
-.I q1
-moves a place at or after
-.I q1
-back by
-.IR q1 \- q0 ,
-and one between them to
-.IR q0 .
-A hunk is a line
-.IB "@ i k j"
-followed by
-.I j
-lines in
-.BR tree 's
-form, which take the place of the
-.I k
-lines from line
-.I i
-(from 0) of the last answer; hunks come in the order of
-.IR i .
-If the program does not have the text, as after an edit past its end, it answers
-.B tree
-and
-.B tags
-without text with
-.BI error " id " lost\f1,
-and wants the text again, as by
-.BI tree " id n"\f1.
-.PP
-Any program that speaks this, such as one for a small format written by hand, can stand in for one.
-.B /bin/ts/pic
-is one, for
-.IR pic (1)'s
-pictures: their words, labels, numbers, strings and comments.
-It has no parse: it answers
-.BR tree ,
-.B tags
-and
-.B check
-with an error.
-.PP
-A grammar's program colors the captures of its query,
-.IB lang /highlights.scm\f1,
-by tree-sitter's query language with its
-.BR #eq? ,
-.B #match?
-and
-.B #any-of?
-predicates and their
-.B not-
-forms.
-Where captures overlap, the first one wins.
-A capture's run takes the name that
-.B names
-gives its capture, or the capture with its last
-.BI . part
-taken off, and so on; a capture with no name has no run.
-Each of these files is read from
-.B $home/lib/ts
-in place of
-.BR /sys/lib/ts .
-The
-.B -q
-option reads the query from a file instead.
+.B close
+of
+.IR syn (4).
+A program's queries, in
+.BR /sys/lib/ts ,
+say what its runs are, and
+.B /sys/lib/ts/names
+the
+.IR theme (6)
+name each run takes.
 .SH FILES
-.TF /sys/lib/ts/lang/highlights.scm
+.TF /sys/lib/ts/names
 .TP
-.B /lib/ts
+.B /lib/syn
 the languages' rules
 .TP
 .B /sys/lib/ts/names
@@ -374,30 +130,20 @@ capture names to
 .IR theme (6)
 names
 .TP
-.BI /sys/lib/ts/ lang /highlights.scm
-a language's query
-.TP
-.BI /sys/lib/ts/ lang /tags.scm
-its definitions and references, for
-.BR tags ,
-from the grammar's own repository
+.B /bin/syn
+the router
 .TP
 .BI /bin/ts/ lang
 a language's program
 .PD
 .SH SOURCE
 plan9web's
-.BR src/cmd/hl.c ,
-.B src/cmd/ts/ts.c
-and
-.BR src/cmd/ts/pic.c ;
-tree-sitter's runtime and grammars from
-.BR scripts/dl.sh ,
-and the queries and names from acme-treesitter
+.B src/cmd/hl.c
 .SH SEE ALSO
 .IR acme (1),
 .IR Tree (1),
 .IR acme (2),
 .IR amux (4),
 .IR astyles (4),
+.IR syn (4),
 .IR theme (6)

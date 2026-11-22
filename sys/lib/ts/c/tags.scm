@@ -7,3 +7,11 @@
 (type_definition declarator: (type_identifier) @name) @definition.type
 
 (enum_specifier name: (type_identifier) @name) @definition.type
+
+(preproc_def name: (identifier) @name) @definition.macro
+
+(preproc_function_def name: (identifier) @name) @definition.macro
+
+(call_expression function: (identifier) @name) @reference.call
+
+(call_expression function: (field_expression field: (field_identifier) @name)) @reference.call
