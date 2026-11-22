@@ -1,0 +1,18 @@
+</$objtype/mkfile
+
+LIB=/$objtype/lib/libtok.a
+OFILES=\
+	comp.$O\
+	exec.$O\
+	toks.$O\
+
+HFILES=/sys/include/tok.h\
+	impl.h\
+
+UPDATE=\
+	mkfile\
+	$HFILES\
+	${OFILES:%.$O=%.c}\
+	${LIB:/$objtype/%=/386/%}\
+
+</sys/src/cmd/mksyslib
