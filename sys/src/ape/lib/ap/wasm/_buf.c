@@ -32,6 +32,7 @@ struct Hdr {
 
 enum {
 	Timeout = -2,
+	Paused = -3,
 };
 
 /* _muxsid and _killmuxsid are known in libbsd's listen.c */
@@ -44,6 +45,9 @@ static int nextid;
 static int timerpid = -1;		/* the timer process */
 static int timernote = -1;		/* its /proc/n/note */
 static int timerid;			/* the latest request's */
+static char reading[OPEN_MAX];
+static char paused[OPEN_MAX];
+static int topause;
 
 void _killmuxsid(void);
 static void _copyproc(int, Muxbuf*);
@@ -182,6 +186,8 @@ _startbuf(int fd)
 		return -1;
 	}
 	ack[fd] = a[1];
+	reading[fd] = 1;
+	paused[fd] = 0;
 	b->copypid = pid;
 	f->buf = b;
 	f->flags |= FD_BUFFERED;
@@ -203,6 +209,8 @@ _closebuf(int fd)
 		return;
 	_fdinfo[fd].buf = 0;
 	bufid[fd] = 0;
+	reading[fd] = 0;
+	paused[fd] = 0;
 	if(ack[fd] >= 0){
 		_CLOSE(ack[fd]);
 		ack[fd] = -1;
@@ -242,7 +250,7 @@ _copyproc(int fd, Muxbuf *b)
 {
 	unsigned char m[sizeof(Hdr)+READMAX], c;
 	Hdr h;
-	int n, nzeros;
+	int n, k, nzeros;
 
 	h.fd = fd;
 	h.id = bufid[fd];
@@ -252,16 +260,27 @@ _copyproc(int fd, Muxbuf *b)
 		 * happened, or it might mean eof; try several times to
 		 * disambiguate (posix read() discards 0-length messages)
 		 */
-		nzeros = 0;
-		do {
-			n = _READ(fd, m+sizeof h, READMAX);
-		} while(n == 0 && ++nzeros < 3);
+		n = Paused;
+		if(!topause){
+			nzeros = 0;
+			do {
+				n = _READ(fd, m+sizeof h, READMAX);
+			} while(n == 0 && ++nzeros < 3);
+			if(n < 0 && topause)
+				n = Paused;
+		}
+		if(n == Paused)
+			topause = 0;
 		h.n = n;
 		memcpy(m, &h, sizeof h);
-		if(_WRITE(mux[1], m, sizeof h + (n > 0? n: 0)) < 0 || n <= 0)
+		while((k = _WRITE(mux[1], m, sizeof h + (n > 0? n: 0))) < 0 && topause)
+			;
+		if(k < 0 || n <= 0 && n != Paused)
 			_exit(0);
 		/* wait until the program has taken it */
-		if(_READ(ack[fd], &c, 1) != 1)
+		while((n = _READ(ack[fd], &c, 1)) < 0 && topause)
+			;
+		if(n != 1)
 			_exit(0);		/* we've been closed */
 	}
 }
@@ -290,8 +309,16 @@ take(int *id)
 	if(h.fd == Timeout)
 		return Timeout;
 	b = 0;
-	if(h.fd >= 0 && h.fd < OPEN_MAX && bufid[h.fd] == h.id)
+	if(h.fd >= 0 && h.fd < OPEN_MAX && bufid[h.fd] == h.id){
 		b = _fdinfo[h.fd].buf;
+		reading[h.fd] = 0;
+		if(h.n == Paused){
+			paused[h.fd] = 1;
+			return Paused;
+		}
+	}
+	if(h.n == Paused)
+		return 0;
 	for(k = 0; k < h.n; k += n){
 		static unsigned char junk[READMAX];	/* a closed fd's */
 
@@ -306,6 +333,45 @@ take(int *id)
 	if(h.n <= 0)
 		b->eof = 1;
 	return h.fd;
+}
+
+static void
+resume(int fd)
+{
+	if(!paused[fd] || reading[fd] || ack[fd] < 0)
+		return;
+	paused[fd] = 0;
+	if(_WRITE(ack[fd], "", 1) == 1)
+		reading[fd] = 1;
+	else if(_fdinfo[fd].buf)
+		_fdinfo[fd].buf->eof = 1;
+}
+
+void
+_pausebuf(void)
+{
+	char buf[32];
+	int fd, f, n, id;
+
+	if(mux[0] < 0)
+		return;
+	n = 0;
+	for(fd = 0; fd < OPEN_MAX; fd++)
+		if(reading[fd] && _fdinfo[fd].buf){
+			snprintf(buf, sizeof buf, "/proc/%d/note", _fdinfo[fd].buf->copypid);
+			if((f = _OPEN(buf, 1)) < 0)
+				continue;
+			if(_WRITE(f, "pause", 5) == 5)
+				n++;
+			_CLOSE(f);
+		}
+	while(n > 0){
+		for(fd = 0; fd < OPEN_MAX; fd++)
+			if(reading[fd] && _fdinfo[fd].buf)
+				break;
+		if(fd == OPEN_MAX || take(&id) == -1)
+			break;
+	}
 }
 
 /* like read(), for a buffered fd; extra arg noblock says don't wait for data if true */
@@ -323,9 +389,11 @@ _readbuf(int fd, void *addr, int nwant, int noblock)
 		return -1;
 	}
 	/* make sure there's data */
-	while(b->n == 0 && !b->eof)
+	while(b->n == 0 && !b->eof){
+		resume(fd);
 		if(take(&id) == -1)
 			return -1;
+	}
 	if(b->n == 0)
 		return 0;
 	ngot = b->n;
@@ -335,8 +403,12 @@ _readbuf(int fd, void *addr, int nwant, int noblock)
 	b->getnext += ngot;
 	b->n -= ngot;
 	/* all taken: the copy process may read again */
-	if(b->n == 0 && !b->eof && _WRITE(ack[fd], "", 1) != 1)
-		b->eof = 1;
+	if(b->n == 0 && !b->eof){
+		if(_WRITE(ack[fd], "", 1) != 1)
+			b->eof = 1;
+		else
+			reading[fd] = 1;
+	}
 	return ngot;
 }
 
@@ -351,9 +423,11 @@ _peekbuf(int fd, void *addr, int nwant, int noblock)
 		errno = EAGAIN;
 		return -1;
 	}
-	while(b->n == 0 && !b->eof)
+	while(b->n == 0 && !b->eof){
+		resume(fd);
 		if(take(&id) == -1)
 			return -1;
+	}
 	ngot = b->n;
 	if(ngot > nwant)
 		ngot = nwant;
@@ -554,6 +628,9 @@ select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *timeo
 	}
 	if(n || !(FD_ANYSET(&rwant) || FD_ANYSET(&ewant)) || t == 0)
 		return n;
+	for(fd = 0; fd < nfds; fd++)
+		if(FD_ISSET(fd, &rwant) || FD_ISSET(fd, &ewant))
+			resume(fd);
 
 	if(timeout && settimer(t) < 0)
 		return -1;
@@ -561,6 +638,12 @@ select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *timeo
 		fd = take(&id);
 		if(fd == -1)
 			return -1;
+		if(fd == Paused){
+			for(fd = 0; fd < nfds; fd++)
+				if(FD_ISSET(fd, &rwant) || FD_ISSET(fd, &ewant))
+					resume(fd);
+			continue;
+		}
 		if(fd == Timeout){
 			if(id == timerid && timeout)
 				return 0;
@@ -611,8 +694,12 @@ _detachbuf(void)
 }
 
 static int
-copynotehandler(void *, char *)
+copynotehandler(void *, char *s)
 {
+	if(strcmp(s, "pause") == 0){
+		topause = 1;
+		return _NOTED(0);
+	}
 	if(_finishing)
 		_finish(0, 0);
 	_NOTED(1);
