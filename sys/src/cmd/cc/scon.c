@@ -342,9 +342,7 @@ acomcmp1(const void *a1, const void *a2)
 		c2 = 0;
 	if(c2 -= c1)
 		return c2;
-	if(t2 > t1)
-		return 1;
-	return -1;
+	return t2->seq - t1->seq;
 }
 
 int
@@ -361,9 +359,7 @@ acomcmp2(const void *a1, const void *a2)
 		return 1;
 	if(c1 < c2)
 		return -1;
-	if(t2 > t1)
-		return 1;
-	return -1;
+	return t2->seq - t1->seq;
 }
 
 void
@@ -431,6 +427,8 @@ acom2(Node *n, Type *t)
 	 * look for factorable terms
 	 * c1*i + c1*c2*j -> c1*(i + c2*j)
 	 */
+	for(i=0; i<nt; i++)
+		trm[i].seq = i;
 	qsort(trm+1, nt-1, sizeof(trm[0]), acomcmp1);
 	for(i=nt-1; i>=0; i--) {
 		c1 = trm[i].mult;
@@ -478,6 +476,8 @@ acom2(Node *n, Type *t)
 	/*
 	 * put it all back together
 	 */
+	for(i=0; i<nt; i++)
+		trm[i].seq = i;
 	qsort(trm+1, nt-1, sizeof(trm[0]), acomcmp2);
 	l = Z;
 	for(i=nt-1; i>=0; i--) {

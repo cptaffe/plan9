@@ -38,7 +38,7 @@ execl(const char *name, const char *arg0, ...)
 	va_end(ap);
 	if(v == 0)
 		return -1;
-	r = execve(name, (const char**)v, (const char**)environ);
+	r = execve(name, v, environ);
 	free(v);
 	return r;
 }

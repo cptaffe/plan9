@@ -128,7 +128,9 @@ addlib(void)
 	i = 0;
 	if(frog[0][0] == '/')
 		i = 1;
-	else if(frog[0][0] != '.')
+	else if(frog[0][0] == '.')
+		strcpy(fn, ".");
+	else
 		search = 1;
 	for(; i<nfrog; i++) {
 		snprint(comp, sizeof comp, "%s", frog[i]);
