@@ -88,28 +88,8 @@ sbrk(ulong n)
 }
 #endif
 
-int
-_tas(int *p)
-{
-	int v;
-
-	v = *p;
-	*p = 1;
-	return v;
-}
-
 ulong getfcr(void) { return 0; }
 void setfcr(ulong v) { USED(v); }
 ulong getfsr(void) { return 0; }
 void setfsr(ulong v) { USED(v); }
 void cycles(uvlong *t) { *t = 0; }
-
-long ainc(long *p) { return ++*p; }
-long adec(long *p) { return --*p; }
-
-#pragma weak semacquire
-int semacquire(long *p, int block) { USED(block); if(*p > 0){ --*p; return 1; } return 0; }
-#pragma weak tsemacquire
-int tsemacquire(long *p, ulong ms) { USED(ms); return semacquire(p, 0); }
-#pragma weak semrelease
-long semrelease(long *p, long n) { *p += n; return *p; }
