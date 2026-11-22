@@ -183,7 +183,6 @@ struct Srv {
 	void		(*destroyfid)(Fid*);
 	void		(*destroyreq)(Req*);
 	void		(*end)(Srv*);
-	void		(*start)(Srv*);	/* 9front's */
 	void*	aux;
 
 	void		(*attach)(Req*);

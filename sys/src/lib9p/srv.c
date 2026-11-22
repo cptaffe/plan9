@@ -735,9 +735,6 @@ srv(Srv *srv)
 	srv->fpool->srv = srv;
 	srv->rpool->srv = srv;
 
-	if(srv->start)
-		srv->start(srv);
-
 	incref(&srv->rref);
 	while(r = getreq(srv)){
 		incref(&srv->rref);
