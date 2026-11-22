@@ -20,9 +20,13 @@ int	blocksize;		/* for 32v */
 int	verbose;
 int	newtap;		/* tap with time in sec */
 int	blocksize;
+void	(*lastclose)(Ram*);
+int	(*checkempty)(Ram*);
+Ram	*(*findchild)(Ram*, char*);
 
 Fid *	newfid(int);
 int	ramstat(Ram*, uchar*, int);
+uint	ramsize(Ram*);
 void	io(void);
 void	usage(void);
 int	perm(int);
@@ -59,6 +63,8 @@ char	Enotowner[] =	"not owner";
 char	Eisopen[] = 	"file already open for I/O";
 char	Excl[] = 	"exclusive use file already open";
 char	Ename[] = 	"illegal name";
+char	Efid[] =	"unknown fid";
+char	Ecount[] =	"read count too small for a directory entry";
 
 void
 notifyf(void *a, char *s)
@@ -75,7 +81,7 @@ main(int argc, char *argv[])
 	Ram *r;
 	char *defmnt;
 	int p[2];
-	char buf[TICKREQLEN];
+	char buf[2*ERRMAX];
 
 	fmtinstall('F', fcallfmt);
 
@@ -143,7 +149,7 @@ main(int argc, char *argv[])
 	default:
 		close(p[0]);	/* don't deadlock if child fails */
 		if(mount(p[1], -1, defmnt, MREPL|MCREATE, "") < 0) {
-			sprint(buf, "mount on `%s' failed", defmnt);
+			snprint(buf, sizeof buf, "mount on `%s' failed", defmnt);
 			error(buf);
 		}
 	}
@@ -251,7 +257,7 @@ rwalk(Fid *f)
 				break;
 			}
 			if(strcmp(name, "..") == 0){
-				r = dir->parent;
+				r = dir->parent? dir->parent: dir;
    Accept:
 				if(i == MAXWELEM){
 					err = "name too long";
@@ -262,6 +268,11 @@ rwalk(Fid *f)
 			}
 			if(!dir->replete)
 				popdir(dir);
+			if(findchild){
+				if((r = (*findchild)(dir, name)) != 0)
+					goto Accept;
+				break;
+			}
 			for(r=dir->child; r; r=r->next)
 				if(r->busy && strcmp(name, r->name)==0)
 					goto Accept;
@@ -278,8 +289,10 @@ rwalk(Fid *f)
 			nf->open = 0;
 			nf->ram = 0;
 		}
-	}else if(thdr.nwqid  == rhdr.nwname)
+	}else if(thdr.nwqid  == rhdr.nwname){
 		f->ram = r;
+		f->diroff = 0;
+	}
 
 	return err;
 
@@ -303,6 +316,7 @@ ropen(Fid *f)
 	if(r->qid.type & QTDIR){
 		if(mode != OREAD)
 			return Eperm;
+		f->diroff = 0;
 		thdr.qid = r->qid;
 		return 0;
 	}
@@ -342,10 +356,11 @@ rcreate(Fid *f)
 char*
 rread(Fid *f)
 {
-	int i, len;
+	static char err[ERRMAX];
+	int len;
 	Ram *r;
 	char *buf;
-	uvlong off, end;
+	uvlong off, pos;
 	int n, cnt;
 
 	if(f->ram->busy == 0)
@@ -353,35 +368,58 @@ rread(Fid *f)
 	n = 0;
 	thdr.count = 0;
 	off = rhdr.offset;
-	end = rhdr.offset + rhdr.count;
-	cnt = rhdr.count;
-	if(cnt > messagesize-IOHDRSZ)
+	if(rhdr.count > messagesize-IOHDRSZ)
 		cnt = messagesize-IOHDRSZ;
+	else
+		cnt = rhdr.count;
 	buf = thdr.data;
 	if(f->ram->qid.type & QTDIR){
 		if(!f->ram->replete)
 			popdir(f->ram);
-		for(i=0,r=f->ram->child; r!=nil && i<end; r=r->next){
+		if(off != 0 && off == f->diroff){
+			pos = off;
+			r = f->dirnext;
+		}else{
+			pos = 0;
+			r = f->ram->child;
+		}
+		for(; r!=nil; r=r->next){
 			if(!r->busy)
 				continue;
-			len = ramstat(r, (uchar*)buf+n, cnt-n);
-			if(len <= BIT16SZ)
+			len = ramsize(r);
+			if(pos < off){
+				pos += len;
+				continue;
+			}
+			if(len > cnt-n){
+				if(n == 0)
+					return Ecount;
 				break;
-			if(i >= off)
-				n += len;
-			i += len;
+			}
+			n += ramstat(r, (uchar*)buf+n, cnt-n);
+			pos += len;
 		}
+		f->diroff = pos;
+		f->dirnext = r;
 		thdr.count = n;
 		return 0;
 	}
 	r = f->ram;
-	if(off >= r->ndata)
+	if(off >= r->ndata){
+		if(r->ndata == 0 && checkempty && (*checkempty)(r) < 0){
+			rerrstr(err, sizeof err);
+			return err;
+		}
 		return 0;
+	}
 	r->atime = time(0);
 	n = cnt;
 	if(off+n > r->ndata)
 		n = r->ndata - off;
-	thdr.data = doread(r, off, n);
+	if((thdr.data = doread(r, off, n)) == nil){
+		rerrstr(err, sizeof err);
+		return err;
+	}
 	thdr.count = n;
 	return 0;
 }
@@ -416,18 +454,19 @@ rwrite(Fid *f)
 char *
 rclunk(Fid *f)
 {
-	if(f->open)
-		f->ram->open--;
+	if(f->open && --f->ram->open == 0 && lastclose)
+		(*lastclose)(f->ram);
 	f->busy = 0;
 	f->open = 0;
 	f->ram = 0;
+	f->diroff = 0;
 	return 0;
 }
 
 char *
 rremove(Fid *f)
 {
-	USED(f);
+	rclunk(f);
 	return Eperm;
 }
 
@@ -448,21 +487,37 @@ rwstat(Fid *f)
 	return Eperm;
 }
 
+static void
+ramdir(Ram *r, Dir *dir)
+{
+	memset(dir, 0, sizeof *dir);
+	dir->name = r->name;
+	dir->qid = r->qid;
+	dir->mode = r->perm;
+	dir->length = r->ndata;
+	dir->uid = r->user;
+	dir->gid = r->group;
+	dir->muid = r->user;
+	dir->atime = r->atime;
+	dir->mtime = r->mtime;
+}
+
 int
 ramstat(Ram *r, uchar *buf, int nbuf)
 {
 	Dir dir;
 
-	dir.name = r->name;
-	dir.qid = r->qid;
-	dir.mode = r->perm;
-	dir.length = r->ndata;
-	dir.uid = r->user;
-	dir.gid = r->group;
-	dir.muid = r->user;
-	dir.atime = r->atime;
-	dir.mtime = r->mtime;
+	ramdir(r, &dir);
 	return convD2M(&dir, buf, nbuf);
+}
+
+uint
+ramsize(Ram *r)
+{
+	Dir dir;
+
+	ramdir(r, &dir);
+	return sizeD2M(&dir);
 }
 
 Fid *
@@ -478,13 +533,11 @@ newfid(int fid)
 			ff = f;
 	if(ff){
 		ff->fid = fid;
-		ff->open = 0;
-		ff->busy = 1;
+		return ff;
 	}
 	f = emalloc(sizeof *f);
 	f->ram = 0;
 	f->fid = fid;
-	f->busy = 1;
 	f->open = 0;
 	f->next = fids;
 	fids = f;
@@ -495,6 +548,7 @@ void
 io(void)
 {
 	char *err;
+	Fid *f;
 	int n, nerr;
 	char buf[ERRMAX];
 
@@ -526,10 +580,16 @@ io(void)
 
 		thdr.data = (char*)mdata + IOHDRSZ;
 		thdr.stat = mdata + IOHDRSZ;
-		if(!fcalls[rhdr.type])
+		if(rhdr.type >= nelem(fcalls) || !fcalls[rhdr.type])
 			err = "bad fcall type";
-		else
-			err = (*fcalls[rhdr.type])(newfid(rhdr.fid));
+		else{
+			f = newfid(rhdr.fid);
+			if(!f->busy && rhdr.type != Tversion && rhdr.type != Tauth
+			&& rhdr.type != Tattach && rhdr.type != Tflush)
+				err = Efid;
+			else
+				err = (*fcalls[rhdr.type])(f);
+		}
 		if(err){
 			thdr.type = Rerror;
 			thdr.ename = err;
