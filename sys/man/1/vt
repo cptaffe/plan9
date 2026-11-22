@@ -190,4 +190,5 @@ The down arrow key advances a page without sending the character to the host.
 .B /sys/src/cmd/vt
 .SH SEE ALSO
 .IR vt (2),
+.IR termcap (6),
 .IR theme (6)

@@ -1,0 +1,206 @@
+.TH TERMCAP 6
+.SH NAME
+termcap \- terminal capabilities for APE programs
+.SH SYNOPSIS
+.B /sys/lib/termcap
+.SH DESCRIPTION
+An APE program that draws on a terminal, such as
+.IR vim ,
+learns how by BSD's
+.I termcap
+library,
+.BR -ltermcap ,
+whose functions read this file.
+.I Tgetent
+finds the entry for a name,
+usually
+.BR $TERM ;
+.IR tgetnum ,
+.I tgetflag
+and
+.I tgetstr
+read its capabilities;
+.I tgoto
+puts a row and column in a cursor motion string;
+and
+.I tputs
+writes a string.
+.PP
+An entry is one logical line.
+A backslash before a newline joins the next line to it,
+and the blanks that begin the next line are dropped.
+A line that starts with
+.L #
+is a comment.
+Fields are separated by colons.
+The first field holds the entry's names, separated by
+.LR | ,
+and the others are its capabilities, each two characters long:
+.TP
+.IB xx
+a flag, which the terminal has;
+.TP
+.IB xx # n
+a number, decimal, or octal if it starts with 0;
+.TP
+.IB xx = s
+a string, where
+.L \eE
+is an escape,
+.BI ^ x
+is control-\fIx\fP,
+.L ^?
+is DEL,
+.LR \en ,
+.LR \er ,
+.LR \et ,
+.LR \eb ,
+.L \ef
+and
+.L \es
+are newline, return, tab, backspace, form feed and space,
+.BI \e ooo
+is an octal byte,
+.L \e0
+being 0200, which a terminal takes as a NUL,
+and a backslash before any other character is that character, so that
+.L \e:
+is a colon;
+.TP
+.IB xx @
+a cancellation: the capability is absent, even if a later field gives it.
+.PP
+The first field for a capability is the one that counts.
+In a string given to
+.IR tgoto ,
+.L %d
+is the next value in decimal,
+.L %2
+and
+.L %3
+the same in two or three digits,
+.L %.
+the value as a byte,
+.BI %+ x
+the value plus
+.I x
+as a byte,
+.BI %> xy
+adds
+.I y
+to the value if it is greater than
+.IR x ,
+.L %r
+gives the column first,
+.L %i
+adds one to both,
+.L %n
+exclusive-ors both with 0140,
+.L %B
+converts the value to BCD,
+.L %D
+is the Delta Data encoding,
+and
+.L %%
+is a percent sign.
+The row comes first, unless
+.L %r
+says otherwise.
+A
+.L %.
+or
+.BI %+ x
+that would send a NUL, control-D or newline sends the next byte instead
+and appends a move back:
+.B UP
+for a row, if the program has set it, and
+.B BC
+for a column, a backspace if the program has not set it.
+.I Tputs
+drops a string's leading padding, a number and an optional
+.LR * ,
+and sends the rest.
+.PP
+.I Tgetent
+returns 1 when it finds the entry, 0 when it finds none, and \-1
+when it cannot read the file.
+If
+.B $TERMCAP
+starts with
+.LR / ,
+it is the name of the file to read, in place of
+.BR /sys/lib/termcap .
+Otherwise, if it is an entry with the name asked for,
+that entry is used without reading any file.
+Entries cannot include others: there is no
+.LR tc= .
+.I Tgetnum
+of
+.B co
+and
+.B li
+returns
+.B $COLUMNS
+and
+.BR $LINES ,
+when they are set, in place of the entry's.
+.SS The entry
+The file has one entry,
+.IR vt (1)'s,
+named for each
+.B $TERM
+.I vt
+sets,
+.BR xterm-256color ,
+.BR xterm ,
+.B vt220
+and
+.BR ansi ,
+and for
+.BR vt .
+It has only what
+.I vt
+does: automatic margins with xterm's deferred wrap
+.RB ( am ,
+.BR xn ),
+erasure in the current background color
+.RB ( ut ),
+cursor motion, scrolling regions, line and character insertion and deletion,
+tab stops, bold, reverse, invisible and underlined text,
+DEC's line drawing set,
+256 colors
+.RB ( Co ,
+.BR AF ,
+.BR AB ),
+the alternate screen
+.RB ( ti ,
+.BR te ),
+cursor hiding, application cursor keys
+.RB ( ks ,
+.BR ke ),
+and the keys
+.I vt
+sends.
+It leaves out faint, italic and blinking text, which
+.I vt
+does not draw.
+The mouse has no capability:
+.IR vim 's
+.B $VIM/vimrc
+sets
+.B ttymouse=sgr
+for it.
+.SH FILES
+.TF /sys/src/ape/lib/termcap
+.TP
+.B /sys/lib/termcap
+the entries
+.TP
+.B /sys/include/ape/termcap.h
+the library's declarations
+.TP
+.B /sys/src/ape/lib/termcap
+the library
+.SH SEE ALSO
+.IR vt (1),
+.IR pcc (1)
