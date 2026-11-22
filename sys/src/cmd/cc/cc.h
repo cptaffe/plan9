@@ -171,6 +171,7 @@ struct	Term
 {
 	vlong	mult;
 	Node	*node;
+	int	seq;
 };
 
 enum
