@@ -1,0 +1,771 @@
+.TH SYN 4
+.SH NAME
+syn, ts \- syntax programs and their router
+.SH SYNOPSIS
+.B syn
+[
+.B -l
+.I lang
+] [
+.I file
+]
+.PP
+.BI /bin/ts/ lang
+[
+.B -q
+.I highlights.scm
+]
+.PP
+.B /bin/ts/pic
+.SH DESCRIPTION
+A syntax program reads documents in one language and answers questions about them:
+the runs that color its text, its parse, its definitions and references, and its tokens.
+Each
+.BI /bin/ts/ lang
+is a program on a tree-sitter grammar, and
+.B /bin/ts/pic
+a lexer for
+.IR pic (1)'s
+pictures, with no grammar.
+.PP
+Clients do not run the programs.
+Each runs one
+.IR syn ,
+which speaks the same protocol on its standard input and output, serves any number of
+documents in any languages, starts one program for each language as its documents need
+them, and passes each request to the program of its document's language.
+.IR Hl (1)
+and
+.IR Tree (1)
+are its clients.
+It has a reader and a writer process for each program, which pass that program's answers and
+requests to and from it on channels.
+Requests wait in a queue of
+.IR syn 's
+own until the program's writer takes them, so
+.I syn
+never waits on one program while another, or its client, could go on, and answers each request
+in turn.
+When more than 256 edits of one document wait,
+.I syn
+drops them and queues the document's text in their place, so a burst of edits, as an
+.IR acme (1)
+.B Edit
+makes, costs a slow program one body, and the program goes on; the edits after it are numbered
+from it, and a span from before it is answered whole.
+A program is dead only when its answers end, as when it exits, or when a write to it fails, and
+then
+.I syn
+kills its note group, whatever
+.I syn
+is doing, and its reader and writer end and their pipes close.
+When
+.I syn
+exits, it kills the note group of each program it runs.
+A program that dies is run again at the next request of one of its documents, and given each of
+its documents' language and text; edit numbers stay the client's, and a span from before the
+restart is answered whole.
+A program that ends before it answers anything cannot start;
+.I syn
+does not run it again for each request, but answers them
+.BI error " id " "cannot start"
+until a
+.B lang
+names it again or the rules change.
+When the rules change, an open document goes to the program of the entry that now serves its
+name, with its language and text.
+Given a file, or with
+.B -l
+standard input in
+.IR lang ,
+.I syn
+prints the file's tokens (see Tokens below) and exits.
+.PP
+Rules, in
+.B $home/lib/syn
+and then
+.BR /lib/syn ,
+say which program serves a file.
+They are
+.IR ndb (2)
+entries;
+.I syn
+reports an entry it cannot use on standard error and skips it, and the rest still count.
+An entry
+.BI syn= name
+gives a language, by the name that
+.I hl
+and Markdown's fenced blocks use:
+.TF fence=
+.TP
+.B cmd=
+the command that runs its program, by
+.IR rc (1)
+.TP
+.B file=
+a regular expression
+.RI ( regexp (6))
+for the full names of the files in the language; the first entry that matches serves a file,
+by its own
+.B cmd=
+.TP
+.B fence=
+the name of a fenced block in Markdown that the language serves, matched whole; an entry may have several
+.PD
+.PP
+For example,
+.IP
+.EX
+syn=go	cmd=/bin/ts/go
+	file="\e.go$"
+	fence=go fence=golang
+.EE
+.SS Requests
+A program reads requests on its standard input and answers some on its standard output.
+A request names a document by a number,
+.IR id ,
+and counts places in it in runes.
+.TF delete\ id\ q0\ q1
+.TP
+.BI lang " id name"
+names document
+.IR id 's
+language, before its text: a
+.B syn=
+name, or a file's name, which the entries'
+.B file=
+expressions match.
+The name is the rest of the line, so it may hold spaces.
+It is answered by
+.BI lang " id language"\f1,
+the
+.B syn=
+name found, or by
+.BI error " id " "no language"\f1,
+and a document of no language has every later request answered so too.
+To
+.I syn
+it comes first, and
+.I syn
+gives it to the program, which answers it with its own language, before each document's text,
+as to the program of a fenced block; if the program cannot start,
+.I syn
+answers
+.BI error " id " "cannot start"\f1.
+.TP
+.BI body " id n"
+followed by
+.I n
+bytes, the text of document
+.IR id ;
+answered by
+.BI runs " id m"
+and
+.I m
+bytes of runs, in the form of
+.IR astyles (4)'s
+.B style
+file.
+The program keeps each document's parse, so that a change is parsed again only where it is.
+.TP
+.BI insert " id q n"
+followed by
+.I n
+bytes, put in document
+.I id
+at rune
+.IR q .
+.TP
+.BI delete " id q0 q1"
+takes the runes
+.I q0
+to
+.I q1
+from it.
+.TP
+.BI span " id s"
+answered by
+.BI span " id e r0 r1 m"
+and
+.I m
+bytes of the runs of the runes
+.I r0
+to
+.IR r1 ,
+counted from
+.IR r0 :
+the text whose runs may have changed since edit
+.IR s ,
+where
+.I e
+is the number of the last edit.
+The program numbers a document's inserts and deletes from 1 after its body.
+A span takes nothing from the program, so another request between two spans, or another
+reader, changes neither's answer.
+An
+.I s
+older than the changes the program keeps, or past the last edit, gets
+.BI error " id " stale\f1,
+and a document an edit failed on gets
+.BI error " id " lost\f1.
+.TP
+.BI span " id " -
+answered as
+.BR span ,
+with the runs of the whole document.
+.TP
+.BI tree " id n"
+followed by
+.I n
+bytes, the text of document
+.IR id ;
+answered by
+.BI tree " id m"
+and
+.I m
+bytes: a line for each named node of the parse, root first and each node before its children,
+.IP
+.IB "depth start length type field"
+.IP
+where
+.I depth
+counts the named nodes above it,
+.I start
+and
+.I length
+are in runes,
+and
+.I field
+is the name the grammar gives the node's place in its parent, or
+.LR - .
+.TP
+.BI tree " id"
+with no text, answered by
+.BI delta " id m"
+and
+.I m
+bytes: what changed in the parse since the last answer to
+.BR tree ,
+as hunks (see below).
+.TP
+.BI check " id n"
+followed by
+.I n
+bytes, a text parsed alone and not kept; answered by
+.BI check " id k n\f1,"
+where
+.I k
+counts the parse's error and missing nodes and
+.I n
+its named nodes.
+.TP
+.BI tags " id n"
+followed by
+.I n
+bytes, the text of document
+.IR id ,
+or with no
+.I n
+the text as the program keeps it;
+answered by
+.BI tags " id m"
+and
+.I m
+bytes: a line for each match of the language's
+.BR tags.scm ,
+.IP
+.IB "start length type kind name-start name-length"
+.IP
+where
+.I kind
+is the match's capture, such as
+.B definition.function
+or
+.BR reference.call ,
+and the name is its
+.B @name
+capture's text;
+or, if the language has no
+.BR tags.scm ,
+by
+.BI error " id why"\f1.
+.TP
+.BI tokens " id q0 q1"
+answered by
+.BI tokens " id m"
+and
+.I m
+bytes: a line for each token that overlaps the runes
+.I q0
+to
+.IR q1 ,
+in order,
+.IP
+.IB "start length names tags"
+[
+.I partner
+]
+.IP
+where
+.I start
+and
+.I length
+are in runes,
+.I names
+are the token's own names joined by commas,
+.I tags
+the names of the ranges it is inside, joined by commas, or
+.L -
+for none,
+and
+.IR partner ,
+for a bracket, the start of the one that closes or opens it (see Tokens below).
+.TP
+.BI close " id"
+forgets document
+.IR id .
+.PD
+.PP
+The program answers an error with
+.BI error " id why"\f1,
+as
+.BI error " id " "bad length"
+for a body, tree, tags or check whose length is not a number of bytes.
+The program keeps a document's parse from one request to the next, whichever they are.
+For the C text
+.LR "int x = f(1);" ,
+.B tree
+gives
+.IP
+.EX
+0 0 14 translation_unit -
+1 0 13 declaration -
+2 0 3 primitive_type type
+2 4 8 init_declarator declarator
+3 4 1 identifier declarator
+3 8 4 call_expression value
+4 8 1 identifier function
+4 9 3 argument_list arguments
+5 10 1 number_literal -
+.EE
+.PP
+which tree-sitter writes as
+.IP
+.EX
+(translation_unit (declaration type: (primitive_type)
+  declarator: (init_declarator declarator: (identifier)
+    value: (call_expression function: (identifier)
+      arguments: (argument_list (number_literal))))))
+.EE
+.PP
+and
+.B tokens
+gives
+.IP
+.EX
+0 3 type,ident -
+4 1 variable,ident -
+6 1 operator,oper -
+8 1 function,ident reference.call
+9 1 punct.bracket reference.call 11
+10 1 number reference.call
+11 1 punct.bracket reference.call 9
+12 1 punctuation.delimiter,punct.delimiter -
+.EE
+.PP
+A
+.B delta
+answer is the last
+.B tree
+or
+.B delta
+answer brought up to date.
+Each line of that answer not in a hunk stays, with its start and end moved by the
+.B insert
+and
+.B delete
+requests since, in order.
+An insert of
+.I k
+runes at
+.I q
+moves a start at or after
+.I q
+and an end after
+.I q
+by
+.IR k ,
+so it moves a node that starts there and does not lengthen one that ends there.
+A delete of
+.I q0
+to
+.I q1
+moves a place at or after
+.I q1
+back by
+.IR q1 \- q0 ,
+and one between them to
+.IR q0 .
+A hunk is a line
+.IB "@ i k j"
+followed by
+.I j
+lines in
+.BR tree 's
+form, which take the place of the
+.I k
+lines from line
+.I i
+(from 0) of the last answer; hunks come in the order of
+.IR i .
+If the program does not have the text, as after an edit past its end, it answers
+.BR span ,
+.BR tree ,
+.B tags
+and
+.B tokens
+without text with
+.BI error " id " lost\f1,
+and wants the text again, as by
+.BI tree " id n"\f1.
+.PP
+The document's program parses a text of another language inside it,
+such as a fenced block of code in Markdown, if it has the language's grammar,
+and that text's runs and tokens take the place of the document's there.
+If it has not, the text's runs are one,
+.BI ts/ lang\f1,
+or
+.BI ts/ lang / name
+for the run that the text takes when there is no program for
+.IR lang .
+.I Syn
+opens that text as a document of its own, under an id it gives it, in the program of the
+first entry with the fence
+.IR lang ,
+gives it the edits that fall in it, and puts its runs, spans, tokens and tags in the
+document's answers at its place; with no such entry its runs are
+.IR name 's.
+So a block's tokens come from the program
+.I syn
+gives the block to, inside the tags of the document's text there, and clients see no
+.B ts/
+run.
+.SS Tokens
+A token is a leaf of the parse, named or not, such as a keyword, a bracket or a comment,
+with the white space at its ends left out.
+A lexer splits the text between leaves, as Markdown's inline text has,
+and a named leaf that holds white space, or mixes runes of words with others, and is not a
+comment, a string or a number, into words, numbers and operators.
+A token never crosses the edge of an injection's text, and no token has zero length.
+A token's own names are its highlight name, if a highlight covers it, and its lexical name.
+.PP
+The highlight name is the name of a capture of the language's
+.BR highlights.scm ,
+as it colors the token, normalized by this table:
+.IP
+.EX
+.ta \w'string.special.key  'u
+field	property
+parameter	variable.parameter
+method	function.method
+float	number.float
+boolean	constant.builtin.boolean
+include	keyword.import
+conditional	keyword.conditional
+repeat	keyword.repeat
+exception	keyword.exception
+storageclass	keyword.modifier
+type.qualifier	keyword.modifier
+namespace	module
+escape	string.escape
+delimiter	punctuation.delimiter
+function.special	function.macro
+string.special.key	property
+text.title	markup.heading
+text.literal	markup.raw
+text.emphasis	markup.italic
+text.strong	markup.bold
+text.uri	markup.link.url
+text.reference	markup.link.label
+.EE
+.PP
+A name in the table, or one that begins with it and a dot, takes the name it gives,
+with the rest after it:
+.B method.call
+becomes
+.BR function.method.call .
+A capture whose name begins with
+.L _
+or is
+.BR none ,
+.BR spell ,
+.B nospell
+or
+.B conceal
+names nothing.
+Where captures overlap, the one that colors the text wins, as for runs, then the first;
+but a later name that extends an earlier one, as
+.B constant.macro
+extends
+.BR constant ,
+takes its place.
+The highlight names our queries give are
+.BR attribute ,
+.BR comment ,
+.BR comment.documentation ,
+.BR constant ,
+.BR constant.builtin ,
+.BR constant.builtin.boolean ,
+.BR constant.macro ,
+.BR constructor ,
+.BR embedded ,
+.BR function ,
+.BR function.builtin ,
+.BR function.call ,
+.BR function.macro ,
+.BR function.method ,
+.BR keyword ,
+.BR keyword.import ,
+.BR label ,
+.BR markup.bold ,
+.BR markup.heading
+and
+.BR markup.heading.1
+to
+.BR .6 ,
+.BR markup.html ,
+.BR markup.italic ,
+.BR markup.link.label ,
+.BR markup.link.url ,
+.BR markup.list ,
+.BR markup.list.checked ,
+.BR markup.list.unchecked ,
+.BR markup.quote ,
+.BR markup.raw.block ,
+.BR markup.raw.delimiter ,
+.BR markup.raw.inline ,
+.BR markup.strikethrough ,
+.BR markup.table ,
+.BR number ,
+.BR number.float ,
+.BR operator ,
+.BR property ,
+.BR punctuation.bracket ,
+.BR punctuation.delimiter ,
+.BR punctuation.special ,
+.BR string ,
+.BR string.escape ,
+.BR string.special ,
+.BR type ,
+.BR type.builtin ,
+.BR variable ,
+.BR variable.builtin
+and
+.BR variable.parameter .
+.PP
+Every token has a lexical name, after its highlight name unless the two are the same:
+.TF punct.delimiter
+.TP
+.B comment
+a comment
+.TP
+.B string
+a string or character literal, or its text
+.TP
+.B escape
+an escape in a string
+.TP
+.B number
+a number
+.TP
+.B keyword
+a token with letters that the grammar spells out, such as
+.B return
+or
+.B #include
+.TP
+.B ident
+any other word: letters, digits and
+.LR _ ,
+not starting with a digit, or any other runes but white space and ASCII's punctuation
+.TP
+.B punct.bracket
+brackets, such as
+.L (
+or
+.L [[
+.TP
+.B punct.delimiter
+one
+.LR , ,
+.LR ; ,
+.L .\&
+or
+.L :
+.TP
+.B punct.quote
+quotes alone, such as a string's
+.L \&"
+.TP
+.B oper
+anything else, as
+.L +=
+or
+.L ->
+.PD
+.PP
+The tags are the kinds of the matches of the language's
+.B tags.scm
+whose ranges hold the token, outermost first, each once.
+A match counts if it has a
+.B @name
+capture and a capture whose name begins
+.B definition.
+or
+.BR reference. ;
+its range is that capture's node.
+The kinds our queries give are
+.BR definition.class ,
+.BR definition.constant ,
+.BR definition.enum ,
+.BR definition.function ,
+.BR definition.interface ,
+.BR definition.macro ,
+.BR definition.method ,
+.BR definition.module ,
+.BR definition.node ,
+.BR definition.object ,
+.BR definition.property ,
+.BR definition.type ,
+.BR definition.variable ,
+.BR reference.call ,
+.BR reference.class ,
+.BR reference.edge ,
+.BR reference.implementation ,
+.BR reference.interface
+and
+.BR reference.type .
+A Mermaid diagram's nodes are
+.BR definition.node ,
+and its edges, messages and transitions
+.BR reference.edge .
+A program that needs another name adds it here.
+.PP
+A bracket's
+.I partner
+is the start of the token it pairs with by the language's
+.BR brackets.scm ,
+in the shape of Zed's, a pattern of an
+.B @open
+and a
+.B @close
+capture: brackets, quotes, and Markdown's fences and code spans.
+Nothing inside an error of the parse pairs, so half-typed text has brackets with no partner
+rather than wrong ones, and indented blocks have none.
+.SS Queries
+A grammar's program colors the captures of its query,
+.IB lang /highlights.scm\f1,
+by tree-sitter's query language with its
+.BR #eq? ,
+.B #match?
+and
+.B #any-of?
+predicates and their
+.B not-
+forms.
+Where captures overlap, the first one wins.
+A capture's run takes the name that
+.B names
+gives its capture, or the capture with its last
+.BI . part
+taken off, and so on; a capture with no name has no run.
+.IB lang /injections.scm
+gives the texts of other languages inside a document,
+.IB lang /tags.scm
+its definitions and references, and
+.IB lang /brackets.scm
+its brackets.
+The program reads each of these files from
+.B $home/lib/ts
+in place of
+.BR /sys/lib/ts .
+The
+.B -q
+option reads the highlights query from a file instead.
+.PP
+Any program that speaks this protocol can stand in for one.
+.B /bin/ts/pic
+is one, for pictures' words, labels, numbers, strings and comments.
+It has no parse: it answers
+.BR tree ,
+.B tags
+and
+.B check
+with an error, and
+.B tokens
+from its lexer, with the names
+.BR keyword ,
+.BR label ,
+.BR number ,
+.BR string ,
+.BR comment ,
+and the lexical names of Tokens, and no tags.
+.SH FILES
+.TF /sys/lib/ts/lang/highlights.scm
+.TP
+.B /lib/syn
+the languages' rules
+.TP
+.B /sys/lib/ts/names
+capture names to
+.IR theme (6)
+names
+.TP
+.BI /sys/lib/ts/ lang /highlights.scm
+a language's highlights
+.TP
+.BI /sys/lib/ts/ lang /tags.scm
+its definitions and references
+.TP
+.BI /sys/lib/ts/ lang /injections.scm
+the other languages inside it
+.TP
+.BI /sys/lib/ts/ lang /brackets.scm
+its brackets
+.TP
+.BI /bin/ts/ lang
+a language's program
+.PD
+.SH SOURCE
+plan9web's
+.BR src/cmd/syn ,
+.B src/cmd/ts/ts.c
+and
+.BR src/cmd/ts/pic.c ;
+tree-sitter's runtime and grammars from
+.BR scripts/dl.sh ,
+and the queries and names from acme-treesitter, with our own additions
+.SH SEE ALSO
+.IR hl (1),
+.IR Tree (1),
+.IR astyles (4),
+.IR ndb (6),
+.IR theme (6)
+.SH BUGS
+After many edits of text with errors, tree-sitter's parse of the edited text may differ
+from a new one's, and so may its runs and tokens, though
+.I syn
+gives the program's answers whole.
+.PP
+A program parses a text of another language anew, whole, when an edit falls in it, so an edit in a
+long macro of C is slow.
+.PP
+The marker of a quote on a line after its first falls inside the quote's inline text, and gets
+only the name
+.BR oper .
+.PP
+.B Injection.combined
+is not followed: each range is a document of its own.
+.PP
+A C macro's body, parsed as C by itself, is mostly an error of the parse, so its brackets pair
+nothing.
