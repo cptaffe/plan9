@@ -220,11 +220,7 @@ struct Srv {
 
 	char*	addr;
 
-	/* 9front's: a handler can release the loop while it waits */
-	QLock	slock;
-	Ref	sref;		/* srvwork procs */
-	Ref	rref;		/* requests in flight */
-	int	spid;		/* pid of srv() caller */
+	Ref	rref;	/* 9front's */
 };
 
 void		srv(Srv*);
@@ -235,8 +231,6 @@ void		_listensrv(Srv*, char*);
 int 		postfd(char*, int);
 int		chatty9p;
 void		respond(Req*, char*);
-void		srvrelease(Srv*);
-void		srvacquire(Srv*);
 void		responderror(Req*);
 void		threadpostmountsrv(Srv*, char*, char*, int);
 void		threadlistensrv(Srv *s, char *addr);
