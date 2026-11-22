@@ -28,7 +28,8 @@ or
 as
 .I sift
 does, and edits the file in place: it writes the new text to a temporary file beside it, with
-its mode, and renames that over the file, so the file changes whole or not at all.
+its mode, renames the file aside, renames the new one into its place and removes the old, and
+if the second rename fails it renames the old back, so the file changes whole or not at all.
 With no files,
 .I carve
 reads its standard input, whose language
@@ -124,7 +125,8 @@ A name in the text is the longest of the pattern's names that it begins with, so
 .I carve
 refuses a binding named
 .BR n .
-.BR A ,
+The commands
+.BR a ,
 .B c
 and
 .B i
@@ -188,6 +190,14 @@ where sam's lists of threads overflow, as on nested repetitions that can match n
 .I carve
 goes on;
 it parses the whole script before it reads a file, and an error leaves its file unwritten;
+it prints no
+.B !
+after a
+.BR | ,
+.B <
+or
+.B >
+command;
 and it has no
 .BR b ,
 .BR B ,
