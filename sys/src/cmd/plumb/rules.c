@@ -300,12 +300,14 @@ expand(Exec *e, char *s, char **ends)
 	p = ebuf;
 	ep = ebuf+sizeof ebuf-1;
 	quoting = 0;
-	while(p<ep && *s!='\0' && (quoting || (*s!=' ' && *s!='\t'))){
+	while(*s!='\0' && (quoting || (*s!=' ' && *s!='\t'))){
 		if(*s == '\''){
 			s++;
 			if(!quoting)
 				quoting = 1;
 			else  if(*s == '\''){
+				if(p == ep)
+					goto Long;
 				*p++ = '\'';
 				s++;
 			}else
@@ -313,17 +315,21 @@ expand(Exec *e, char *s, char **ends)
 			continue;
 		}
 		if(quoting || *s!='$'){
+			if(p == ep)
+				goto Long;
 			*p++ = *s++;
 			continue;
 		}
 		s++;
 		val = dollar(e, s, &namelen);
 		if(val == nil){
+			if(p == ep)
+				goto Long;
 			*p++ = '$';
 			continue;
 		}
 		if(ep-p < strlen(val))
-			return "string-too-long";
+			goto Long;
 		strcpy(p, val);
 		p += strlen(val);
 		s += namelen;
@@ -332,6 +338,10 @@ expand(Exec *e, char *s, char **ends)
 		*ends = s;
 	*p = '\0';
 	return ebuf;
+
+Long:
+	werrstr("argument too long");
+	return nil;
 }
 
 void
@@ -347,7 +357,11 @@ regerror(char *msg)
 void
 parserule(Rule *r)
 {
-	r->qarg = estrdup(expand(nil, r->arg, nil));
+	char *qarg;
+
+	if((qarg = expand(nil, r->arg, nil)) == nil)
+		parseerror("%s %s: %r", objects[r->obj], verbs[r->verb]);
+	r->qarg = estrdup(qarg);
 	switch(r->obj){
 	case OArg:
 	case OAttr:
@@ -389,7 +403,8 @@ assignment(char *p)
 		return 0;
 	while(*p==' ' || *p=='\t')
 			p++;
-	qval = expand(nil, p, nil);
+	if((qval = expand(nil, p, nil)) == nil)
+		parseerror("%.*s: %r", n, var);
 	setvariable(var, n, p, qval);
 	return 1;
 }
