@@ -72,7 +72,6 @@ winaddr acme
 winclosefiles acme
 winctl acme
 windel acme
-windeleteall acme
 wineventchan acme
 winfd acme
 winfree acme
