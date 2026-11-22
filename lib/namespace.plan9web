@@ -2,3 +2,4 @@
 mount /srv/drop /mnt/drop
 mount -c /srv/download /mnt/download
 bind -c '#L' /mnt/term
+bind -a $rootdir/n /n
