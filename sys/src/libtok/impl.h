@@ -71,6 +71,7 @@ struct Tpat
 struct Ient
 {
 	char	*s;
+	int	n;
 	int	id;
 	void	*v;
 	Ient	*next;
