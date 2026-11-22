@@ -4,13 +4,16 @@ objtype=wasm
 LIB=/$objtype/lib/libc.a
 CFILES=\
 	abort.c\
+	atom.c\
 	execl.c\
+	lock.c\
 	main9.c\
 	memmove.c\
 	memset.c\
 	notejmp.c\
 	procfork.c\
 	rforkfn.c\
+	sem.c\
 	setjmp.c\
 	sys.c\
 

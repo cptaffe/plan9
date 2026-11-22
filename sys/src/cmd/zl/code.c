@@ -681,6 +681,26 @@ catchjmp(void)
 	op(WEND);
 }
 
+static struct {
+	char	*name;
+	int	op;
+} atomops[] = {
+	"wasm·i32_atomic_rmw_add",	0x1e,
+	"wasm·i32_atomic_rmw_xchg",	0x41,
+	"wasm·i32_atomic_rmw_cmpxchg",	0x48,
+};
+
+static int
+atomop(char *name)
+{
+	int i;
+
+	for(i = 0; i < nelem(atomops); i++)
+		if(strcmp(name, atomops[i].name) == 0)
+			return atomops[i].op;
+	return -1;
+}
+
 static void
 call(Prog *p)
 {
@@ -709,7 +729,10 @@ call(Prog *p)
 				op(0);
 			} else if(strcmp(s->name, "wasm·throw") == 0)
 				gtag(WTHROW);
-			else
+			else if((k = atomop(s->name)) >= 0) {
+				op(WPREFIXA);
+				memop(k, 2, 0);
+			} else
 				diag("%s: unknown wasm operator %s", cur->name, s->name);
 		} else {
 			if(s->fidx < 0) {
