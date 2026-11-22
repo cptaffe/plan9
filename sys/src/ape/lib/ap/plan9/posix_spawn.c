@@ -63,8 +63,8 @@ child(void *v)
 		if(s->at->__flags & POSIX_SPAWN_SETSIGMASK)
 			sigprocmask(SIG_SETMASK, (sigset_t*)&s->at->__mask, NULL);
 		if(s->at->__flags & POSIX_SPAWN_SETSIGDEF)
-			for(i = 1; i < 32; i++)
-				if(sigismember(&s->at->__def, i))
+			for(i = SIGHUP; i <= SIGXFSZ; i++)
+				if(sigismember(&s->at->__def, i) == 1)
 					signal(i, SIG_DFL);
 	}
 	if(s->fa)

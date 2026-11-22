@@ -17,6 +17,7 @@ execve(const char *name, const char *argv[], const char *envp[])
 	char nam[256+5];
 	char buf[1000];
 
+	_execbuf();
 	_RFORK(RFCENVG);
 	/*
 	 * To pass _fdinfo[] across exec, put lines like
