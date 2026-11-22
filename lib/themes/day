@@ -39,12 +39,11 @@ chesscheck	cc0000
 chesscomment	336633
 chesserror	cc0000
 
-# sketch(1) and grapw(1): text and back are their ink and paper
+# sketch(1): text and back are its ink and paper
 sketchsel	cc0000
 sketchpoint	0000cc
 sketchdim	777777
 sketchguide	bbbbbb
-grapsel	cc0000
 
 # vt(1) and avt: the 16 colors a terminal's programs name
 ansi0	000000

@@ -51,9 +51,6 @@ ansi13	d7a6f0
 ansi14	89dce4
 ansi15	f2f2ea
 
-# grapw(1): text and back are its ink and paper, ltext a point under the mouse
-grapsel	e8747c
-
 # menus
 menuback	222833
 menuhigh	3b4a5e
