@@ -44,7 +44,7 @@ data matches '[a-zA-Z¡-￿0-9_\-./]+'
 data matches '([a-zA-Z¡-￿0-9_\-./]+)\.(jpe?g|JPE?G|gif|GIF|tiff?|TIFF?|ppm|PPM|bit|BIT|png|PNG|pgm|PGM|bmp|BMP|yuv|YUV)'
 arg isfile	$0
 plumb to image
-plumb start window page -R $file
+plumb start page -w $file
 
 # sound goes to deck, as edit goes to the editor: a deck listening on audio plays it, adding it
 # to its playlist, or one is started in a new window. An mp4 gives its sound.
@@ -63,7 +63,7 @@ data matches '[a-zA-Z¡-￿0-9_\-./]+'
 data matches '([a-zA-Z¡-￿0-9_\-./]+)\.(ps|PS|eps|EPS|pdf|PDF|dvi|DVI|doc|DOC)'
 arg isfile	$0
 plumb to postscript
-plumb start window page -R -p 72 $file
+plumb start page -w -p 72 $file
 
 # Python's tracebacks, File "file", line n, go to editor
 type is text
