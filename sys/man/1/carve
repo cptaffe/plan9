@@ -1,0 +1,221 @@
+.TH CARVE 1
+.SH NAME
+carve \- edit with sam's language on patterns of tokens
+.SH SYNOPSIS
+.B carve
+[
+.B -l
+.I lang
+]
+.I script
+[
+.I file ...
+]
+.SH DESCRIPTION
+.I Carve
+runs a
+.IR sam (1)
+.I script
+on each
+.IR file ,
+whose patterns are patterns of tokens, as
+.IR sift (1)
+gives them, in place of regular expressions.
+It finds each file's syntax program by the rules of
+.B $home/lib/syn
+or
+.BR /lib/syn ,
+as
+.I sift
+does, and edits the file in place: it writes the new text to a temporary file beside it, with
+its mode, renames the file aside, renames the new one into its place and removes the old, and
+if the second rename fails it renames the old back, so the file changes whole or not at all.
+With no files,
+.I carve
+reads its standard input, whose language
+.B -l
+names, and writes the edited text to its standard output, as
+.IR sed (1)
+does.
+The edits keep every comment and blank that they do not replace.
+As sam does,
+.I carve
+drops each NUL from the text it reads, with a warning, and reads bad UTF-8 as U+FFFD.
+.PP
+The script holds sam's commands, one a line, with sam's addresses:
+.TP
+.BR , " " ; " " . " " $
+.PD 0
+.TP
+.BI # n " " n
+.TP
+.BR + " " -
+.TP
+.BI / pattern / " " ? pattern ?
+.PD
+.PP
+and these commands:
+.TP
+.BI a/ text / " " c/ text / " " i/ text /
+.PD 0
+.TP
+.B d
+.TP
+.BI m " addr" " " t " addr"
+.TP
+.BI s/ pattern / text /
+.TP
+.BI x/ pattern / " cmd" " " y/ pattern / " cmd"
+.TP
+.BI g/ pattern / " cmd" " " v/ pattern / " cmd"
+.TP
+.B p
+.TP
+.B =
+.TP
+.BI | cmd " " < cmd " " > cmd
+.TP
+.BR { " " }
+.PD
+.PP
+They mean what they mean in sam.
+A pattern matches whole tokens: a match begins at the start of a token and ends at the end of one.
+A search from a place begins at the first token that starts there or after it, and a command on a
+range, such as
+.B x
+or
+.BR s ,
+sees only the tokens wholly inside the range.
+Each command runs on the text from before it, and its changes take effect when it
+ends, as in sam; they must come in order through the text and must not overlap.
+Then
+.I carve
+has the syntax program lex the text again for the next command.
+.PP
+As in sam, dot starts at
+.BR #0 ,
+so a script that works on the whole text begins with
+.BR , .
+A group,
+.B \e(
+to
+.BR \e) ,
+captures what it matches, and so does a binding
+.IB x : item\f1,
+numbered with the groups in the order they open.
+In the text of
+.BR s ,
+.B &
+stands for the match,
+.BI \e n\f1,
+for
+.I n
+from 1 to 9, for the
+.IR n th
+capture,
+.BI \e x
+for the token bound to
+.IR x ,
+.B \en
+for a newline and
+.BI \e c
+for any other character
+.IR c .
+A name in the text is the longest of the pattern's names that it begins with, so
+.I carve
+refuses a binding named
+.BR n .
+The commands
+.BR a ,
+.B c
+and
+.B i
+take their text literally, as in sam.
+.SH EXAMPLES
+Make each increment by one an
+.BR ++ :
+.IP
+.EX
+carve -l c ',s/x:@ident = :x + 1/\ex++/g' <old.c >new.c
+.EE
+.PP
+Swap the first two arguments of the calls of
+.I memmove
+whose arguments are single tokens, in place:
+.IP
+.EX
+carve ',s/memmove ( x:. , y:. , z:. )/memmove(\ey, \ex, \ez)/g' *.c
+.EE
+.PP
+Rename a variable everywhere but in comments and strings:
+.IP
+.EX
+carve ',s/count/n/g' file.c
+.EE
+.SH SOURCE
+plan9web's
+.B src/cmd/sift
+and
+.B /sys/src/libtok
+.SH SEE ALSO
+.IR sam (1),
+.IR sift (1),
+.IR tok (2),
+.IR syn (4)
+.SH DIAGNOSTICS
+An error, such as a search that finds nothing or changes out of order, ends the script for that
+file;
+.I carve
+writes nothing for it and goes on to the next.
+The exit status is
+.B errors
+if any file failed.
+.SH BUGS
+.I Carve
+differs from sam on purpose:
+its patterns are of tokens, and a binding captures as a group does;
+.B =
+puts the file's name first when
+.I carve
+edits files, as acme's Edit does;
+.BR p ,
+.B =
+and
+.B >
+write to standard output, before the text when
+.I carve
+reads standard input;
+an empty match falls at the start of a token;
+where sam's lists of threads overflow, as on nested repetitions that can match nothing,
+.I carve
+goes on;
+it parses the whole script before it reads a file, and an error leaves its file unwritten;
+it prints no
+.B !
+after a
+.BR | ,
+.B <
+or
+.B >
+command;
+and it has no
+.BR b ,
+.BR B ,
+.BR D ,
+.BR e ,
+.BR f ,
+.BR k ,
+.BR n ,
+.BR q ,
+.BR r ,
+.BR u ,
+.BR w ,
+.BR X ,
+.BR Y ,
+.BR ! ,
+.BR cd ,
+or the addresses
+.B '
+and
+.BR \&" ,
+which an interactive carve will have.
