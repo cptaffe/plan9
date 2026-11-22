@@ -4,7 +4,15 @@ typo \- find possible typographical errors
 .SH SYNOPSIS
 .B typo
 [
-.B -1n
+.B -13nr
+]
+[
+.B -m
+.I max
+]
+[
+.B -t
+.I threshold
 ]
 [
 .I file ...
@@ -18,6 +26,39 @@ with its index of peculiarity, in decreasing order of that index,
 words of the same index in alphabetical order.
 An index of 10 or more is peculiar: such a word holds a sequence of letters
 seen almost nowhere else in the document, and is often a misspelling.
+Before them it prints each word that repeats the word before it,
+as in
+.LR "the the" ,
+a common typographical error.
+.PP
+Each word is printed on a line with its address, its index in brackets, and the word,
+.IP
+.EX
+/sys/man/1/rc:846:18 [15] ctrl
+.EE
+.PP
+and each repeat with its address and the word, as it is in the text, followed by
+.LR repeats .
+The address is the file, the line and the column, counted in characters from 1,
+of the repeat or of the word's first occurrence;
+standard input has the name
+.LR stdin .
+Button 3 on the address in
+.IR acme (1)
+opens the file there, by the
+.IR plumber (4)'s
+rules for
+.IB file : line : column\f1.
+.PP
+A word repeats the one before it when the two are the same, upper and lower case aside,
+with only white space between them,
+across lines and files.
+For this a word is a run of characters other than white space,
+less any characters that are neither letters nor digits at either end;
+it may hold letters, apostrophes and hyphens, and a run with anything else in it,
+such as a number, breaks the sequence, as does a
+.IR troff
+request, whose line is not read.
 .PP
 The statistics are the document's own.
 .I Typo
@@ -57,7 +98,7 @@ The words of
 .B /sys/lib/typo/w2006
 are not printed.
 .PP
-A word is a run of two or more letters, any letter that Unicode counts as one,
+For the index a word is a run of two or more letters, any letter that Unicode counts as one,
 and its upper case is mapped into lower case.
 Lines that begin with
 .L .
@@ -70,27 +111,42 @@ An apostrophe within a word is dropped,
 .L %
 is ignored, and a word hyphenated at the end of a line is joined to its rest.
 .PP
-The output is three columns, by
-.IR pr (1),
-with the header
-.BI "Possible typo's in" " file"\f1.
 The options are:
 .TP
 .B -1
-Print one column, with no header or pages.
+Print the Sixth Edition's output: one column of index and word, with no addresses and no repeats.
+.TP
+.B -3
+Print the Sixth Edition's output in three columns, by
+.IR pr (1),
+with the header
+.BI "Possible typo's in" " file"\f1,
+as it printed by default.
 .TP
 .B -n
 Start the counts from nothing, not from English:
 for a document in another language.
+.TP
+.B -r
+Print no repeats.
+.TP
+.BI -m " max
+Print at most
+.I max
+words.
+.TP
+.BI -t " threshold
+Print only words whose index is at least
+.IR threshold .
 .SH EXAMPLES
 .EX
-% typo -1 /sys/man/1/rc | sed 3q
-15 ctrl
-15 outstanding
-15 prefixing
+% typo /sys/man/1/cb | sed 3q
+/sys/man/1/cb:20:1 from repeats
+/sys/man/1/cb:45:23 [15] macros
+/sys/man/1/cb:3:17 [14] beautifier
 .EE
 .SH FILES
-.TF /sys/lib/typo/w2006
+.TF /sys/lib/typo/LICENSE.pike
 .TP
 .B /sys/lib/typo/salt
 digram and trigram counts of English, as Research Unix kept them in
@@ -98,6 +154,16 @@ digram and trigram counts of English, as Research Unix kept them in
 .TP
 .B /sys/lib/typo/w2006
 common words, one a line
+.TP
+.B /sys/lib/typo/LICENSE
+Caldera's license for
+.B salt
+and
+.B w2006
+.TP
+.B /sys/lib/typo/LICENSE.pike
+the license of Rob Pike's
+.I typo
 .SH SOURCE
 plan9web's
 .B src/cmd/typo.c
@@ -118,7 +184,10 @@ and was much used until
 came in the Fifth.
 This one follows the Sixth Edition's
 .BR /usr/source/s2/typo.c ,
-whose output it gives for a document in ASCII,
+whose output it gives for a document in ASCII with
+.B -1
+or
+.BR -3 ,
 and its
 .B salt
 and
@@ -135,14 +204,47 @@ is from Rob Pike's copy, in
 with a CR taken out before each of its 113 newlines,
 which a conversion to CRLF had put there.
 .PP
+The report of repeats, the addresses, one word a line, and
+.BR -m ,
+.B -t
+and
+.B -r
+are from Pike's
+.I typo
+in Go (2023), whose
+.B -n
+is
+.B -m
+here, as
+.B -n
+was the Sixth Edition's.
+His repeats pass over punctuation between the words, as in
+.LR "null, null" ,
+and over numbers and other runs with no letters,
+which end a repeat here.
+His index, the root mean square of the trigrams' indices over the document's counts alone,
+is not taken.
+With five misspellings planted in each of 52 documents
+(8 manual pages through
+.IR deroff (1),
+4 of plan9web's documents and
+.BR /lib/constitution ,
+4 times each),
+transpositions, dropped, doubled and changed letters of words used elsewhere in the document,
+this
+.I typo
+ranks 46 of the 260 among its first 10 words, 113 among 25 and 176 among 50,
+and Pike's 1, 24 and 64.
+.PP
 The paper says that the index adopted was the root mean square of the trigrams' indices;
 the program took the largest, and so does this one.
 .SH BUGS
 Because of the mapping into lower case and the dropped apostrophes,
-a word may be hard to find in the original text:
+a word's index may be printed in a form not in the original text:
 .L process's
 is printed as
-.LR processs .
+.LR processs ,
+though its address finds it.
 .PP
 Requests within a line and
 .IR troff 's
