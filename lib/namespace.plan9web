@@ -1,5 +1,6 @@
 # the page's file servers: what is dropped on it, and what it saves
 mount /srv/drop /mnt/drop
 mount -c /srv/download /mnt/download
+mount /srv/tab /mnt/tab
 bind -c '#L' /mnt/term
 bind -a $rootdir/n /n
