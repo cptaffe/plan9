@@ -52,6 +52,19 @@ static struct {
 #define NSIGTAB ((sizeof sigtab)/(sizeof (sigtab[0])))
 
 void	(*_sighdlr[MAXSIG+1])(int, char*, Ureg*); /* 0 initialized: SIG_DFL */
+static int	sigflags[MAXSIG+1];
+static void	(*sigact[MAXSIG+1])(int, siginfo_t*, void*);
+
+static void
+siginfotramp(int sig)
+{
+	siginfo_t si;
+
+	memset(&si, 0, sizeof si);
+	si.si_signo = sig;
+	si.si_code = SI_USER;
+	(*sigact[sig])(sig, &si, nil);
+}
 
 static int
 dflign(int sig)
@@ -91,6 +104,7 @@ void
 	if(sig == SIGKILL)
 		return oldf;	/* can't catch or ignore SIGKILL */
 	_sighdlr[sig] = func;
+	sigflags[sig] = 0;
 	discard(sig, func);
 	return oldf;
 }
@@ -118,13 +132,21 @@ sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
 		return -1;
 	}
 	if(oact){
-		oact->sa_handler = _sighdlr[sig];
+		if(sigflags[sig] & SA_SIGINFO)
+			oact->sa_sigaction = sigact[sig];
+		else
+			oact->sa_handler = _sighdlr[sig];
 		oact->sa_mask = _psigblocked;
-		oact->sa_flags = 0;
+		oact->sa_flags = sigflags[sig];
 	}
 	if(act){
-		_sighdlr[sig] = act->sa_handler;
-		discard(sig, act->sa_handler);
+		sigflags[sig] = act->sa_flags & (SA_RESETHAND|SA_SIGINFO);
+		if(act->sa_flags & SA_SIGINFO){
+			sigact[sig] = act->sa_sigaction;
+			_sighdlr[sig] = (void(*)(int, char*, Ureg*))siginfotramp;
+		}else
+			_sighdlr[sig] = act->sa_handler;
+		discard(sig, _sighdlr[sig]);
 	}
 	return 0;
 }
@@ -156,6 +178,10 @@ _notehandler(void *u, char *msg)
 			if(f == SIG_DFL || f == SIG_ERR)
 				break;
 			if(f != SIG_IGN) {
+				if(sigflags[sigtab[i].num] & SA_RESETHAND){
+					_sighdlr[sigtab[i].num] = SIG_DFL;
+					sigflags[sigtab[i].num] &= ~SA_RESETHAND;
+				}
 				_notetramp(sigtab[i].num, f, u);
 				/* notetramp is machine-dependent; doesn't return to here */
 			}

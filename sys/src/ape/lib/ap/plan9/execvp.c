@@ -8,10 +8,11 @@
 extern char **environ;
 
 int
-execvp(const char *name, const char **argv)
+execvp(const char *name, char *const argv[])
 {
 	char buf[PATH_MAX];
-	const char *p, *e, **av;
+	const char *p, *e;
+	char **av;
 	int n, denied;
 
 	if(*name == 0){
@@ -41,7 +42,7 @@ execvp(const char *name, const char **argv)
 					;
 				if((av = malloc((n+2) * sizeof *av)) == NULL)
 					return -1;
-				av[0] = "sh";
+				av[0] = (char*)"sh";
 				av[1] = buf;
 				memcpy(av+2, argv+1, n * sizeof *av);
 				execve("/bin/sh", av, environ);

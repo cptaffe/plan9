@@ -381,7 +381,7 @@ Sym*
 lookup(void)
 {
 	Sym *s;
-	ulong h;
+	u32int h;
 	char *p;
 	int c, n;
 
@@ -391,7 +391,7 @@ lookup(void)
 		h += *p++;
 	}
 	n = (p - symb) + 1;
-	if((long)h < 0)
+	if((int)h < 0)
 		h = ~h;
 	h %= NHASH;
 	c = symb[0];

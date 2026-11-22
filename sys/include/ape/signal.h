@@ -76,15 +76,39 @@ extern int raise(int);
 #ifdef _POSIX_SOURCE
 
 typedef long sigset_t;
+union sigval {
+	int	sival_int;
+	void	*sival_ptr;
+};
+typedef struct {
+	int		si_signo;
+	int		si_code;
+	int		si_errno;
+	int		si_pid;
+	int		si_uid;
+	void		*si_addr;
+	int		si_status;
+	union sigval	si_value;
+} siginfo_t;
+#define SI_USER		1
+#define SI_QUEUE	2
+#define SI_TIMER	3
+#define SI_ASYNCIO	4
+#define SI_MESGQ	5
 struct sigaction {
+	union {
 #ifdef __cplusplus
-	void		(*sa_handler)(int);
+		void	(*__sa_handler)(int);
 #else
-	void		(*sa_handler)();
+		void	(*__sa_handler)();
 #endif
+		void	(*__sa_sigaction)(int, siginfo_t *, void *);
+	} __sa_u;
 	sigset_t	sa_mask;
 	int		sa_flags;
 };
+#define sa_handler	__sa_u.__sa_handler
+#define sa_sigaction	__sa_u.__sa_sigaction
 /* values for sa_flags */
 #define SA_NOCLDSTOP	1
 /*
@@ -100,6 +124,8 @@ struct sigaction {
 #ifdef _SUSV2_SOURCE
 #define SA_ONSTACK	8
 #endif
+#define SA_RESETHAND	16
+#define SA_SIGINFO	32
 
 /* first argument to sigprocmask */
 #define SIG_BLOCK	1
