@@ -1,4 +1,5 @@
-# The syntax programs (syn(4)), one entry each; $home/lib/syn is read in place of this file.
+# The syntax programs (syn(4)), one entry each; $home/lib/syn is read before this file, and
+# its entries come first.
 #
 # syn=name cmd=command file=pattern fence=name ...
 #
