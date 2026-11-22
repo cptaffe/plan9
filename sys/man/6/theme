@@ -231,16 +231,6 @@ black, red, green, yellow, blue, magenta, cyan and white, then their bright ones
 takes the same 16 and shows its text in
 .BR body 's
 colors.
-.TP
-.IR grapw (1)
-.B back
-and
-.B text
-for its paper and ink,
-.B ltext
-for the ring around the point under the mouse, and
-.B grapsel
-for the points of selected rows.
 .SH FILES
 .TP
 .B /lib/theme
