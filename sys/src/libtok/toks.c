@@ -28,12 +28,13 @@ _tokintern(Intern *t, char *s, int n)
 	}
 	k = _tokhash(s, n) & (t->nh-1);
 	for(e = t->h[k]; e != nil; e = e->next)
-		if(strncmp(e->s, s, n) == 0 && e->s[n] == 0)
+		if(e->n == n && memcmp(e->s, s, n) == 0)
 			return e;
 	e = emalloc(sizeof *e + n + 1);
 	e->s = (char*)(e+1);
 	memmove(e->s, s, n);
 	e->s[n] = 0;
+	e->n = n;
 	e->id = t->n++;
 	e->next = t->h[k];
 	t->h[k] = e;
@@ -43,7 +44,7 @@ _tokintern(Intern *t, char *s, int n)
 		for(i = 0; i < t->nh; i++)
 			for(e = t->h[i]; e != nil; e = nx){
 				nx = e->next;
-				k = _tokhash(e->s, strlen(e->s)) & (nh-1);
+				k = _tokhash(e->s, e->n) & (nh-1);
 				e->next = h[k];
 				h[k] = e;
 			}
@@ -199,6 +200,16 @@ Out:
 }
 
 static int
+rlen(char *p, char *e)
+{
+	Rune c;
+
+	if(!fullrune(p, e-p))
+		return 1;
+	return chartorune(&c, p);
+}
+
+static int
 num(char *s, int n, long lim, long *v)
 {
 	vlong x;
@@ -228,7 +239,6 @@ tokparse(char *text, long ntext, char *lines, long nlines)
 	char *p, *le, *e1, *b0, *b1, *te, *f[5];
 	long q0, n, r, r1, nr, lk;
 	int ns, i, m, ln, nf, fl[5];
-	Rune c;
 
 	t = emalloc(sizeof *t);
 	x = emalloc(sizeof *x);
@@ -236,7 +246,7 @@ tokparse(char *text, long ntext, char *lines, long nlines)
 	te = text+ntext;
 	nr = 0;
 	for(p = text; p < te; nr++)
-		p += chartorune(&c, p);
+		p += rlen(p, te);
 	t->nr = nr;
 	m = 0;
 	ln = 0;
@@ -292,10 +302,10 @@ tokparse(char *text, long ntext, char *lines, long nlines)
 			b0 = text;
 		}
 		for(; r < k->q0; r++)
-			b0 += chartorune(&c, b0);
+			b0 += rlen(b0, te);
 		b1 = b0;
 		for(r1 = r; r1 < k->q1; r1++)
-			b1 += chartorune(&c, b1);
+			b1 += rlen(b1, te);
 		e = _tokintern(&x->text, b0, b1-b0);
 		k->s = e->s;
 		k->id = e->id;

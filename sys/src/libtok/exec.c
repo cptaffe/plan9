@@ -538,6 +538,8 @@ texec(Tpat *p, Toks *t, int t0, int t1, int from, int mode, int back, Tmatch *m)
 
 	if(t0 < 0)
 		t0 = 0;
+	if(t0 > t->n)
+		t0 = t->n;
 	if(t1 > t->n)
 		t1 = t->n;
 	if(t1 < t0)
