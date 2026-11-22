@@ -33,10 +33,48 @@ static struct {
 	{"usr1",				SIGUSR1},
 	{"usr2",				SIGUSR2},
 	{"winch",				SIGWINCH},
+	{"sigbus",				SIGBUS},
+	{"sigchld",				SIGCHLD},
+	{"sigcont",				SIGCONT},
+	{"sigstop",				SIGSTOP},
+	{"sigtstp",				SIGTSTP},
+	{"sigttin",				SIGTTIN},
+	{"sigttou",				SIGTTOU},
+	{"sigtrap",				SIGTRAP},
+	{"sigsys",				SIGSYS},
+	{"sigurg",				SIGURG},
+	{"sigio",				SIGIO},
+	{"sigprof",				SIGPROF},
+	{"sigvtalrm",				SIGVTALRM},
+	{"sigxcpu",				SIGXCPU},
+	{"sigxfsz",				SIGXFSZ},
 };
 #define NSIGTAB ((sizeof sigtab)/(sizeof (sigtab[0])))
 
 void	(*_sighdlr[MAXSIG+1])(int, char*, Ureg*); /* 0 initialized: SIG_DFL */
+
+static int
+dflign(int sig)
+{
+	switch(sig){
+	case SIGCHLD:
+	case SIGCONT:
+	case SIGURG:
+	case SIGWINCH:
+	case SIGTSTP:
+	case SIGTTIN:
+	case SIGTTOU:
+		return 1;
+	}
+	return 0;
+}
+
+static void
+discard(int sig, void (*f)())
+{
+	if(f == SIG_IGN || f == SIG_DFL && dflign(sig))
+		_psigpending &= ~(2<<sig);
+}
 
 /* must match signal.h: extern void (*signal(int, void (*)()))(); */
 //void (*signal(int sig, void (*func)(int, char*, Ureg*)))(int, char*, Ureg*)
@@ -53,6 +91,7 @@ void
 	if(sig == SIGKILL)
 		return oldf;	/* can't catch or ignore SIGKILL */
 	_sighdlr[sig] = func;
+	discard(sig, func);
 	return oldf;
 }
 
@@ -85,6 +124,7 @@ sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
 	}
 	if(act){
 		_sighdlr[sig] = act->sa_handler;
+		discard(sig, act->sa_handler);
 	}
 	return 0;
 }
@@ -111,7 +151,7 @@ _notehandler(void *u, char *msg)
 				return 0;
 			}
 			f = _sighdlr[sigtab[i].num];
-			if(f == SIG_DFL && sigtab[i].num == SIGWINCH)
+			if(f == SIG_DFL && dflign(sigtab[i].num))
 				f = SIG_IGN;
 			if(f == SIG_DFL || f == SIG_ERR)
 				break;

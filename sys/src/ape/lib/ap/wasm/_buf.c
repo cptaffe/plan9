@@ -48,9 +48,13 @@ static int timerid;			/* the latest request's */
 static char reading[OPEN_MAX];
 static char paused[OPEN_MAX];
 static int topause;
+static int inread;
+static int resumed;
+static int copyfd = -1;
 
 void _killmuxsid(void);
 static void _copyproc(int, Muxbuf*);
+static void takeall(void);
 
 /* A copy process's start (_RFORKFN's child): its fd, its buffer and its ack pipe */
 typedef struct Copyarg Copyarg;
@@ -239,6 +243,7 @@ copystart(void *v)
 			_CLOSE(i);
 	_CLOSE(c->a[1]);
 	ack[c->fd] = c->a[0];
+	copyfd = c->fd;
 	rawfds(c->a[0]);
 	_RENDEZVOUS(0, _muxsid);
 	_copyproc(c->fd, c->b);
@@ -260,15 +265,20 @@ _copyproc(int fd, Muxbuf *b)
 		 * happened, or it might mean eof; try several times to
 		 * disambiguate (posix read() discards 0-length messages)
 		 */
+		resumed = 0;
+		inread = 1;
 		n = Paused;
 		if(!topause){
 			nzeros = 0;
 			do {
 				n = _READ(fd, m+sizeof h, READMAX);
 			} while(n == 0 && ++nzeros < 3);
-			if(n < 0 && topause)
-				n = Paused;
 		}
+		inread = 0;
+		if(n < 0 && resumed)
+			continue;
+		if(n < 0 && topause)
+			n = Paused;
 		if(n == Paused)
 			topause = 0;
 		h.n = n;
@@ -350,28 +360,36 @@ resume(int fd)
 void
 _pausebuf(void)
 {
-	char buf[32];
-	int fd, f, n, id;
+	char buf[32], sent[OPEN_MAX];
+	int fd, f, n, id, e;
 
 	if(mux[0] < 0)
 		return;
+	e = errno;
 	n = 0;
-	for(fd = 0; fd < OPEN_MAX; fd++)
+	for(fd = 0; fd < OPEN_MAX; fd++){
+		sent[fd] = 0;
 		if(reading[fd] && _fdinfo[fd].buf){
 			snprintf(buf, sizeof buf, "/proc/%d/note", _fdinfo[fd].buf->copypid);
 			if((f = _OPEN(buf, 1)) < 0)
 				continue;
-			if(_WRITE(f, "pause", 5) == 5)
+			if(_WRITE(f, "pause", 5) == 5){
+				sent[fd] = 1;
 				n++;
+			}
 			_CLOSE(f);
 		}
+	}
 	while(n > 0){
 		for(fd = 0; fd < OPEN_MAX; fd++)
-			if(reading[fd] && _fdinfo[fd].buf)
+			if(sent[fd] && reading[fd] && _fdinfo[fd].buf)
 				break;
-		if(fd == OPEN_MAX || take(&id) == -1)
+		if(fd == OPEN_MAX)
+			break;
+		if(take(&id) == -1 && errno != EINTR)
 			break;
 	}
+	errno = e;
 }
 
 /* like read(), for a buffered fd; extra arg noblock says don't wait for data if true */
@@ -382,6 +400,10 @@ _readbuf(int fd, void *addr, int nwant, int noblock)
 	int ngot, id;
 
 	b = _fdinfo[fd].buf;
+	if(b->n == 0 && !b->eof && noblock){
+		takeall();
+		resume(fd);
+	}
 	if(b->eof && b->n == 0)
 		return 0;
 	if(b->n == 0 && noblock) {
@@ -419,6 +441,10 @@ _peekbuf(int fd, void *addr, int nwant, int noblock)
 	int ngot, id;
 
 	b = _fdinfo[fd].buf;
+	if(b->n == 0 && !b->eof && noblock){
+		takeall();
+		resume(fd);
+	}
 	if(b->n == 0 && !b->eof && noblock) {
 		errno = EAGAIN;
 		return -1;
@@ -626,11 +652,11 @@ select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeval *timeo
 			}
 		}
 	}
-	if(n || !(FD_ANYSET(&rwant) || FD_ANYSET(&ewant)) || t == 0)
-		return n;
 	for(fd = 0; fd < nfds; fd++)
 		if(FD_ISSET(fd, &rwant) || FD_ISSET(fd, &ewant))
 			resume(fd);
+	if(n || !(FD_ANYSET(&rwant) || FD_ANYSET(&ewant)) || t == 0)
+		return n;
 
 	if(timeout && settimer(t) < 0)
 		return -1;
@@ -681,9 +707,14 @@ _detachbuf(void)
 		return;
 	for(i = 0; i < OPEN_MAX; i++){
 		f = &_fdinfo[i];
-		if(f->flags&FD_BUFFERED)
-			f->flags = (f->flags&~FD_BUFFERED) | FD_BUFFEREDX;
-				/* mark 'poisoned' */
+		if(f->flags&FD_BUFFERED){
+			f->flags &= ~FD_BUFFERED;
+			if(reading[i])
+				f->flags |= FD_BUFFEREDX;
+			f->buf = 0;
+		}
+		reading[i] = 0;
+		paused[i] = 0;
 	}
 	rawfds(-1);
 	_CLOSE(mux[1]);
@@ -693,11 +724,49 @@ _detachbuf(void)
 	timerpid = -1;
 }
 
+void
+_execbuf(void)
+{
+	int fd;
+
+	if(mux[0] < 0)
+		return;
+	_pausebuf();
+	for(fd = 0; fd < OPEN_MAX; fd++)
+		if(_fdinfo[fd].buf){
+			if(ack[fd] >= 0){
+				_CLOSE(ack[fd]);
+				ack[fd] = -1;
+			}
+			if(reading[fd])
+				kill(_fdinfo[fd].buf->copypid, SIGKILL);
+		}
+	_killtimerproc();
+	_detachbuf();
+}
+
 static int
 copynotehandler(void *, char *s)
 {
+	Hdr h;
+	char c;
+	int n;
+
 	if(strcmp(s, "pause") == 0){
-		topause = 1;
+		if(!inread){
+			topause = 1;
+			return _NOTED(0);
+		}
+		h.fd = copyfd;
+		h.n = Paused;
+		h.id = bufid[copyfd];
+		if(_WRITE(mux[1], &h, sizeof h) != sizeof h)
+			_exit(0);
+		while((n = _READ(ack[copyfd], &c, 1)) < 0)
+			;
+		if(n != 1)
+			_exit(0);
+		resumed = 1;
 		return _NOTED(0);
 	}
 	if(_finishing)
