@@ -8,11 +8,9 @@ enum { NPRIVATES = 16 };
 extern void main(int, char**);
 extern char __stack_high[];
 
-Tos *_tos;
 void *_privates;
 int _nprivates;
 char *argv0;
-static Tos tos;
 static void *privates[NPRIVATES];
 #ifdef __clang__
 extern char __heap_base[];
@@ -25,10 +23,9 @@ _start(void)
 {
 	int *a;
 
-	_tos = &tos;
 	_privates = privates;
 	_nprivates = NPRIVATES;
-	tos.pid = getpid();
+	_tos->pid = getpid();
 	a = *(int**)(__stack_high - sizeof(int*));
 	main(a[0], (char**)(a+1));
 	exits("main");
