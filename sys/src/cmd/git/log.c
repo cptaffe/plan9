@@ -133,7 +133,6 @@ nextline(char *p, char *e)
 static void
 show(Object *o)
 {
-	Tm tm;
 	char *p, *q, *e;
 
 	assert(o->type == GCommit);
