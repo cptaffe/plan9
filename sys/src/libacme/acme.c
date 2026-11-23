@@ -149,10 +149,12 @@ winclosefiles(Win *w)
 void
 winfree(Win *w)
 {
+	Evreader *r;
+
 	winclosefiles(w);
-	if(w->c){
-		chanfree(w->c);
-		w->c = nil;
+	if((r = w->ev) != nil){
+		sendul(r->quit, 1);
+		_winevfree(r);
 	}
 	free(w);
 }
