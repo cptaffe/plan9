@@ -378,12 +378,15 @@ int
 bdecompress(Buf *d, Biobuf *b, vlong *csz)
 {
 	vlong o;
+	int r;
 
 	o = Boffset(b);
-	if(inflatezlib(d, bappend, b, breadc) == -1 || d->data == nil){
-		free(d->data);
+	if((r = inflatezlib(d, bappend, b, breadc)) != FlateOk){
+		werrstr("inflate: %s", flateerr(r));
 		return -1;
 	}
+	if(d->data == nil)
+		return -1;
 	if (csz)
 		*csz = Boffset(b) - o;
 	return d->len;

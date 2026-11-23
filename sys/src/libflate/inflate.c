@@ -224,6 +224,10 @@ uncblock(Input *in, History *his)
 	len |= (*in->get)(in->getr)<<8;
 	nlen = (*in->get)(in->getr);
 	nlen |= (*in->get)(in->getr)<<8;
+	if(len < 0 || nlen < 0) {
+		in->error = FlateInputFail;
+		return 0;
+	}
 	if(len != (~nlen&0xffff)) {
 		in->error = FlateCorrupted;
 		return 0;
@@ -235,8 +239,10 @@ uncblock(Input *in, History *his)
 
 	while(len > 0) {
 		c = (*in->get)(in->getr);
-		if(c < 0)
+		if(c < 0){
+			in->error = FlateInputFail;
 			return 0;
+		}
 		*hp++ = c;
 		if(hp == he) {
 			his->full = 1;
@@ -571,6 +577,7 @@ hufftab(Huff *h, char *hb, int maxleaf, int flatbits)
 		h->maxbits = 0;
 		h->minbits = 0;
 		h->flatmask = 0;
+		h->flat[0] = (1 << 8) | 0xff;
 		return 1;
 	}
 	code = 0;
@@ -596,7 +603,7 @@ hufftab(Huff *h, char *hb, int maxleaf, int flatbits)
 
 	b = 1 << flatbits;
 	for(i = 0; i < b; i++)
-		h->flat[i] = ~0;
+		h->flat[i] = ((maxbits + 1) << 8) | 0xff;
 
 	/*
 	 * initialize the flat table to include the minimum possible

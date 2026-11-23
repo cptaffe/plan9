@@ -7,6 +7,39 @@ include fileaddr
 plumb to seemail
 plumb to showmail
 
+type matches 'image/.*'
+arg isfile	$data
+plumb to image
+plumb start page -w $file
+
+type matches 'application/(pdf|postscript)'
+arg isfile	$data
+plumb to postscript
+plumb start page -w -p 72 $file
+
+type matches 'audio/.*|video/mp4'
+arg isfile	$data
+data set	$file
+plumb to audio
+plumb client window deck -p
+
+type is application/zip
+arg isfile	$data
+plumb to zip
+plumb start zipopen $file
+
+type is application/rtf
+arg isfile	$data
+plumb to msword
+plumb start wdoc2txt $file
+
+type matches '[a-z]+/.*'
+arg isfile	$data
+type set	text
+data set	$file
+plumb to edit
+plumb client window $editor
+
 # cheap http/gif,jpeg,ps,pdf renderer
 type is text
 data matches '(https?|ftp|file|gopher|mailto|news|nntp|telnet|wais|prospero)://[a-zA-Z0-9_@\-]+([.:][a-zA-Z0-9_@\-]+)*/?[a-zA-Z0-9_?.,%#~&/\-+=]+([:.][a-zA-Z0-9_?,%#~&/\-+=]+)*\.(jpe?g|JPE?G|gif|GIF|ps|PS|pdf|PDF|png|PNG)'
@@ -21,8 +54,8 @@ plumb start web $0
 
 # rtf files go to wdoc2txt
 type is text
-data matches '[a-zA-Z¡-￿0-9_\-./]+'
-data matches '([a-zA-Z¡-￿0-9_\-./]+)\.rtf'
+data matches '[a-zA-Z¡-￿0-9_\-./ ]+'
+data matches '([a-zA-Z¡-￿0-9_\-./ ]+)\.rtf'
 arg isfile	$0
 plumb to msword
 plumb start wdoc2txt $file
@@ -41,17 +74,24 @@ plumb start window rc -c '''echo % mail '''$0'; mail '$0
 
 # image files go to page
 type is text
-data matches '[a-zA-Z¡-￿0-9_\-./]+'
-data matches '([a-zA-Z¡-￿0-9_\-./]+)\.(jpe?g|JPE?G|gif|GIF|tiff?|TIFF?|ppm|PPM|bit|BIT|png|PNG|pgm|PGM|bmp|BMP|yuv|YUV)'
+data matches '[a-zA-Z¡-￿0-9_\-./ ]+'
+data matches '([a-zA-Z¡-￿0-9_\-./ ]+)\.(jpe?g|JPE?G|gif|GIF|tiff?|TIFF?|ppm|PPM|bit|BIT|png|PNG|pgm|PGM|bmp|BMP|yuv|YUV)'
 arg isfile	$0
 plumb to image
-plumb start window page -R $file
+plumb start page -w $file
+
+type is text
+data matches '[a-zA-Z¡-￿0-9_\-./ ]+'
+data matches '([a-zA-Z¡-￿0-9_\-./ ]+)\.([zZ][iI][pP])'
+arg isfile	$0
+plumb to zip
+plumb start zipopen $file
 
 # sound goes to deck, as edit goes to the editor: a deck listening on audio plays it, adding it
 # to its playlist, or one is started in a new window. An mp4 gives its sound.
 type is text
-data matches '[a-zA-Z¡-￿0-9_\-./]+'
-data matches '([a-zA-Z¡-￿0-9_\-./]+)\.(mp3|MP3|m4a|M4A|aac|AAC|mp4|MP4|ogg|OGG|flac|FLAC|wav|WAV)'
+data matches '[a-zA-Z¡-￿0-9_\-./ ]+'
+data matches '([a-zA-Z¡-￿0-9_\-./ ]+)\.(mp3|MP3|m4a|M4A|aac|AAC|mp4|MP4|ogg|OGG|flac|FLAC|wav|WAV)'
 arg isfile	$0
 data set	$file
 plumb to audio
@@ -60,15 +100,15 @@ plumb client window deck -p
 # postscript/pdf/dvi/doc go to page but not over the a plumb port
 # the port is here for reference but is unused
 type is text
-data matches '[a-zA-Z¡-￿0-9_\-./]+'
-data matches '([a-zA-Z¡-￿0-9_\-./]+)\.(ps|PS|eps|EPS|pdf|PDF|dvi|DVI|doc|DOC)'
+data matches '[a-zA-Z¡-￿0-9_\-./ ]+'
+data matches '([a-zA-Z¡-￿0-9_\-./ ]+)\.(ps|PS|eps|EPS|pdf|PDF|dvi|DVI|doc|DOC)'
 arg isfile	$0
 plumb to postscript
-plumb start window page -R -p 72 $file
+plumb start page -w -p 72 $file
 
 # Python's tracebacks, File "file", line n, go to editor
 type is text
-data matches 'File "([.a-zA-Z¡-￿0-9_/+\-]+)", line ([0-9]+)'
+data matches 'File "([.a-zA-Z¡-￿0-9_/+\- ]+)", line ([0-9]+)'
 arg isfile	$1
 data set	$file
 attr add	addr=$2
@@ -77,7 +117,7 @@ plumb client window $editor
 
 # existing files tagged by line number:column number, twice, go to editor
 type is text
-data matches '([.a-zA-Z¡-￿0-9_/+\-]*[a-zA-Z¡-￿0-9_/+\-])':$twocolonaddr,$twocolonaddr
+data matches '([.a-zA-Z¡-￿0-9_/+\- ]*[a-zA-Z¡-￿0-9_/+\-])':$twocolonaddr,$twocolonaddr
 arg isfile	$1
 data set	$file
 attr add	addr=$2-#0+#$3-#1,$4-#0+#$5-#1
@@ -86,7 +126,7 @@ plumb client window $editor
 
 # existing files tagged by line number:column number go to editor
 type is text
-data matches '([.a-zA-Z¡-￿0-9_/+\-]*[a-zA-Z¡-￿0-9_/+\-])':$twocolonaddr
+data matches '([.a-zA-Z¡-￿0-9_/+\- ]*[a-zA-Z¡-￿0-9_/+\-])':$twocolonaddr
 arg isfile	$1
 data set	$file
 attr add	addr=$2-#0+#$3-#1
@@ -95,7 +135,7 @@ plumb client window $editor
 
 # existing files, possibly tagged by line number, go to editor
 type is text
-data matches '([.a-zA-Z¡-￿0-9_/+\-]*[a-zA-Z¡-￿0-9_/+\-])('$addr')?'
+data matches '([.a-zA-Z¡-￿0-9_/+\- ]*[a-zA-Z¡-￿0-9_/+\-])('$addr')?'
 arg isfile	$1
 data set	$file
 attr add	addr=$3

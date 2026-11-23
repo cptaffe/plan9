@@ -1,4 +1,5 @@
-typedef struct ZipHead	ZipHead;
+#define	ZCrcPoly	0xedb88320
+#define	ZMax32		0xffffffffUL
 
 enum
 {
@@ -8,6 +9,16 @@ enum
 	ZHeader		= 0x04034b50,
 	ZCHeader	= 0x02014b50,
 	ZECHeader	= 0x06054b50,
+	Z64End		= 0x06064b50,
+	Z64Loc		= 0x07064b50,
+
+	ZMax16		= 0xffff,
+	ZX64		= 0x0001,
+	ZXTime		= 0x5455,
+	ZXNtfs		= 0x000a,
+	ZXUnix		= 0x000d,
+	ZXInfo		= 0x5855,
+	ZDescr		= 0x08074b50,
 
 	/*
 	 * "general purpose flag" bits
@@ -16,11 +27,10 @@ enum
 	ZTrailInfo	= 1 << 3,	/* uncsize, csize, and crc are in trailer */
 	ZCompPatch	= 1 << 5,	/* compression patched data */
 
-	ZCrcPoly	= 0xedb88320,
-
 	/*
 	 * compression method
 	 */
+	ZStored		= 0,
 	ZDeflate	= 8,
 
 	/*
@@ -58,26 +68,6 @@ enum
 	ZTrailSize	= 4 + 4 + 4,
 	ZCHeadSize	= 4 + 2 + 2 + 2 + 2 + 2 + 2 + 4 + 4 + 4 + 2 + 2 + 2 + 2 + 2 + 4 + 4,
 	ZECHeadSize	= 4 + 2 + 2 + 2 + 2 + 4 + 4 + 2,
-};
-
-/*
- * interesting info from a zip header
- */
-struct ZipHead
-{
-	int	madeos;			/* version made by */
-	int	madevers;
-	int	extos;			/* version needed to extract */
-	int	extvers;
-	int	flags;			/* general purpose bit flag */
-	int	meth;
-	int	modtime;
-	int	moddate;
-	ulong	crc;
-	ulong	csize;
-	ulong	uncsize;
-	int	iattr;
-	ulong	eattr;
-	ulong	off;
-	char	*file;
+	Z64LocSize	= 4 + 4 + 8 + 4,
+	Z64EndSize	= 4 + 8 + 2 + 2 + 4 + 4 + 8 + 8 + 8 + 8,
 };

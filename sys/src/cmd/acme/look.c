@@ -198,7 +198,7 @@ look3(Text *t, uint q0, uint q1, int external, int reverse)
 	/* interpret alphanumeric string ourselves */
 	if(expanded == FALSE)
 		return;
-	if(e.name || e.u.at)
+	if((e.name || e.u.at) && !(e.nname > 0 && e.bname == nil))
 		openfile(t, &e);
 	else{
 		if(t->w == nil)

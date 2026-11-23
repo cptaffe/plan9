@@ -49,6 +49,14 @@ the data itself
 At the moment, only textual data
 .RB ( type=text )
 is supported.
+A sender with the name of a file, which knows the file's kind, may send its MIME type, as
+.I file
+.B -m
+(see
+.IR file (1))
+gives it, as
+.BR type ,
+with the file's name as data.
 .PD
 .PP
 All fields are optional, but
