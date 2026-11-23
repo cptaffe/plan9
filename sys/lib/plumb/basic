@@ -7,6 +7,39 @@ include fileaddr
 plumb to seemail
 plumb to showmail
 
+type matches 'image/.*'
+arg isfile	$data
+plumb to image
+plumb start page -w $file
+
+type matches 'application/(pdf|postscript)'
+arg isfile	$data
+plumb to postscript
+plumb start page -w -p 72 $file
+
+type matches 'audio/.*|video/mp4'
+arg isfile	$data
+data set	$file
+plumb to audio
+plumb client window deck -p
+
+type is application/zip
+arg isfile	$data
+plumb to zip
+plumb start zipopen $file
+
+type is application/rtf
+arg isfile	$data
+plumb to msword
+plumb start wdoc2txt $file
+
+type matches '[a-z]+/.*'
+arg isfile	$data
+type set	text
+data set	$file
+plumb to edit
+plumb client window $editor
+
 # cheap http/gif,jpeg,ps,pdf renderer
 type is text
 data matches '(https?|ftp|file|gopher|mailto|news|nntp|telnet|wais|prospero)://[a-zA-Z0-9_@\-]+([.:][a-zA-Z0-9_@\-]+)*/?[a-zA-Z0-9_?.,%#~&/\-+=]+([:.][a-zA-Z0-9_?,%#~&/\-+=]+)*\.(jpe?g|JPE?G|gif|GIF|ps|PS|pdf|PDF|png|PNG)'
@@ -58,14 +91,6 @@ plumb start zipopen $file
 type is text
 data matches '[a-zA-Z¡-￿0-9_\-./ ]+'
 data matches '([a-zA-Z¡-￿0-9_\-./ ]+)\.(mp3|MP3|m4a|M4A|aac|AAC|mp4|MP4|ogg|OGG|flac|FLAC|wav|WAV)'
-arg isfile	$0
-data set	$file
-plumb to audio
-plumb client window deck -p
-
-type is text
-data matches '.+'
-data matches '.+\.(mp3|MP3|m4a|M4A|aac|AAC|mp4|MP4|ogg|OGG|flac|FLAC|wav|WAV)'
 arg isfile	$0
 data set	$file
 plumb to audio
