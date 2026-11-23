@@ -71,7 +71,7 @@ static char *phasenames[Maxphase] =
 static int gettickets(State*, char*, char*);
 
 static int
-dp9ikinit(Proto *p, Fsstate *fss)
+dp9ikinit(Proto*, Fsstate *fss)
 {
 	State *s;
 	int iscli, ret;
