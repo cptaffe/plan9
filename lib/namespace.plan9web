@@ -3,4 +3,5 @@ mount /srv/drop /mnt/drop
 mount -c /srv/download /mnt/download
 mount /srv/browser /mnt/browser
 bind -c '#L' /mnt/term
+bind -c /n /n
 bind -a $rootdir/n /n
