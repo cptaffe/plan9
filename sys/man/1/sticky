@@ -109,6 +109,8 @@ and
 .BR Delete .
 The styles turn on for the selection, or off if all of it has them already;
 with no selection, they set the style of what you type next.
+A style over the lines of one paragraph is one span, its markers at its ends;
+over paragraphs, headings or list items, each has a span of its own.
 Keys do the common ones, as the Mac's do:
 Command-B, -I and -U bold, italicize and underline,
 Command-Shift-X strikes through, as in Notes,
@@ -149,6 +151,14 @@ rules and links, with the markers it shows by style hidden;
 what it doesn't show stays as text.
 The markers of what holds the selection show, faint: a span's around it,
 a link's address, and a heading's, list item's or quote's at the left of its line.
+A span's markers are places for the caret, on either side of each:
+the caret moves to the right of a span's closing markers by the right arrow,
+or by a click past the end of its line, and what you type there is plain;
+the left arrow moves it back inside.
+Where markers nest, as in
+.BR ==**text**== ,
+each arrow steps past one.
+Backspace and Delete keep the caret on its side of the markers.
 .B Source
 shows the Markdown as it is, and again as styled.
 .PP
@@ -214,6 +224,4 @@ plan9web's
 .IR fontfs (4),
 .IR theme (6)
 .SH BUGS
-A style marker spans one line: sticky marks a selection over lines line by line.
-.PP
 Cutting and pasting within one note keeps the styles; elsewhere only the text goes.
