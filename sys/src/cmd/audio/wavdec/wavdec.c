@@ -69,11 +69,15 @@ main(int argc, char **argv)
 	if(memcmp(getcc(buf), "WAVE", 4) != 0)
 		sysfatal("not a wave file");
 
+	wav.fmt = -1;
 	for(;;){
 		getcc(buf);
 		len = get4();
-		if(memcmp(buf, "data", 4) == 0)
+		if(memcmp(buf, "data", 4) == 0){
+			if(wav.fmt < 0)
+				sysfatal("no format chunk before the data");
 			break;
+		}
 		if(memcmp(buf, "fmt ", 4) == 0){
 			if(len < 2+2+4+4+2+2)
 				sysfatal("format chunk too small");
