@@ -293,7 +293,7 @@ struct Window
 	uchar	showdel;
 	int		id;
 	Range	addr;
-	int		hasaddr;	/* 1 after a write to addr, cleared when style fid opens OWRITE */
+	int		hasaddr;
 	int		seq;
 	int		wantseq;
 	Range	limit;
