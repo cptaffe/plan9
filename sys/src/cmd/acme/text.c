@@ -749,8 +749,6 @@ texttype(Text *t, Rune r)
 
 	nr = 1;
 	rp = &r;
-	if(t->w && t->what==Body && wsyskey(t->w, r))
-		return;
 	switch(r){
 	case Kleft:
 		typecommit(t);

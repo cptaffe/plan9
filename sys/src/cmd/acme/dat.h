@@ -23,12 +23,6 @@ enum {
   QWwrsel,
   QWtag,
   QWxdata,
-  QWcons,
-  QWconsctl,
-  QWcursor,
-  QWmouse,
-  QWwctl,
-  QWwinname,
   QWrdevent,
   QMAX
 };
@@ -63,7 +57,6 @@ typedef struct WinStyleRun WinStyleRun;
 typedef struct Text Text;
 typedef struct Timer Timer;
 typedef struct Window Window;
-typedef struct Wsys Wsys;
 typedef struct Xfid Xfid;
 
 struct Runestr {
@@ -338,7 +331,6 @@ struct Window {
   int            nwruns;
 
   WinEditLog rdlog;
-  Wsys *wsys;
   uint dotq0, dotq1;  /* the body's dot as last seen, and how long it has stayed */
   int dotage;
   int nameage;	/* how long since a typed rename not yet logged, or -1 */

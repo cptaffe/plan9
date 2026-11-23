@@ -25,7 +25,6 @@ OFILES=\
 	time.$O\
 	util.$O\
 	wind.$O\
-	wsys.$O\
 	xfid.$O\
 
 HFILES=dat.h\

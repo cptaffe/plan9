@@ -146,12 +146,9 @@ and passes every other message to acme's.
 .PP
 The other files pass to acme's.
 Reads of
-.BR event ,
-.BR rdevent ,
-.BR cons ,
-.B mouse
+.B event
 and
-.BR wctl ,
+.BR rdevent ,
 which wait, each wait in a process of their own,
 so a program that never reads holds up no other.
 .SH EXAMPLES
