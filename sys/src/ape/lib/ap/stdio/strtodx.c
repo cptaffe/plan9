@@ -51,7 +51,7 @@ hex(const char *s, const char **ep, int mbits, int emin)
 			m |= d != 0, e += 4;
 		else
 			m = m<<4 | d;
-	if(*s == '.')
+	if(*s == '.'){
 		for(s++; (d = hexdig(*s)) >= 0; s++, any = 1)
 			if(m >> 60)
 				m |= d != 0;
@@ -59,6 +59,7 @@ hex(const char *s, const char **ep, int mbits, int emin)
 				m = m<<4 | d;
 				e -= 4;
 			}
+	}
 	if(!any)
 		return -1;	/* not hex: only the 0 is a number */
 	*ep = s;
@@ -121,7 +122,7 @@ _strtonx(const char *s, char **se, int neg, double *d, int mbits, int emin)
 	if((n = prefix(s, "infinity")) || (n = prefix(s, "inf"))){
 		r = HUGE_VAL;
 		e = s + n;
-	}else if(n = prefix(s, "nan")){
+	}else if((n = prefix(s, "nan")) != 0){
 		r = nan("");	/* quiet */
 		e = s + n;
 		if(*e == '('){
