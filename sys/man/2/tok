@@ -141,7 +141,9 @@ to
 that starts at token
 .I from
 or after it.
-A bracket whose partner lies outside them is never matched.
+A repetition takes whole bracket pairs: it matches no bracket whose partner lies outside
+those tokens or outside what the repetition matches.
+An item outside a repetition matches a bracket whatever its partner.
 It fills
 .IR m :
 the match is the tokens

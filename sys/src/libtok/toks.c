@@ -4,6 +4,8 @@
 #include <tok.h>
 #include "impl.h"
 
+static void	view(Toks*);
+
 uint
 _tokhash(char *s, int n)
 {
@@ -313,6 +315,7 @@ tokparse(char *text, long ntext, char *lines, long nlines)
 	}
 	if(links(t) < 0)
 		goto Err;
+	view(t);
 	return t;
 Err:
 	tokfree(t);
@@ -370,24 +373,30 @@ tokbefore(Toks *t, long q)
 	return lo;
 }
 
-void
-_tokview(Toks *t, int **vis, int **rank)
+static void
+view(Toks *t)
 {
 	Tx *x;
 	int i, n;
 
 	x = t->aux;
-	if(x->rank == nil){
-		x->vis = emalloc((t->n+1)*sizeof x->vis[0]);
-		x->rank = emalloc((t->n+1)*sizeof x->rank[0]);
-		n = 0;
-		for(i = 0; i < t->n; i++){
-			x->rank[i] = n;
-			if(!t->t[i].comment)
-				x->vis[n++] = i;
-		}
-		x->rank[t->n] = n;
+	x->vis = emalloc((t->n+1)*sizeof x->vis[0]);
+	x->rank = emalloc((t->n+1)*sizeof x->rank[0]);
+	n = 0;
+	for(i = 0; i < t->n; i++){
+		x->rank[i] = n;
+		if(!t->t[i].comment)
+			x->vis[n++] = i;
 	}
+	x->rank[t->n] = n;
+}
+
+void
+_tokview(Toks *t, int **vis, int **rank)
+{
+	Tx *x;
+
+	x = t->aux;
 	*vis = x->vis;
 	*rank = x->rank;
 }
