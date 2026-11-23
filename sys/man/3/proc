@@ -569,8 +569,13 @@ Of the control messages above, p9web's kernel takes
 .BR start ,
 .BR waitstop ,
 .BR startsyscall ,
+.BR trace ,
+.BR event ,
 .BR kill ,
 .BR pri ,
 .B private
 and
 .BR noswap .
+Of the events in
+.BR /sys/include/trace.h ,
+it writes only Ready, Run, Sleep, User and Dead.
