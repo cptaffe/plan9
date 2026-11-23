@@ -24,6 +24,7 @@ F(fiber_setdata) extern void p9web_fiber_setdata(void *);
 F(fiber_pid) extern int p9web_fiber_pid(int);
 F(fiber_exit) extern void p9web_fiber_exit(void);
 extern void __wasm_init_tls(void *);
+extern void _procstart(void (*)(void *), void *);
 
 
 __attribute__((export_name("p9web_fiber_main"))) void
@@ -66,6 +67,16 @@ p9web_fiber_gone(void *v)
 }
 
 static void
+run(void *v)
+{
+	Thr *t;
+
+	t = v;
+	_psigblocked = t->mask;
+	pthread_exit(t->f(t->arg));
+}
+
+static void
 start(void *v)
 {
 	Thr *t;
@@ -75,8 +86,7 @@ start(void *v)
 	a = __builtin_wasm_tls_align();
 	__wasm_init_tls((void*)(((uintptr_t)t->tls + a-1) & ~(a-1)));
 	p9web_fiber_setdata(t);
-	_psigblocked = t->mask;
-	pthread_exit(t->f(t->arg));
+	_procstart(run, t);
 }
 
 static void
