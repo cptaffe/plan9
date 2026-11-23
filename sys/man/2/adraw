@@ -206,19 +206,40 @@ returns nil, with the error string set, if it cannot make those colors,
 since each is an image the display must allocate.
 The program doesn't call
 .I getwindow
-itself, which would draw over the tag, and draws from a proc other than the one that
-opened the tag only with the display locked
-.RI ( lockdisplay
-in
-.IR graphics (2)).
+itself, which would draw over the tag, and draws only from the proc that opened the tag,
+whose threads the tag's own share; another proc sends that proc what to draw, by a channel.
 A gesture, from the press of a button to the release of the last, belongs to where it
 began: one begun in the body goes to the program even where it passes over the tag, and
 the program sees the pointer move over the tag with no button down.
 The program may call the tag's functions from any proc: edits of the tag that come while
 the user is working in it wait until the gesture ends.
 .I Tagclose
-stops the tag: it no longer reads the mouse and keyboard, frees what it drew with, and
-refuses later calls.
+stops the tag and waits until it has: the tag no longer reads the mouse and keyboard,
+sends nil on
+.B t->c
+to a reader that waits there, and frees what it drew with,
+.BR t->mc ,
+.B t->kc
+and the
+.B Tag
+itself.
+The program then reads
+.I mc
+and
+.I kc
+again, and makes no more calls of the tag's, from any proc.
+After
+.B Del
+or the
+.B del
+message, and before
+.IR tagclose ,
+the tag's calls but
+.I tagreadevent
+and
+.I tagpipe
+fail with
+.LR "tag closed" .
 .PP
 In the tag, as in acme's: button 1 selects, a double click selects a word or the text between
 brackets or quotes, and the 1-2 and 1-3 chords cut and paste by
@@ -229,7 +250,8 @@ go to the ends of the line, control-X, -C and -V cut, copy and paste, Escape sel
 typed since the last click, or cuts the selection, and control-F completes a file name, as
 .IR complete (2)
 does for acme.
-The down arrow and a newline show all the tag's lines, and the up arrow or the wheel one.
+The down arrow, a newline and the wheel turned down show all the tag's lines, and the up
+arrow and the wheel turned up one.
 The square at the tag's left works as acme's on its window, by rio's
 .B wctl
 .RI ( rio (4)),
@@ -248,7 +270,12 @@ does an acme window's
 .B event
 file, and fills
 .IR e ;
-it returns 1, or 0 when the tag has closed.
+it returns 1, or 0 when the tag has closed, by
+.BR Del ,
+the
+.B del
+message or
+.IR tagclose .
 The channel
 .B t->c
 carries the events too, as
