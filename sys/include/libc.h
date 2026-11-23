@@ -210,6 +210,8 @@ extern	Rune*	runefmtstrflush(Fmt*);
 #pragma	varargck	type	"f"	double
 #pragma	varargck	type	"e"	double
 #pragma	varargck	type	"g"	double
+#pragma	varargck	type	"E"	double
+#pragma	varargck	type	"G"	double
 #pragma	varargck	type	"s"	char*
 #pragma	varargck	type	"q"	char*
 #pragma	varargck	type	"S"	Rune*
