@@ -1,0 +1,10 @@
+# Search(1)'s sources, one a line: a letter, flags, and an rc command. The flags are a character
+# each, or - for none: s, the source is static, run once and its lines filtered as the query is
+# typed; else it runs again at each pause in typing. A command runs in $root, seen without its
+# hidden files, with the query's pattern in $pattern. $home/lib/acme/search is read in place of
+# this file.
+w	s	awk '$6 != "" {print $6}' /mnt/acme/index
+f	s	walk -f | sed 's,^\./,,'
+g	-	grep -n -- $pattern `{walk -f} /dev/null | sed 's,^\./,,; s,^([^:]+):([0-9]+): ?,\1:\2 ,'
+s	-	lsp wsyms $root $pattern >[2]/dev/null | sed 's,^'$root'/,,; s,^([^:]+):([0-9]+):[0-9]+: ,\1:\2 ,; s,^([^: ]+): ,\1 ,'
+d	s	lsp diags $root >[2]/dev/null | sed 's,^'$root'/,,; s,^([^:]+):([0-9]+):[0-9]+: ,\1:\2 ,'
