@@ -12,7 +12,7 @@ grow(unsigned long n)
 	unsigned long have, want;
 
 	have = __builtin_wasm_memory_size(0);
-	want = ((unsigned long long)n + 65535) >> 16;
+	want = (n >> 16) + ((n & 65535) != 0);
 	if(want > have && __builtin_wasm_memory_grow(0, want-have) == (unsigned long)-1){
 		errno = ENOMEM;
 		return -1;

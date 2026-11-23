@@ -200,7 +200,7 @@ void
 drawline(int y, Vtcell *c, int n)
 {
 	Image *fg, *bg;
-	Point p;
+	Point p, q;
 	int x, e, k;
 
 	if(n > vt->cols)
@@ -215,14 +215,12 @@ drawline(int y, Vtcell *c, int n)
 			for(k = x; k < e; k++)
 				if(c[k].r != ' ' && c[k].r != 0 && !(c[k].attr & Vcont))
 					runestringn(screen, pt(k, y), fg, ZP, font, &c[k].r, 1);
-		if(c[x].attr & Vunder){
-			p = pt(x, y);
-			draw(screen, Rect(p.x, p.y+font->ascent+1, pt(e, y).x, p.y+font->ascent+2), fg, nil, ZP);
-		}
-		if(c[x].attr & Vstrike){
-			p = pt(x, y);
-			draw(screen, Rect(p.x, p.y+NS/2, pt(e, y).x, p.y+NS/2+1), fg, nil, ZP);
-		}
+		p = pt(x, y);
+		q = pt(e, y);
+		if(c[x].attr & Vunder)
+			draw(screen, Rect(p.x, p.y+font->ascent+1, q.x, p.y+font->ascent+2), fg, nil, ZP);
+		if(c[x].attr & Vstrike)
+			draw(screen, Rect(p.x, p.y+NS/2, q.x, p.y+NS/2+1), fg, nil, ZP);
 	}
 }
 

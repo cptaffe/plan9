@@ -339,7 +339,7 @@ tputs(const char *s, int affcnt, int (*outc)(int))
 {
 	if(s == NULL)
 		return -1;
-	while(*s >= '0' && *s <= '9' || *s == '.')
+	while((*s >= '0' && *s <= '9') || *s == '.')
 		s++;
 	if(*s == '*')
 		s++;

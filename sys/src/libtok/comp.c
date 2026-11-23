@@ -80,6 +80,8 @@ sdup(char *s)
 	return t;
 }
 
+#pragma	varargck	argpos	perr	2
+
 static void
 perr(P *p, char *fmt, ...)
 {

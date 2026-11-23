@@ -3,32 +3,41 @@
 #include <authsrv.h>
 #include <libsec.h>
 
-#define	CHAR(x)		f->x = *p++
-#define	SHORT(x)	f->x = (p[0] | (p[1]<<8)); p += 2
-#define	VLONG(q)	q = (p[0] | (p[1]<<8) | (p[2]<<16) | (p[3]<<24)); p += 4
-#define	LONG(x)		VLONG(f->x)
-#define	STRING(x,n)	memmove(f->x, p, n); p += n
-
-void
+int
 convM2Tform1(char *ap, Ticket *f, char *key)
 {
+	uchar buf[TICKETLENFORM1], *p;
 	Chachastate s;
-	uchar *p;
+	int n, num;
 
-	if(key) {
-		setupChachastate(&s, (uchar *)key, ChachaKeylen, (uchar*)ap, ChachaIVlen, 0);
-		ap += FORM1NONCELEN;
-		ccpoly_decrypt((uchar *)ap, TICKETLENFORM1-FORM1NONCELEN-FORM1AUTHTAGLEN, nil, 0, (uchar *)ap+TICKETLENFORM1-FORM1NONCELEN-FORM1AUTHTAGLEN, &s);
+	memset(f, 0, sizeof *f);
+	if(memcmp(ap, "form1 Ts", FORM1SIGLEN) == 0)
+		num = AuthTs;
+	else if(memcmp(ap, "form1 Tc", FORM1SIGLEN) == 0)
+		num = AuthTc;
+	else{
+		werrstr("not a form1 ticket");
+		return -1;
 	}
-	p = (uchar*)ap;
-//	CHAR(num);
-	f->num = AuthTs; // todo: actually parse;
-	STRING(chal, CHALLEN);
-	STRING(cuid, ANAMELEN);
+	memmove(buf, ap, TICKETLENFORM1);
+	n = TICKETLENFORM1-FORM1NONCELEN-FORM1AUTHTAGLEN;
+	setupChachastate(&s, (uchar*)key, ChachaKeylen, buf, ChachaIVlen, 20);
+	if(ccpoly_decrypt(buf+FORM1NONCELEN, n, nil, 0, buf+FORM1NONCELEN+n, &s) < 0){
+		memset(buf, 0, sizeof buf);
+		werrstr("ticket not authentic");
+		return -1;
+	}
+	p = buf+FORM1NONCELEN;
+	f->num = num;
+	memmove(f->chal, p, CHALLEN);
+	p += CHALLEN;
+	memmove(f->cuid, p, ANAMELEN);
 	f->cuid[ANAMELEN-1] = 0;
-	STRING(suid, ANAMELEN);
+	p += ANAMELEN;
+	memmove(f->suid, p, ANAMELEN);
 	f->suid[ANAMELEN-1] = 0;
-print(f->suid);
-	STRING(key, NONCELEN);
-	USED(p);
+	p += ANAMELEN;
+	memmove(f->key, p, NONCELEN);
+	memset(buf, 0, sizeof buf);
+	return 0;
 }

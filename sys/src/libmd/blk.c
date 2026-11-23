@@ -394,7 +394,6 @@ Blk*
 _mdfinal(P *p, Blk *b)
 {
 	Blk *up;
-	int i;
 
 	up = b->up;
 	b->open = 0;
@@ -651,7 +650,7 @@ static Blk*
 tablehead(P *p, Blk *para)
 {
 	Cell *dc, *hc;
-	int nd, nh, i, l, r, k, e;
+	int nd, nh, i, l, r, e;
 	Blk *t, *pp, *rw;
 	Seg *g;
 	uchar *h;

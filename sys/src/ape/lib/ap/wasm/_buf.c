@@ -285,7 +285,7 @@ _copyproc(int fd, Muxbuf *b)
 		memcpy(m, &h, sizeof h);
 		while((k = _WRITE(mux[1], m, sizeof h + (n > 0? n: 0))) < 0 && topause)
 			;
-		if(k < 0 || n <= 0 && n != Paused)
+		if(k < 0 || (n <= 0 && n != Paused))
 			_exit(0);
 		/* wait until the program has taken it */
 		while((n = _READ(ack[fd], &c, 1)) < 0 && topause)
