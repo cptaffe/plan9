@@ -927,7 +927,7 @@ cmdname(char *s)
 		s++;
 	for(e=s; *e && *e!=' ' && *e!='\t' && *e!='\n'; e++)
 		;
-	n = _adrawsmprint("%.*s", (int)(e-s), s);
+	n = _adrawsmprint("%.*s", utfnlen(s, e-s), s);
 	if((p = utfrrune(n, '/')) != nil)
 		memmove(n, p+1, strlen(p+1)+1);
 	return n;
@@ -1343,7 +1343,7 @@ isbuiltin(char *s)
 		s++;
 	for(n=0; s[n] && s[n]!=' ' && s[n]!='\t' && s[n]!='\n'; n++)
 		;
-	w = _adrawsmprint("%.*s", n, s);
+	w = _adrawsmprint("%.*s", utfnlen(s, n), s);
 	for(b=builtins; *b; b++)
 		if(strcmp(*b, w) == 0)
 			break;
@@ -1791,7 +1791,7 @@ dflt(Tagx *t, Event *e)
 	r = w+n;
 	while(*r==' ' || *r=='\t' || *r=='\n')
 		r++;
-	w = _adrawsmprint("%.*s", n, w);
+	w = _adrawsmprint("%.*s", utfnlen(w, n), w);
 	if(strcmp(w, "Snarf") == 0)
 		cut(t, 1, 0);
 	else if(strcmp(w, "Cut") == 0)
@@ -2257,6 +2257,8 @@ tagctl(Tag *tg, char *fmt, ...)
 int
 tagwrite(Tag *tg, char *file, void *buf, int n)
 {
+	char *s;
+
 	if(tg->x->closed){
 		werrstr("tag closed");
 		return -1;
@@ -2265,7 +2267,9 @@ tagwrite(Tag *tg, char *file, void *buf, int n)
 		werrstr("no file %s", file);
 		return -1;
 	}
-	edit(tg->x, 'w', _adrawsmprint("%.*s", n, (char*)buf));
+	s = emalloc(n+1);
+	memmove(s, buf, n);
+	edit(tg->x, 'w', s);
 	return n;
 }
 

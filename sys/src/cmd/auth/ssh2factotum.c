@@ -1,7 +1,3 @@
-/*
- * ssh2factotum: an OpenSSH ed25519 private key (openssh-key-v1, not encrypted), as ssh-keygen
- * writes it, as a factotum key: key proto=ed25519 pk=… comment=… !sk=…
- */
 #include <u.h>
 #include <libc.h>
 #include <bio.h>
@@ -139,7 +135,7 @@ main(int argc, char *argv[])
 		sysfatal("bad secret key");
 	key = c.p;
 	c = getstr(&s);
-	comment = smprint("%.*s", (int)(c.ep - c.p), (char*)c.p);
+	comment = smprint("%.*s", utfnlen((char*)c.p, c.ep - c.p), (char*)c.p);
 	quotefmtinstall();
 	if(*comment)
 		print("key proto=ed25519 pk=%s comment=%q !sk=%s\n", hex(pk, 32), comment, hex(key, 32));
