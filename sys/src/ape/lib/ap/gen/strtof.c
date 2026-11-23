@@ -26,7 +26,7 @@ digits(const char *s, const char *e, char *dig, int ndig, int *dexp, int *more)
 	*dexp = 0;
 	*more = 0;
 	any = 0;
-	for(; s < e && (isdigit((unsigned char)*s) || *s == '.' && !point); s++){
+	for(; s < e && (isdigit((unsigned char)*s) || (*s == '.' && !point)); s++){
 		if(*s == '.'){
 			point = 1;
 			continue;
@@ -133,7 +133,7 @@ strtof(const char *s, char **ep)
 			}
 		}
 	}
-	if(isinf(f) && !isinf(d) || f == 0 && d != 0)
+	if((isinf(f) && !isinf(d)) || (f == 0 && d != 0))
 		errno = ERANGE;
 	return f;
 }

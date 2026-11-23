@@ -23,8 +23,8 @@ udivmod(uvvlong a, uvvlong b, uvvlong *rem)
 		q.lo = q.hi = r.lo = r.hi = 0;
 		for(i = 127; i >= 0; i--){
 			r.hi = r.hi<<1 | r.lo>>63;
-			r.lo = r.lo<<1 | (i >= 64? n.hi>>(i-64): n.lo>>i) & 1;
-			if(r.hi > d.hi || r.hi == d.hi && r.lo >= d.lo){
+			r.lo = r.lo<<1 | ((i >= 64? n.hi>>(i-64): n.lo>>i) & 1);
+			if(r.hi > d.hi || (r.hi == d.hi && r.lo >= d.lo)){
 				r.hi -= d.hi + (r.lo < d.lo);
 				r.lo -= d.lo;
 				if(i >= 64)

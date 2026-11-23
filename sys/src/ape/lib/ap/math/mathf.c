@@ -8,7 +8,7 @@ f(double d)
 	float r;
 
 	r = d;
-	if(isinf(r) && !isinf(d) || r == 0 && d != 0)
+	if((isinf(r) && !isinf(d)) || (r == 0 && d != 0))
 		errno = ERANGE;
 	return r;
 }
@@ -394,7 +394,7 @@ fmaf(float x, float y, float z)
 
 	xy = (double)x * y;
 	r = xy + z;
-	if(!isfinite(r) || r - xy == z && r - z == xy)
+	if(!isfinite(r) || (r - xy == z && r - z == xy))
 		return f(r);
 	/* halfway, if the floats either side of it average to it (exactly, in double) */
 	lo = r;
