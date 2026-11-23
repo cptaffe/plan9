@@ -153,9 +153,9 @@ extern	void	convM2PR(char*, Passwordreq*, char*);
 /*
  *  convert to/from form1 wire format
  */
-extern	void	convM2Tform1(char*, Ticket*, char*);
+extern	int	convM2Tform1(char*, Ticket*, char*);
 extern	int	convA2Mform1(Authenticator*, char*, char*);
-extern	void	convM2Aform1(char*, Authenticator*, char*);
+extern	int	convM2Aform1(char*, Authenticator*, char*);
 
 /*
  *  convert ascii password to DES key

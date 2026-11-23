@@ -200,11 +200,13 @@ dp9ikwrite(Fsstate *fss, void *a, uint n)
 		m = TICKETLENFORM1 + AUTHENTLENFORM1;
 		if(n < m)
 			return toosmall(fss, m);
-		convM2Tform1(a, &s->t, (char *)s->k.pakkey);
+		if(convM2Tform1(a, &s->t, (char *)s->k.pakkey) < 0)
+			return failure(fss, nil);
 		if(s->t.num != AuthTs
 		|| memcmp(s->t.chal, s->tr.chal, CHALLEN) != 0)
 			return failure(fss, Easproto);
-		convM2Aform1((char*)a+TICKETLENFORM1, &auth, s->t.key);
+		if(convM2Aform1((char*)a+TICKETLENFORM1, &auth, s->t.key) < 0)
+			return failure(fss, nil);
 		if(auth.num != AuthAc
 		|| memcmp(auth.chal, s->tr.chal, CHALLEN) != 0)
 			return failure(fss, Easproto);
@@ -213,7 +215,8 @@ dp9ikwrite(Fsstate *fss, void *a, uint n)
 		auth.num = AuthAs;
 		memmove(auth.chal, s->cchal, CHALLEN);
 		memmove(auth.rand, s->rand + NONCELEN, NONCELEN);
-		convA2Mform1(&auth, s->tbuf+TICKETLENFORM1, s->t.key);
+		if(convA2Mform1(&auth, s->tbuf+TICKETLENFORM1, s->t.key) < 0)
+			return failure(fss, nil);
 		fss->phase = SHaveAuth;
 		return RpcOk;
 
