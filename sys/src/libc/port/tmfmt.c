@@ -273,7 +273,7 @@ tmfmt(Tm *tm, char *layout)
 	while(*layout){
 		nd = 0;
 		c = chunk(layout, &pre, &len, &nd);
-		fmtprint(&f, "%.*s", pre, layout);
+		fmtprint(&f, "%.*s", utfnlen(layout, pre), layout);
 		layout += pre+len;
 		y = tm->year+1900;
 		h = tm->hour%12;
