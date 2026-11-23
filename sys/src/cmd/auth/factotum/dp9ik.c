@@ -154,7 +154,6 @@ dp9ikread(Fsstate *fss, void *a, uint *n)
 		fss->ai.cuid = s->t.cuid;
 		fss->ai.suid = s->t.suid;
 		s->secret = emalloc(256);
-		print("%s\n", s->rand);
 		hkdf_x(	s->rand, 2*NONCELEN,
 			(uchar*)info, sizeof(info)-1,
 			(uchar *)s->t.key, NONCELEN,
