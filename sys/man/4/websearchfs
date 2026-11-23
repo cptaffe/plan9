@@ -1,8 +1,8 @@
-.TH SEARCHFS 4
+.TH WEBSEARCHFS 4
 .SH NAME
-searchfs, search \- answers from the web
+websearchfs, websearch \- answers from the web
 .SH SYNOPSIS
-.B searchfs
+.B websearchfs
 [
 .B -D
 ] [
@@ -19,15 +19,15 @@ searchfs, search \- answers from the web
 .I url
 ]
 .PP
-.B search
+.B websearch
 .I query ...
 .SH DESCRIPTION
-.I Searchfs
+.I Websearchfs
 serves one file,
 .BR search ,
 on
 .I mtpt
-.RB ( /mnt/search
+.RB ( /mnt/websearch
 by default), and posts itself as
 .BI /srv/ srvname
 if
@@ -57,31 +57,31 @@ The key is
 .BR "proto=pass service=anthropic" ,
 read when the first query needs it.
 A client of
-.I searchfs
+.I websearchfs
 never sees the key.
 .PP
-.I Search
+.I Websearch
 writes its arguments as one query and prints the answer.
 If
-.B /mnt/search
+.B /mnt/websearch
 has no
 .BR search ,
 it mounts
-.BR /srv/search ,
+.BR /srv/websearch ,
 or starts
-.BR "searchfs -s search" .
+.BR "websearchfs -s websearch" .
 .PP
 The
 .B -D
 option prints the 9P messages.
 .SH EXAMPLES
 .EX
-% search when was Plan 9 first released
+% websearch when was Plan 9 first released
 .EE
 .PP
 .I Sibyl
 starts
-.IR searchfs ,
+.IR websearchfs ,
 and
 .B /lib/namespace.sibyl
 mounts it in the name space of the model's commands, which have no
@@ -90,22 +90,22 @@ so they can search but cannot read the key.
 .SH FILES
 .TF /lib/namespace.sibyl
 .TP
-.B /srv/search
-.I searchfs
+.B /srv/websearch
+.I websearchfs
 as
 .I sibyl
 starts it
 .TP
 .B /lib/namespace.sibyl
 mounts it on
-.B /mnt/search
+.B /mnt/websearch
 for
 .IR sibyl 's
 commands
 .SH SOURCE
-.B src/cmd/searchfs
+.B src/cmd/websearchfs
 .br
-.B rc/bin/search
+.B rc/bin/websearch
 .SH SEE ALSO
 .IR factotum (4),
 .IR webfs (4)
