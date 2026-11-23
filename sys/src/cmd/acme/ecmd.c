@@ -233,6 +233,8 @@ d_cmd(Text *t, Cmd *cp)
 void
 D1(Text *t)
 {
+	if(delmain(t->w, FALSE) >= 0)
+		return;
 	if(t->w->body.file->ntext>1 || winclean(t->w, FALSE))
 		colclose(t->col, t->w, TRUE);
 }

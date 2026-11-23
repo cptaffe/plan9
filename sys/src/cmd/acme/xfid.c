@@ -171,6 +171,10 @@ xfidopen(Xfid *x)
 		case QWrdevent:
 			xfidwinlogopen(x, w);
 			break;
+		case QWtheme:
+			if((x->fcall.mode&3)==OWRITE || (x->fcall.mode&3)==ORDWR)
+				x->f->styleopen = 1;
+			break;
 		case QWstyle:
 			/*
 			 * Snapshot addr at open time; it is consumed at clunk.
@@ -342,6 +346,15 @@ xfidclose(Xfid *x)
 		case QWrdevent:
 			xfidwinlogclose(x, w);
 			break;
+		case QWtheme:
+			if(x->f->styleopen)
+				winsettheme(w, x->f->stylebuf, x->f->nstylebuf);
+			free(x->f->stylebuf);
+			x->f->stylebuf = nil;
+			x->f->nstylebuf = 0;
+			x->f->mstylebuf = 0;
+			x->f->styleopen = 0;
+			break;
 		case QWstyle:
 			if(x->f->styleopen){
 				/* Runs computed for an older body are dropped. */
@@ -476,6 +489,19 @@ xfidread(Xfid *x)
 
 	case QWrdevent:
 		xfidwinlogread(x, w);
+		break;
+
+	case QWtheme:
+		b = w->theme ? w->theme : "";
+		n = strlen(b);
+		off = x->fcall.offset;
+		if(off > n)
+			off = n;
+		if(off+x->fcall.count > n)
+			x->fcall.count = n-off;
+		fc.count = x->fcall.count;
+		fc.data = b+off;
+		respond(x, &fc, nil);
 		break;
 
 	case QWstyle:
@@ -760,6 +786,18 @@ xfidwrite(Xfid *x)
 		respond(x, &fc, Eperm);
 		break;
 
+	case QWtheme:
+		nb = x->fcall.count;
+		if(x->f->nstylebuf+nb > x->f->mstylebuf){
+			x->f->mstylebuf = x->f->nstylebuf+nb+1024;
+			x->f->stylebuf = erealloc(x->f->stylebuf, x->f->mstylebuf);
+		}
+		memmove(x->f->stylebuf+x->f->nstylebuf, x->fcall.data, nb);
+		x->f->nstylebuf += nb;
+		fc.count = nb;
+		respond(x, &fc, nil);
+		break;
+
 	case QWstyle:
 	{
 		/*
@@ -851,7 +889,7 @@ void
 xfidctlwrite(Xfid *x, Window *w)
 {
 	Fcall fc;
-	int i, m, n, nb, nr, nulls;
+	int i, k, m, n, nb, nr, nulls;
 	Rune *r;
 	char *err, *p, *pp, *q, *e;
 	int isfbuf, scrdraw, settag, renamed;
@@ -993,15 +1031,17 @@ out:
 			m += (q+1) - pp;
 		}else
 		if(strncmp(p, "delete", 6) == 0){	/* delete for sure */
-			colclose(w->col, w, TRUE);
+			if(delmain(w, TRUE) < 0)
+				colclose(w->col, w, TRUE);
 			m = 6;
 		}else
 		if(strncmp(p, "del", 3) == 0){	/* delete, but check dirty */
-			if(!winclean(w, TRUE)){
+			if((k = delmain(w, FALSE)) == 0 || k < 0 && !winclean(w, TRUE)){
 				err = "file dirty";
 				break;
 			}
-			colclose(w->col, w, TRUE);
+			if(k < 0)
+				colclose(w->col, w, TRUE);
 			m = 3;
 		}else
 		if(strncmp(p, "get", 3) == 0){	/* get file */

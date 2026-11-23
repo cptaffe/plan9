@@ -30,6 +30,7 @@ enum {
   QWwctl,
   QWwinname,
   QWrdevent,
+  QWtheme,
   QMAX
 };
 
@@ -343,6 +344,12 @@ struct Window {
   int dotage;
   int nameage;	/* how long since a typed rename not yet logged, or -1 */
   uint sentq0, sentq1; /* the dot last written to the edit log as an S line */
+  char *theme;
+  Image *tcols[NCOL];
+  Image *bcols[NCOL];
+  Image *modcol;
+  Image *but2;
+  Image *but3;
 };
 
 void wininit(Window *, Window *, Rectangle);
@@ -619,6 +626,8 @@ char *home;
 char *fontnames[2];
 Image *tagcols[NCOL];
 Image *textcols[NCOL];
+int onecol;
+Window *mainwin;
 
 /* no global style table: each window carries its own palette (WinStyleEntry) */
 
