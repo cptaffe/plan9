@@ -167,13 +167,13 @@ Exit; with changes not written, the first says so and the second exits.
 .I Grap
 is
 .I grapw
-in an
+on an
 .IR acme (1)
 window, whose body is the graph's text.
 With no
 .IR file ,
 .I Grap
-draws the window it runs in,
+takes the window it runs in,
 .BR $winid ;
 with one, outside a window, or in a window whose
 .B event
@@ -182,6 +182,23 @@ another program holds through
 as
 .I win
 does, it opens a new window, with the file's text if it exists.
+The window stays text, to edit as any other;
+.I Grap
+draws the graph in a
+.IR rio (1)
+window of its own, opened by
+.I newwindow
+(see
+.IR graphics (2))
+on
+.BR $wsys ,
+under a tag as Acme's
+.RI ( adraw (2))
+that holds the file's name,
+.BR "Del Snarf |" ,
+and
+.BR "Undo Redo Put" ,
+and its tag's square shows whether the window has changes Put has not written.
 Each change writes only the lines it changed into the body, so
 .B Put
 saves it, and diffs stay small.
@@ -216,29 +233,39 @@ writes nothing, says
 and reads the body again.
 .PP
 .I Grap
-adds itself to the tag.
+adds itself to the text window's tag.
 .B Grap
-there ends it and the window shows its text;
+there ends it and closes its window;
 .B Grap
 again draws it, or says in
 .B +Errors
 why it cannot.
-While the graph shows,
+.I Grap
+ends too, and its window closes, when the text window is gone.
+In
+.IR Grap 's
+tag,
 .BR Undo ,
 .BR Redo
 and the menu's other commands are
 .IR grapw 's,
+.BR Put ,
 .B Write
 and
 .B w
-are
-.BR Put ,
+write
+.B put
+to the text window's
+.BR ctl ,
+.BR Del ,
 .B Exit
 and
 .B q
 end it as
 .B Grap
-does, and these commands run in the file's directory.
+does, other commands run as in an Acme tag, with
+.B $winid
+the text window, and these commands run in the file's directory.
 They work on the selection as text:
 the selected rows, one to a line in the file's order, a row joined to another by
 .B ;
@@ -317,7 +344,7 @@ changes it.
 .B Del
 and
 .B Delete
-go to the window's
+in the text window's tag go to the window's
 .B ctl
 as
 .B del
@@ -338,9 +365,9 @@ deletes the window, ending
 .I Grap
 with it.
 .SH EXAMPLES
-In a
-.I Grap
-window's tag, with the outliers selected:
+In
+.IR Grap 's
+tag, with the outliers selected:
 .IP
 .EX
 |awk '$2 < 100'
@@ -367,6 +394,7 @@ plan9web's
 .IR grap (1),
 .IR pic (1),
 .IR sketch (1),
+.IR adraw (2),
 .IR acme (4)
 .SH BUGS
 .I Grap
