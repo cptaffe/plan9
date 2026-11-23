@@ -342,6 +342,26 @@ the textual file descriptor number of a file or device on which to swap.
 See
 .IR swap (8).
 .PP
+On p9web,
+.B memory
+is the memory of the computer the kernel runs on, as the host reports it:
+.I os.totalmem
+under Node, and the browser's
+.I navigator.deviceMemory
+in a page.
+Chrome rounds that to a power of two between 2 and 32 gigabytes, or 1 and 8 on Android;
+Safari and Firefox do not report it, and there
+.B memory
+is 4 gigabytes.
+A page is 65536 bytes, the unit by which wasm grows a program's memory.
+.B User
+counts the pages of the programs' memories.
+It counts each memory once, as of its program's last system call, or a child's fork, and never more than the total.
+Nothing swaps.
+It does not count its own memory.
+So kernel, swap's first number and the kernel's arenas are zero.
+Writes fail.
+.PP
 The other files served by the
 .I cons
 device are all single numbers:
@@ -362,6 +382,9 @@ parent's process number
 .IR swap (8)
 .SH SOURCE
 .B /sys/src/9/port/devcons.c
+.br
+plan9web's
+.B k/src/kernel/dev.ts
 .SH BUGS
 For debugging, two control-T's followed by a letter
 generate console output and manage debugging:

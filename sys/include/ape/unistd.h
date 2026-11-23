@@ -76,6 +76,7 @@ typedef long ssize_t;
 #endif
 #ifdef _BSD_EXTENSION
 #define _SC_PHYS_PAGES		13
+#define _SC_AVPHYS_PAGES	16
 #endif
 #define _SC_GETPW_R_SIZE_MAX	14
 #define _SC_GETGR_R_SIZE_MAX	15
