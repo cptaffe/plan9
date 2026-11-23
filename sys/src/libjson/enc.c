@@ -1,8 +1,3 @@
-/*
- * The encoder: values written to a Fmt, with the commas and colons put in between. jsonquote's
- * escapes are 9front's libjson's printstring (MIT); bytes that are not UTF-8 become U+FFFD, as
- * Go writes them.
- */
 #include <u.h>
 #include <libc.h>
 #include <bio.h>
@@ -28,12 +23,22 @@ check(Jsonenc *e, int n)
 	return e->err ? -1 : 0;
 }
 
-/* sep puts the comma before a value or key, but the first of its container's, or one after a key. */
 static int
-sep(Jsonenc *e)
+bad(Jsonenc *e, char *why)
 {
-	if(e->err)
-		return -1;
+	werrstr("json: %s", why);
+	return e->err = -1;
+}
+
+static int
+inobj(Jsonenc *e)
+{
+	return e->depth > 0 && BIT(e->isobj, e->depth);
+}
+
+static int
+comma(Jsonenc *e)
+{
 	if(e->afterkey){
 		e->afterkey = 0;
 		return 0;
@@ -43,20 +48,31 @@ sep(Jsonenc *e)
 		return 0;
 	}
 	if(e->depth == 0)
-		return check(e, fmtrune(e->f, '\n'));	/* values one after another, as Go's Encoder has them */
+		return check(e, fmtrune(e->f, '\n'));
 	return check(e, fmtrune(e->f, ','));
 }
 
-/* jsonbegin opens an object ('{') or an array ('['). */
+static int
+sep(Jsonenc *e)
+{
+	if(e->err)
+		return -1;
+	if(inobj(e) && !e->afterkey)
+		return bad(e, "a value with no key");
+	return comma(e);
+}
+
 int
 jsonbegin(Jsonenc *e, int c)
 {
+	if(e->err)
+		return -1;
+	if(c != '{' && c != '[')
+		return bad(e, "begin of neither { nor [");
 	if(sep(e) < 0)
 		return -1;
-	if(e->depth+1 >= Jsondepth){
-		werrstr("json: too deep");
-		return e->err = -1;
-	}
+	if(e->depth >= Jsondepth)
+		return bad(e, "too deep");
 	e->depth++;
 	SET(e->first, e->depth);
 	if(c == '{')
@@ -66,7 +82,6 @@ jsonbegin(Jsonenc *e, int c)
 	return check(e, fmtrune(e->f, c));
 }
 
-/* jsonend closes what jsonbegin opened last. */
 int
 jsonend(Jsonenc *e)
 {
@@ -74,10 +89,10 @@ jsonend(Jsonenc *e)
 
 	if(e->err)
 		return -1;
-	if(e->depth == 0){
-		werrstr("json: nothing to end");
-		return e->err = -1;
-	}
+	if(e->depth == 0)
+		return bad(e, "nothing to end");
+	if(e->afterkey)
+		return bad(e, "a key with no value");
 	c = BIT(e->isobj, e->depth) ? '}' : ']';
 	e->depth--;
 	return check(e, fmtrune(e->f, c));
@@ -86,7 +101,13 @@ jsonend(Jsonenc *e)
 int
 jsonkey(Jsonenc *e, char *k)
 {
-	if(sep(e) < 0)
+	if(e->err)
+		return -1;
+	if(!inobj(e))
+		return bad(e, "a key outside an object");
+	if(e->afterkey)
+		return bad(e, "a key after a key");
+	if(comma(e) < 0)
 		return -1;
 	if(check(e, jsonquote(e->f, k, strlen(k))) < 0 || check(e, fmtrune(e->f, ':')) < 0)
 		return -1;
@@ -108,7 +129,6 @@ jsonstringn(Jsonenc *e, char *s, long n)
 	return check(e, jsonquote(e->f, s, n));
 }
 
-/* jsonnumber writes a number's text, as it is. */
 int
 jsonnumber(Jsonenc *e, char *s)
 {
@@ -141,17 +161,14 @@ jsonnull(Jsonenc *e)
 	return check(e, fmtstrcpy(e->f, "null"));
 }
 
-/* jsonrawval writes a value's text, as it is: a Jsonraw's, given back byte for byte (if it is UTF-8). */
 int
 jsonrawval(Jsonenc *e, char *s, long n)
 {
 	if(sep(e) < 0)
 		return -1;
-	/* %.*s's precision counts runes */
 	return check(e, fmtprint(e->f, "%.*s", utfnlen(s, n), s));
 }
 
-/* jsonquote writes the n bytes at s as a JSON string. */
 int
 jsonquote(Fmt *f, char *s, long n)
 {
@@ -166,7 +183,6 @@ jsonquote(Fmt *f, char *s, long n)
 			r = *s;
 			m = 1;
 		}else{
-			/* a copy, so that a rune cut short at the end reads as an error, not past it */
 			memset(b, 0, sizeof b);
 			memmove(b, s, es-s < UTFmax ? es-s : UTFmax);
 			m = chartorune(&r, b);
