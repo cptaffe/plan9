@@ -187,7 +187,9 @@ Sticky draws its text in
 one
 .IR fontfs (4)
 font, by default
-.BR /mnt/font/IBMPlex/g/r/12a/font .
+.BR /mnt/font/IBMPlex/g/r/10a/font ,
+the size of termrc's default
+.BR $font .
 Bold, italic and bold italic are its
 .BR b ,
 .B i
