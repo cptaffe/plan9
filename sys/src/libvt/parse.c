@@ -3,7 +3,6 @@
 #include <vt.h>
 #include "impl.h"
 
-/* DEC's special graphics, for 0x60 to 0x7E */
 static Rune graphics[] = {
 	L'◆', L'▒', L'␉', L'␌', L'␍', L'␊', L'°', L'±', L'␤', L'␋', L'┘', L'┐', L'┌', L'└', L'┼', L'⎺',
 	L'⎻', L'─', L'⎼', L'⎽', L'├', L'┤', L'┴', L'┬', L'│', L'≤', L'≥', L'π', L'≠', L'£', L'·',
@@ -62,7 +61,6 @@ clampx(Vt *vt)
 		vt->x = vt->cols-1;
 }
 
-/* move puts the cursor at x, y, the screen's; y is kept in the region if it was there */
 static void
 move(Vt *vt, int x, int y)
 {
@@ -142,7 +140,6 @@ newline(Vt *vt)
 		vt->x = 0;
 }
 
-/* unwide clears the halves of wide runes that cells x to x+n-1 of row y would split */
 static void
 unwide(Vt *vt, int y, int x, int n)
 {
@@ -224,6 +221,7 @@ put(Vt *vt, Rune r)
 	if(p->pending || vt->x+w > vt->cols){
 		if(vt->mode & Mwrap){
 			vt->line[vt->y].wrapped = 1;
+			_vttouch(vt, vt->y);
 			index(vt);
 			vt->x = 0;
 		}else
@@ -471,7 +469,6 @@ setmode(Vt *vt, int on)
 	}
 }
 
-/* color reads SGR 38 or 48's color from param[*ip], leaving *ip at its last */
 static int
 color(Vt *vt, int *ip, ulong *c)
 {
@@ -868,28 +865,62 @@ esc(Vt *vt, int f)
 	}
 }
 
+static uint
+hash(char *s)
+{
+	uint h;
+
+	for(h = 0; *s != 0; s++)
+		h = h*31 + (uchar)*s;
+	return h;
+}
+
+static void
+rehash(Vt *vt)
+{
+	Priv *p;
+	int i, j;
+
+	p = P(vt);
+	free(p->lh);
+	p->nlh = p->nlh ? 2*p->nlh : 64;
+	p->lh = emalloc(p->nlh*sizeof p->lh[0]);
+	for(i = 1; i <= vt->nlinks; i++){
+		for(j = hash(vt->links[i]) & (p->nlh-1); p->lh[j] != 0; j = (j+1) & (p->nlh-1))
+			;
+		p->lh[j] = i;
+	}
+}
+
 static void
 link(Vt *vt, char *uri)
 {
 	Priv *p;
-	int i;
+	int i, j, n;
 
 	p = P(vt);
-	if(*uri == 0){
-		p->pen.link = 0;
+	p->pen.link = 0;
+	if(*uri == 0)
 		return;
-	}
-	for(i = 1; i <= vt->nlinks; i++)
+	if(p->nlh == 0)
+		rehash(vt);
+	for(j = hash(uri) & (p->nlh-1); (i = p->lh[j]) != 0; j = (j+1) & (p->nlh-1))
 		if(strcmp(vt->links[i], uri) == 0){
 			p->pen.link = i;
 			return;
 		}
-	if(vt->nlinks >= 65535)
+	n = strlen(uri)+1;
+	if(vt->nlinks >= Nlinks || p->linkbytes+n > Nlinkbytes)
 		return;
 	vt->links = erealloc(vt->links, (vt->nlinks+2)*sizeof vt->links[0]);
 	vt->links[0] = nil;
 	vt->links[++vt->nlinks] = _vtstrdup(uri);
+	p->linkbytes += n;
 	p->pen.link = vt->nlinks;
+	if(2*vt->nlinks >= p->nlh)
+		rehash(vt);
+	else
+		p->lh[j] = vt->nlinks;
 }
 
 static void
@@ -1058,7 +1089,6 @@ byte(Vt *vt, int c)
 		return;
 	case Oscesc:
 		osc(vt);
-		/* fall through */
 	case Stresc:
 		p->state = Ground;
 		if(c != '\\'){

@@ -4,7 +4,6 @@
 #include <vt.h>
 #include "impl.h"
 
-/* the final byte of a cursor key's CSI or SS3, and the number of a key that ends in ~ */
 static struct {
 	Rune	k;
 	char	c;
@@ -119,10 +118,6 @@ vtpaste(Vt *vt, char *s, long len, char *buf, long n)
 	return o;
 }
 
-/*
- * but is 1, 2 or 3, the buttons, 4 and 5 the wheel, or 0, none, with Vshift, Valt and Vctl
- * or'd in; press is 1 for a press, 0 for a release, and -1 for a move.
- */
 int
 vtmouse(Vt *vt, int but, int x, int y, int press, char *buf, int n)
 {
@@ -163,7 +158,11 @@ vtmouse(Vt *vt, int but, int x, int y, int press, char *buf, int n)
 			x = 222;
 		if(y > 222)
 			y = 222;
-		len = snprint(s, sizeof s, "\033[M%c%c%c", 32+b, 33+x, 33+y);
+		memmove(s, "\033[M", 3);
+		s[3] = 32+b;
+		s[4] = 33+x;
+		s[5] = 33+y;
+		len = 6;
 	}
 	if(len > n)
 		return small();
