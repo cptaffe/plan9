@@ -119,7 +119,9 @@ found(const char *path, int search, int *err)
 			*err = errno;
 			return NULL;
 		}
-		return strdup(path);
+		if((f = strdup(path)) == NULL)
+			*err = ENOMEM;
+		return f;
 	}
 	if((p = getenv("PATH")) == NULL)
 		p = "/bin";
