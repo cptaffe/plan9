@@ -114,7 +114,9 @@ A sixth kind takes the first color again.
 reads the output of
 .IR ratrace (1),
 or the boot trace in
-.BR /dev/ratrace ,
+.B /dev/ratrace
+(see
+.IR boottrace (8)),
 from
 .I file
 or its standard input, and writes a timeline.
@@ -169,7 +171,8 @@ and
 .IR ratrace (1),
 .IR trace (1),
 .IR timeline (6),
-.IR theme (6)
+.IR theme (6),
+.IR boottrace (8)
 .SH DIAGNOSTICS
 .I Rtrace
 exits with the line number of the first record it cannot read:

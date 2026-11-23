@@ -21,7 +21,6 @@ proc \- running processes
 .BI /proc/ n /regs
 .BI /proc/ n /segment
 .BI /proc/ n /status
-.BI /proc/ n /syscall
 .BI /proc/ n /text
 .BI /proc/ n /wait
 \&...
@@ -191,32 +190,6 @@ system call, its
 file cannot be read by any process.
 .PP
 The read-only
-.B syscall
-file holds the trace of the system call the process is stopped in,
-once a
-.B startsyscall
-control message has set it going
-(see below and
-.IR ratrace (1)).
-Stopped at a call's start,
-it reads as the process's pid, its text name, the call's name and the program counter,
-then the call's arguments;
-stopped at the call's end,
-as
-.B =
-and the call's return value,
-its error string, or
-.B \&""
-for none, and the times the call started and stopped, in nanoseconds since the epoch.
-A string argument is shown as
-.IB pointer /"\fIstring\fP"\fR,
-and a read's or write's data as its first 64 bytes,
-with a
-.L .
-for each byte that is not printing ASCII.
-It is empty while the process runs, and its read fails once the process has exited.
-.PP
-The read-only
 .B profile
 file contains the instruction frequency count information used for multiprocess profiling; see
 .B tprof
@@ -329,18 +302,6 @@ This bit is inherited across
 .IR fork (2)
 and
 .IR exec (2).
-.TP 10n
-.B startsyscall
-Allow a
-.B Stopped
-process to resume, and stop it again at the start or the end of its next system call,
-whichever comes first, as
-.B waitstop
-waits.
-Its
-.B syscall
-file then holds the call's trace.
-Processes it forks while traced are traced too, and stop at the start of their first call.
 .TP 10n
 .B "close\ \fIn
 Close file descriptor
@@ -553,16 +514,18 @@ Children inherit the parent's base priority.
 In p9web,
 .B stop
 takes effect at the next system call's start or end,
-and the program counter in
+and the program counter in the
 .B syscall
-is 0: WebAssembly gives a program none to read.
-When the
+file that
+.IR ratrace (1)
+reads is 0.
+Closing the
 .B ctl
 file that wrote
 .B startsyscall
-is closed, the process goes on untraced, where Plan 9's would stay
+lets the processes it traced, and their children, go on untraced, where Plan 9's stay
 .BR Stopped .
-Of the control messages above, p9web's kernel takes
+Of the control messages, p9web's kernel takes
 .BR hang ,
 .BR nohang ,
 .BR stop ,
