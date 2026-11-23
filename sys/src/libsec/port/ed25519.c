@@ -2,13 +2,6 @@
 #include <libsec.h>
 #include "fe25519.h"
 
-/*
- * Ed25519 (RFC 8032): a key is a 32-byte secret, a, and its 32-byte public key, pk; a signature
- * is 64 bytes. Points are extended coordinates (X, Y, Z, T) on -x²+y² = 1+dx²y², on fe25519.c's
- * field; scalars mod L are 32 bytes, little-endian, reduced in constant time as TweetNaCl's
- * modL (public domain) does.
- */
-
 typedef struct Pt Pt;
 struct Pt {
 	Fe	x;
@@ -22,9 +15,36 @@ static vlong Lbytes[32] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x10,
 };
 
-static Fe d, d2, sqrtm1;
-static Pt base;
-static int inited;
+static Fe d = {
+	0xa3, 0x78, 0x59, 0x13, 0xca, 0x4d, 0xeb, 0x75, 0xab, 0xd8, 0x41, 0x41, 0x4d, 0x0a, 0x70, 0x00,
+	0x98, 0xe8, 0x79, 0x77, 0x79, 0x40, 0xc7, 0x8c, 0x73, 0xfe, 0x6f, 0x2b, 0xee, 0x6c, 0x03, 0x52,
+};
+
+static Fe d2 = {
+	0x59, 0xf1, 0xb2, 0x26, 0x94, 0x9b, 0xd6, 0xeb, 0x56, 0xb1, 0x83, 0x82, 0x9a, 0x14, 0xe0, 0x00,
+	0x30, 0xd1, 0xf3, 0xee, 0xf2, 0x80, 0x8e, 0x19, 0xe7, 0xfc, 0xdf, 0x56, 0xdc, 0xd9, 0x06, 0x24,
+};
+
+static Fe sqrtm1 = {
+	0xb0, 0xa0, 0x0e, 0x4a, 0x27, 0x1b, 0xee, 0xc4, 0x78, 0xe4, 0x2f, 0xad, 0x06, 0x18, 0x43, 0x2f,
+	0xa7, 0xd7, 0xfb, 0x3d, 0x99, 0x00, 0x4d, 0x2b, 0x0b, 0xdf, 0xc1, 0x4f, 0x80, 0x24, 0x83, 0x2b,
+};
+
+static Pt base = {
+	{
+		0x1a, 0xd5, 0x25, 0x8f, 0x60, 0x2d, 0x56, 0xc9, 0xb2, 0xa7, 0x25, 0x95, 0x60, 0xc7, 0x2c, 0x69,
+		0x5c, 0xdc, 0xd6, 0xfd, 0x31, 0xe2, 0xa4, 0xc0, 0xfe, 0x53, 0x6e, 0xcd, 0xd3, 0x36, 0x69, 0x21,
+	},
+	{
+		0x58, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+		0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+	},
+	{1},
+	{
+		0xa3, 0xdd, 0xb7, 0xa5, 0xb3, 0x8a, 0xde, 0x6d, 0xf5, 0x52, 0x51, 0x77, 0x80, 0x9f, 0xf0, 0x20,
+		0x7d, 0xe3, 0xab, 0x64, 0x8e, 0x4e, 0xea, 0x66, 0x65, 0x76, 0x8b, 0xd7, 0x0f, 0x5f, 0x87, 0x67,
+	},
+};
 
 static void
 feneg(Fe out, Fe a)
@@ -66,7 +86,6 @@ ptzero(Pt *p)
 	feset(p->t, 0);
 }
 
-/* r = p+q, complete for a = -1 (RFC 8032, 5.1.4) */
 static void
 ptadd(Pt *r, Pt *p, Pt *q)
 {
@@ -101,7 +120,6 @@ ptcswap(Pt *p, Pt *q, u32int bit)
 	fecswap(p->t, q->t, bit);
 }
 
-/* r = k·p, k 32 bytes little-endian, by a ladder that does the same for each bit */
 static void
 ptmul(Pt *r, uchar *k, Pt *p)
 {
@@ -135,11 +153,10 @@ ptencode(uchar *s, Pt *p)
 	s[31] |= feodd(x) << 7;
 }
 
-/* RFC 8032, 5.1.3; -1 if s is no point */
 static int
 ptdecode(Pt *p, uchar *s)
 {
-	uchar b[32], c[32];
+	uchar b[32];
 	Fe u, v, v3, x, t;
 	int sign;
 
@@ -147,9 +164,6 @@ ptdecode(Pt *p, uchar *s)
 	sign = b[31] >> 7;
 	b[31] &= 127;
 	fefrombytes(p->y, b);
-	fetobytes(c, p->y);
-	if(memcmp(b, c, 32) != 0)
-		return -1;	/* y ≥ p */
 	feset(p->z, 1);
 	fesq(u, p->y);
 	femul(v, u, d);
@@ -173,8 +187,6 @@ ptdecode(Pt *p, uchar *s)
 			return -1;
 		femul(x, x, sqrtm1);
 	}
-	if(feiszero(x) && sign)
-		return -1;
 	if(feodd(x) != sign)
 		feneg(x, x);
 	memmove(p->x, x, sizeof(Fe));
@@ -182,34 +194,6 @@ ptdecode(Pt *p, uchar *s)
 	return 0;
 }
 
-static void
-init(void)
-{
-	uchar s[32];
-	Fe t;
-
-	if(inited)
-		return;
-	feset(t, 121666);
-	feinv(t, t);
-	feset(d, 121665);
-	femul(d, d, t);
-	feneg(d, d);
-	feadd(d2, d, d);
-	feset(t, 2);
-	fepow22523(sqrtm1, t);
-	fesq(sqrtm1, sqrtm1);
-	femul(sqrtm1, sqrtm1, t);	/* 2·2^((p-5)/4) = 2^((p-1)/4), a square root of -1 */
-	feset(t, 5);
-	feinv(t, t);
-	feset(base.y, 4);
-	femul(base.y, base.y, t);
-	fetobytes(s, base.y);
-	ptdecode(&base, s);
-	inited = 1;
-}
-
-/* the 64-byte hash h of the secret: a (clamped) in the first half, the prefix in the second */
 static void
 expand(uchar h[64], uchar *a)
 {
@@ -223,7 +207,6 @@ expand(uchar h[64], uchar *a)
 	h[31] |= 64;
 }
 
-/* out = x mod L, x 64 limbs of signed bytes, which this clobbers */
 static void
 modl(uchar *out, vlong x[64])
 {
@@ -254,7 +237,6 @@ modl(uchar *out, vlong x[64])
 	}
 }
 
-/* out = h mod L, h 64 bytes */
 static void
 reduce(uchar *out, uchar *h)
 {
@@ -267,7 +249,6 @@ reduce(uchar *out, uchar *h)
 	memset(x, 0, sizeof x);
 }
 
-/* out = (r + k·a) mod L, each 32 bytes */
 static void
 muladd(uchar *out, uchar *r, uchar *k, uchar *a)
 {
@@ -289,7 +270,6 @@ ed25519pubkey(uchar *pk, uchar *a)
 	uchar h[64];
 	Pt p;
 
-	init();
 	expand(h, a);
 	ptmul(&p, h, &base);
 	ptencode(pk, &p);
@@ -316,7 +296,6 @@ ed25519sign(uchar *sig, uchar *msg, ulong len, uchar *a, uchar *pk)
 	uchar h[64], rh[64], r[32], k[32];
 	Pt p;
 
-	init();
 	expand(h, a);
 	memset(&s, 0, sizeof s);
 	sha2_512(h+32, 32, nil, &s);
@@ -333,26 +312,25 @@ ed25519sign(uchar *sig, uchar *msg, ulong len, uchar *a, uchar *pk)
 	memset(&p, 0, sizeof p);
 }
 
-/* 1 if sig is pk's signature of msg, 0 if not */
 int
 ed25519verify(uchar *sig, uchar *msg, ulong len, uchar *pk)
 {
-	uchar k[32], x[32], y[32];
-	Pt pa, pr, p, q;
+	uchar k[32], r[32];
+	Pt a, p, q;
 	int i;
 
-	init();
 	for(i = 31; i >= 0 && sig[32+i] == Lbytes[i]; i--)
 		;
 	if(i < 0 || sig[32+i] > Lbytes[i])
-		return 0;	/* S ≥ L */
-	if(ptdecode(&pa, pk) < 0 || ptdecode(&pr, sig) < 0)
 		return 0;
+	if(ptdecode(&a, pk) < 0)
+		return 0;
+	feneg(a.x, a.x);
+	feneg(a.t, a.t);
 	hram(k, sig, pk, msg, len);
 	ptmul(&p, sig+32, &base);
-	ptmul(&q, k, &pa);
-	ptadd(&q, &q, &pr);
-	ptencode(x, &p);
-	ptencode(y, &q);
-	return memcmp(x, y, 32) == 0;
+	ptmul(&q, k, &a);
+	ptadd(&p, &p, &q);
+	ptencode(r, &p);
+	return memcmp(r, sig, 32) == 0;
 }
