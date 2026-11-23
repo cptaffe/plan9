@@ -91,7 +91,60 @@ Tenth Edition research Unix systems (4KB block size).
 .PP
 .I Zipfs
 interprets zip archives (see
-.IR gzip (1)).
+.IR gzip (1)),
+including zip64 archives,
+those with a comment,
+and those that follow other data, such as a self-extracting program.
+It reads stored and deflated files.
+.PP
+Names keep their case.
+.I Zipfs
+takes a name that is valid UTF-8 as UTF-8 and any other as code page 437.
+It treats a backslash as a slash, writes a control character as
+.BR _ ,
+and resolves
+.B .
+and
+.B ..
+within the archive.
+It skips a name with an element longer than 4096 bytes.
+When two files have one name, it serves the last.
+When a file and a directory have one name, it serves the directory.
+It prints a warning in each of these three cases.
+It refuses an archive with more than 524288 files and directories.
+A file's modification time is the one in its extra fields, if it has one,
+and otherwise its DOS time, taken as GMT.
+.PP
+A damaged, encrypted or otherwise unreadable file, an empty one included,
+gives an error when read, and the other files stay readable.
+.I Zipfs
+reads a stored file in place.
+It checks the checksum once readers, between them, have read the file through from its start,
+and from then on every read of a bad file gives an error.
+If the archive changes,
+every later read of its files gives an error.
+.PP
+At the first read of a deflated file,
+.I zipfs
+inflates all of it into a temporary file in
+.B /tmp
+and checks it before it gives any of it.
+It keeps the temporary file of each open file.
+Of closed files, it keeps those of the most recently read,
+up to eight and 32 megabytes in all.
+When
+.B /tmp
+is full, it removes those of closed files and tries again as their space comes back,
+for up to ten seconds.
+.PP
+A temporary file stays in
+.B /tmp
+if the system stops while
+.I zipfs
+runs, as when the browser's tab closes.
+If there is enough main memory, you might want to run
+.IR ramfs (4)
+first.
 .SH SOURCE
 .PP
 These commands are constructed in a highly stereotyped
@@ -107,3 +160,10 @@ turn derive substantially from
 .SH "SEE ALSO
 .IR intro (5),
 .IR ramfs (4).
+.SH BUGS
+While
+.I zipfs
+inflates a file or waits for space, its other readers wait.
+A deflated file needs room in
+.B /tmp
+for all of it.

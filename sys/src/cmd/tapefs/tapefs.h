@@ -24,12 +24,14 @@ struct Fid
 	Fid	*next;
 	char	*user;
 	Ram	*ram;
+	vlong	diroff;
+	Ram	*dirnext;
 };
 
 struct Ram
 {
 	char	busy;
-	char	open;
+	int	open;
 	char	replete;
 	Ram	*parent;	/* parent directory */
 	Ram	*child;		/* first member of directory */
@@ -79,6 +81,9 @@ extern	Idmap	*uidmap;
 extern	Idmap	*gidmap;
 extern	int	replete;
 extern	int	blocksize;
+extern	void	(*lastclose)(Ram*);
+extern	int	(*checkempty)(Ram*);
+extern	Ram	*(*findchild)(Ram*, char*);
 void	error(char*);
 void	*erealloc(void*, ulong);
 void	*emalloc(ulong);

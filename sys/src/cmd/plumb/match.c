@@ -161,14 +161,16 @@ absolute(char *dir, char *file)
 int
 verbisfile(int obj, Plumbmsg *m, Rule *r, Exec *e, ulong maskon, ulong maskoff, char **var)
 {
-	char *file;
+	char *file, *arg;
 
 	switch(obj){
 	default:
 		fprint(2, "unimplemented 'isfile' object %d\n", obj);
 		break;
 	case OArg:
-		file = absolute(m->wdir, expand(e, r->arg, nil));
+		if((arg = expand(e, r->arg, nil)) == nil)
+			break;
+		file = absolute(m->wdir, arg);
 		if(isfile(file, maskon, maskoff)){
 			*var = file;
 			return 1;
@@ -193,12 +195,15 @@ verbset(int obj, Plumbmsg *m, Rule *r, Exec *e)
 {
 	char *new;
 
+	if((new = expand(e, r->arg, nil)) == nil)
+		return 0;
+	new = estrdup(new);
 	switch(obj){
 	default:
 		fprint(2, "unimplemented 'is' object %d\n", obj);
-		break;
+		free(new);
+		return 1;
 	case OData:
-		new = estrdup(expand(e, r->arg, nil));
 		m->ndata = strlen(new);
 		free(m->data);
 		m->data = new;
@@ -207,38 +212,37 @@ verbset(int obj, Plumbmsg *m, Rule *r, Exec *e)
 		e->setdata = 0;
 		return 1;
 	case ODst:
-		new = estrdup(expand(e, r->arg, nil));
 		free(m->dst);
 		m->dst = new;
 		return 1;
 	case OType:
-		new = estrdup(expand(e, r->arg, nil));
 		free(m->type);
 		m->type = new;
 		return 1;
 	case OWdir:
-		new = estrdup(expand(e, r->arg, nil));
 		free(m->wdir);
 		m->wdir = new;
 		return 1;
 	case OSrc:
-		new = estrdup(expand(e, r->arg, nil));
 		free(m->src);
 		m->src = new;
 		return 1;
 	}
-	return 0;
 }
 
 int
 verbadd(int obj, Plumbmsg *m, Rule *r, Exec *e)
 {
+	char *a;
+
 	switch(obj){
 	default:
 		fprint(2, "unimplemented 'add' object %d\n", obj);
 		break;
 	case OAttr:
-		m->attr = plumbaddattr(m->attr, plumbunpackattr(expand(e, r->arg, nil)));
+		if((a = expand(e, r->arg, nil)) == nil)
+			break;
+		m->attr = plumbaddattr(m->attr, plumbunpackattr(a));
 		return 1;
 	}
 	return 0;
@@ -254,7 +258,8 @@ verbdelete(int obj, Plumbmsg *m, Rule *r, Exec *e)
 		fprint(2, "unimplemented 'delete' object %d\n", obj);
 		break;
 	case OAttr:
-		a = expand(e, r->arg, nil);
+		if((a = expand(e, r->arg, nil)) == nil)
+			break;
 		if(plumblookup(m->attr, a) == nil)
 			break;
 		m->attr = plumbdelattr(m->attr, a);
@@ -283,8 +288,7 @@ matchpat(Plumbmsg *m, Exec *e, Rule *r)
 	case VMatches:
 		return verbmatches(r->obj, m, r, e);
 	case VSet:
-		verbset(r->obj, m, r, e);
-		return 1;
+		return verbset(r->obj, m, r, e);
 	}
 	return 0;
 }
@@ -337,19 +341,27 @@ rewrite(Plumbmsg *m, Exec *e)
 		}
 		if(e->setdata){
 			free(m->data);
-			m->data = estrdup(expand(e, "$0", nil));
+			m->data = estrdup(nonnil(e->match[0]));
 			m->ndata = strlen(m->data);
 		}
 	}
 }
 
+enum
+{
+	NARGS		= 100,
+	NARGCHAR	= 8*1024,
+	EXECSTACK 	= 8192+(NARGS+1)*sizeof(char*)+NARGCHAR
+};
+
 char**
 buildargv(char *s, Exec *e)
 {
-	char **av;
-	int ac;
+	char **av, *a;
+	int ac, n;
 
 	ac = 0;
+	n = 0;
 	av = nil;
 	for(;;){
 		av = erealloc(av, (ac+1) * sizeof(char*));
@@ -358,9 +370,28 @@ buildargv(char *s, Exec *e)
 			s++;
 		if(*s == '\0')
 			break;
-		av[ac++] = estrdup(expand(e, s, &s));
+		if(ac == NARGS){
+			werrstr("too many arguments");
+			goto Err;
+		}
+		if((a = expand(e, s, &s)) == nil)
+			goto Err;
+		n += strlen(a)+1;
+		if(n >= NARGCHAR){
+			werrstr("arguments too long");
+			goto Err;
+		}
+		av[ac++] = estrdup(a);
 	}
-	return av;
+	if(ac > 0)
+		return av;
+	werrstr("empty argument list");
+
+Err:
+	while(ac > 0)
+		free(av[--ac]);
+	free(av);
+	return nil;
 }
 
 Exec*
@@ -384,13 +415,6 @@ matchruleset(Plumbmsg *m, Ruleset *rs)
 	rewrite(m, exec);
 	return exec;
 }
-
-enum
-{
-	NARGS		= 100,
-	NARGCHAR	= 8*1024,
-	EXECSTACK 	= 8192+(NARGS+1)*sizeof(char*)+NARGCHAR
-};
 
 /* copy argv to stack and free the incoming strings, so we don't leak argument vectors */
 void
@@ -438,6 +462,7 @@ execproc(void *v)
 char*
 startup(Ruleset *rs, Exec *e)
 {
+	static char err[ERRMAX];
 	char **argv;
 	int i;
 
@@ -448,16 +473,18 @@ startup(Ruleset *rs, Exec *e)
 			if(rs->act[i]->verb == VClient){
 				if(e->msg->dst==nil || e->msg->dst[0]=='\0')
 					return "no port for \"client\" rule";
-				e->holdforclient = 1;
 				goto Found;
 			}
 		}
 	return "no start action for plumb message";
 
 Found:
-	argv = buildargv(rs->act[i]->arg, e);
-	if(argv[0] == nil)
-		return "empty argument list";
+	if((argv = buildargv(rs->act[i]->arg, e)) == nil){
+		snprint(err, sizeof err, "plumb %s: %r", rs->act[i]->verb==VStart? "start": "client");
+		return err;
+	}
+	if(rs->act[i]->verb == VClient)
+		e->holdforclient = 1;
 	proccreate(execproc, argv, EXECSTACK);
 	return nil;
 }
