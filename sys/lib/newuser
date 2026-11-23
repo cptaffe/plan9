@@ -61,114 +61,239 @@ include acme.emacs
 !
 if(! test -e intro.md)
 	cat > intro.md <<'!'
-# Welcome
+# Plan 9 in a Browser
 
-This is plan9web, a Plan 9 system that runs in your browser. The window you
-are reading is acme(1), the Plan 9 text editor, inside rio(1), the window
-system. Both are Plan 9 C programs compiled to WebAssembly. They run on p9web,
-a Plan 9 kernel written in TypeScript, here in this tab. Files you keep in this
-directory stay in this browser.
+*This file is an introduction to plan9web, a Plan 9 system that runs in a
+browser tab. It explains the mouse, the windows and the commands, then
+describes what the system adds for its new home: files carried in and out of
+the browser, packages, other machines, language servers, drawn windows, and
+tools for writing and for programs.*
 
-If Plan 9 is new to you, start with intro(1), then the papers in /sys/doc:
+## Introduction
 
-- /sys/doc/9.ps, *Plan 9 from Bell Labs*: the system's design and the reasons for it
-- /sys/doc/names.ps, *The Use of Name Spaces in Plan 9*: the core idea
-- /sys/doc/acme/acme.pdf, *Acme: A User Interface for Programmers*
-- /sys/doc/rc.ps, *Rc — The Plan 9 Shell*
-- /sys/doc/plumb.ps, *Plumbing and Other Utilities*
+The window you are reading is acme(1), the Plan 9 text editor, inside rio(1),
+the window system. Both are Plan 9 C programs compiled to WebAssembly. They run
+on p9web, a Plan 9 kernel written in TypeScript, here in this tab. Each command
+you give runs in your browser, and the files you keep in this directory stay in
+the storage the browser keeps for this site. Clearing the data of the site in
+the browser clears them too.
 
-To read one, click its name with button 3.
+The system and its ideas come from Plan 9. The best way into them is intro(1),
+then the papers in /sys/doc:
 
-## The mouse
+	/sys/doc/9.ps            Plan 9 from Bell Labs
+	/sys/doc/names.ps        The Use of Name Spaces in Plan 9
+	/sys/doc/acme/acme.pdf   Acme: A User Interface for Programmers
+	/sys/doc/rc.ps           Rc — The Plan 9 Shell
+	/sys/doc/plumb.ps        Plumbing and Other Utilities
 
-Plan 9 expects a mouse with three buttons. In Acme they do this:
+To read one, click its name with button 3; on a Mac, Command-click it. For
+Acme itself, A Tour of Acme by Russ Cox, a short video, is an excellent
+introduction:
 
-- **Left button (B1):** select text
-- **Middle button (B2):** run the text as a command
-- **Right button (B3):** open the file, or search for the text
+	https://research.swtch.com/acme
 
-On a Mac, Option-click is B2 and Command-click is B3.
+Button 3 on the address opens it in a new tab. The sections below need only
+this file, and name the manual pages that say the rest.
 
-## Windows
+## The Mouse
 
-On the background, button 3 opens rio's menu. Choose *New*, then sweep out the
-new window with button 3 (on a Mac, Command-drag). To resize a window, drag its
-border with button 1. To move it, drag the border with button 3.
+Plan 9 expects a mouse with three buttons, and Acme gives each a job. Button 1
+selects text. Button 2 runs text as a command. Button 3 looks at text: it opens
+the file the text names, or searches for the next place the text occurs. On a
+Mac, Option-click is button 2 and Command-click is button 3.
+
+On the background, button 3 opens the menu of rio. Choose *New*, then sweep out
+the new window with button 3. To resize a window, drag its border with button
+1; to move it, drag the border with button 3.
+
+## Windows in Acme
+
+Acme divides its screen into columns, and each column into windows. A window
+is two pieces of text: a tag, the line at its top, and a body below it. The tag
+holds the name of the window, usually a file name, and the commands that apply
+to it; the body holds the file. Both are text, and you can edit the tag as
+freely as the body, adding a command to it or changing the name.
+
+The bar at the left of a body scrolls it. Button 1 in the bar moves back
+through the text and button 3 moves forward, further the lower in the bar you
+click; button 2 jumps to that point in the file. The scroll wheel works as well.
 
 ## Commands
 
-To run a command in Acme, type it anywhere and click it with B2. Try `ls /bin`
-or `echo hello`. *New* and *Put* are commands too: B2 on *New* makes a window,
-and B2 on *Put* saves the file.
+In Acme, any text can be a command: type it anywhere and click it with button
+2. Try
 
-The window on the right is win, which runs rc(1), the Plan 9 shell, in an Acme
-window. Type a command at its end and press Return. ^C interrupts it.
+	ls /bin
+	echo hello
 
-B3 on a file name such as intro.md opens the file. B3 on a manual page name
-such as acme(1) shows that page. In both cases the plumber(4) sends the text to
-the right program. This is easier than typing `man acme`.
+The words in a tag are commands like any other. *Put* saves the file, *Undo*
+takes back the last change, *Get* reads the file again, and *Del* closes the
+window. *New* makes an empty window: type a file name in its tag, and *Put*
+makes the file.
+
+To open a file, type its name anywhere and click it with button 3. A manual
+page works the same way: button 3 on acme(1) shows that page. In both cases
+the text goes to the plumber(4), which decides from rules in /sys/lib/plumb
+what the text is and which program should have it. Most of what follows works
+the same way.
+
+One window runs win, which runs rc(1), the Plan 9 shell, in an Acme window. Its
+body ends in the rc prompt, %. Type a command
+at its end and press Return; ^C interrupts it.
 
 ## Keys
 
-Typing goes to the window under the mouse; you don't click a window before you
-type. These keys act on that window:
+Typing goes to the window under the mouse, wherever the mouse rests. These keys
+act on that window:
 
 | Key | Does |
 | --- | ---- |
 | Cmd-S | Put: save the file |
 | Cmd-A | select the whole window |
-| Cmd-P | find a file or window by name |
-| Cmd-Shift-F | search the text of the files |
-| Ctl-X Ctl-S, Ctl-X K | Emacs's Put and Del |
+| Cmd-P | find a file or window by name, in a Search window |
+| Cmd-Shift-F | search the text of the files, in a Search window |
+| Ctl-X Ctl-S, Ctl-X K | Put and Del, as in Emacs |
 
-In a file that has a language server, lspfs(4) and alsp add these:
+The keys are rules read by hotkey(1). Your lib/hotkey/acme includes
+/lib/hotkey/acme.emacs, which includes /lib/hotkey/acme. Add your own below the
+include line; a key you bind replaces the system binding for it. The first line
+of the file, a comment, gives the command that applies your changes: select the
+command after the # with button 1, then click it with button 2.
+
+## Appearance
+
+The font is $font, set in your lib/profile. fontfs(4) serves Plan 9 fonts at
+any size, made from the scalable fonts in /lib/font/ttf, under /mnt/font.
+Programs take their colors from a theme, a file of names and colors, read from
+your lib/theme, or /lib/theme in its place; see theme(6). hl(1) colors the
+text of each window by its syntax.
+
+## Files
+
+When you drop a file on the page, it lands in the drop directory here and goes
+to the plumber, as if you had clicked its name with button 3. The plumber goes
+by what the file holds, as file(1) reports it, so any name will do. Text opens
+in Acme, an image or a PDF in page(1), and a Word or RTF document in Acme as
+its text.
+
+Sound plays in deck(1): MP3, M4A, Ogg, FLAC and WAV files. Deck is a window with
+a scrub bar, and each sound dropped after the first joins its playlist. Space
+pauses it, and *Exit* on its button 3 menu stops it. The browser plays sound
+once you have clicked the page.
+
+A zip opens as a directory. zipopen mounts it with fs/zipfs (see tapefs(4)) at
+/n/zip, named as the zip file, less .zip, and opens that directory in Acme,
+where its files open and play as any others.
+
+A URL opens in a new tab of the browser, by button 3 as a file does. Where the
+browser blocks the tab, a bar at the top of the page shows the link.
+
+To save a file to your computer,
+
+	download file
+
+puts each file named in the downloads of the browser. Chrome can also lend the
+system a folder of your computer, which stays across visits:
+
+	local add $home/src
+
+asks which folder, then binds it at $home/src. Safari keeps its folders to
+itself, so local works in Chrome alone. See local(3).
+
+## Programs and Packages
+
+A package is a tree of files added to the name space in place, so a window can
+have one version of a package and the next window another. Your profile adds
+the packages in your lib/pkg at each start; to add one in a window,
+
+	pkg add ssh
+
+and see pkg(1). Your lib/pkg starts with git9, the git from 9front, written for
+Plan 9; git(1) describes its commands, such as git/clone. The git package is
+the git from git-scm.com, for the commands git9 leaves out. diff(1) -u writes
+unified diffs, and patch(1) applies them. Programs written for Unix run
+through APE, the ANSI/POSIX environment: Python is one.
+
+## Other Machines
+
+The ssh package is ssh, scp and sftp from OpenSSH. Programs that need a
+terminal run in vt(1), an xterm:
+
+	vt ssh devbox
+
+sshfs(4) mounts the files of another machine by sftp. cpu(1) runs a command,
+or a shell, on a Linux machine named in your lib/cpu, which sees this name
+space as a Plan 9 cpu server sees the name space of its terminal.
+
+The machine this page came from serves its files to import(4), and a passkey
+signs you in to it. A comment in your lib/profile gives the commands that do
+it, for you to try.
+
+## Language Servers
+
+A language server knows a language: the definition of a name, its uses,
+the errors in a file. lspfs(4) runs servers and serves what they
+know as files, and alsp(4) answers the keys in Acme from them. Rules in
+/lib/lsp, or in your lib/lsp in its place, say which server serves which
+files. With a server for the language of the file, these keys work:
 
 | Key | Does |
 | --- | ---- |
 | Cmd-B or F12 | Def: go to the definition of the word at the cursor |
 | Cmd-Shift-B | Refs: list its uses |
 | Cmd-I | Doc: show its documentation, which follows the cursor |
-| Cmd-. | Act: the language server's fixes, then 1–9 picks, Esc cancels |
-| F2 | Rename: type the new name after it in the tag, then Esc and B2 |
-| Cmd-Shift-O | Syms: list the file's functions and types |
+| Cmd-. | Act: fixes from the language server, then 1–9 picks, Esc cancels |
+| F2 | Rename: type the new name after it in the tag, then Esc and button 2 |
+| Cmd-Shift-O | Syms: list the functions and types of the file |
 | Cmd-K, then R, I, T, D, F or C | Refs, Impls, Type, Diag, Fmt, Comp |
 
-The keys are rules in /lib/hotkey/acme and /lib/hotkey/acme.emacs, and your
-lib/hotkey/acme includes them. To add your own, put them below the include
-line. A key you bind replaces the system's binding for it. To apply your
-changes, run the command on that file's first line. See hotkey(1).
+## Drawn Windows
+
+Each of these commands, run in Acme, opens a window that draws its file, which
+stays text that Acme can edit:
+
+	Sketch file.pic    a drawing held by constraints, after Sketchpad; sketch(1)
+	Dag file.dot       a graph in the dot language, laid out by dot; dag(1)
+	Grap file          a graph of data, whose points can be moved; grapw(1)
+	Chess file.pgn     a game of chess, with an engine to play; chess(1)
+
+Tree, in the tag of a window, opens an outline of the parse of its text; see
+Tree(1). sticky(1) keeps notes, each a small colored window of Markdown,
+where you left it.
+
+## Writing
+
+Huh, in the tag of a window, colors the text by its surprisal, the bits a
+small language model spends on each word, so the words that carry the most
+information stand out. Bits colors every token by its bits. See huh(1).
+adict(1) looks words up in the dictionaries of dict(7); button 3 on a word in
+an entry looks that word up.
+
+## Searching and Watching
+
+Search opens a window whose first line is a query; the lines below it are what
+matches, best first, changing as you type. Cmd-P and Cmd-Shift-F open it.
+Watch runs a command, mk by default, each time Acme writes a file in its
+directory, and shows the output, so a Put shows what the change did. See
+Search(1) and Watch(1).
 
 ## Sibyl
 
 sibyl(1) is a coding agent that works in Acme. It needs a key for the model in
-factotum(4): `proto=pass service=anthropic` or `service=opencode`.
+factotum(4), with proto=pass and service=anthropic or service=opencode, as
+sibylfs(4) says. Keys in your lib/factotum go to factotum at each start.
 
 Select some text and run `|sibyl` with an instruction, such as
-`|sibyl add error checks`. The answer replaces the selection, and Undo takes
-it back. `win sibyl -i` holds a conversation instead. Its changes go to a copy
-of the project, and *Review* in its tag shows them. *Sibyl* lists your saved
-sessions.
 
-| Key | Does |
-| --- | ---- |
-| Cmd-K, then E | type an instruction for the selection in the tag |
-| Cmd-K, then S | Ask: put the selected lines in the sibyl session, for a question |
+	|sibyl add error checks
 
-## Files
-
-Drop a file or a directory on the page and it opens as if you had clicked its
-name with B3:
-
-- text opens in Acme
-- a PDF or an image opens in page(1)
-- an MP3, M4A, Ogg, FLAC or WAV file plays in deck(1)
-
-Deck is a window with a scrub bar. It adds each sound you drop after it to its
-playlist. Space pauses, and Exit on its button 3 menu stops it. The browser
-plays sound only after you have clicked the page once.
-
-Dropped files are kept in the drop directory here. To save a file to your
-computer, run `download file`.
+The answer replaces the selection, and *Undo* takes it back. `win sibyl -i`
+holds a conversation instead. Its changes go to a copy of the project, and
+*Review* in its tag shows them as hunks to apply or drop. *Sibyl* lists your
+saved sessions. With text selected, Cmd-K then E types an instruction for it
+in the tag, and Cmd-K then S puts the selected lines in the session, for a
+question.
 !
 
 . lib/profile
