@@ -345,7 +345,15 @@ and
 .B $%
 and
 .B $samfile
-when the program has given the tag a window of acme's, and its output goes to
+when the program has given the tag a window of acme's,
+and
+.B $%
+and
+.B $samfile
+the name it gave by
+.BR file
+when it gave one;
+its output goes to
 .BR /mnt/acme/cons ,
 acme's
 .BR +Errors ,
@@ -403,7 +411,17 @@ and
 and
 .B $samfile
 the name in
-.BI /mnt/acme/ n /tag \fR.
+.BI /mnt/acme/ n /tag \fR;
+.TP
+.BI file " path"
+makes
+.I path
+the
+.B $%
+and
+.B $samfile
+of what the tag runs, in place of the name of the window of
+.BR winid .
 .PP
 .I Tagwrite
 with
