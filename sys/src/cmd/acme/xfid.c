@@ -320,9 +320,12 @@ xfidclose(Xfid *x)
 		case QWxdata:
 			w->nomark = FALSE;
 			/* fall through */
-		case QWaddr:
 		case QWseq:
 			--w->nopen[q];
+			break;
+		case QWaddr:
+			if(--w->nopen[q] == 0)
+				w->hasaddr = 0;
 			break;
 		case QWevent:
 			if(--w->nopen[q] == 0){

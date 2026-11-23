@@ -289,7 +289,7 @@ struct Window {
   uchar showdel;
   int id;
   Range addr;
-  int hasaddr;   /* 1 after a write to addr, cleared when style fid opens OWRITE */
+  int hasaddr;   /* 1 after a write to addr, cleared when style fid opens OWRITE or the last addr fid closes */
   int seq;       /* monotonic edit count; incremented on each body edit */
   int wantseq;   /* seq guard armed by writing seq; -1=unset.  Like addr,
                     reset when seq is opened with nopen 0->1; moved onto the

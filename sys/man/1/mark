@@ -1,0 +1,96 @@
+.TH MARK 1
+.SH NAME
+mark \- color addressed text in acme's windows
+.SH SYNOPSIS
+.B mark
+[
+.B -s
+.I style
+] [
+.B -w
+.I id
+] [
+.I name
+]
+.SH DESCRIPTION
+.I Mark
+reads addresses, one to a line, and colors the text at each in an
+.IR astyles (4)
+layer called
+.I name
+.RB ( mark
+by default), in the theme's color
+.I style
+.RB ( highlight
+by default; see
+.IR theme (6)).
+A line is
+.IB file : address\f1,
+as
+.B grep -n
+and the compilers print them,
+or an address alone, for the window
+.I id
+or else
+.BR $winid .
+The address is
+.IR acme (1)'s,
+evaluated by the window's
+.B addr
+file, so
+.BR 12 ,
+.BR #5,#9
+and
+.B /regexp/
+all work;
+what follows it on the line, such as
+.BR grep 's
+text, is passed over.
+A relative
+.I file
+is taken from the current directory,
+and a line whose file has no window is passed over too.
+.PP
+Each run makes
+.IR name 's
+layer what its input says:
+it replaces the layer in every window it marks
+and deletes the layer from every other window that has one,
+so an empty input removes it everywhere.
+The layer stays after
+.I mark
+exits, until a run deletes it or its window closes,
+and it moves with the window's edits as
+.IR astyles (4)
+describes.
+If the window's body is edited while
+.I mark
+reads its addresses, that window's marks are dropped.
+.SH EXAMPLES
+Mark every use of
+.B Biobuf
+in the open C files:
+.IP
+.EX
+grep -n Biobuf *.c /dev/null | mark
+.EE
+.PP
+Mark the compiler's complaints in red, then take them away:
+.IP
+.EX
+mk >[2=1] | mark -s error errors
+mark errors </dev/null
+.EE
+.SH SOURCE
+plan9web's
+.B src/cmd/mark.c
+.SH SEE ALSO
+.IR acme (1),
+.IR astyles (4),
+.IR huh (1),
+.IR theme (6)
+.SH DIAGNOSTICS
+.I Mark
+prints a line it could not mark, with the line's number, and exits with status
+.B errors
+if there was one.
