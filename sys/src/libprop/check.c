@@ -628,7 +628,7 @@ report(char *name, char *err, char *first, char *notes, uvlong *v, int nv, char 
 			q = strchr(p, '\n');
 			if(q == nil)
 				q = p + strlen(p);
-			print("\t%.*s\n", (int)(q-p), p);
+			print("\t%.*s\n", utfnlen(p, q-p), p);
 			if(*q == '\n')
 				q++;
 		}

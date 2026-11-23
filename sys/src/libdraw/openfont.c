@@ -83,7 +83,6 @@ openfont1(Display *d, char *name)
 	return fnt;
 }
 
-/* swapfont makes targ, *oldp, the font that *newp is, in place: a program keeps its Font*. */
 void
 swapfont(Font *targ, Font **oldp, Font **newp)
 {
@@ -99,7 +98,6 @@ swapfont(Font *targ, Font **oldp, Font **newp)
 	old = *oldp;
 	new = *newp;
 
-	/* all but what says which is which */
 	ospec = old->namespec; oon = old->ondisplaylist; onext = old->next; oprev = old->prev;
 	olo = old->lodpi; ohi = old->hidpi;
 	nspec = new->namespec; non = new->ondisplaylist; nnext = new->next; nprev = new->prev;
@@ -157,13 +155,12 @@ fontfsname(char *name, int dpi)
 		px = 1;
 	cp = px*75;
 	if(cp%100 == 0)
-		return smprint("%.*s%da/font", (int)(t-name), name, cp/100);
+		return smprint("%.*s%da/font", utfnlen(name, t-name), name, cp/100);
 	if(cp%10 == 0)
-		return smprint("%.*s%d.%da/font", (int)(t-name), name, cp/100, cp%100/10);
-	return smprint("%.*s%d.%02da/font", (int)(t-name), name, cp/100, cp%100);
+		return smprint("%.*s%d.%da/font", utfnlen(name, t-name), name, cp/100, cp%100/10);
+	return smprint("%.*s%d.%02da/font", utfnlen(name, t-name), name, cp/100, cp%100);
 }
 
-/* hidpiname is the font at the display's dpi, nil if f's own: fontfs(4)'s at its size, y of x,y, or x pixel-doubled */
 static char*
 hidpiname(Font *f)
 {
@@ -225,7 +222,6 @@ openfont(Display *d, char *name)
 	Font *f;
 	char *p, *namespec;
 
-	/* a name x,y is x at low dpi and y at high */
 	name = strdup(name);
 	namespec = strdup(name);
 	if((p = strchr(name, ',')) != nil)
