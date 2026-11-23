@@ -44,6 +44,14 @@ prefix(char *s, int n, char *p)
 	return n >= m && memcmp(s, p, m) == 0;
 }
 
+static ulong
+linesize(ulong n)
+{
+	if(n > ~(ulong)0/sizeof(Pline))
+		return ~(ulong)0;
+	return n*sizeof(Pline);
+}
+
 static char*
 strdupn(char *s, int n)
 {
@@ -56,10 +64,16 @@ strdupn(char *s, int n)
 }
 
 static int
+isoct(int c)
+{
+	return c >= '0' && c <= '7';
+}
+
+static int
 unquote(char *s, int n, char **out)
 {
 	char *t, *b;
-	int i, c, k;
+	int i, c;
 
 	b = t = emalloc(n+1);
 	for(i = 1; i < n; i++){
@@ -69,9 +83,10 @@ unquote(char *s, int n, char **out)
 			*out = b;
 			return i+1;
 		}
-		if(c == '\\' && i+1 < n){
-			c = s[++i];
-			switch(c){
+		if(c == '\\'){
+			if(++i >= n)
+				break;
+			switch(c = s[i]){
 			case 'a': c = '\a'; break;
 			case 'b': c = '\b'; break;
 			case 'f': c = '\f'; break;
@@ -79,18 +94,29 @@ unquote(char *s, int n, char **out)
 			case 'r': c = '\r'; break;
 			case 't': c = '\t'; break;
 			case 'v': c = '\v'; break;
+			case '\\':
+			case '"':
+				break;
+			case '0': case '1': case '2': case '3':
+				if(i+2 >= n || !isoct(s[i+1]) || !isoct(s[i+2]))
+					goto Bad;
+				c = (c-'0')<<6 | (s[i+1]-'0')<<3 | (s[i+2]-'0');
+				i += 2;
+				if(c == 0)
+					goto Bad;
+				break;
 			default:
-				if(c >= '0' && c <= '7'){
-					for(c = 0, k = 0; k < 3 && i < n && s[i] >= '0' && s[i] <= '7'; k++)
-						c = c*8 + s[i++] - '0';
-					i--;
-				}
+				goto Bad;
 			}
 		}
 		*t++ = c;
 	}
 	free(b);
 	werrstr("unterminated quoted name");
+	return -1;
+Bad:
+	free(b);
+	werrstr("bad escape in a quoted name");
 	return -1;
 }
 
@@ -174,7 +200,11 @@ gitnames(char *s, int n, char **a, char **b)
 	}
 	if((p = memchr(s, '"', n)) != nil && p > s && p[-1] == ' '){
 		*a = strdupn(s, p-s-1);
-		return unquote(p, n-(p-s), b) < 0 ? -1 : 0;
+		if(unquote(p, n-(p-s), b) < 0){
+			free(*a);
+			return -1;
+		}
+		return 0;
 	}
 	for(i = 1; i < n-1; i++){
 		if(s[i] != ' ')
@@ -241,7 +271,7 @@ range(char **s, int *ln, int *cnt)
 }
 
 static int
-hunkhdr(char *s, int n, Hunk *h)
+hunkhdr(char *s, int n, Phunk *h)
 {
 	char buf[128];
 
@@ -262,11 +292,47 @@ hunkhdr(char *s, int n, Hunk *h)
 }
 
 static int
-hunk(Rd *r, Hunk *h)
+hunkline(Phunk *h, Pline l, int c, int *o, int *w, int *change)
+{
+	switch(c){
+	case ' ':
+		if(*o == 0 || *w == 0)
+			return -1;
+		h->old.l[h->old.n++] = l;
+		h->new.l[h->new.n++] = l;
+		--*o;
+		--*w;
+		if(*change)
+			h->trail++;
+		else
+			h->lead++;
+		return 0;
+	case '-':
+		if(*o == 0)
+			return -1;
+		h->old.l[h->old.n++] = l;
+		--*o;
+		break;
+	case '+':
+		if(*w == 0)
+			return -1;
+		h->new.l[h->new.n++] = l;
+		--*w;
+		break;
+	default:
+		return -1;
+	}
+	*change = 1;
+	h->trail = 0;
+	return 0;
+}
+
+static int
+hunk(Rd *r, Phunk *h)
 {
 	char *s;
 	int n, o, w, last, change;
-	Line l;
+	Pline l;
 
 	o = h->oldcnt;
 	w = h->newcnt;
@@ -274,9 +340,8 @@ hunk(Rd *r, Hunk *h)
 		werrstr("%d: hunk longer than the patch", h->lnum);
 		return -1;
 	}
-	h->old.l = emalloc((o+1)*sizeof(Line));
-	h->new.l = emalloc((w+1)*sizeof(Line));
-	last = 0;
+	h->old.l = emalloc(linesize(o+1));
+	h->new.l = emalloc(linesize(w+1));
 	change = 0;
 	while(o > 0 || w > 0){
 		if((s = next(r, &n)) == nil){
@@ -285,46 +350,17 @@ hunk(Rd *r, Hunk *h)
 		}
 		l.s = s+1;
 		l.n = n-1;
+		last = s[0];
 		if(n == 1 && s[0] == '\n'){
 			l.s = s;
 			l.n = 1;
 			last = ' ';
-		}else
-			last = s[0];
-		switch(last){
-		case ' ':
-			if(o == 0 || w == 0)
-				goto Bad;
-			h->old.l[h->old.n++] = l;
-			h->new.l[h->new.n++] = l;
-			o--;
-			w--;
-			if(change)
-				h->trail++;
-			else
-				h->lead++;
-			break;
-		case '-':
-			if(o == 0)
-				goto Bad;
-			h->old.l[h->old.n++] = l;
-			o--;
-			change = 1;
-			h->trail = 0;
-			break;
-		case '+':
-			if(w == 0)
-				goto Bad;
-			h->new.l[h->new.n++] = l;
-			w--;
-			change = 1;
-			h->trail = 0;
-			break;
-		case '\\':
+		}
+		if(last == '\\'){
 			werrstr("%d: misplaced \\ line", r->lnum);
 			return -1;
-		default:
-		Bad:
+		}
+		if(hunkline(h, l, last, &o, &w, &change) < 0){
 			werrstr("%d: bad line in hunk", r->lnum);
 			return -1;
 		}
@@ -341,13 +377,13 @@ hunk(Rd *r, Hunk *h)
 	return 0;
 }
 
-static Diff*
+static Pdiff*
 newdiff(Patch *pt, int lnum)
 {
-	Diff *d;
+	Pdiff *d;
 
 	if(pt->nd % 16 == 0)
-		pt->d = erealloc(pt->d, (pt->nd+16)*sizeof(Diff));
+		pt->d = erealloc(pt->d, (pt->nd+16)*sizeof(Pdiff));
 	d = &pt->d[pt->nd++];
 	memset(d, 0, sizeof *d);
 	d->lnum = lnum;
@@ -362,16 +398,16 @@ binary(char *s, int n)
 }
 
 static int
-hunks(Rd *r, Diff *d)
+hunks(Rd *r, Pdiff *d)
 {
 	char *s;
 	int n;
-	Hunk *h;
+	Phunk *h;
 
 	while((s = peek(r, &n)) != nil && prefix(s, n, "@@ ")){
 		next(r, &n);
 		if(d->nh % 16 == 0)
-			d->h = erealloc(d->h, (d->nh+16)*sizeof(Hunk));
+			d->h = erealloc(d->h, (d->nh+16)*sizeof(Phunk));
 		h = &d->h[d->nh++];
 		memset(h, 0, sizeof *h);
 		h->lnum = r->lnum;
@@ -392,10 +428,13 @@ names(Rd *r, char **a, char **b)
 	int n;
 
 	s = next(r, &n);
-	if(filename(s+4, n-4, a) < 0)
+	if(filename(s+4, n-4, a) < 0){
+		werrstr("%d: %r", r->lnum);
 		return -1;
+	}
 	s = next(r, &n);
 	if(filename(s+4, n-4, b) < 0){
+		werrstr("%d: %r", r->lnum);
 		free(*a);
 		return -1;
 	}
@@ -417,49 +456,99 @@ isnames(Rd *r)
 	return prefix(t, n, "+++ ");
 }
 
+typedef struct Hdr	Hdr;
+
+struct Hdr
+{
+	char	*p;
+	int	flag;
+	int	what;
+};
+
+enum
+{
+	Hold = 1,
+	Hnew,
+	Hfrom,
+	Hto,
+	Hskip,
+};
+
+static Hdr hdrs[] = {
+	"old mode ", 0, Hold,
+	"new mode ", 0, Hnew,
+	"deleted file mode ", Pdel, Hold,
+	"new file mode ", Pnew, Hnew,
+	"rename from ", Pren, Hfrom,
+	"copy from ", Pcopy, Hfrom,
+	"rename to ", Pren, Hto,
+	"copy to ", Pcopy, Hto,
+	"similarity index ", 0, Hskip,
+	"dissimilarity index ", 0, Hskip,
+	"index ", 0, Hskip,
+};
+
 static int
-gitdiff(Rd *r, Diff *d, char *s, int n, int p)
+exthdr(Rd *r, Pdiff *d, char **ra, char **rb)
+{
+	char *s, **np;
+	int n, m;
+	Hdr *h;
+
+	if((s = peek(r, &n)) == nil)
+		return 0;
+	for(h = hdrs; h < hdrs+nelem(hdrs); h++)
+		if(prefix(s, n, h->p))
+			break;
+	if(h == hdrs+nelem(hdrs)){
+		if(binary(s, n)){
+			werrstr("%d: binary patch", r->lnum+1);
+			return -1;
+		}
+		return 0;
+	}
+	d->flags |= h->flag;
+	m = strlen(h->p);
+	switch(h->what){
+	case Hold:
+		d->oldmode = mode(s, n, h->p);
+		break;
+	case Hnew:
+		d->newmode = mode(s, n, h->p);
+		break;
+	case Hfrom:
+	case Hto:
+		np = h->what == Hfrom ? ra : rb;
+		free(*np);
+		*np = nil;
+		if(filename(s+m, n-m, np) < 0){
+			werrstr("%d: %r", r->lnum+1);
+			return -1;
+		}
+		break;
+	}
+	next(r, &n);
+	return 1;
+}
+
+static int
+gitdiff(Rd *r, Pdiff *d, char *s, int n, int p)
 {
 	char *a, *b, *ra, *rb;
-	int m;
+	int k;
 
 	d->flags |= Pgit;
 	if(p < 0)
 		p = 1;
-	if(gitnames(s+11, n-11, &a, &b) < 0)
+	if(gitnames(s+11, n-11, &a, &b) < 0){
+		werrstr("%d: %r", r->lnum);
 		return -1;
-	ra = rb = nil;
-	while((s = peek(r, &n)) != nil){
-		if(prefix(s, n, "old mode "))
-			d->oldmode = mode(s, n, "old mode ");
-		else if(prefix(s, n, "new mode "))
-			d->newmode = mode(s, n, "new mode ");
-		else if(prefix(s, n, "deleted file mode ")){
-			d->flags |= Pdel;
-			d->oldmode = mode(s, n, "deleted file mode ");
-		}else if(prefix(s, n, "new file mode ")){
-			d->flags |= Pnew;
-			d->newmode = mode(s, n, "new file mode ");
-		}else if(prefix(s, n, "rename from ") || prefix(s, n, "copy from ")){
-			d->flags |= s[0] == 'r' ? Pren : Pcopy;
-			m = s[0] == 'r' ? 12 : 10;
-			free(ra);
-			if(filename(s+m, n-m, &ra) < 0)
-				goto Err;
-		}else if(prefix(s, n, "rename to ") || prefix(s, n, "copy to ")){
-			d->flags |= s[0] == 'r' ? Pren : Pcopy;
-			m = s[0] == 'r' ? 10 : 8;
-			free(rb);
-			if(filename(s+m, n-m, &rb) < 0)
-				goto Err;
-		}else if(prefix(s, n, "similarity index ") || prefix(s, n, "dissimilarity index ") || prefix(s, n, "index ")){
-		}else if(binary(s, n)){
-			werrstr("%d: binary patch", r->lnum+1);
-			goto Err;
-		}else
-			break;
-		next(r, &n);
 	}
+	ra = rb = nil;
+	while((k = exthdr(r, d, &ra, &rb)) > 0)
+		;
+	if(k < 0)
+		goto Err;
 	if(isnames(r)){
 		free(a);
 		free(b);
@@ -491,9 +580,12 @@ gitdiff(Rd *r, Diff *d, char *s, int n, int p)
 		b = nil;
 		d->flags |= Pdel;
 	}
-	if(a != nil && (d->old = strip(a, p, d->lnum)) == nil || b != nil && (d->new = strip(b, p, d->lnum)) == nil)
+	if(a != nil && (d->old = strip(a, p, d->lnum)) == nil){
+		free(b);
 		goto Err1;
-	a = b = nil;
+	}
+	if(b != nil && (d->new = strip(b, p, d->lnum)) == nil)
+		goto Err1;
 	if(d->old == nil && d->new == nil){
 		werrstr("%d: no file name", d->lnum);
 		goto Err1;
@@ -509,7 +601,7 @@ Err1:
 }
 
 static int
-plaindiff(Rd *r, Diff *d, int p)
+plaindiff(Rd *r, Pdiff *d, int p)
 {
 	char *a, *b;
 
@@ -541,10 +633,10 @@ plaindiff(Rd *r, Diff *d, int p)
 }
 
 static int
-check(Diff *d)
+check(Pdiff *d)
 {
 	int i;
-	Hunk *h;
+	Phunk *h;
 
 	for(i = 0; i < d->nh; i++){
 		h = &d->h[i];
@@ -571,7 +663,7 @@ parsepatch(char *buf, long n, int p)
 	Rd r;
 	char *s;
 	int m;
-	Diff *d;
+	Pdiff *d;
 
 	pt = emalloc(sizeof *pt);
 	pt->buf = emalloc(n+2);
@@ -607,7 +699,7 @@ void
 freepatch(Patch *pt)
 {
 	int i, j;
-	Diff *d;
+	Pdiff *d;
 
 	if(pt == nil)
 		return;
@@ -631,9 +723,9 @@ revpatch(Patch *pt)
 {
 	int i, j, t;
 	char *s;
-	Text x;
-	Diff *d;
-	Hunk *h;
+	Ptext x;
+	Pdiff *d;
+	Phunk *h;
 
 	for(i = 0; i < pt->nd; i++){
 		d = &pt->d[i];
