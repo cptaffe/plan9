@@ -368,7 +368,7 @@ ldar(char *file, uchar *buf, long n)
 	uchar *bp, *ep, *d;
 	char name[64];
 	long sz;
-	int nl;
+	int nl, k;
 	Member *m;
 
 	bp = buf + 8;
@@ -385,9 +385,11 @@ ldar(char *file, uchar *buf, long n)
 		}
 		if(strncmp(name, "#1/", 3) == 0) {
 			nl = atoi(name+3);
-			if(nl > sz)
+			if(nl < 0 || nl > sz)
 				continue;
-			snprint(name, sizeof name, "%.*s", nl < 63 ? nl : 63, (char*)d);
+			k = nl < sizeof name ? nl : sizeof name - 1;
+			memmove(name, d, k);
+			name[k] = 0;
 			d += nl;
 			sz -= nl;
 		}
