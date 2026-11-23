@@ -23,4 +23,4 @@ case *
 }
 if(~ $#* 2)
 	at=$at' '$2
-{ echo -n $at >[1=0]; cat } <>/mnt/lsp/$1
+exec lsp $1 $at

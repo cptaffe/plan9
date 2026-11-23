@@ -1,0 +1,55 @@
+.TH LSP 1
+.SH NAME
+lsp \- ask lspfs a question
+.SH SYNOPSIS
+.B lsp
+.I kind
+[
+.I arg ...
+]
+.SH DESCRIPTION
+.I Lsp
+asks
+.IR lspfs (4),
+mounted on
+.BR /mnt/lsp ,
+the question
+.I kind
+names, and prints the answer.
+It opens
+.BI /mnt/lsp/ kind
+for reading and writing, writes its
+.IR arg s,
+joined by blanks, and copies what it reads to standard output.
+The kinds and what each takes are those of
+.IR lspfs (4):
+.B def
+and
+.B refs
+take a place,
+.B wsyms
+a file or directory and a query, and
+.B diags
+a file or directory.
+.SH EXAMPLES
+The functions and types whose names match
+.B fo
+in the project under the current directory:
+.IP
+.EX
+lsp wsyms `{pwd} fo
+.EE
+.PP
+Every diagnostic for the files under
+.BR /usr/glenda/src :
+.IP
+.EX
+lsp diags /usr/glenda/src
+.EE
+.SH SOURCE
+plan9web's
+.B rc/bin/lsp
+.SH SEE ALSO
+.IR acme (1),
+.IR Search (1),
+.IR lspfs (4)
