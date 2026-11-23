@@ -56,8 +56,6 @@ void*	erealloc(void *p, ulong n)
 These functions keep the screen a Unix program draws on a terminal by xterm's escape
 sequences, so that a program such as
 .IR vt (1)
-or
-.I avt
 can show it.
 They draw nothing: a screen is cells, and what changed is told in frames.
 .PP
