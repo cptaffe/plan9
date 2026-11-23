@@ -1692,7 +1692,11 @@ spawn(Tagx *t, char *cmd, int fd0, int fd1, int fd2)
 	j.cmd = cmd;
 	j.dir = wdir(t);
 	j.winid = t->winid;
-	j.file = t->winid > 0 ? acmename(t->winid) : nil;
+	qlock(&t->lk);
+	j.file = t->file != nil ? _adrawstrdup(t->file) : nil;
+	qunlock(&t->lk);
+	if(j.file == nil && t->winid > 0)
+		j.file = acmename(t->winid);
 	j.c = chancreate(sizeof(ulong), 0);
 	proccreate(runproc, &j, 16384);
 	pid = recvul(j.c);
@@ -1879,6 +1883,7 @@ okctl(char *s)
 
 	return strncmp(s, "name ", 5) == 0 || strcmp(s, "clean") == 0 || strcmp(s, "dirty") == 0
 		|| strcmp(s, "cleartag") == 0 || strcmp(s, "del") == 0 || strncmp(s, "winid ", 6) == 0
+		|| strncmp(s, "file ", 5) == 0
 		|| (strncmp(s, "color", 5) == 0 && (s[5] == 0 || s[5] == ' ') && colorargs(s+5, &bg, &fg) >= 0);
 }
 
@@ -1902,6 +1907,12 @@ ctl1(Tagx *t, char *s)
 		del(t, 0);
 	else if(strncmp(s, "winid ", 6) == 0)
 		t->winid = atoi(s+6);
+	else if(strncmp(s, "file ", 5) == 0){
+		qlock(&t->lk);
+		free(t->file);
+		t->file = _adrawstrdup(s+5);
+		qunlock(&t->lk);
+	}
 	else if(strncmp(s, "color", 5) == 0)
 		setcolors(t, s+5);
 }
