@@ -154,7 +154,7 @@ layer(Window *w)
 			letgo(old, oname);
 		return;
 	}
-	draw(s->i, s->i->r, textcols[BACK], nil, ZP);
+	draw(s->i, s->i->r, w->body.fr.cols[BACK], nil, ZP);
 	if(old != nil){
 		draw(s->i, s->i->r, old, nil, old->r.min);
 		letgo(old, oname);

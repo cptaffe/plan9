@@ -81,6 +81,8 @@ wininit(Window *w, Window *clone, Rectangle r)
 	br.max.x = br.min.x + Dx(button->r);
 	br.max.y = br.min.y + Dy(button->r);
 	draw(screen, br, button, nil, button->r.min);
+	if(onecol && mainwin == nil)
+		mainwin = w;
 	w->filemenu = TRUE;
 	w->maxlines = w->body.fr.maxlines;
 	w->autoindent = globalautoindent;
@@ -89,6 +91,8 @@ wininit(Window *w, Window *clone, Rectangle r)
 		w->autoindent = clone->autoindent;
 		textsetselect(&w->body, clone->body.q0, clone->body.q1);
 		winsettag(w);
+		if(clone->theme != nil)
+			winsettheme(w, clone->theme, strlen(clone->theme));
 	}
 }
 
@@ -99,7 +103,7 @@ void
 windrawbutton(Window *w)
 {
 	Image *b;
-	Rectangle br;
+	Rectangle br, ir;
 
 	b = button;
 	if(!w->isdir && !w->isscratch && (w->body.file->mod || w->body.ncache))
@@ -107,7 +111,20 @@ windrawbutton(Window *w)
 	br.min = w->tag.scrollr.min;
 	br.max.x = br.min.x + Dx(b->r);
 	br.max.y = br.min.y + Dy(b->r);
-	draw(screen, br, b, nil, b->r.min);
+	if(w->theme == nil){
+		draw(screen, br, b, nil, b->r.min);
+		return;
+	}
+	draw(screen, br, w->tag.fr.cols[BACK], nil, ZP);
+	border(screen, br, ButtonBorder, w->tag.fr.cols[BORD], ZP);
+	if(b != modbutton)
+		return;
+	br = insetrect(br, ButtonBorder);
+	ir = insetrect(modbutton->r, ButtonBorder);
+	if(w->modcol != nil)
+		draw(screen, br, w->modcol, nil, ZP);
+	else
+		draw(screen, br, modbutton, nil, ir.min);
 }
 
 int
@@ -233,12 +250,12 @@ winresize(Window *w, Rectangle r, int safe, int keepextra)
 		if(y+1+w->body.fr.font->height <= r.max.y){	/* room for one line */
 			r1.min.y = y;
 			r1.max.y = y+1;
-			draw(screen, r1, tagcols[BORD], nil, ZP);
+			draw(screen, r1, w->tag.fr.cols[BORD], nil, ZP);
 			y++;
 			r1.min.y = min(y, r.max.y);
 			r1.max.y = r.max.y;
 		}else{
-			draw(screen, r1, textcols[BACK], nil, ZP);
+			draw(screen, r1, w->body.fr.cols[BACK], nil, ZP);
 			r1.min.y = y;
 			r1.max.y = y;
 		}
@@ -334,6 +351,9 @@ winclose(Window *w)
 		free(w->events);
 		winlogfree(w);
 		winclearstyle(w);
+		winfreetheme(w);
+		if(mainwin == w)
+			mainwin = nil;
 		free(w->wsys);
 		free(w);
 	}

@@ -31,6 +31,7 @@ enum
 	QWwctl,
 	QWwinname,
 	QWrdevent,
+	QWtheme,
 	QMAX,
 };
 
@@ -340,6 +341,12 @@ struct Window
 	int		nameage;
 	uint		sentq0;
 	uint		sentq1;
+	char	*theme;
+	Image	*tcols[NCOL];
+	Image	*bcols[NCOL];
+	Image	*modcol;
+	Image	*but2;
+	Image	*but3;
 };
 
 void	wininit(Window*, Window*, Rectangle);
@@ -632,6 +639,10 @@ char			*home;
 char			*fontnames[2];
 Image		*tagcols[NCOL];
 Image		*textcols[NCOL];
+int	onecol;
+Window	*mainwin;
+
+
 extern char		wdir[];
 int			editing;
 int			erroutfd;

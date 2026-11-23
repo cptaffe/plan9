@@ -121,6 +121,16 @@ for text swept with buttons 2 and 3,
 for space no window covers, and
 .B colrule
 for the lines between columns and windows.
+A window's
+.B theme
+file
+.RI ( acme (4))
+takes these names but
+.BR colbutton ,
+.B colback
+and
+.BR colrule ,
+for that window alone.
 For
 .BR tag ,
 .BR tagsel ,

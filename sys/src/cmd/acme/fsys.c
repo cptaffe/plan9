@@ -90,6 +90,7 @@ Dirtab dirtabw[]=
 	{ "style",		QTFILE,		QWstyle,		0600 },
 	{ "wrsel",		QTFILE,		QWwrsel,		0200 },
 	{ "tag",		QTAPPEND,	QWtag,		0600|DMAPPEND },
+	{ "theme",		QTFILE,		QWtheme,		0600 },
 	{ "xdata",		QTFILE,		QWxdata,		0600 },
 	{ "cons",		QTFILE,		QWcons,		0600 },
 	{ "consctl",	QTFILE,		QWconsctl,	0200 },

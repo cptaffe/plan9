@@ -1,6 +1,6 @@
 .TH STICKY 1
 .SH NAME
-sticky \- notes in small colored windows, and Markdown shown styled
+sticky, Sticky \- notes in small colored windows, and Markdown shown styled
 .SH SYNOPSIS
 .B sticky
 [
@@ -11,12 +11,36 @@ sticky \- notes in small colored windows, and Markdown shown styled
 ] [
 .I file
 ]
+.PP
+.B Sticky
+[
+.B -n
+] [
+.B -c
+.I color
+] [
+.B -o
+.I note
+|
+.I file
+]
 .SH DESCRIPTION
 .I Sticky
 keeps notes, as the Mac's Stickies does, each in a small
 .IR rio (1)
-window of its own with a pastel background and an acme-like tag
-.RI ( adraw (2)).
+window of its own with a pastel background.
+Each window is an
+.I acme
+.B -1
+(see
+.IR acme (1))
+whose one window is the note, drawn by
+.IR Sticky ,
+the program that shows a note in an acme window; the tag is acme's, in the note's colors
+by the window's
+.B theme
+file
+.RI ( acme (4)).
 With no arguments it opens every note, each where it was last, in its color;
 with
 .B -n
@@ -35,6 +59,13 @@ its text in Markdown, so that it reads well in
 with its color and its window's rectangle in
 .IB n .meta
 beside it.
+The commands of the tag that
+.I Sticky
+does not take itself are acme's, and what a command prints goes to
+.B +Errors
+below the note;
+.B Del
+on +Errors gives its space back to the note.
 Sticky saves a note a moment after each change and when its window goes;
 there is no
 .BR Put .
@@ -69,8 +100,7 @@ and control-Z and -R undo and redo the note,
 as do
 .B Undo
 and
-.B Redo
-and the same keys typed in the tag.
+.BR Redo .
 .PP
 A double click inside the selection makes it larger:
 from a word to its sentence, to its paragraph, list item, quote or code block,
@@ -150,7 +180,9 @@ Sticky also shows headings, lists, quotes, code spans and fenced blocks,
 rules and links, with the markers it shows by style hidden;
 what it doesn't show stays as text.
 The markers of what holds the selection show, faint: a span's around it,
-a link's address, and a heading's, list item's or quote's at the left of its line.
+a link's address, and a heading's, list item's or quote's in place at the start of its line, moving the line's text right.
+A click at a line's start lands after its hidden markers;
+with them shown, the caret can stand before or after them.
 A span's markers are places for the caret, on either side of each:
 the caret moves to the right of a span's closing markers by the right arrow,
 or by a click past the end of its line, and what you type there is plain;
@@ -164,23 +196,40 @@ shows the Markdown as it is, and again as styled.
 .PP
 Given a
 .IR file ,
-or run from the tag of an acme window on a file whose name ends in
-.BR .md ,
 .I sticky
-shows that file.
-When there is an acme, it shows the acme window's body, opening a window for the file if
-there is none:
-each edit in sticky is the smallest change to the window's Markdown, one Undo,
-and edits in acme show in sticky as you make them.
+opens it in an
+.I acme
+.B -1
+of its own.
+.I Sticky
+runs in any acme:
+with
+.B -o
+.I note
+it opens the note in a window of that acme, with
+.B -n
+a new one, and with no arguments every note, each in a window;
+given a
+.IR file ,
+or run from the tag of a window on a file whose name ends in
+.BR .md ,
+it draws that window, opening one for the file if there is none.
+Then the window's body is the Markdown:
+each edit in
+.I Sticky
+is the smallest change to it, one Undo,
+and edits in acme show in
+.I Sticky
+as you make them.
 .BR Undo ,
 .B Redo
 and
 .B Put
 are acme's, and the tag is dirty as the window is.
-Sticky ends when acme deletes the window.
-With no acme, sticky edits the file itself, and
-.B Put
-writes it.
+.B Del
+deletes the window, and
+.I Sticky
+ends when acme deletes it.
 .PP
 Sticky draws its text in
 .BR $stickyfont ,
@@ -223,6 +272,7 @@ plan9web's
 .IR acme (1),
 .IR rio (1),
 .IR adraw (2),
+.IR acme (4),
 .IR fontfs (4),
 .IR theme (6)
 .SH BUGS

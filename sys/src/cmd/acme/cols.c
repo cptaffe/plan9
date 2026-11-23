@@ -26,7 +26,7 @@ colinit(Column *c, Rectangle r)
 	t->w = nil;
 	t->col = c;
 	r1 = r;
-	r1.max.y = r1.min.y + font->height;
+	r1.max.y = r1.min.y + tagheight(font);
 	textinit(t, fileaddtext(nil, t), r1, &reffont, tagcols);
 	t->what = Columntag;
 	r1.min.y = r1.max.y;
@@ -36,6 +36,14 @@ colinit(Column *c, Rectangle r)
 	textsetselect(t, t->file->b.nc, t->file->b.nc);
 	draw(screen, t->scrollr, colbutton, nil, colbutton->r.min);
 	c->safe = TRUE;
+}
+
+int
+tagheight(Font *f)
+{
+	if(onecol)
+		return 0;
+	return f->height;
 }
 
 Window*
@@ -232,7 +240,7 @@ colresize(Column *c, Rectangle r)
 
 	clearmouse();
 	r1 = r;
-	r1.max.y = r1.min.y + c->tag.fr.font->height;
+	r1.max.y = r1.min.y + tagheight(c->tag.fr.font);
 	textresize(&c->tag, r1, TRUE);
 	draw(screen, c->tag.scrollr, colbutton, nil, colbutton->r.min);
 	r1.min.y = r1.max.y;

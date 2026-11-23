@@ -4,7 +4,7 @@ acme, win, awd \- interactive text windows
 .SH SYNOPSIS
 .B acme
 [
-.B -ab
+.B -1ab
 ]
 [
 .B -c
@@ -173,6 +173,43 @@ windows are arranged in columns.  By default, it creates two columns when starti
 this can be overridden with the
 .B -c
 option.
+With
+.BR -1 ,
+.I acme
+has one column and neither the tag across the top nor a column tag,
+so its windows fill the display,
+for a program that shows itself as one window, as
+.IR sticky (1)
+does in a window of
+.IR rio (1).
+With no
+.IR files ,
+it opens no window;
+the first window it makes, other than
+.BR +Errors ,
+is its main one.
+.B Del
+on the main window is
+.BR Exit ,
+with its check for modified windows, and
+.B Delete
+exits without the check.
+Other windows, such as
+.B +Errors
+and those that
+.BR Look ,
+.B New
+and the plumber open, go below the main one in the column, and
+.B Del
+in theirs gives their space back.
+.BR Newcol ,
+.B Delcol
+and
+.B Load
+say why they do nothing, and
+.I acme
+refuses
+.BR -l .
 Placement is automatic but may be adjusted
 using the
 .I layout box

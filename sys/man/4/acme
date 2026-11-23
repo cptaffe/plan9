@@ -606,6 +606,31 @@ a close reports no error, so a writer that needs to know reads
 .B seq
 again after closing.
 .TP
+.B theme
+gives the window colors of its own, in the format of
+.IR theme (6),
+as
+.B /lib/theme
+has them: lines of a name and its colors, with comments and blank lines.
+The names are those
+.I acme
+reads from the theme for a window:
+.BR tag ,
+.BR tagsel ,
+.BR tagborder ,
+.BR body ,
+.BR bodysel ,
+.BR bodyborder ,
+.BR modbutton ,
+.B but2
+and
+.BR but3 .
+A write takes effect when its writer closes the file, as with
+.BR style ,
+and replaces the window's colors;
+a name left out keeps the theme's color, and an empty file gives the window the theme's colors again.
+Reading gives what was last written.
+.TP
 .B tag
 holds contents of the window tag.  It may be read at any byte offset.
 Text written to

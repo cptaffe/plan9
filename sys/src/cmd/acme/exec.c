@@ -368,6 +368,10 @@ newcol(Text *et, Text*, Text*, int, int, Rune*, int)
 	Column *c;
 	Window *w;
 
+	if(onecol){
+		warning(nil, "acme -1 has one column\n");
+		return;
+	}
 	c = rowadd(et->row, nil, -1);
 	if(c){
 		w = coladd(c, nil, nil, -1);
@@ -386,6 +390,10 @@ delcol(Text *et, Text*, Text*, int, int, Rune*, int)
 	c = et->col;
 	if(c==nil || colclean(c)==0)
 		return;
+	if(onecol){
+		warning(nil, "acme -1 has one column\n");
+		return;
+	}
 	for(i=0; i<c->nw; i++){
 		w = c->w[i];
 		if(w->nopen[QWevent]+w->nopen[QWaddr]+w->nopen[QWdata]+w->nopen[QWxdata] > 0){
@@ -401,8 +409,21 @@ del(Text *et, Text*, Text*, int flag1, int, Rune*, int)
 {
 	if(et->col==nil || et->w == nil)
 		return;
+	if(delmain(et->w, flag1) >= 0)
+		return;
 	if(flag1 || et->w->body.file->ntext>1 || winclean(et->w, FALSE))
 		colclose(et->col, et->w, TRUE);
+}
+
+int
+delmain(Window *w, int sure)
+{
+	if(w != mainwin)
+		return -1;
+	if(!sure && !rowclean(&row))
+		return 0;
+	sendul(cexit, 0);
+	return 1;
 }
 
 void
@@ -912,6 +933,8 @@ dump(Text *, Text *, Text *argt, int isdump, int, Rune *arg, int narg)
 		getbytearg(argt, FALSE, TRUE, &name);
 	if(isdump)
 		rowdump(&row, name);
+	else if(onecol)
+		warning(nil, "acme -1 loads no dump\n");
 	else
 		rowload(&row, name, FALSE);
 	free(name);

@@ -74,6 +74,9 @@ threadmain(int argc, char *argv[])
 
 	loadfile = nil;
 	ARGBEGIN{
+	case '1':
+		onecol = TRUE;
+		break;
 	case 'D':
 		{extern int _threaddebuglevel;
 		_threaddebuglevel = ~0;
@@ -132,9 +135,15 @@ threadmain(int argc, char *argv[])
 		break;
 	default:
 	Usage:
-		fprint(2, "usage: acme -a -c ncol -d dumpfile -f fontname -F fixedwidthfontname -l loadfile -S srvname\n");
+		fprint(2, "usage: acme -1 -a -c ncol -d dumpfile -f fontname -F fixedwidthfontname -l loadfile -S srvname\n");
 		threadexitsall("usage");
 	}ARGEND
+	if(onecol && loadfile){
+		fprint(2, "acme: -1 loads no dump\n");
+		threadexitsall("usage");
+	}
+	if(onecol)
+		ncol = 1;
 
 	fontnames[0] = estrdup(fontnames[0]);
 	fontnames[1] = estrdup(fontnames[1]);
@@ -246,7 +255,7 @@ threadmain(int argc, char *argv[])
 				error("initializing columns");
 		}
 		c = row.col[row.ncol-1];
-		if(argc == 0)
+		if(argc == 0 && !onecol)
 			readfile(c, wdir);
 		else
 			for(i=0; i<argc; i++){
@@ -1056,26 +1065,154 @@ colimage(ulong v)
 	return allocimage(display, Rect(0,0,1,1), screen->chan, 1, v);
 }
 
+static Themecol*
+look(Themecol *tc, int n, char *name)
+{
+	if(tc == nil)
+		return themelook(name);
+	while(--n >= 0)
+		if(strcmp(tc[n].name, name) == 0)
+			return &tc[n];
+	return nil;
+}
+
+static ulong
+lookcolor(Themecol *tc, int n, char *name, ulong def)
+{
+	Themecol *c;
+
+	if((c = look(tc, n, name)) == nil)
+		return def;
+	if(c->col)
+		return c->col;
+	if(c->bg)
+		return c->bg;
+	if(c->fg)
+		return c->fg;
+	return def;
+}
+
 static void
-themecols(Image **cols, char *name, char *sel, char *bord)
+themecols(Image **cols, Themecol *tc, int n, char *name, char *sel, char *bord)
 {
 	Themecol *c;
 	ulong v;
 
-	if((c = themelook(name)) != nil){
+	if((c = look(tc, n, name)) != nil){
 		if((v = c->bg ? c->bg : c->col) != 0)
 			cols[BACK] = colimage(v);
 		if(c->fg)
 			cols[TEXT] = colimage(c->fg);
 	}
-	if((c = themelook(sel)) != nil){
+	if((c = look(tc, n, sel)) != nil){
 		if((v = c->bg ? c->bg : c->col) != 0)
 			cols[HIGH] = colimage(v);
 		if(c->fg)
 			cols[HTEXT] = colimage(c->fg);
 	}
-	if((v = themecolor(bord, 0)) != 0)
+	if((v = lookcolor(tc, n, bord, 0)) != 0)
 		cols[BORD] = colimage(v);
+}
+
+static Image*
+lookimage(Themecol *tc, int n, char *name)
+{
+	ulong v;
+
+	if((v = lookcolor(tc, n, name, 0)) == 0)
+		return nil;
+	return colimage(v);
+}
+
+static void
+freewincols(Window *w)
+{
+	int i;
+
+	for(i=0; i<NCOL; i++){
+		freeimage(w->tcols[i]);
+		freeimage(w->bcols[i]);
+		w->tcols[i] = nil;
+		w->bcols[i] = nil;
+	}
+	freeimage(w->modcol);
+	freeimage(w->but2);
+	freeimage(w->but3);
+	w->modcol = nil;
+	w->but2 = nil;
+	w->but3 = nil;
+}
+
+static void
+setcols(Text *t, Image **cols, Image **dflt)
+{
+	int i;
+
+	for(i=0; i<NCOL; i++)
+		t->fr.cols[i] = cols[i] ? cols[i] : dflt[i];
+	frinittick(&t->fr);
+}
+
+static int
+themeparse(char *s, Themecol **tcp)
+{
+	Themecol *tc;
+	char *p, *e;
+	int n;
+
+	tc = nil;
+	n = 0;
+	for(p=s; *p; p=e){
+		if((e = strchr(p, '\n')) != nil)
+			*e++ = 0;
+		else
+			e = p+strlen(p);
+		tc = erealloc(tc, (n+1)*sizeof tc[0]);
+		if(themeline(p, &tc[n]) > 0)
+			n++;
+	}
+	*tcp = tc;
+	return n;
+}
+
+void
+winsettheme(Window *w, char *s, int ns)
+{
+	Themecol *tc;
+	char *b;
+	int n;
+
+	freewincols(w);
+	free(w->theme);
+	w->theme = nil;
+	if(ns > 0){
+		w->theme = emalloc(ns+1);
+		memmove(w->theme, s, ns);
+		b = estrdup(w->theme);
+		n = themeparse(b, &tc);
+		themecols(w->tcols, tc, n, "tag", "tagsel", "tagborder");
+		themecols(w->bcols, tc, n, "body", "bodysel", "bodyborder");
+		w->modcol = lookimage(tc, n, "modbutton");
+		w->but2 = lookimage(tc, n, "but2");
+		w->but3 = lookimage(tc, n, "but3");
+		free(tc);
+		free(b);
+	}
+	setcols(&w->tag, w->tcols, tagcols);
+	setcols(&w->body, w->bcols, textcols);
+	if(w->col != nil){
+		winresize(w, w->r, FALSE, TRUE);
+		if(w->nwpalette > 0)
+			winframesync(w);
+	}
+}
+
+void
+winfreetheme(Window *w)
+{
+	freewincols(w);
+	free(w->theme);
+	w->theme = nil;
 }
 
 void
@@ -1107,8 +1244,8 @@ iconinit(void)
 		textcols[BORD] = allocimage(display, Rect(0,0,1,1), screen->chan, 1, DYellowgreen);
 		textcols[TEXT] = display->black;
 		textcols[HTEXT] = display->black;
-		themecols(tagcols, "tag", "tagsel", "tagborder");
-		themecols(textcols, "body", "bodysel", "bodyborder");
+		themecols(tagcols, nil, 0, "tag", "tagsel", "tagborder");
+		themecols(textcols, nil, 0, "body", "bodysel", "bodyborder");
 	}
 
 	r = Rect(0, 0, Scrollwid, font->height+1);

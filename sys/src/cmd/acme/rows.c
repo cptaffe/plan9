@@ -20,11 +20,13 @@ rowinit(Row *row, Rectangle r)
 	Text *t;
 
 	draw(screen, r, colback, nil, ZP);
+	if(onecol)
+		r.min.y -= 2*Border;
 	row->r = r;
 	row->col = nil;
 	row->ncol = 0;
 	r1 = r;
-	r1.max.y = r1.min.y + font->height;
+	r1.max.y = r1.min.y + tagheight(font);
 	t = &row->tag;
 	textinit(t, fileaddtext(nil, t), r1, rfget(FALSE, FALSE, FALSE, nil), tagcols);
 	t->what = Rowtag;
@@ -98,10 +100,12 @@ rowresize(Row *row, Rectangle r)
 	Rectangle or, r1, r2;
 	Column *c;
 
+	if(onecol)
+		r.min.y -= 2*Border;
 	or = row->r;
 	row->r = r;
 	r1 = r;
-	r1.max.y = r1.min.y + font->height;
+	r1.max.y = r1.min.y + tagheight(font);
 	textresize(&row->tag, r1, TRUE);
 	r1.min.y = r1.max.y;
 	r1.max.y += Border;
