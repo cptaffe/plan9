@@ -8,5 +8,6 @@ OFILES=\
 HFILES=\
 	/sys/include/pcm.h\
 	fir.h\
+	impl.h\
 
 </sys/src/cmd/mksyslib

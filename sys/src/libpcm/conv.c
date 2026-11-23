@@ -1,28 +1,33 @@
 #include <u.h>
 #include <libc.h>
 #include <pcm.h>
+#include "impl.h"
 
 typedef struct Chan Chan;
+typedef struct Codec Codec;
 typedef struct Pcmconv Pcmconv;
 
 struct Chan
 {
-	ulong	ρ;	/* factor */
+	ulong	ρ;
+	ulong	t;
+	ulong	tΔ;
+	ulong	lΔ;
+	ulong	le;
+	int	u;
+	int	*h;
+	int	*hΔ;
+	int	wx;
+	int	ix;
+	int	nx;
+	int	*x;
+};
 
-	ulong	t;	/* time */
-
-	ulong	tΔ;	/* output step */
-	ulong	lΔ;	/* filter step */
-	ulong	le;	/* filter end */
-
-	int	u;	/* unity scale */
-	int	*h;	/* filter coefficients */
-	int	*hΔ;	/* coefficient deltas for interpolation */
-
-	int	wx;	/* extra samples */
-	int	ix;	/* buffer index */
-	int	nx;	/* buffer size */
-	int	*x;	/* the buffer */
+struct Codec
+{
+	Rune	fmt;
+	void	(*iconv)(int *, uchar *, int, int, int);
+	void	(*oconv)(int *, uchar *, int, int, int);
 };
 
 struct Pcmconv
@@ -41,9 +46,9 @@ struct Pcmconv
 };
 
 enum {
-	Nl	= 8,		/* 2^Nl samples per zero crossing in fir */
-	Nη	= 8,		/* phase bits for filter interpolation */
-	Np	= Nl+Nη,	/* phase bits (fract of fixed point) */
+	Nl	= 8,
+	Nη	= 8,
+	Np	= Nl+Nη,
 	One	= 1<<Np,
 	Fcopy	= 1<<0,
 	Nin	= 2048,
@@ -80,7 +85,7 @@ chaninit(Chan *c, int irate, int orate, int count)
 	c->lΔ = 1<<(Nl+Nη);
 	c->le = nelem(h)<<Nη;
 	c->wx = 1 + (c->le / c->lΔ);
-	c->u = 13128;	/* unity scale factor for fir */
+	c->u = 13128;
 	if(c->ρ < One){
 		c->u *= c->ρ;
 		c->u >>= Np;
@@ -100,7 +105,7 @@ chaninit(Chan *c, int irate, int orate, int count)
 	c->t = c->ix<<Np;
 	c->nx = c->wx*2 + count;
 	c->x = emalloc(sizeof(c->x[0]) * c->nx);
-	count += c->nx; /* account for buffer accumulation */
+	count += c->nx;
 Done:
 	return ((uvlong)count * c->ρ) >> Np;
 }
@@ -119,7 +124,6 @@ filter(Chan *c)
 	lΔ = c->lΔ;
 	le = c->le;
 
-	/* left side */
 	x = &c->x[c->t>>Np];
 	p = c->t & ((1<<Np)-1);
 	l = c->ρ < One ? (c->ρ * p)>>Np : p;
@@ -133,11 +137,10 @@ filter(Chan *c)
 		v += (vlong)*(--x) * a;
 	}
 
-	/* right side */
 	x = &c->x[c->t>>Np];
 	p = (One - p) & ((1<<Np)-1);
 	l = c->ρ < One ? (c->ρ * p)>>Np : p;
-	if(p == 0) /* skip h[0] as it was already been summed above if p == 0 */
+	if(p == 0)
 		l += c->lΔ;
 	while(l < le){
 		i = l >> Nη;
@@ -149,7 +152,6 @@ filter(Chan *c)
 		v += (vlong)*x++ * a;
 	}
 
-	/* scale */
 	v >>= 2;
 	v *= c->u;
 	v >>= 27;
@@ -164,30 +166,25 @@ resample(Chan *c, int *x, int *y, int count)
 	int i, n;
 
 	if(c->ρ == One){
-		/* no rate conversion needed */
 		if(count > 0)
 			memmove(y, x, count*sizeof(int));
 		return y+count;
 	}
 
 	do {
-		/* fill buffer */
 		for(i = c->ix, n = c->nx; count > 0 && i < n; count--, i++)
 			c->x[i] = *x++;
 		c->ix = i;
 
-		/* need at least 2*wx samples in buffer for filter */
 		if(i < 2*c->wx)
 			break;
 
-		/* process buffer */
 		e = (i - c->wx)<<Np;
 		while(c->t < e){
 			*y++ = filter(c);
 			c->t += c->tΔ;
 		}
 
-		/* check if we'r at the end of buffer and wrap it */
 		e = c->t >> Np;
 		if(e >= (c->nx - c->wx)){
 			c->t -= e << Np;
@@ -301,7 +298,7 @@ uiconv(int *dst, uchar *src, int bits, int skip, int count)
 		case 1:
 			v = (v<<8) | src[--i];
 		}
-		*dst++ = (v << s) - (~0UL>>1);
+		*dst++ = (v << s) ^ 0x80000000;
 		src += skip;
 	}
 }
@@ -327,38 +324,57 @@ Uiconv(int *dst, uchar *src, int bits, int skip, int count)
 		case 1:
 			v = (v<<8) | src[i];
 		}
-		*dst++ = (v << s) - (~0UL>>1);
+		*dst++ = (v << s) ^ 0x80000000;
 		src += skip;
 	}
+}
+
+static u32int
+get4(uchar *p)
+{
+	return p[0] | p[1]<<8 | p[2]<<16 | (u32int)p[3]<<24;
+}
+
+static void
+put4(uchar *p, u32int u)
+{
+	p[0] = u;
+	p[1] = u>>8;
+	p[2] = u>>16;
+	p[3] = u>>24;
+}
+
+static int
+ftoi(double d)
+{
+	if(isNaN(d))
+		return 0;
+	if(d >= 1.0)
+		return MAXINT;
+	if(d <= -1.0)
+		return MININT;
+	return d*2147483648.0;
 }
 
 static void
 ficonv(int *dst, uchar *src, int bits, int skip, int count)
 {
-	if(bits == 32){
-		while(count--){
-			float f;
+	u32int u;
+	uvlong v;
+	float f;
+	double d;
 
-			f = *((float*)src), src += skip;
-			if(f > 1.0)
-				*dst++ = MAXINT;
-			else if(f < -1.0)
-				*dst++ = MININT;
-			else
-				*dst++ = f*((float)MAXINT);
+	while(count--){
+		if(bits == 32){
+			u = get4(src);
+			memmove(&f, &u, sizeof f);
+			d = f;
+		}else{
+			v = get4(src) | (uvlong)get4(src+4)<<32;
+			memmove(&d, &v, sizeof d);
 		}
-	} else {
-		while(count--){
-			double d;
-
-			d = *((double*)src), src += skip;
-			if(d > 1.0)
-				*dst++ = MAXINT;
-			else if(d < -1.0)
-				*dst++ = MININT;
-			else
-				*dst++ = d*((double)MAXINT);
-		}
+		*dst++ = ftoi(d);
+		src += skip;
 	}
 }
 
@@ -462,7 +478,7 @@ uoconv(int *src, uchar *dst, int bits, int skip, int count)
 	b = (bits+7)/8;
 	s = sizeof(uint)*8-bits;
 	while(count--){
-		v = ((~0UL>>1) + *src++) >> s;
+		v = ((uint)*src++ ^ 0x80000000) >> s;
 		i = 0;
 		switch(b){
 		case 4:
@@ -487,7 +503,7 @@ Uoconv(int *src, uchar *dst, int bits, int skip, int count)
 	b = (bits+7)/8;
 	s = sizeof(uint)*8-bits;
 	while(count--){
-		v = ((~0UL>>1) + *src++) >> s;
+		v = ((uint)*src++ ^ 0x80000000) >> s;
 		i = b;
 		switch(b){
 		case 4:
@@ -506,73 +522,89 @@ Uoconv(int *src, uchar *dst, int bits, int skip, int count)
 static void
 foconv(int *src, uchar *dst, int bits, int skip, int count)
 {
-	if(bits == 32){
-		while(count--){
-			*((float*)dst) = *src++ / ((float)MAXINT);
-			dst += skip;
+	u32int u;
+	uvlong v;
+	float f;
+	double d;
+
+	while(count--){
+		d = *src++ / 2147483648.0;
+		if(bits == 32){
+			f = d;
+			memmove(&u, &f, sizeof u);
+			put4(dst, u);
+		}else{
+			memmove(&v, &d, sizeof v);
+			put4(dst, v);
+			put4(dst+4, v>>32);
 		}
-	} else {
-		while(count--){
-			*((double*)dst) = *src++ / ((double)MAXINT);
-			dst += skip;
-		}
+		dst += skip;
 	}
+}
+
+static Codec codecs[] = {
+	L's',	siconv,	soconv,
+	L'S',	Siconv,	Soconv,
+	L'u',	uiconv,	uoconv,
+	L'U',	Uiconv,	Uoconv,
+	L'f',	ficonv,	foconv,
+	L'a',	aiconv,	nil,
+	L'µ',	µiconv,	nil,
+};
+
+static Codec*
+codec(Rune fmt)
+{
+	int k;
+
+	for(k = 0; k < nelem(codecs); k++)
+		if(codecs[k].fmt == fmt)
+			return &codecs[k];
+	return nil;
+}
+
+static int
+checkpair(Pcmdesc *i, Pcmdesc *o)
+{
+	if(_pcmcheck(i) < 0){
+		werrstr("input: %r");
+		return -1;
+	}
+	if(_pcmcheck(o) < 0){
+		werrstr("output: %r");
+		return -1;
+	}
+	if(codec(o->fmt)->oconv == nil){
+		werrstr("unsupported output format: %C", o->fmt);
+		return -1;
+	}
+	if((vlong)i->rate > (vlong)o->rate*Maxratio || (vlong)o->rate > (vlong)i->rate*Maxratio){
+		werrstr("rates %d and %d more than %d times apart", i->rate, o->rate, Maxratio);
+		return -1;
+	}
+	return 0;
 }
 
 Pcmconv	*
 allocpcmconv(Pcmdesc *i, Pcmdesc *o)
 {
 	Pcmconv *c;
+	uvlong sz;
 	int k, nout;
 
-	if(i->channels < 1){
-		werrstr("invalid number of input channels: %d", i->channels);
+	if(checkpair(i, o) < 0)
+		return nil;
+	sz = sizeof(*c) + (uvlong)i->channels*sizeof(Chan) + i->framesz;
+	if(sz != (ulong)sz){
+		werrstr("%d channels need too much memory", i->channels);
 		return nil;
 	}
-	if(o->channels < 1){
-		werrstr("invalid number of output channels: %d", o->channels);
-		return nil;
-	}
-
-	if(i->rate < 1 || o->rate < 1){
-		werrstr("invalid rate: %d", i->rate < 1 ? i->rate : o->rate);
-		return nil;
-	}
-	if((vlong)i->rate > (vlong)o->rate*Maxratio || (vlong)o->rate > (vlong)i->rate*Maxratio){
-		werrstr("rates %d and %d more than %d times apart", i->rate, o->rate, Maxratio);
-		return nil;
-	}
-
-	c = emalloc(sizeof(*c) + i->channels*sizeof(Chan) + i->framesz);
+	c = emalloc(sz);
 	memcpy(&c->idesc, i, sizeof(*i));
 	memcpy(&c->odesc, o, sizeof(*o));
 	c->buf = (uchar*)&c->ch[i->channels];
-
-	switch(i->fmt){
-	case L's': c->iconv = siconv; break;
-	case L'S': c->iconv = Siconv; break;
-	case L'u': c->iconv = uiconv; break;
-	case L'U': c->iconv = Uiconv; break;
-	case L'f': c->iconv = ficonv; break;
-	case L'a': c->iconv = aiconv; break;
-	case L'µ': c->iconv = µiconv; break;
-	default:
-		werrstr("unsupported input format: %C", i->fmt);
-		goto Err;
-	}
-
-	switch(o->fmt){
-	case L's': c->oconv = soconv; break;
-	case L'S': c->oconv = Soconv; break;
-	case L'u': c->oconv = uoconv; break;
-	case L'U': c->oconv = Uoconv; break;
-	case L'f': c->oconv = foconv; break;
-	default:
-		werrstr("unsupported output format: %C", o->fmt);
-		goto Err;
-	}
-
-	/* if same format, just copy */
+	c->iconv = codec(i->fmt)->iconv;
+	c->oconv = codec(o->fmt)->oconv;
 	c->flags = (
 		i->rate == o->rate
 		&& i->bits == o->bits
@@ -580,20 +612,12 @@ allocpcmconv(Pcmdesc *i, Pcmdesc *o)
 		&& i->framesz == o->framesz
 		&& i->fmt == o->fmt
 	) ? Fcopy : 0;
-
 	c->in = emalloc(sizeof(int) * Nin);
-
 	nout = 0;
 	for(k=0; k < i->channels; k++)
 		nout = chaninit(&c->ch[k], i->rate, o->rate, Nin);
-
-	/* out is also used for mixing before resampling, so needs to be max(Nin, nout) */
 	c->out = emalloc(sizeof(int) * (nout > Nin ? nout : Nin));
-
 	return c;
-Err:
-	freepcmconv(c);
-	return nil;
 }
 
 void
@@ -708,6 +732,10 @@ pcmconv(Pcmconv *c, void *in0, void *out0, int insz)
 	Pcmdesc *i;
 	int n;
 
+	if(insz < 0){
+		werrstr("invalid buffer size: %d", insz);
+		return -1;
+	}
 	if(c->flags & Fcopy){
 		memmove(out0, in0, insz);
 		return insz;
