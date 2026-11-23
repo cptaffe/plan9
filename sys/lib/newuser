@@ -59,72 +59,116 @@ if(! test -e lib/hotkey/acme)
 include acme.emacs
 
 !
-if(! test -e README)
-	cat > README <<'!'
-# Welcome to Acme
+if(! test -e intro.md)
+	cat > intro.md <<'!'
+# Welcome
 
-This is Acme, the Plan 9 text editor, in a window of rio, the Plan 9 window
-system, in your browser. Each program runs here, on p9web, a Plan 9 kernel in
-WebAssembly: no server runs your commands. Files you keep in this directory stay
-in this browser.
+This is plan9web, a Plan 9 system that runs in your browser. The window you
+are reading is acme(1), the Plan 9 text editor, inside rio(1), the window
+system. Both are Plan 9 C programs compiled to WebAssembly. They run on p9web,
+a Plan 9 kernel written in TypeScript, here in this tab. Files you keep in this
+directory stay in this browser.
+
+If Plan 9 is new to you, start with intro(1), then the papers in /sys/doc:
+
+- /sys/doc/9.ps, *Plan 9 from Bell Labs*: the system's design and the reasons for it
+- /sys/doc/names.ps, *The Use of Name Spaces in Plan 9*: the core idea
+- /sys/doc/acme/acme.pdf, *Acme: A User Interface for Programmers*
+- /sys/doc/rc.ps, *Rc — The Plan 9 Shell*
+- /sys/doc/plumb.ps, *Plumbing and Other Utilities*
+
+To read one, click its name with button 3.
 
 ## The mouse
 
+Plan 9 expects a mouse with three buttons. In Acme they do this:
+
 - **Left button (B1):** select text
 - **Middle button (B2):** run the text as a command
-- **Right button (B3):** open a file, or look for the text
+- **Right button (B3):** open the file, or search for the text
 
 On a Mac, Option-click is B2 and Command-click is B3.
 
 ## Windows
 
-On the background, button 3 is rio's menu: choose *New*, then sweep the new
-window with button 3 (on a Mac, Command-drag). Drag a window's border with
-button 1 to resize it, or button 3 to move it.
+On the background, button 3 opens rio's menu. Choose *New*, then sweep out the
+new window with button 3 (on a Mac, Command-drag). To resize a window, drag its
+border with button 1. To move it, drag the border with button 3.
 
 ## Commands
 
-To run a command, type it anywhere, then click it with B2. Try `ls /bin` or
-`echo hello`. The window on the right is win: rc, the Plan 9 shell, in an Acme
-window. Type a command at its end and press Return; Del interrupts it
-(on a Mac, Fn-Delete). `man acme` shows Acme's manual page.
+To run a command in Acme, type it anywhere and click it with B2. Try `ls /bin`
+or `echo hello`. *New* and *Put* are commands too: B2 on *New* makes a window,
+and B2 on *Put* saves the file.
 
-B2 on *New* makes a window, and B2 on *Put* saves a file. B3 on a file name, such
-as README, opens it, and B3 on a page name, such as acme(4), shows
-that manual page: the plumber sends them to Acme.
+The window on the right is win, which runs rc(1), the Plan 9 shell, in an Acme
+window. Type a command at its end and press Return. ^C interrupts it.
+
+B3 on a file name such as intro.md opens the file. B3 on a manual page name
+such as acme(1) shows that page. In both cases the plumber(4) sends the text to
+the right program. This is easier than typing `man acme`.
 
 ## Keys
 
+Typing goes to the window under the mouse; you don't click a window before you
+type. These keys act on that window:
+
 | Key | Does |
-|---|---|
-| Cmd-S | Put: save the window |
+| --- | ---- |
+| Cmd-S | Put: save the file |
 | Cmd-A | select the whole window |
-| Cmd-P | Search for a file or window |
-| Cmd-Shift-F | Search the files' text, by grep |
-| Cmd-B or F12 | Def: the definition of the word at the cursor |
-| Cmd-Shift-B | Refs: where it is used |
-| Cmd-I | Doc: its documentation, which follows the cursor |
+| Cmd-P | find a file or window by name |
+| Cmd-Shift-F | search the text of the files |
+| Ctl-X Ctl-S, Ctl-X K | Emacs's Put and Del |
+
+In a file that has a language server, lspfs(4) and alsp add these:
+
+| Key | Does |
+| --- | ---- |
+| Cmd-B or F12 | Def: go to the definition of the word at the cursor |
+| Cmd-Shift-B | Refs: list its uses |
+| Cmd-I | Doc: show its documentation, which follows the cursor |
 | Cmd-. | Act: the language server's fixes, then 1–9 picks, Esc cancels |
 | F2 | Rename: type the new name after it in the tag, then Esc and B2 |
-| Cmd-Shift-O | Syms: the file's functions and types |
+| Cmd-Shift-O | Syms: list the file's functions and types |
 | Cmd-K, then R, I, T, D, F or C | Refs, Impls, Type, Diag, Fmt, Comp |
-| Cmd-K, then E | an instruction to sibyl for the selection, typed in the tag |
-| Cmd-K, then S | Ask: the selection's lines in the sibyl session, for a question |
-| Ctl-X Ctl-S, Ctl-X K | Emacs's: Put, and Del |
 
-The language server's keys work in a file that a server is set up for (lspfs(4)).
-They are the rules in /lib/hotkey/acme and /lib/hotkey/acme.emacs, which
-lib/hotkey/acme here includes. Add your own below that include line, where a key
-you bind replaces the one it clashes with; its first line updates them (hotkey(1)).
+The keys are rules in /lib/hotkey/acme and /lib/hotkey/acme.emacs, and your
+lib/hotkey/acme includes them. To add your own, put them below the include
+line. A key you bind replaces the system's binding for it. To apply your
+changes, run the command on that file's first line. See hotkey(1).
+
+## Sibyl
+
+sibyl(1) is a coding agent that works in Acme. It needs a key for the model in
+factotum(4): `proto=pass service=anthropic` or `service=opencode`.
+
+Select some text and run `|sibyl` with an instruction, such as
+`|sibyl add error checks`. The answer replaces the selection, and Undo takes
+it back. `win sibyl -i` holds a conversation instead. Its changes go to a copy
+of the project, and *Review* in its tag shows them. *Sibyl* lists your saved
+sessions.
+
+| Key | Does |
+| --- | ---- |
+| Cmd-K, then E | type an instruction for the selection in the tag |
+| Cmd-K, then S | Ask: put the selected lines in the sibyl session, for a question |
 
 ## Files
 
-Drop a file or a directory on the page to open it here, as B3 on its name
-would: text in Acme, a PDF or an image in page, and an MP3, M4A, Ogg, FLAC or WAV
-plays in deck, a window with a scrub bar, which adds each sound dropped after it
-to its playlist (the browser lets sound start after a click on the page; space
-pauses, and button 3's Exit stops it). It is kept in the directory drop here.
-To save a file to your computer, run `download file`.
+Drop a file or a directory on the page and it opens as if you had clicked its
+name with B3:
+
+- text opens in Acme
+- a PDF or an image opens in page(1)
+- an MP3, M4A, Ogg, FLAC or WAV file plays in deck(1)
+
+Deck is a window with a scrub bar. It adds each sound you drop after it to its
+playlist. Space pauses, and Exit on its button 3 menu stops it. The browser
+plays sound only after you have clicked the page once.
+
+Dropped files are kept in the drop directory here. To save a file to your
+computer, run `download file`.
 !
 
 . lib/profile
