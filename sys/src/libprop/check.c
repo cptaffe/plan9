@@ -723,7 +723,11 @@ replayregs(char *name, Prop *p, void *a)
 		n = strcspn(regs[i], " ");
 		if(strncmp(regs[i], name, n) != 0 || name[n] != 0)
 			continue;
-		nv = choices(regs[i]+n, &v);
+		if((nv = choices(regs[i]+n, &v)) < 0){
+			fprint(2, "%s: -R %s: %s: %r\n", argv0 != nil ? argv0 : "prop", regf, name);
+			bad = 1;
+			continue;
+		}
 		s = _propnew(Replay);
 		s->in = v;
 		s->nin = nv;
