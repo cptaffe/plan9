@@ -390,7 +390,6 @@ Blk*
 _mdfinal(P *p, Blk *b)
 {
 	Blk *up;
-	int i;
 
 	up = b->up;
 	b->open = 0;
@@ -647,7 +646,7 @@ static Blk*
 tablehead(P *p, Blk *para)
 {
 	Cell *dc, *hc;
-	int nd, nh, i, l, r, k, e;
+	int nd, nh, i, l, r, e;
 	Blk *t, *pp, *rw, *x;
 	Seg *g;
 	uchar *h;
@@ -1058,9 +1057,7 @@ addtext(P *p, Blk *c, Blk *lm)
 			end = hend;
 		}
 		advance(p, p->fns - p->off, 0);
-		if(c->type == Mdhead && (c->flags & Mdsetext) && p->off >= p->nb-1)
-			;
-		else
+		if(c->type != Mdhead || !(c->flags & Mdsetext) || p->off < p->nb-1)
 			addline(p, c, end);
 	}else{
 		c = addkid(p, c, Mdpara, p->fns);

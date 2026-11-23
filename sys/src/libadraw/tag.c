@@ -1130,7 +1130,8 @@ grow(Tagx *t, int but)
 	int fh, onl, tl, tot, nnl;
 
 	s = rioscreen();
-	o = w = _screen->image->r;
+	w = _screen->image->r;
+	o = w;
 	if(but == 3){
 		if(t->filled){
 			t->filled = 0;
@@ -1802,15 +1803,13 @@ dflt(Tagx *t, Event *e)
 		xkill(t, r, a);
 	else if(strcmp(w, "Del") == 0)
 		del(t, 1);
-	else if(strcmp(w, "Put") == 0 || strcmp(w, "Undo") == 0 || strcmp(w, "Redo") == 0)
-		;
 	else if(w[0]=='|' || w[0]=='<' || w[0]=='>'){
 		free(w);
 		w = cmdname(s+strspn(s, " \t\n|<>"));
 		fd = cons();
 		fprint(fd, "%s: no selection\n", w);
 		close(fd);
-	}else
+	}else if(strcmp(w, "Put") != 0 && strcmp(w, "Undo") != 0 && strcmp(w, "Redo") != 0)
 		run(t, s, a);
 	free(w);
 	free(s);

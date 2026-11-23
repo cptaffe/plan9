@@ -9,6 +9,8 @@ static Rune graphics[] = {
 	L'⎻', L'─', L'⎼', L'⎽', L'├', L'┤', L'┴', L'┬', L'│', L'≤', L'≥', L'π', L'≠', L'£', L'·',
 };
 
+#pragma	varargck	argpos	reply	2
+
 static void
 reply(Vt *vt, char *fmt, ...)
 {

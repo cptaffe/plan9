@@ -103,3 +103,4 @@ void*	erealloc(void*, ulong);
 #pragma	varargck	argpos	pipewinto	4
 #pragma	varargck	argpos	pipetowin	4
 #pragma	varargck	argpos	sysrun	1
+#pragma	varargck	type	"E"	Event*

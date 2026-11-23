@@ -93,7 +93,6 @@ xfidflush(Xfid *x)
 	for(j=0; j<row.ncol; j++){
 		c = row.col[j];
 		for(i=0; i<c->nw; i++){
-			Fid *ef;
 			w = c->w[i];
 			winlock(w, 'E');
 			xfidwinlogflush(x, w);
