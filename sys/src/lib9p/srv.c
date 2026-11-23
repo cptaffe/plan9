@@ -699,7 +699,7 @@ rwstat(Req*, char*)
 static void
 srvclose(Srv *srv)
 {
-	if(srv->rref.ref || srv->sref.ref)
+	if(decref(&srv->rref))
 		return;
 
 	free(srv->rbuf);
@@ -713,20 +713,35 @@ srvclose(Srv *srv)
 	srv->rpool = nil;
 }
 
-/* srvwork, srvrelease and srvacquire are 9front's */
-static void
-srvwork(void *v)
+void
+srv(Srv *srv)
 {
-	Srv *srv = v;
 	Req *r;
 
+	fmtinstall('D', dirfmt);
+	fmtinstall('F', fcallfmt);
+
+	memset(&srv->rref, 0, sizeof(srv->rref));
+
+	if(srv->fpool == nil)
+		srv->fpool = allocfidpool(srv->destroyfid);
+	if(srv->rpool == nil)
+		srv->rpool = allocreqpool(srv->destroyreq);
+	if(srv->msize == 0)
+		srv->msize = 16*1024+IOHDRSZ;
+
+	changemsize(srv, srv->msize);
+
+	srv->fpool->srv = srv;
+	srv->rpool->srv = srv;
+
+	incref(&srv->rref);
 	while(r = getreq(srv)){
 		incref(&srv->rref);
 		if(r->error){
 			respond(r, r->error);
 			continue;
 		}
-		qlock(&srv->slock);
 		switch(r->ifcall.type){
 		default:
 			respond(r, "unknown message");
@@ -745,64 +760,11 @@ srvwork(void *v)
 		case Tstat:	sstat(srv, r);	break;
 		case Twstat:	swstat(srv, r);	break;
 		}
-		if(srv->sref.ref > 8 && srv->spid != getpid()){
-			decref(&srv->sref);
-			qunlock(&srv->slock);
-			return;
-		}
-		qunlock(&srv->slock);
 	}
 
-	if(srv->end && srv->sref.ref == 1)
+	if(srv->end)
 		srv->end(srv);
-	if(decref(&srv->sref) == 0)
-		srvclose(srv);
-}
-
-void
-srvacquire(Srv *srv)
-{
-	incref(&srv->sref);
-	qlock(&srv->slock);
-}
-
-void
-srvrelease(Srv *srv)
-{
-	if(decref(&srv->sref) == 0){
-		incref(&srv->sref);
-		_forker(srvwork, srv, 0);
-	}
-	qunlock(&srv->slock);
-}
-
-void
-srv(Srv *srv)
-{
-	fmtinstall('D', dirfmt);
-	fmtinstall('F', fcallfmt);
-
-	srv->spid = getpid();
-	memset(&srv->sref, 0, sizeof(srv->sref));
-	memset(&srv->rref, 0, sizeof(srv->rref));
-
-	if(srv->fpool == nil)
-		srv->fpool = allocfidpool(srv->destroyfid);
-	if(srv->rpool == nil)
-		srv->rpool = allocreqpool(srv->destroyreq);
-	if(srv->msize == 0)
-		srv->msize = 16*1024+IOHDRSZ;
-
-	changemsize(srv, srv->msize);
-
-	srv->fpool->srv = srv;
-	srv->rpool->srv = srv;
-
-	if(srv->start)
-		srv->start(srv);
-
-	incref(&srv->sref);
-	srvwork(srv);
+	srvclose(srv);
 }
 
 void
@@ -880,8 +842,7 @@ if(chatty9p)
 		closereq(r);
 	else
 		free(r);
-	if(decref(&srv->rref) == 0)
-		srvclose(srv);
+	srvclose(srv);
 }
 
 void
