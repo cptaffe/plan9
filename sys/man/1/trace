@@ -82,3 +82,7 @@ trace event data structures
 .PD
 .SH SOURCE
 .B /sys/src/cmd/trace.c
+.SH BUGS
+On p9web the kernel writes only Ready, Run, Sleep, User and Dead events:
+it has no real-time scheduling, so no release, deadline, yield or overrun arrows, and a process waiting on a lock or a rendezvous shows as asleep.
+A process is readied and runs when the call it slept in answers.
