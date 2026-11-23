@@ -108,7 +108,19 @@ name the format, and the number after it the bits;
 gives the channels and
 .B r
 the rate.
+Each number is decimal digits.
+.B S
+and
+.B U
+are big-endian integers,
+.B s
+and
+.B u
+little-endian ones, and
+.B f
+is an IEEE 754 float, little-endian too.
 A float has 32 or 64 bits, a-law and µ-law 8, and an integer 1 to 32.
+A stream has 1 to 65535 channels and a rate of at least 1.
 .I Mkpcmdesc
 returns 0, or \-1 if the string is not a format, and sets the error string.
 .I Pcmdescdef
@@ -133,7 +145,9 @@ makes a conversion from the stream
 describes to the one
 .I out
 describes.
-It returns nil and sets the error string if either has no channels or no rate,
+It returns nil and sets the error string if either is not a stream
+.I mkpcmdesc
+would describe, because a field is out of its range or disagrees with the others,
 if one rate is more than 64 times the other, or if
 .I out
 is a-law or µ-law, which it cannot write.
@@ -147,7 +161,9 @@ bytes from
 .I in
 and writes the result to
 .IR out .
-It returns the number of bytes it wrote.
+It returns the number of bytes it wrote, or \-1 with the error string set if
+.I insz
+is negative.
 It keeps a partial frame at the end of
 .I in
 and converts it with the next call's bytes.
@@ -155,10 +171,14 @@ Resampling holds back the last few frames until the filter has the frames after 
 A call with no bytes ends the stream: it writes the frames held back, as if silence followed,
 drops a partial frame it keeps, and starts the conversion over, so the next call begins a new stream.
 If the two streams are the same, it copies the bytes.
-Otherwise it reads each sample to an integer, adds dither if the output has fewer bits
+Otherwise it reads each sample to a 32-bit integer, adds dither if the output has fewer bits
 and the input fewer than 32,
 resamples with a filter if the rates differ, and writes the output's format.
-If the input has more channels than the output, it mixes them all and writes the mix to each
+An unsigned sample's midpoint is silence.
+A float of 1.0 is full scale: it reads as the largest integer, as does one above 1.0,
+one of \-1.0 or below reads as the smallest, a NaN as silence,
+and the rest scale by 2\u31\d; a float written is the integer divided by 2\u31\d.
+If the input has more channels than the output, it adds them all, clipping the sum, and writes it to each
 output channel.
 If it has fewer, it writes its first channel to each output channel.
 .PP
