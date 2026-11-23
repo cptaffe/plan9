@@ -147,8 +147,9 @@ scrollmouse(Mousectl *mc, Scroll *s, void (*set)(Scroll*, vlong, void*), void *a
 			first = 0;
 		}else
 			sleep(80);
-		while(nbrecv(mc->c, &mc->Mouse) > 0)
-			;
+		do
+			yield();
+		while(nbrecv(mc->c, &mc->Mouse) > 0);
 	}while(mc->buttons & 1<<(but-1));
 	while(mc->buttons)
 		readmouse(mc);
