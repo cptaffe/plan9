@@ -1,10 +1,10 @@
 #pragma	src	"/sys/src/libpatch"
 #pragma	lib	"libpatch.a"
 
-typedef struct Line	Line;
-typedef struct Text	Text;
-typedef struct Hunk	Hunk;
-typedef struct Diff	Diff;
+typedef struct Pline	Pline;
+typedef struct Ptext	Ptext;
+typedef struct Phunk	Phunk;
+typedef struct Pdiff	Pdiff;
 typedef struct Patch	Patch;
 
 enum
@@ -17,19 +17,19 @@ enum
 	Pzero	= 1<<5,
 };
 
-struct Line
+struct Pline
 {
 	char	*s;
 	int	n;
 };
 
-struct Text
+struct Ptext
 {
-	Line	*l;
+	Pline	*l;
 	int	n;
 };
 
-struct Hunk
+struct Phunk
 {
 	int	oldln;
 	int	oldcnt;
@@ -37,26 +37,26 @@ struct Hunk
 	int	newcnt;
 	int	lead;
 	int	trail;
-	Text	old;
-	Text	new;
+	Ptext	old;
+	Ptext	new;
 	int	lnum;
 };
 
-struct Diff
+struct Pdiff
 {
 	char	*old;
 	char	*new;
 	int	oldmode;
 	int	newmode;
 	int	flags;
-	Hunk	*h;
+	Phunk	*h;
 	int	nh;
 	int	lnum;
 };
 
 struct Patch
 {
-	Diff	*d;
+	Pdiff	*d;
 	int	nd;
 	char	*buf;
 };
@@ -64,10 +64,10 @@ struct Patch
 Patch*	parsepatch(char*, long, int);
 void	freepatch(Patch*);
 void	revpatch(Patch*);
-void	splittext(Text*, char*, long);
-int	findhunk(Diff*, Hunk*, Text*, int, int);
-int	placehunks(Diff*, Text*, int*);
-char*	applydiff(Diff*, Text*, long*);
+void	splittext(Ptext*, char*, long);
+int	findhunk(Pdiff*, Phunk*, Ptext*, int, int);
+int	placehunks(Pdiff*, Ptext*, int*);
+char*	applydiff(Pdiff*, Ptext*, long*);
 
 extern void*	emalloc(ulong);
 extern void*	erealloc(void*, ulong);

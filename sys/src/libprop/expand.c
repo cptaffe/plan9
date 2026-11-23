@@ -158,8 +158,11 @@ char*
 expand(Src *s, char **g, char *start, int depth)
 {
 	Fmt f;
+	char *t;
 
 	fmtstrinit(&f);
 	sym(s, g, start, strlen(start), depth, &f);
-	return fmtstrflush(&f);
+	if((t = fmtstrflush(&f)) == nil)
+		sysfatal("expand: out of memory");
+	return t;
 }
