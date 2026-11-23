@@ -75,10 +75,9 @@ package (see
 as
 .B ssh
 needs its own.
-The first
+Each
 .I cpu
-to a host starts its session.
-It runs the transport twice, by
+has a session of its own, which runs the transport twice, by
 .IR ferry (1),
 which ships
 .I u9cpu
@@ -86,26 +85,24 @@ to the host: once with
 .BR "u9cpu -n" ,
 to which
 .IR exportfs (4)
-serves the name space, and once with
+serves
+.IR cpu 's
+name space, and once with
 .BR "u9cpu -c -n" ,
 which serves the host's commands as Inferno's
 .IR cmd (3)
 does.
-The second is posted as
-.BI /srv/cpu. host ,
-and the session lasts until either ends.
-Later
-.I cpu
-commands to the host mount it on
+.I Cpu
+mounts the second on
 .BR /mnt/cpu ,
-in a name space of their own, and make their command by its
+in a name space of its own, and makes its command by its
 .BR clone .
-.PP
-The session exports the name space of the
+The session lasts until either stream ends or
 .I cpu
-that started it, or, if the host has
+does.
+If the host has
 .BR ns= ,
-one made from that file by
+the name space exported is one made from that file by
 .I newns
 (see
 .IR auth (2)
@@ -125,16 +122,13 @@ A host with no FUSE refuses it, and
 .I cpu
 fails with the reason.
 .SH FILES
-.TF /srv/cpu.host
+.TF $home/lib/cpu
 .TP
 .B /lib/cpu
 hosts
 .TP
 .B $home/lib/cpu
 the user's hosts, searched first
-.TP
-.BI /srv/cpu. host
-a host's session
 .PD
 .SH SOURCE
 plan9web's
@@ -149,9 +143,9 @@ and
 .IR exportfs (4),
 .IR ndb (6)
 .SH BUGS
-The session sees the name space of the
+The session sees the name space as it was when
 .I cpu
-that started it; binds and mounts made later, or in another name space, are not reflected.
+started; binds and mounts made later are not reflected.
 .PP
 A change in the window's size is not passed on.
 .PP
