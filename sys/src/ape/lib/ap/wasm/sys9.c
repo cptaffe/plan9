@@ -1,10 +1,3 @@
-/*
- * APE's system calls: the machines' are made by ../syscall from libc/9syscall,
- * as stubs in assembler.  wasm's stubs are libc/wasm/sys.c, in C, on the
- * runtime's imports; these are the same stubs, under the names ../plan9/sys9.h
- * gives them.  What the kernel sees of an APE program is what it sees of any
- * Plan 9 program.  This file is compiled as Plan 9 C, with <libc.h>.
- */
 #define	await		_AWAIT
 #define	bind		_BIND
 #define	chdir		_CHDIR
@@ -28,20 +21,17 @@
 #define	remove		_REMOVE
 #define	rendezvous	_RENDEZVOUS
 #define	rfork		_RFORK
-#define	procfork	_PROCFORK	/* procfork9.c's */
+#define	procfork	_PROCFORK
 #define	seek		_SEEK
 #define	sleep		_SLEEP
 #define	stat		_STAT
 #define	unmount		_UNMOUNT
 #define	wstat		_WSTAT
 #define	alarm		_ALARM
-#define	notify		notify9		/* _NOTIFY, below: the handler's type is not libc's */
-#define	werrstr		seterr		/* not in APE */
+#define	notify		notify9	
+#define	werrstr		seterr	
 
 #include "../../../../libc/wasm/sys.c"
-
-static Tos tos;
-Tos *_tos = &tos;
 
 void
 seterr(char *f, ...)
@@ -53,10 +43,6 @@ seterr(char *f, ...)
 	_ERRSTR(b, sizeof b);
 }
 
-/*
- * ../plan9/signal.c's handler returns int, libc's void, and on wasm a call of a
- * function by a pointer of another type is a trap.
- */
 static int (*handler)(void*, char*);
 
 static void
@@ -72,7 +58,6 @@ _NOTIFY(int (*f)(void*, char*))
 	return notify9(f != nil ? callhandler : nil);
 }
 
-/* A process alone in its memory has no one to wait for: as libc/wasm/main9.c. */
 int
 _SEMACQUIRE(long *p, int block)
 {
@@ -98,7 +83,6 @@ _SEMRELEASE(long *p, long n)
 	return *p;
 }
 
-/* The kernel has no segments: a wasm module has one memory (select's ../plan9/_buf.c wants them). */
 static int
 noseg(void)
 {
