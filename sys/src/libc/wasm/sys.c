@@ -39,6 +39,8 @@ struct Pdata
 		char	buf[ERRMAX];
 		jmp_buf	j;
 		uvlong	ureg[8];
+		long	*jump;
+		int	jret;
 	} note;
 };
 
@@ -209,9 +211,32 @@ p9web_note(void (*f)(void*, char*))
 		(*f)(p->note.ureg, p->note.buf);
 		return 0;
 	case 2:
-		return 1;
+		return p->note.jump != nil ? 2 : 1;
 	}
 	return 0;
+}
+
+void
+notejmp(void*, jmp_buf j, int ret)
+{
+	Pdata *p;
+
+	p = pdata();
+	p->note.jump = j;
+	p->note.jret = ret == 0 ? 1 : ret;
+	noted(NCONT);
+}
+
+EXPORT(p9web_notejmp) void
+p9web_notejmp(void)
+{
+	Pdata *p;
+	long *j;
+
+	p = pdata();
+	j = p->note.jump;
+	p->note.jump = nil;
+	longjmp(j, p->note.jret);
 }
 
 long alarm(ulong ms) { return neg(p9web·alarm(ms)); }
