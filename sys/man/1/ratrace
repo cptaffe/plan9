@@ -26,7 +26,7 @@ Data is always printed as
 "\fIstring\fP",
 where the
 .I string
-is the first 32 bytes of the data, with
+is the first 64 bytes of the data, with
 .L \&.
 replacing non-printing ASCII characters
 (printing characters are those between ASCII space (SP) and delete (DEL), exclusive).
@@ -40,10 +40,42 @@ the
 and
 the start and stop times for the system call in nanoseconds.
 The times are exclusive of the overhead for tracing.
+A call's start and its end are two writes, so the output of processes traced at once can interleave
+within a line.
+.SS Boot trace
+.I Ratrace
+attaches to a process that already runs,
+so the kernel traces the boot itself:
+every process from the first, pid 1, in the same format,
+a line for each call, written when the call ends
+(an
+.B Exits
+line when it starts).
+Under Node,
+.IP
+.EX
+node k/build/src/main/node.js --ratrace=\fIfile\fP -- \fIcommand\fP
+.EE
+.PP
+writes the trace to the host's
+.IR file .
+On the page,
+.B ?ratrace
+in its URL, or a line
+.B ratrace=1
+in its
+.IR plan9.ini (8),
+turns it on.
+Either way the kernel keeps the trace, up to 64 megabytes, in
+.B /dev/ratrace
+(see
+.IR cons (3)).
 .SH FILES
 .BI /proc/ pid /syscall
 .br
 .BI /proc/ pid /ctl
+.br
+.B /dev/ratrace
 .SH SOURCE
 .B /sys/src/cmd/ratrace.c
 .SH "SEE ALSO"
@@ -55,3 +87,9 @@ The printing of the data is too limited in length;
 printing
 .L \&.
 instead of something more sensible is limiting.
+.PP
+Tracing ends when the first traced process exits:
+its reader calls
+.IR threadexitsall .
+A child's first call shows only its end.
+In p9web the program counter is always 0.
