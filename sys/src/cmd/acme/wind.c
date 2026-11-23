@@ -684,9 +684,8 @@ winctlprint(Window *w, char *buf, int fonts)
 	sprint(buf, "%11d %11d %11d %11d %11d ", w->id, w->tag.file->b.nc,
 		w->body.file->b.nc, w->isdir, w->dirty);
 	if(fonts)
-		return smprint("%s%11d %q %11d %11d %11d %11d %11d ", buf, Dx(w->body.fr.r),
-			w->body.reffont->f->name, w->body.fr.maxtab, seqof(w, 1) != 0, seqof(w, 0) != 0,
-			w->body.fr.maxlines, stringwidth(w->body.reffont->f, "0"));
+		return smprint("%s%11d %q %11d %11d %11d ", buf, Dx(w->body.fr.r),
+			w->body.reffont->f->name, w->body.fr.maxtab, seqof(w, 1) != 0, seqof(w, 0) != 0);
 	return buf;
 }
 
