@@ -356,7 +356,7 @@ memset(&c, 0, sizeof c);
 mdroot(m, &c);
 for(d = 0;;){
 	if(c.type == Mdhead)
-		print("%.*s\en", (int)(c.q1-c.q0), s+c.q0);
+		print("%.*s\en", utfnlen(s+c.q0, c.q1-c.q0), s+c.q0);
 	if(mddown(&c)){
 		d++;
 		continue;
