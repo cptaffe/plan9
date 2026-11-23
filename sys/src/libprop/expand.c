@@ -140,7 +140,7 @@ sym(Src *s, char **g, char *name, int n, int depth, Fmt *f)
 			na++;
 		}
 	if(na == 0)
-		sysfatal("expand: no rule for %.*s", n, name);
+		sysfatal("expand: no rule for %.*s", utfnlen(name, n), name);
 	if(depth < Deepest)
 		discard(s);
 	span(s, _propintern(name, n));
