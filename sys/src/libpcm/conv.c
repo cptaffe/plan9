@@ -51,7 +51,7 @@ enum {
 };
 
 #define MAXINT	((int)(~0UL>>1))
-#define MININT	(MAXINT+1)
+#define MININT	(-MAXINT-1)
 
 static int
 clip(vlong v)
