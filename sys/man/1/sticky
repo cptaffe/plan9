@@ -109,6 +109,8 @@ and
 .BR Delete .
 The styles turn on for the selection, or off if all of it has them already;
 with no selection, they set the style of what you type next.
+A style over the lines of one paragraph is one span, its markers at its ends;
+over paragraphs, headings or list items, each has a span of its own.
 Keys do the common ones, as the Mac's do:
 Command-B, -I and -U bold, italicize and underline,
 Command-Shift-X strikes through, as in Notes,
@@ -222,6 +224,4 @@ plan9web's
 .IR fontfs (4),
 .IR theme (6)
 .SH BUGS
-A style marker spans one line: sticky marks a selection over lines line by line.
-.PP
 Cutting and pasting within one note keeps the styles; elsewhere only the text goes.
