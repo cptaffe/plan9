@@ -186,6 +186,22 @@ for dimmer marks, and
 .B sketchguide
 for guides.
 .TP
+.IR rtrace (1)
+.BR back ,
+.BR text ,
+.B ltext
+and
+.B border
+for its window, axis and rules;
+.B rtrace1
+to
+.B rtrace5
+for the kinds of its spans, in their order;
+.B rtracelife
+for its lanes' bands, and
+.B rtracesel
+for the selected lane.
+.TP
 .IR chess (1)
 .B chesslight
 and
