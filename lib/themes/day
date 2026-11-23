@@ -39,6 +39,15 @@ chesscheck	cc0000
 chesscomment	336633
 chesserror	cc0000
 
+# rtrace(1): its five kinds' colors, its lanes' bands and its selected lane
+rtrace1	3d7fb3
+rtrace2	8f6bb8
+rtrace3	c0563c
+rtrace4	3f9a6b
+rtrace5	a08a2d
+rtracelife	e7e7c6
+rtracesel	eaffff
+
 # sketch(1): text and back are its ink and paper
 sketchsel	cc0000
 sketchpoint	0000cc

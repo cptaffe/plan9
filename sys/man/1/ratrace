@@ -70,6 +70,19 @@ Either way the kernel keeps the trace, up to 64 megabytes, in
 .B /dev/ratrace
 (see
 .IR cons (3)).
+.SH EXAMPLES
+Trace a command and show its calls as a timeline (see
+.IR rtrace (1)):
+.IP
+.EX
+ratrace -c /bin/ls /tmp >[2=1] >/dev/null | aux/ratrace2tl | rtrace
+.EE
+.PP
+Show the boot so far:
+.IP
+.EX
+aux/ratrace2tl /dev/ratrace | rtrace
+.EE
 .SH FILES
 .BI /proc/ pid /syscall
 .br
@@ -79,6 +92,7 @@ Either way the kernel keeps the trace, up to 64 megabytes, in
 .SH SOURCE
 .B /sys/src/cmd/ratrace.c
 .SH "SEE ALSO"
+.IR rtrace (1),
 .IR acid (1),
 .IR db (1),
 .IR proc (3)

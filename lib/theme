@@ -33,6 +33,15 @@ chesscheck	ff8a8a
 chesscomment	7d8594
 chesserror	ff8a8a
 
+# rtrace(1): its five kinds' colors, its lanes' bands and its selected lane
+rtrace1	6aa8db
+rtrace2	b393dc
+rtrace3	e2806a
+rtrace4	69c294
+rtrace5	cdb556
+rtracelife	2a2f38
+rtracesel	2c3a4a
+
 # vt(1) and avt: the 16 colors a terminal's programs name
 ansi0	3b4252
 ansi1	e06c75
