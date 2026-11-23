@@ -5,7 +5,10 @@
  * public keys that Go 1.27's crypto/ed25519 takes and RFC 8032 does not (y not reduced, or x 0
  * with its sign set: the identity twice, a point of order 4 once), one under the identity with
  * R the identity, and one with that R not reduced, which Go refuses; the constant tables against
- * what they are computed from; then random keys, messages and points, as many as argv[1] says
+ * what they are computed from; x25519's inputs left as they were, a key exchange whose public
+ * values have the top bit 0, and four low order points, which Go 1.27's crypto/ecdh refuses,
+ * refused with "x25519: low order point"; then random keys, messages and points, as many as
+ * argv[1] says
  */
 typedef struct Sigtest Sigtest;
 struct Sigtest {
@@ -73,6 +76,13 @@ Vtest vtests[] = {
 	"eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"
 	"0000000000000000000000000000000000000000000000000000000000000000",
 	0,
+};
+
+char *lowtests[] = {
+	"0000000000000000000000000000000000000000000000000000000000000000",
+	"0100000000000000000000000000000000000000000000000000000000000000",
+	"e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800",
+	"e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b880",
 };
 
 typedef struct Dhtest Dhtest;
@@ -215,6 +225,7 @@ void
 main(int argc, char **argv)
 {
 	uchar sk[32], pk[32], m[8], sig[64], k[32], u[32], z[32], x[32], y[32], z2[32];
+	char err[ERRMAX];
 	int i, n;
 	Sigtest *t;
 	Vtest *v;
@@ -254,20 +265,42 @@ main(int argc, char **argv)
 		d = &dhtests[i];
 		hex(k, d->k);
 		hex(u, d->u);
-		x25519(z, k, u);
+		memmove(x, k, 32);
+		memmove(y, u, 32);
+		if(x25519(z, k, u) < 0){
+			print("x25519 %d: %r\n", i);
+			fails++;
+		}
 		check("x25519", i, z, d->out, 32);
+		if(memcmp(x, k, 32) != 0 || memcmp(y, u, 32) != 0){
+			print("x25519 %d: changed its input\n", i);
+			fails++;
+		}
 	}
-	curve25519_dh_new(x, y);
-	curve25519_dh_new(k, u);
-	if(!curve25519_dh_finish(x, u, z) || !curve25519_dh_finish(k, y, z2) || memcmp(z, z2, 32) != 0){
-		print("curve25519_dh: no shared secret\n");
+	genrandom(x, 32);
+	genrandom(k, 32);
+	if(x25519(y, x, x25519base) < 0 || x25519(u, k, x25519base) < 0
+	|| x25519(z, x, u) < 0 || x25519(z2, k, y) < 0 || memcmp(z, z2, 32) != 0){
+		print("x25519: no shared secret: %r\n");
 		fails++;
 	}
-	memset(u, 0, 32);
-	curve25519_dh_new(x, y);
-	if(curve25519_dh_finish(x, u, z)){
-		print("curve25519_dh: took a zero key\n");
+	if((y[31] | u[31]) & 0x80){
+		print("x25519: a public value with its top bit set\n");
 		fails++;
+	}
+	for(i = 0; i < nelem(lowtests); i++){
+		hex(u, lowtests[i]);
+		werrstr("");
+		if(x25519(z, x, u) != -1){
+			print("x25519 low order %d: took %s\n", i, lowtests[i]);
+			fails++;
+			continue;
+		}
+		rerrstr(err, sizeof err);
+		if(strcmp(err, "x25519: low order point") != 0){
+			print("x25519 low order %d: got error \"%s\", want \"x25519: low order point\"\n", i, err);
+			fails++;
+		}
 	}
 	randoms(argc > 1 ? atoi(argv[1]) : 100);
 	if(fails)
