@@ -238,41 +238,6 @@ Set the user's selected text in the window to the text addressed by the
 .B addr
 address.
 .TP
-.B draw
-Have a program draw the body, through the window's
-.BR cons ,
-.BR consctl ,
-.BR cursor ,
-.BR mouse ,
-.BR wctl
-and
-.B winname
-files below, until the
-.B ctl
-file this was written to is closed.
-The body's text is kept and shows again then.
-.B Draw
-turns the tag's
-.BR Undo ,
-.B Redo
-and
-.B Put
-on, as
-.B menu
-does, even when a program holds the
-.B event
-file, so the tag follows the text under the drawing;
-.B nomenu
-after it turns them off.
-While the body is drawn,
-.B draw
-through another open
-.B ctl
-file fails.
-The column's layout counts a drawn body as full:
-a window put on it splits it where it lands,
-and new and growing windows take their room from text windows first.
-.TP
 .BI dump " command
 Set the command string to recreate the window from a dump file.
 .TP
@@ -602,79 +567,11 @@ The
 file like
 .B data
 except that reads stop at the end address.
-.PP
-The window's
-.BR cons ,
-.BR consctl ,
-.BR cursor ,
-.BR mouse ,
-.B wctl
-and
-.B winname
-files are
-.IR rio (4)'s,
-for its body, so that a program that uses
-.IR graphics (2),
-with them bound over
-.BR /dev ,
-draws in the body as in a window of
-.IR rio
-(see
-.B draw
-above).
-When the window is deleted, reads of
-.B mouse
-and
-.B cons
-fail; ending the program is for whoever started it.
-.TP
-.B cons
-After
-.B rawon
-is written to
-.BR consctl ,
-every key typed in the body but the wheel's is read here,
-with neither the text inserted nor the key interpreted:
-the arrows, Escape and the control keys go to the program, as a terminal's do.
-Before it, while the body is drawn, keys are dropped.
-Text written is added to the body.
-.TP
-.B consctl
-Takes
-.B rawon
-and
-.BR rawoff ,
-which count, as
-.IR rio 's
-do; closing it ends raw mode.
-.TP
-.B cursor
-The cursor shown over the drawn body, as
-.IR rio 's.
-.TP
-.B mouse
-The mouse in the drawn body, as
-.IR rio 's,
-with an
-.B r
-when the body moves or changes size, or is drawn again:
-the program then reads
-.B winname
-for its new image.
-.TP
-.B wctl
-The body's rectangle, and whether the window is current and the body visible.
-It cannot be written.
-.TP
-.B winname
-The name of an image the size of the body,
-which can be read only while the body is drawn.
 .SH SOURCE
 .B /sys/src/cmd/acme
 .SH SEE ALSO
 .IR rio (1),
 .IR acme (1),
-.IR rio (4),
 .IR cons (3),
 .IR theme (6).
 .SH BUGS

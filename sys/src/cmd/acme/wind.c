@@ -249,7 +249,6 @@ winresize(Window *w, Rectangle r, int safe, int keepextra)
 		w->body.all.min.y = oy;
 	}
 	w->maxlines = min(w->body.fr.nlines, max(w->maxlines, w->body.fr.maxlines));
-	wsysresize(w);
 	return w->r.max.y;
 }
 
@@ -334,7 +333,6 @@ winclose(Window *w)
 		free(w->events);
 		winlogfree(w);
 		winclearstyle(w);
-		free(w->wsys);
 		free(w);
 	}
 }
@@ -353,7 +351,6 @@ windelete(Window *w)
 		sendp(x->c, nil);	/* wake him up */
 	}
 	winlogfree(w);
-	wsysdelete(w);
 	xfidlog(w, "del");
 }
 
