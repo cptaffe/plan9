@@ -26,7 +26,7 @@ filteradd(Pfilt *pf, char *path)
 	int i;
 
 	if((e = strchr(path, '/')) != nil)
-		p = smprint("%.*s", (int)(e - path), path);
+		p = smprint("%.*s", utfnlen(path, e - path), path);
 	else
 		p = strdup(path);
 
