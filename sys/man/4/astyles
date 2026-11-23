@@ -138,9 +138,9 @@ the text takes the highest run's text color, and the background the highest run'
 so a run that gives only a background over a keyword keeps the keyword's text color.
 A run takes its colors from its layer's lines, or else from the theme.
 The first of
-.B $home/lib/astyles
+.B $home/lib/acme/layers
 and
-.B /lib/astyles
+.B /lib/acme/layers
 lists the layers' names, top first, one to a line;
 a
 .L *
@@ -203,14 +203,14 @@ echo mark >/mnt/astyles/3/layers/$l/name
 echo '0 5 highlight' >/mnt/astyles/3/layers/$l/style
 .EE
 .SH FILES
-.TF $home/lib/astyles
+.TF $home/lib/acme/layers
 .TP
-.B /lib/astyles
+.B /lib/acme/layers
 the order of the layers
 .TP
-.B $home/lib/astyles
+.B $home/lib/acme/layers
 the user's order, read in place of
-.B /lib/astyles
+.B /lib/acme/layers
 .PD
 .SH SOURCE
 plan9web's
