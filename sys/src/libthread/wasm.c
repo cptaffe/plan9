@@ -21,6 +21,7 @@ F(fiber_exit) extern void p9web·fiber_exit(void);
 F(fiber_exits) extern void p9web·fiber_exits(char*, int);
 F(await) extern int p9web·await(int, char*, int);
 extern int rforkfn(int, void(*)(void*), void*);
+extern void _procstart(void(*)(void*), void*);
 
 enum
 {
@@ -120,10 +121,7 @@ _threadschedself(Proc *p)
 static void
 schedstart(void *v)
 {
-	Proc *p;
-
-	p = v;
-	_schedinit(p);
+	_procstart(_schedinit, v);
 }
 
 int

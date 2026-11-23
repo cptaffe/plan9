@@ -31,6 +31,50 @@ P9(notify) extern int p9web·notify(void(*)(void*, char*));
 P9(exits) extern void p9web·exits(char*, int);
 P9(rendezvous) extern void* p9web·rendezvous(void*, void*);
 
+typedef struct Pdata Pdata;
+struct Pdata
+{
+	Tos	tos;
+	struct {
+		char	buf[ERRMAX];
+		jmp_buf	j;
+		uvlong	ureg[8];
+	} note;
+};
+
+P9(proc_getdata) extern Pdata* p9web·proc_getdata(void);
+P9(proc_setdata) extern void p9web·proc_setdata(Pdata*);
+
+static Pdata first;
+
+static Pdata*
+pdata(void)
+{
+	Pdata *p;
+
+	if((p = p9web·proc_getdata()) == nil)
+		p = &first;
+	return p;
+}
+
+Tos*
+_gettos(void)
+{
+	return &pdata()->tos;
+}
+
+void
+_procstart(void (*f)(void*), void *a)
+{
+	Pdata d;
+
+	memset(&d, 0, sizeof d);
+	d.tos.pid = getpid();
+	p9web·proc_setdata(&d);
+	(*f)(a);
+	p9web·proc_setdata(nil);
+}
+
 static long
 neg(long r)
 {
@@ -129,12 +173,6 @@ _exits(char *s)
 		;
 }
 
-static struct {
-	char	buf[ERRMAX];
-	jmp_buf	j;
-	uvlong	ureg[8];
-} note;
-
 int
 notify(void (*f)(void*, char*))
 {
@@ -144,28 +182,31 @@ notify(void (*f)(void*, char*))
 int
 noted(int v)
 {
-	longjmp(note.j, v == NCONT ? 2 : 1);
+	longjmp(pdata()->note.j, v == NCONT ? 2 : 1);
 	return 0;
 }
 
 EXPORT(p9web_note_buf) char*
 p9web_note_buf(void)
 {
-	return note.buf;
+	return pdata()->note.buf;
 }
 
 EXPORT(p9web_note_len) int
 p9web_note_len(void)
 {
-	return sizeof note;
+	return sizeof first.note;
 }
 
 EXPORT(p9web_note) int
 p9web_note(void (*f)(void*, char*))
 {
-	switch(setjmp(note.j)){
+	Pdata *p;
+
+	p = pdata();
+	switch(setjmp(p->note.j)){
 	case 0:
-		(*f)(note.ureg, note.buf);
+		(*f)(p->note.ureg, p->note.buf);
 		return 0;
 	case 2:
 		return 1;
