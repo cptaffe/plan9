@@ -503,9 +503,37 @@ Children inherit the parent's base priority.
 .B /sys/include/trace.h
 .fi
 .SH SEE ALSO
+.IR ratrace (1),
 .IR trace (1),
 .IR debugger (2),
 .IR mach (2),
 .IR cons (3)
 .SH SOURCE
 .B /sys/src/9/port/devproc.c
+.SH BUGS
+In p9web,
+.B stop
+takes effect at the next system call's start or end,
+and the program counter in the
+.B syscall
+file that
+.IR ratrace (1)
+reads is 0.
+Closing the
+.B ctl
+file that wrote
+.B startsyscall
+lets the processes it traced, and their children, go on untraced, where Plan 9's stay
+.BR Stopped .
+Of the control messages, p9web's kernel takes
+.BR hang ,
+.BR nohang ,
+.BR stop ,
+.BR start ,
+.BR waitstop ,
+.BR startsyscall ,
+.BR kill ,
+.BR pri ,
+.B private
+and
+.BR noswap .
