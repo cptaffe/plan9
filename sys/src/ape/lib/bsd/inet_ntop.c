@@ -38,7 +38,7 @@ v6(const unsigned char *a, char *dst, socklen_t size)
 		}
 	}
 	p = buf;
-	if(best == 0 && (bestn == 6 || bestn == 5 && g[5] == 0xffff)){
+	if(best == 0 && (bestn == 6 || (bestn == 5 && g[5] == 0xffff))){
 		/* ::a.b.c.d and ::ffff:a.b.c.d */
 		sprintf(buf, "::%s%d.%d.%d.%d", bestn == 5 ? "ffff:" : "", a[12], a[13], a[14], a[15]);
 		return put(buf, dst, size);

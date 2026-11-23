@@ -3,29 +3,35 @@
 #include <authsrv.h>
 #include <libsec.h>
 
-#define	CHAR(x)		f->x = *p++
-#define	SHORT(x)	f->x = (p[0] | (p[1]<<8)); p += 2
-#define	VLONG(q)	q = (p[0] | (p[1]<<8) | (p[2]<<16) | (p[3]<<24)); p += 4
-#define	LONG(x)		VLONG(f->x)
-#define	STRING(x,n)	memmove(f->x, p, n); p += n
-
-void
+int
 convM2Aform1(char *ap, Authenticator *f, char *key)
 {
-	uchar *p;
+	uchar buf[AUTHENTLENFORM1], *p;
 	Chachastate s;
+	int n, num;
 
-	if(key) {
-		setupChachastate(&s, (uchar *)key, ChachaKeylen, (uchar*)ap, ChachaIVlen, 0);
-		ap += FORM1NONCELEN;
-		ccpoly_decrypt((uchar *)ap, CHALLEN+NONCELEN, nil, 0, (uchar *)ap+CHALLEN+NONCELEN, &s);
+	memset(f, 0, sizeof *f);
+	if(memcmp(ap, "form1 Ac", FORM1SIGLEN) == 0)
+		num = AuthAc;
+	else if(memcmp(ap, "form1 As", FORM1SIGLEN) == 0)
+		num = AuthAs;
+	else{
+		werrstr("not a form1 authenticator");
+		return -1;
 	}
-	p = (uchar*)ap;
-//	CHAR(num);
-	f->num = AuthAc; //todo: actually parse;
-	STRING(chal, CHALLEN);
-	STRING(rand, NONCELEN);
-	LONG(id);
-
-	USED(p);
+	memmove(buf, ap, AUTHENTLENFORM1);
+	n = AUTHENTLENFORM1-FORM1NONCELEN-FORM1AUTHTAGLEN;
+	setupChachastate(&s, (uchar*)key, ChachaKeylen, buf, ChachaIVlen, 20);
+	if(ccpoly_decrypt(buf+FORM1NONCELEN, n, nil, 0, buf+FORM1NONCELEN+n, &s) < 0){
+		memset(buf, 0, sizeof buf);
+		werrstr("authenticator not authentic");
+		return -1;
+	}
+	p = buf+FORM1NONCELEN;
+	f->num = num;
+	memmove(f->chal, p, CHALLEN);
+	p += CHALLEN;
+	memmove(f->rand, p, NONCELEN);
+	memset(buf, 0, sizeof buf);
+	return 0;
 }

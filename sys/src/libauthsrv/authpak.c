@@ -95,7 +95,6 @@ authpak_new(PAKpriv *p, Authkey *k, uchar y[PAKYLEN], int isclient)
 	mpint *PX,*PY,*PZ,*PT, *X, *Y;
 	PAKcurve *c;
 	uchar *bp;
-	int bits;
 
 	memset(p, 0, sizeof(PAKpriv));
 	p->isclient = isclient != 0;
