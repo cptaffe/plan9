@@ -91,7 +91,18 @@ but does not copy it; the text must not change while the snapshot is in use.
 Its
 .B seq
 counts the edits since
-.IR mdparse .
+.IR mdparse ,
+and its
+.B ref
+holds its
+.B nref
+link reference definitions, sorted by label, each with its normalized label as
+.B key
+and its offset as
+.BR off .
+The rest of an
+.B Md
+belongs to the library.
 .PP
 .I Mdedit
 returns a new snapshot for text that differs from
@@ -125,6 +136,8 @@ Blocks elsewhere may have had their inlines parsed again too,
 when the edit defines a link label they use or removes its last definition.
 .I Mdfree
 frees a snapshot, not its text.
+Snapshots of one text share nodes and count their references without a lock,
+so all of them belong to one proc.
 .PP
 A node is an
 .IR Mdnode :
@@ -222,10 +235,11 @@ is a reference's label,
 .B Mdinfo
 is a fenced code block's info string, and
 .B Mdtask
-is a task item's
-.B [ ]
-or
-.BR [x] .
+is a task item's marker: brackets around a blank, an
+.B x
+or an
+.BR X ,
+at the start of the item's first paragraph.
 Their children are
 .BR Mdtext ,
 .BR Mdesc ,
@@ -292,6 +306,13 @@ walks a snapshot.
 Its
 .I Mdnode
 is the node it points to, and its other fields belong to the library.
+A cursor starts zeroed;
+.IR mdroot ,
+.IR mdseek ,
+.I mdcurcopy
+and
+.I mddef
+reuse the memory of the cursor they move.
 .I Mdroot
 puts
 .I c
@@ -305,7 +326,10 @@ and return 0, without moving, when no such node exists.
 .I Mdseek
 moves to the deepest node whose range holds byte
 .I q
-and returns its depth.
+and returns its depth, 0 for the document.
+Before the call,
+.B c->md
+names the snapshot.
 .I Mdcurcopy
 makes
 .I to
@@ -313,7 +337,7 @@ a cursor at the same node as
 .IR from ,
 and
 .I mdcurfree
-frees a cursor's memory.
+frees a cursor's memory, after which the cursor can walk again.
 The tree holds no parent pointers; a cursor keeps the path it took.
 .PP
 .I Mddef
@@ -322,7 +346,9 @@ puts
 at the definition a reference link or image at
 .I link
 uses, the first in the document with its label,
-and returns 0 if
+and returns 0, leaving
+.I def
+where it was, if
 .I link
 is not one.
 .I Mdentity
@@ -344,7 +370,9 @@ which do not return when memory runs out;
 .I emalloc
 zeroes what it returns.
 .SH EXAMPLES
-Print each heading's text:
+Print each heading's source, with its
+.B #
+marks or setext underline:
 .IP
 .EX
 Md *m;
@@ -388,5 +416,7 @@ returns nil and sets the error string if the edit does not fit the texts' length
 .SH BUGS
 APE has no
 .IR md.h .
+Offsets are 32 bits, so the text must be shorter than 4 GiB.
+A fence longer than 65535 characters counts as 65535 long, so a shorter fence of at least that length closes it.
 cmark's limit on the text that reference links may repeat is not applied,
 so a document's links can expand to more than its size when a renderer repeats their destinations.

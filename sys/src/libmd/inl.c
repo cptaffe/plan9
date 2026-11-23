@@ -24,6 +24,8 @@ struct Br
 	int	after;
 	int	in0;
 	int	in1;
+	int	inactive;
+	Br	*link;
 };
 
 enum
@@ -186,7 +188,7 @@ mark(Sub *u, int aux, int v0, int v1)
 }
 
 static void
-_mdtext(P *p, Sub *u, Tn *up, int v0, int v1, int x)
+textrun(P *p, Sub *u, Tn *up, int v0, int v1, int x)
 {
 	int i, j, k;
 	Rune r[2];
@@ -344,7 +346,7 @@ linkurl(Sub *u, int off, int *d0, int *d1)
 			if(u->s[i] == '>'){
 				i++;
 				break;
-			}else if(u->s[i] == '\\')
+			}else if(u->s[i] == '\\' && i+1 < u->n && _mdispunct(u->s[i+1]))
 				i += 2;
 			else if(u->s[i] == '\n' || u->s[i] == '<')
 				return -1;
@@ -368,7 +370,7 @@ dest(Sub *u, int a, int b, int d0, int d1)
 	t = mk(u, Mddest, a, b);
 	if(d0 > a)
 		_mdadd(t, mark(u, Mdlink, a, d0));
-	_mdtext(u->p, u, t, d0, d1, Xesc|Xent);
+	textrun(u->p, u, t, d0, d1, Xesc|Xent);
 	if(b > d1)
 		_mdadd(t, mark(u, Mdlink, d1, b));
 	return t;
@@ -381,7 +383,7 @@ title(Sub *u, int a, int b)
 
 	t = mk(u, Mdtitle, a, b);
 	_mdadd(t, mark(u, Mdlink, a, a+1));
-	_mdtext(u->p, u, t, a+1, b-1, Xesc|Xent|Xnl);
+	textrun(u->p, u, t, a+1, b-1, Xesc|Xent|Xnl);
 	_mdadd(t, mark(u, Mdlink, b-1, b));
 	return t;
 }
@@ -393,7 +395,7 @@ label(Sub *u, int a, int b)
 
 	t = mk(u, Mdlabel, a, b);
 	_mdadd(t, mark(u, Mdlink, a, a+1));
-	_mdtext(u->p, u, t, a+1, b-1, Xnl);
+	textrun(u->p, u, t, a+1, b-1, Xnl);
 	_mdadd(t, mark(u, Mdlink, b-1, b));
 	return t;
 }
@@ -430,7 +432,7 @@ _mdparseref(P *p, Seg *seg, int nseg, Blk *b, Tn **out)
 	uchar *buf;
 	int i, n, l0, l1, d0, d1, ml, pos, bt, t0, t1, end, start;
 	u32int *vs;
-	Tn *def, *lb;
+	Tn *def, *lb, *last;
 	char *k;
 
 	USED(b);
@@ -456,7 +458,7 @@ _mdparseref(P *p, Seg *seg, int nseg, Blk *b, Tn **out)
 	u.nseg = nseg;
 	u.vs = vs;
 	pos = 0;
-	*out = nil;
+	*out = last = nil;
 	for(;;){
 		u.pos = pos;
 		start = pos;
@@ -511,14 +513,11 @@ _mdparseref(P *p, Seg *seg, int nseg, Blk *b, Tn **out)
 		strcpy(def->key, k);
 		free(k);
 		def->next = nil;
-		if(*out == nil)
+		if(last == nil)
 			*out = def;
-		else{
-			Tn *x;
-			for(x = *out; x->next != nil; x = x->next)
-				;
-			x->next = def;
-		}
+		else
+			last->next = def;
+		last = def;
 		pos = u.pos;
 	}
 	for(def = *out; def != nil; def = def->next){
@@ -600,7 +599,7 @@ backticks(Sub *u)
 		a++;
 		b--;
 	}
-	_mdtext(u->p, u, t, a, b, Xnl);
+	textrun(u->p, u, t, a, b, Xnl);
 	_mdadd(t, mark(u, Mdcodespan, end-len, end));
 	return t;
 }
@@ -705,14 +704,14 @@ pushbr(Sub *u, int image, Tn *t)
 	b->image = image;
 	b->t = t;
 	b->prev = last;
+	if(last != nil)
+		b->link = last->image ? last->link : last;
 	b->pos = u->pos;
 	if(image)
 		b->in1 = 1;
 	else
 		b->in0 = 1;
 	u->brack = b;
-	if(!image)
-		u->nolink = 0;
 }
 
 static Tn*
@@ -925,7 +924,7 @@ autolink(Sub *u, int a, int b, int email)
 	if(email)
 		t->flags |= Mdemail;
 	_mdadd(t, mark(u, Mdauto, a, a+1));
-	_mdtext(u->p, u, t, a+1, b-1, Xent);
+	textrun(u->p, u, t, a+1, b-1, Xent);
 	_mdadd(t, mark(u, Mdauto, b-1, b));
 	return t;
 }
@@ -1005,7 +1004,7 @@ pointy(Sub *u)
 	if(ml > 0){
 		u->pos += ml;
 		t = mk(u, Mdraw, st, u->pos);
-		_mdtext(u->p, u, t, st, u->pos, Xnl);
+		textrun(u->p, u, t, st, u->pos, Xnl);
 		return t;
 	}
 	return text(u, st, st+1);
@@ -1215,7 +1214,7 @@ closebr(Sub *u)
 	if(o == nil)
 		return text(u, init-1, init);
 	image = o->image;
-	if(!image && u->nolink){
+	if(o->inactive){
 		popbr(u);
 		return text(u, init-1, init);
 	}
@@ -1288,8 +1287,9 @@ match:
 	}else if(lt != nil)
 		_mdadd(l, lt);
 	popbr(u);
-	if(!image)
-		u->nolink = 1;
+	if(!image && (o = u->brack) != nil)
+		for(o = o->image ? o->link : o; o != nil && !o->inactive; o = o->link)
+			o->inactive = 1;
 	return nil;
 }
 
@@ -1579,14 +1579,13 @@ dropempty(Tn *root)
 }
 
 void
-_mdinline(P *p, Tn *leaf, Seg *seg, int nseg, int ext)
+_mdinline(P *p, Tn *leaf, Seg *seg, int nseg)
 {
 	Sub u;
 	int i, n;
 	uchar *buf;
 	u32int *vs;
 
-	USED(ext);
 	n = 0;
 	for(i = 0; i < nseg; i++)
 		n += seg[i].e - seg[i].b + 1;
@@ -1609,7 +1608,6 @@ _mdinline(P *p, Tn *leaf, Seg *seg, int nseg, int ext)
 	u.seg = seg;
 	u.nseg = nseg;
 	u.vs = vs;
-	u.nolink = 1;
 	u.root = leaf;
 	while(u.pos < u.n && inline1(&u, leaf))
 		;

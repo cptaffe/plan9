@@ -74,8 +74,8 @@ _mdsumcat(Mdsum x, Mdsum y)
 	return r;
 }
 
-static uvlong
-bloom(u32int h)
+uvlong
+_mdbloom(u32int h)
 {
 	return 1ULL<<(h & 63) | 1ULL<<((h>>6) & 63);
 }
@@ -107,7 +107,7 @@ unitsum(Tn *t)
 	e = t;
 	for(;;){
 		for(i = 0; i < k->nlab; i++)
-			s.bloom |= bloom(k->lab[i]);
+			s.bloom |= _mdbloom(k->lab[i]);
 		if(k->a.p != nil)
 			s.bloom |= k->a.s.bloom;
 		else if(k->kid != nil){
@@ -281,13 +281,12 @@ Tn*
 _mddecode(P *p, Mdbuf *b, u32int base, u32int lbase)
 {
 	Tn **t, *first, *x, *prev;
-	int i, j, *up;
+	int i, j;
 	Mdn *n;
 
 	if(b->nn == 0)
 		return nil;
 	t = emalloc(b->nn*sizeof t[0]);
-	up = emalloc(b->nn*sizeof up[0]);
 	for(i = 0; i < b->nn; i++){
 		n = &b->n[i];
 		x = _mdtn(p, n->type, n->off + base, n->off + n->len + base, n->line + lbase);
@@ -296,16 +295,12 @@ _mddecode(P *p, Mdbuf *b, u32int base, u32int lbase)
 		x->flags = n->flags;
 		x->aux = n->aux;
 		t[i] = x;
-		up[i] = -1;
 	}
 	for(i = 0; i < b->nn; i++){
 		n = &b->n[i];
 		if(n->kid != 0){
-			prev = nil;
 			for(j = n->kid; ; j = b->n[j].next){
-				up[j] = i;
 				_mdadd(t[i], t[j]);
-				USED(prev);
 				if(b->n[j].next == 0)
 					break;
 			}
@@ -353,7 +348,6 @@ _mddecode(P *p, Mdbuf *b, u32int base, u32int lbase)
 		prev = t[i];
 	}
 	free(t);
-	free(up);
 	return first;
 }
 
@@ -579,7 +573,7 @@ leaf(P *p, Blk *b, Tn *t)
 			t->seg = _mdalloc(p, b->nseg*sizeof(Seg));
 			memmove(t->seg, b->seg, b->nseg*sizeof(Seg));
 			t->nseg = b->nseg;
-			_mdinline(p, t, t->seg, t->nseg, 1);
+			_mdinline(p, t, t->seg, t->nseg);
 		}
 		break;
 	case Mdcode:
@@ -778,7 +772,6 @@ _mdpack(P *p, Blk *root)
 	res = emalloc(n*sizeof res[0]);
 	for(i = n-1; i >= 0; i--){
 		b = ord[i];
-		b->line = b->line;
 		if(b->isold){
 			res[i] = nil;
 			continue;
@@ -802,7 +795,7 @@ _mdpack(P *p, Blk *root)
 		for(k = b->kid; k != nil; k = k->next){
 			if(k->isold)
 				oldunits(p, k, pt);
-			else if(k->type != Mdcell || 1)
+			else
 				_mdadd(pt, k->tn);
 		}
 	}

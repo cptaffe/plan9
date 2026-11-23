@@ -290,7 +290,6 @@ struct Sub
 	Tn	*root;
 	Dl	*delim;
 	Br	*brack;
-	int	nolink;
 	int	flags;
 	int	bt[1001];
 	int	btscan;
@@ -308,6 +307,11 @@ extern int	_mdnent;
 
 void*	_mdalloc(P*, ulong);
 void	_mdfreearena(P*);
+void	_mdfreep(P*);
+void	_mdkeys(P*);
+Md*	_mdsnap(P*, Mdtree*);
+int	_mdrefcmp(void*, void*);
+uvlong	_mdbloom(u32int);
 Tn*	_mdtn(P*, int, u32int, u32int, u32int);
 void	_mdadd(Tn*, Tn*);
 void	_mdunlink(Tn*);
@@ -345,7 +349,7 @@ char*	_mdnorm(uchar*, int);
 u32int	_mdhash(char*);
 int	_mdlookup(P*, char*);
 void	_mdaddkey(P*, char*);
-void	_mdinline(P*, Tn*, Seg*, int, int);
+void	_mdinline(P*, Tn*, Seg*, int);
 int	_mdparseref(P*, Seg*, int, Blk*, Tn**);
 void	_mdtnmap(Sub*, Tn*);
 

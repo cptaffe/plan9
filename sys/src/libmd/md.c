@@ -3,8 +3,8 @@
 #include <md.h>
 #include "impl.h"
 
-static int
-refcmp(void *a, void *b)
+int
+_mdrefcmp(void *a, void *b)
 {
 	Mdref *x, *y;
 	int r;
@@ -17,12 +17,12 @@ refcmp(void *a, void *b)
 	return x->off < y->off ? -1 : x->off > y->off;
 }
 
-static void
-keys(P *p)
+void
+_mdkeys(P *p)
 {
 	int i;
 
-	qsort(p->def, p->ndef, sizeof p->def[0], refcmp);
+	qsort(p->def, p->ndef, sizeof p->def[0], _mdrefcmp);
 	p->nkey = 0;
 	p->key = emalloc((p->ndef+1)*sizeof p->key[0]);
 	for(i = 0; i < p->ndef; i++)
@@ -50,33 +50,31 @@ _mdlookup(P *p, char *k)
 	return 0;
 }
 
-static Md*
-finish(P *p)
+Md*
+_mdsnap(P *p, Mdtree *root)
 {
 	Md *m;
-	Tn *t;
 	int i;
 
-	keys(p);
-	t = _mdpack(p, p->root);
 	m = emalloc(sizeof *m);
 	m->s = p->s;
 	m->ext = p->ext;
 	m->n = p->n;
 	m->r0 = 0;
 	m->r1 = p->n;
-	m->root = (Mdtree*)t->a.p;
+	m->root = root;
 	m->nref = p->ndef;
 	m->ref = emalloc((p->ndef+1)*sizeof m->ref[0]);
 	for(i = 0; i < p->ndef; i++){
 		m->ref[i] = p->def[i];
-		m->ref[i].key = strdup(p->def[i].key);
+		m->ref[i].key = emalloc(strlen(p->def[i].key)+1);
+		strcpy(m->ref[i].key, p->def[i].key);
 	}
 	return m;
 }
 
-static void
-freep(P *p)
+void
+_mdfreep(P *p)
 {
 	_mdfreearena(p);
 	free(p->b);
@@ -91,6 +89,7 @@ mdparse(char *s, ulong n, int ext)
 	P *p;
 	ulong ls;
 	Md *m;
+	Tn *t;
 
 	p = _mdnewp(s, n);
 	p->ext = ext;
@@ -103,8 +102,10 @@ mdparse(char *s, ulong n, int ext)
 	}
 	_mdfinish(p);
 	_mdfinal(p, p->root);
-	m = finish(p);
-	freep(p);
+	_mdkeys(p);
+	t = _mdpack(p, p->root);
+	m = _mdsnap(p, (Mdtree*)t->a.p);
+	_mdfreep(p);
 	return m;
 }
 
