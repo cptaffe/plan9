@@ -310,7 +310,7 @@ and
 .IR acme (1),
 .IR cowfs (4),
 .IR sibylfs (4),
-.IR searchfs (4)
+.IR websearchfs (4)
 .SH BUGS
 Outside
 .IR acmestart ,
@@ -326,9 +326,9 @@ posting a
 .I sibylfs
 there first if there is none, and so trusts whatever the user's processes posted by that
 name; so do
-.B /srv/search
+.B /srv/websearch
 for
-.IR searchfs (4),
+.IR websearchfs (4),
 and
 .BI /srv/sibyl. n .tree
 for the session's
