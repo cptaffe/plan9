@@ -590,8 +590,10 @@ tokexec(Tpat *p, Toks *t, int t0, int t1, int from, Tmatch *m)
 int
 tokbexec(Tpat *p, Toks *t, int t0, int t1, Tmatch *m)
 {
-	Tmatch v;
+	Tmatch v, w;
 
+	if(m == nil)
+		m = &w;
 	if(!texec(p, t, t0, t1, t1, Left, 1, m))
 		return 0;
 	if(!p->refs || !p->bunsafe)
