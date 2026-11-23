@@ -21,7 +21,6 @@ cons \- console, clocks, process/process group ids, user, null, reboot, etc.
 .B /dev/pid
 .B /dev/ppid
 .B /dev/random
-.B /dev/ratrace
 .B /dev/reboot
 .B /dev/swap
 .B /dev/sysname
@@ -144,14 +143,6 @@ but not both.
 .B kprint
 on terminals until you have started
 .IR rio (1).)
-.PP
-The read-only
-.B ratrace
-file, in p9web, holds the boot trace when the boot asked for one:
-a line for each system call of every process since pid 1, in
-.IR ratrace (1)'s
-format, up to 64 megabytes.
-A read sees the lines that were there when its reader opened the file.
 .PP
 The
 .B null
