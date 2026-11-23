@@ -47,11 +47,15 @@ The times are exclusive of the overhead for tracing.
 .SH SOURCE
 .B /sys/src/cmd/ratrace.c
 .SH "SEE ALSO"
+.IR rtrace (1),
 .IR acid (1),
 .IR db (1),
-.IR proc (3)
+.IR proc (3),
+.IR boottrace (8)
 .SH BUGS
 The printing of the data is too limited in length;
 printing
 .L \&.
 instead of something more sensible is limiting.
+.PP
+In p9web the program counter is always 0, and a child's first call shows only its end.
