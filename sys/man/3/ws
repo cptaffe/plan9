@@ -91,7 +91,7 @@ to its own host.
 Once that import is made,
 .IR Sibyl 's
 servers and
-.IR searchfs (4)
+.IR websearchfs (4)
 bind its
 .B /mnt/web
 on their own.
@@ -108,6 +108,6 @@ on their own.
 .IR import (4),
 .IR srv (4),
 .IR webfs (4),
-.IR searchfs (4)
+.IR websearchfs (4)
 .SH BUGS
 A connection that the site drops takes its mounts with it.
