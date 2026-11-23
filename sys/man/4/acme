@@ -591,7 +591,9 @@ lines naming colours, then runs, each a start and length in runes and a name.
 What is written takes effect when the file is closed,
 and replaces the window's styles; but after a write to
 .BR addr ,
-it replaces only those at the address, its runs' starts are relative to it,
+while
+.B addr
+is still open, it replaces only those at the address, its runs' starts are relative to it,
 and its names are added to the window's.
 A run whose name the window has not given takes the theme's colours.
 Reading gives the window's names and runs.
