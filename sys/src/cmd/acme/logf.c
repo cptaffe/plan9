@@ -238,6 +238,8 @@ xfidwinlogopen(Xfid *x, Window *w)
 	int i;
 	ulong lo;
 
+	x->f->logpart = 0;
+	x->f->logmismatch = 0;
 	qlock(&l->lk);
 	if(!l->closed){
 		if(l->nf >= l->mf){
@@ -312,9 +314,9 @@ void
 xfidwinlogread(Xfid *x, Window *w)
 {
 	Fcall fc;
-	int i, n;
+	int i, n, m;
 	WinEditLog *l = logof(x, w);
-	char *p;
+	char *p, *s;
 	vlong min;
 
 	memset(&fc, 0, sizeof fc);
@@ -408,8 +410,17 @@ xfidwinlogread(Xfid *x, Window *w)
 		respond(x, &fc, nil);
 		return;
 	}
-	p = estrdup(l->ev[i]);
-	x->f->logoff++;
+	s = l->ev[i] + x->f->logpart;
+	m = strlen(s);
+	if(m > x->fcall.count){
+		m = x->fcall.count;
+		x->f->logpart += m;
+	}else{
+		x->f->logpart = 0;
+		x->f->logoff++;
+	}
+	p = emalloc(m);
+	memmove(p, s, m);
 
 	/* GC: remove entries every open reader has consumed. */
 	min = l->start + l->nev;
@@ -431,7 +442,7 @@ xfidwinlogread(Xfid *x, Window *w)
 	winclose(w);	/* release the extra ref taken before winunlock */
 
 	fc.data = p;
-	fc.count = strlen(p);
+	fc.count = m;
 	respond(x, &fc, nil);
 	free(p);
 }

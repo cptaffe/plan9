@@ -534,8 +534,15 @@ file had not been open.
 .B rdevent
 A copy of the window's events, read only: every message the
 .B event
-file would give, in its format, whether or not a program holds
+file would give, exactly as it gives it, whether or not a program holds
 .BR event ,
+so the text of an action longer than 256 characters is elided as there
+and a program that needs it reads it from
+.B body
+or
+.B xdata
+under the edit's
+.BR seq ;
 and
 .BI MS " q0 q1 " "0 0"
 when the body's selection is
@@ -546,7 +553,8 @@ and has stayed there a moment (so a sweep is one message), and when the file is 
 .B MS
 does not advance
 .BR seq .
-A read gives one message, and blocks until there is one.
+A read gives at most one message, and blocks until there is one;
+a read shorter than the message gives its first bytes, and the reads after it the rest.
 Any number of programs may read it, each from when it opened it;
 none writes anything back, and none holds up the window.
 A body
