@@ -230,9 +230,9 @@ in
 .B /lib/hotkey/acme
 runs it on the window with the focus.
 .SH FILES
-.TF /lib/astyles
+.TF /lib/acme/layers
 .TP
-.B /lib/astyles
+.B /lib/acme/layers
 places
 .B bits
 below
