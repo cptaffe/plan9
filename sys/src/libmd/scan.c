@@ -203,29 +203,21 @@ _mdscanamail(uchar *s, int n, int i)
 int
 _mdscantitle(uchar *s, int n, int i)
 {
-	int j, q, last;
+	int j, q;
 
 	q = at(s, n, i);
 	if(q == '(')
 		q = ')';
 	else if(q != '"' && q != '\'')
 		return 0;
-	last = -1;
 	for(j = i+1; j < n; j++){
-		if(s[j] == q){
-			if(s[j-1] != '\\' || j-1 == i)
-				return j+1-i;
-			last = j;
-			continue;
-		}
-		if(q == ')' && s[j] == '('){
-			if(s[j-1] == '\\' && j-1 > i)
-				continue;
+		if(s[j] == '\\' && j+1 < n && _mdispunct(s[j+1]))
+			j++;
+		else if(s[j] == q)
+			return j+1-i;
+		else if(q == ')' && s[j] == '(')
 			break;
-		}
 	}
-	if(last >= 0)
-		return last+1-i;
 	return 0;
 }
 
@@ -574,33 +566,15 @@ _mdscantrowend(uchar *s, int n, int i)
 int
 _mdscantask(uchar *s, int n, int i)
 {
-	int j, k;
+	int j;
 
-	j = i;
-	while(j < n && tspc(s[j]))
-		j++;
-	if(at(s, n, j) == '-' || at(s, n, j) == '+' || at(s, n, j) == '*')
-		j++;
-	else if(at(s, n, j) >= '0' && at(s, n, j) <= '9'){
-		while(at(s, n, j) >= '0' && at(s, n, j) <= '9')
-			j++;
-		if(j >= n || s[j] == '\n')
-			return 0;
-		j++;
-	}else
+	if(i+3 > n || s[i] != '[' || s[i+2] != ']')
 		return 0;
-	k = j;
-	while(j < n && tspc(s[j]))
-		j++;
-	if(j == k)
+	if(!tspc(s[i+1]) && s[i+1] != 'x' && s[i+1] != 'X')
 		return 0;
-	if(j+3 > n || s[j] != '[' || s[j+1] != ' ' && s[j+1] != 'x' || s[j+2] != ']')
-		return 0;
-	j += 3;
-	k = j;
-	while(j < n && tspc(s[j]))
-		j++;
-	if(j == k)
+	for(j = i+3; j < n && tspc(s[j]); j++)
+		;
+	if(j == i+3)
 		return 0;
 	return j-i;
 }

@@ -316,10 +316,13 @@ mdcurfree(Mdcur *c)
 void
 mdcurcopy(Mdcur *x, Mdcur *c)
 {
-	memset(x, 0, sizeof *x);
+	if(x == c)
+		return;
+	if(x->mf < c->nf){
+		x->mf = c->nf;
+		x->f = erealloc(x->f, x->mf*sizeof x->f[0]);
+	}
 	x->md = c->md;
-	x->f = emalloc(c->mf*sizeof c->f[0]);
-	x->mf = c->mf;
 	x->nf = c->nf;
 	memmove(x->f, c->f, c->nf*sizeof c->f[0]);
 	_mdcurfill(x);
@@ -335,6 +338,7 @@ gather(Mdcur *c, ulong a, ulong b)
 
 	s = emalloc(b-a+1);
 	n = 0;
+	memset(&x, 0, sizeof x);
 	mdcurcopy(&x, c);
 	q = a;
 	if(mddown(&x)){
@@ -379,6 +383,7 @@ mddef(Mdcur *c, Mdcur *d)
 	typ = c->type;
 	if(typ != Mdlink && typ != Mdimage || (c->flags & (Mdfull|Mdcollapsed|Mdshortcut)) == 0)
 		return 0;
+	memset(&x, 0, sizeof x);
 	mdcurcopy(&x, c);
 	if(!mddown(&x)){
 		mdcurfree(&x);
@@ -418,10 +423,15 @@ mddef(Mdcur *c, Mdcur *d)
 		return 0;
 	}
 	free(k);
-	d->md = md;
-	mdseek(d, md->ref[lo].off);
-	while(d->type != Mddef || d->q0 != md->ref[lo].off)
-		if(!mdup(d))
+	memset(&x, 0, sizeof x);
+	x.md = md;
+	mdseek(&x, md->ref[lo].off);
+	while(x.type != Mddef || x.q0 != md->ref[lo].off)
+		if(!mdup(&x)){
+			mdcurfree(&x);
 			return 0;
+		}
+	mdcurcopy(d, &x);
+	mdcurfree(&x);
 	return 1;
 }
