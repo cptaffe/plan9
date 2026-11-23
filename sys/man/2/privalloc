@@ -34,3 +34,7 @@ set to
 .B /sys/src/libc/9sys/privalloc.c
 .SH SEE ALSO
 .IR exec (2)
+.SH BUGS
+On wasm, the processes that share a memory share every address, so the location is one for
+all of them, as any static is: Plan 9 gives each process its own by mapping its stack at the
+same address in each.
