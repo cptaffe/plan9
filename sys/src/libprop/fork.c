@@ -258,6 +258,7 @@ once(Src *s, Prop *p, void *a, char **err, int ms, int all)
 		goto Err;
 	}
 	alarm(0);
+	armed = 0;
 	close(fd[0]);
 	if((w = waitfor(pid)) == nil){
 		werrstr("wait: %r");
@@ -291,6 +292,7 @@ once(Src *s, Prop *p, void *a, char **err, int ms, int all)
 Err:
 	rerrstr(e, sizeof e);
 	alarm(0);
+	armed = 0;
 	close(fd[0]);
 	free(b);
 	killpid(pid);
