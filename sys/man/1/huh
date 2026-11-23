@@ -313,7 +313,7 @@ prints every stretch, a run of tokens above the median score, highlighted or not
 Nothing is parsed: the text is plain text to the model, and every stretch comes from the tokens'
 bits and their places.
 .SH FILES
-.TF /lib/astyles
+.TF /lib/acme/layers
 .TP
 .B $home/lib/huh
 the user's density, written by
@@ -321,7 +321,7 @@ the user's density, written by
 and
 .IR Huh-
 .TP
-.B /lib/astyles
+.B /lib/acme/layers
 places
 .B bits
 below

@@ -9,5 +9,5 @@ bind #d /fd
 bind #p /proc
 bind -c #e /env
 bind /tmp/.mnt /mnt
-mount #s/search /mnt/search
+mount #s/websearch /mnt/websearch
 bind #W /mnt/web
