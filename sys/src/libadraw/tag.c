@@ -24,6 +24,7 @@ static void	setsel(Tagx*, uint, uint);
 static void	layout(Tagx*, int);
 static void	newbody(Tagx*);
 static void	send1(Tagx*, Event*);
+static int	give(Tagx*, Channel*, void*);
 
 
 static Rune Lfile[] = { '.', '-', '+', '/', ':', '@', 0 };
@@ -104,11 +105,21 @@ colorargs(char *s, ulong *bg, ulong *fg)
 }
 
 static void
+freecols(Image **cols)
+{
+	int i;
+
+	for(i=0; i<NCOL; i++)
+		if(cols[i] != display->black && cols[i] != display->white)
+			freeimage(cols[i]);
+}
+
+static void
 setcolors(Tagx *t, char *s)
 {
-	Image *cols[NCOL];
+	Image *cols[NCOL], *i2, *i3;
 	ulong bg, fg, b2, b3;
-	int i;
+	int i, bad;
 
 	if(colorargs(s, &bg, &fg) == 2){
 		cols[BACK] = colimage(bg);
@@ -123,15 +134,24 @@ setcolors(Tagx *t, char *s)
 		b2 = themecolor("but2", 0xAA0000FF);
 		b3 = themecolor("but3", 0x006600FF);
 	}
+	i2 = colimage(b2);
+	i3 = colimage(b3);
+	bad = i2 == nil || i3 == nil;
 	for(i=0; i<NCOL; i++)
-		if(t->f->cols[i] != display->black && t->f->cols[i] != display->white)
-			freeimage(t->f->cols[i]);
+		bad |= cols[i] == nil;
+	if(bad){
+		freecols(cols);
+		freeimage(i2);
+		freeimage(i3);
+		return;
+	}
+	freecols(t->f->cols);
 	memmove(t->f->cols, cols, sizeof cols);
 	frinittick(t->f);
 	freeimage(t->but2);
 	freeimage(t->but3);
-	t->but2 = colimage(b2);
-	t->but3 = colimage(b3);
+	t->but2 = i2;
+	t->but3 = i3;
 	layout(t, 1);
 }
 
@@ -834,7 +854,7 @@ expandfile(Tagx *t, uint q0, uint q1, Expand *e)
 	if(n == 0)
 		return 0;
 	r = t->s+q0;
-	if(runestrncmp(r, Lhttp, 7) == 0 || runestrncmp(r, Lhttps, 8) == 0){
+	if(n >= 7 && runestrncmp(r, Lhttp, 7) == 0 || n >= 8 && runestrncmp(r, Lhttps, 8) == 0){
 		if(r[n-1] == '.'){
 			e->q1--;
 			n--;
@@ -933,18 +953,18 @@ cmdname(char *s)
 	return n;
 }
 static Lock fdlk;
-static int fds[64];
+static int *fds;
 static int nfds;
+static int afds;
 
 static void
-regfd(int fd)
+addfd(int fd)
 {
-	if(fd < 0)
-		return;
-	lock(&fdlk);
-	if(nfds < nelem(fds))
-		fds[nfds++] = fd;
-	unlock(&fdlk);
+	if(nfds == afds){
+		afds = afds ? 2*afds : 16;
+		fds = erealloc(fds, afds*sizeof fds[0]);
+	}
+	fds[nfds++] = fd;
 }
 
 static void
@@ -970,12 +990,13 @@ mkpipe(int p[2])
 	int r;
 
 	lock(&fdlk);
-	r = pipe(p);
-	if(r >= 0 && nfds+2 <= nelem(fds)){
-		fds[nfds++] = p[0];
-		fds[nfds++] = p[1];
+	if((r = pipe(p)) >= 0){
+		addfd(p[0]);
+		addfd(p[1]);
 	}
 	unlock(&fdlk);
+	if(r < 0)
+		werrstr("pipe: %r");
 	return r;
 }
 
@@ -1012,23 +1033,6 @@ feedproc(void *v)
 }
 
 static void
-prune(Tagx *t)
-{
-	Run *r, **l;
-	char buf[32];
-
-	for(l=&t->run; (r=*l) != nil; ){
-		snprint(buf, sizeof buf, "/proc/%d/status", r->pid);
-		if(access(buf, AEXIST) < 0){
-			*l = r->next;
-			free(r->name);
-			free(r);
-		}else
-			l = &r->next;
-	}
-}
-
-static void
 xkill(Tagx *t, char *rest, char *arg)
 {
 	char *f[32], *s, *bad[32];
@@ -1040,7 +1044,6 @@ xkill(Tagx *t, char *rest, char *arg)
 	np = 0;
 	nbad = 0;
 	qlock(&t->lk);
-	prune(t);
 	for(r=t->run; r!=nil && np<nelem(pids); r=r->next)
 		if(n == 0)
 			pids[np++] = r->pid;
@@ -1253,7 +1256,7 @@ static Rune*
 complete1(Tagx *t)
 {
 	int i, nstr, npath, fd;
-	char *str, *path, *dir, *d;
+	char *str, *path, *dir, *d, err[ERRMAX];
 	Completion *c;
 	Rune *rp;
 
@@ -1271,10 +1274,11 @@ complete1(Tagx *t)
 		free(d);
 	}
 	rp = nil;
-	c = complete(dir, str);
+	if((c = complete(dir, str)) == nil)
+		rerrstr(err, sizeof err);
 	fd = cons();
 	if(c == nil)
-		fprint(fd, "error attempting completion: %r\n");
+		fprint(fd, "error attempting completion: %s\n", err);
 	else{
 		if(!c->advance){
 			fprint(fd, "%s%s%s*%s\n", dir,
@@ -1323,12 +1327,12 @@ event(int c1, int c2, uint q0, uint q1, uint oq0, uint oq1, int flag, char *s, c
 	e->oq1 = oq1;
 	e->flag = flag;
 	if(s != nil && utflen(s) <= EVENTSIZE){
-		strecpy(e->text, e->text+sizeof e->text, s);
+		utfecpy(e->text, e->text+sizeof e->text, s);
 		e->nr = utflen(e->text);
 		e->nb = strlen(e->text);
 	}
 	if(arg != nil)
-		strecpy(e->arg, e->arg+sizeof e->arg, arg);
+		utfecpy(e->arg, e->arg+sizeof e->arg, arg);
 	return e;
 }
 static char *builtins[] = {
@@ -1613,33 +1617,34 @@ Out:
 static void
 send1(Tagx *t, Event *e)
 {
-	if(t->closed){
+	if(t->closed || t->quitting || give(t, t->tag->c, &e) < 0)
 		free(e);
-		return;
-	}
-	sendp(t->tag->c, e);
 }
 
 static void
 runproc(void *v)
 {
 	Job *j;
-	char buf[32];
-	int i;
+	char buf[32], err[ERRMAX];
+	int i, n, *o;
 
 	j = v;
+	lock(&fdlk);
 	rfork(RFFDG|RFENVG|RFNOTEG);
+	n = nfds;
+	o = emalloc((n+1)*sizeof o[0]);
+	memmove(o, fds, n*sizeof o[0]);
+	unlock(&fdlk);
 	dup(j->fd[0], 0);
 	dup(j->fd[1], 1);
 	dup(j->fd[2], 2);
 	for(i=0; i<3; i++)
 		if(j->fd[i] > 2)
 			close(j->fd[i]);
-	lock(&fdlk);
-	for(i=0; i<nfds; i++)
-		if(fds[i] > 2)
-			close(fds[i]);
-	unlock(&fdlk);
+	for(i=0; i<n; i++)
+		if(o[i] > 2)
+			close(o[i]);
+	free(o);
 	if(j->winid > 0){
 		snprint(buf, sizeof buf, "%d", j->winid);
 		putenv("winid", buf);
@@ -1651,13 +1656,15 @@ runproc(void *v)
 	if(j->dir != nil)
 		chdir(j->dir);
 	procexecl(j->c, "/bin/rc", "rc", "-c", j->cmd, nil);
+	rerrstr(err, sizeof err);
+	sendp(j->errc, _adrawstrdup(err));
 	threadexits("exec");
 }
 
 typedef struct Watch Watch;
 struct Watch
 {
-	Tagx	*t;
+	Dead	*d;
 	int	pid;
 	char	*name;
 };
@@ -1665,16 +1672,39 @@ struct Watch
 static void	edit(Tagx*, int, char*);
 
 static void
+deadfree(Dead *d)
+{
+	Exit *x;
+
+	if(decref(&d->ref) > 0)
+		return;
+	while((x = nbrecvp(d->c)) != nil){
+		free(x->name);
+		free(x);
+	}
+	chanfree(d->c);
+	free(d);
+}
+
+static void
 watchproc(void *v)
 {
 	Watch *w;
+	Exit *x;
 	char buf[32];
 
 	w = v;
 	snprint(buf, sizeof buf, "/proc/%d/status", w->pid);
 	while(access(buf, AEXIST) >= 0)
 		sleep(250);
-	edit(w->t, 'u', w->name);
+	x = emalloc(sizeof *x);
+	x->pid = w->pid;
+	x->name = w->name;
+	if(nbsendp(w->d->c, x) == 0){
+		free(x->name);
+		free(x);
+	}
+	deadfree(w->d);
 	free(w);
 }
 
@@ -1684,6 +1714,7 @@ spawn(Tagx *t, char *cmd, int fd0, int fd1, int fd2)
 	Job j;
 	Run *r;
 	Watch *w;
+	char *err;
 	int i, pid;
 
 	memset(&j, 0, sizeof j);
@@ -1692,12 +1723,17 @@ spawn(Tagx *t, char *cmd, int fd0, int fd1, int fd2)
 	j.fd[2] = fd2;
 	j.cmd = cmd;
 	j.dir = wdir(t);
+	lock(&t->sl);
 	j.winid = t->winid;
-	j.file = t->winid > 0 ? acmename(t->winid) : nil;
+	unlock(&t->sl);
+	j.file = j.winid > 0 ? acmename(j.winid) : nil;
 	j.c = chancreate(sizeof(ulong), 0);
+	j.errc = chancreate(sizeof(char*), 0);
 	proccreate(runproc, &j, 16384);
 	pid = recvul(j.c);
+	err = pid == ~0 ? recvp(j.errc) : nil;
 	chanfree(j.c);
+	chanfree(j.errc);
 	for(i=0; i<3; i++)
 		if(i == 0 || j.fd[i] != j.fd[i-1])
 			closefd(j.fd[i]);
@@ -1705,20 +1741,22 @@ spawn(Tagx *t, char *cmd, int fd0, int fd1, int fd2)
 	free(j.file);
 	if(pid == ~0){
 		i = cons();
-		fprint(i, "exec rc: %r\n");
+		fprint(i, "exec rc: %s\n", err);
 		close(i);
+		werrstr("exec rc: %s", err);
+		free(err);
 		return -1;
 	}
 	r = emalloc(sizeof *r);
 	r->pid = pid;
 	r->name = cmdname(cmd);
 	qlock(&t->lk);
-	prune(t);
 	r->next = t->run;
 	t->run = r;
 	qunlock(&t->lk);
+	incref(&t->dead->ref);
 	w = emalloc(sizeof *w);
-	w->t = t;
+	w->d = t->dead;
 	w->pid = pid;
 	w->name = _adrawstrdup(r->name);
 	edit(t, 'a', _adrawstrdup(r->name));
@@ -1744,27 +1782,26 @@ run(Tagx *t, char *s, char *arg)
 }
 
 static void
-closer(void *v)
-{
-	Tagx *t;
-
-	t = v;
-	sendp(t->tag->c, nil);
-	if(t->hangup){
-		postnote(PNGROUP, getpid(), "hangup");
-		postnote(PNPROC, getpid(), "hangup");
-	}
-	threadexits(nil);
-}
-
-static void
 del(Tagx *t, int hangup)
 {
 	if(t->closed)
 		return;
+	lock(&t->sl);
 	t->closed = 1;
+	unlock(&t->sl);
 	t->hangup = hangup;
-	threadcreate(closer, t, 8192);
+	t->nilwant = 1;
+}
+
+static int
+closed(Tagx *t)
+{
+	int c;
+
+	lock(&t->sl);
+	c = t->closed;
+	unlock(&t->sl);
+	return c;
 }
 
 static void
@@ -1899,8 +1936,11 @@ ctl1(Tagx *t, char *s)
 			delete(t, i+1, t->ns);
 	}else if(strcmp(s, "del") == 0)
 		del(t, 0);
-	else if(strncmp(s, "winid ", 6) == 0)
+	else if(strncmp(s, "winid ", 6) == 0){
+		lock(&t->sl);
 		t->winid = atoi(s+6);
+		unlock(&t->sl);
+	}
 	else if(strncmp(s, "color", 5) == 0)
 		setcolors(t, s+5);
 }
@@ -1964,8 +2004,6 @@ apply(Tagx *t, Edit *e)
 			free(r);
 		}else if(e->op == 'a')
 			tagcmd(t, e->s);
-		else if(e->op == 'u')
-			untagcmd(t, e->s);
 		else
 			ctl1(t, e->s);
 		flushimage(display, 1);
@@ -1982,7 +2020,7 @@ edit(Tagx *t, int op, char *s)
 	e = emalloc(sizeof *e);
 	e->op = op;
 	e->s = s;
-	if(t->busy == 0 && t->pid == getpid())
+	if(t->pid == getpid() && t->busy == 0 && (op != 'c' || strcmp(s, "del") != 0))
 		apply(t, e);
 	else
 		sendp(t->ec, e);
@@ -2002,14 +2040,125 @@ resizer(void *v)
 {
 	Tagx *t;
 	int one;
+	Alt a[] = {
+		{nil, nil, CHANRCV},
+		{nil, nil, CHANRCV},
+		{nil, nil, CHANEND},
+	};
 
 	t = v;
 	threadsetname("tagresize");
-	for(;;){
-		recv(t->mc->resizec, nil);
+	a[0].c = t->mc->resizec;
+	a[1].c = t->rzq;
+	while(alt(a) == 0){
 		one = 1;
 		nbsend(t->rz, &one);
 	}
+	sendul(t->rzdone, 1);
+	threadexits(nil);
+}
+
+static int
+give(Tagx *t, Channel *c, void *v)
+{
+	Alt a[] = {
+		{nil, nil, CHANSND},
+		{nil, nil, CHANRCV},
+		{nil, nil, CHANEND},
+	};
+
+	a[0].c = c;
+	a[0].v = v;
+	a[1].c = t->quit;
+	a[1].v = &t->donec;
+	if(alt(a) == 1){
+		t->quitting = 1;
+		return -1;
+	}
+	return 0;
+}
+
+static void
+exited(Tagx *t, Exit *x)
+{
+	Run *r, **l;
+
+	qlock(&t->lk);
+	for(l=&t->run; (r=*l) != nil; )
+		if(r->pid == x->pid){
+			*l = r->next;
+			free(r->name);
+			free(r);
+		}else
+			l = &r->next;
+	qunlock(&t->lk);
+	if(!t->closed){
+		untagcmd(t, x->name);
+		flushimage(display, 1);
+	}
+	free(x->name);
+	free(x);
+}
+
+static void
+shutdown(Tagx *t)
+{
+	Tag *tg;
+	Channel *done;
+	Event *e;
+	Edit *ed;
+	Run *r;
+
+	tg = t->tag;
+	done = t->donec;
+	lock(&t->sl);
+	t->closed = 1;
+	unlock(&t->sl);
+	sendul(t->rzq, 1);
+	recvul(t->rzdone);
+	while((e = nbrecvp(tg->c)) != nil)
+		free(e);
+	if(!t->nilsent)
+		nbsendp(tg->c, nil);
+	while((e = nbrecvp(t->wc)) != nil)
+		free(e);
+	while((ed = nbrecvp(t->ec)) != nil){
+		free(ed->s);
+		free(ed);
+	}
+	frclear(t->f, 1);
+	frclear(t->g, 1);
+	freecols(t->f->cols);
+	freeimage(t->gb);
+	freeimage(t->but2);
+	freeimage(t->but3);
+	freeimage(t->mod);
+	while((r = t->run) != nil){
+		t->run = r->next;
+		free(r->name);
+		free(r);
+	}
+	deadfree(t->dead);
+	chanfree(tg->c);
+	chanfree(tg->mc->c);
+	chanfree(tg->mc->resizec);
+	chanfree(tg->kc->c);
+	chanfree(t->wc);
+	chanfree(t->ec);
+	chanfree(t->rz);
+	chanfree(t->rzq);
+	chanfree(t->rzdone);
+	chanfree(t->quit);
+	free(t->f);
+	free(t->g);
+	free(t->s);
+	free(t->snap);
+	free(tg->mc);
+	free(tg->kc);
+	free(tg);
+	free(t);
+	sendul(done, 1);
+	threadexits(nil);
 }
 
 static void
@@ -2019,9 +2168,10 @@ loop(void *v)
 	Tag *tg;
 	Mouse m;
 	Rune r;
-	Event *e;
+	Event *e, *nilp;
 	Edit *ed;
-	enum { Amouse, Aresize, Akey, Awrite, Aedit, Aquit };
+	Exit *x;
+	enum { Amouse, Aresize, Akey, Awrite, Aedit, Adead, Anil, Aquit };
 	Alt a[] = {
 		{nil, nil, CHANRCV},
 		{nil, nil, CHANRCV},
@@ -2029,12 +2179,15 @@ loop(void *v)
 		{nil, nil, CHANRCV},
 		{nil, nil, CHANRCV},
 		{nil, nil, CHANRCV},
+		{nil, nil, CHANNOP},
+		{nil, nil, CHANRCV},
 		{nil, nil, CHANEND},
 	};
 
 	t = v;
 	tg = t->tag;
 	threadsetname("tag");
+	nilp = nil;
 	a[Amouse].c = t->mc->c;
 	a[Amouse].v = &t->mc->Mouse;
 	a[Aresize].c = t->rz;
@@ -2044,8 +2197,14 @@ loop(void *v)
 	a[Awrite].v = &e;
 	a[Aedit].c = t->ec;
 	a[Aedit].v = &ed;
+	a[Adead].c = t->dead->c;
+	a[Adead].v = &x;
+	a[Anil].c = tg->c;
+	a[Anil].v = &nilp;
 	a[Aquit].c = t->quit;
-	for(;;){
+	a[Aquit].v = &t->donec;
+	while(!t->quitting){
+		a[Anil].op = t->nilwant && !t->nilsent ? CHANSND : CHANNOP;
 		switch(alt(a)){
 		case Amouse:
 			m = t->mc->Mouse;
@@ -2066,7 +2225,7 @@ loop(void *v)
 			if(m.buttons == 0)
 				t->owner = 0;
 			tg->mc->Mouse = m;
-			send(tg->mc->c, &m);
+			give(t, tg->mc->c, &m);
 			break;
 		case Aresize:
 			if(getwindow(display, Refnone) < 0)
@@ -2080,7 +2239,7 @@ loop(void *v)
 		case Akey:
 			if(!t->closed && key1(t, r))
 				break;
-			send(tg->kc->c, &r);
+			give(t, tg->kc->c, &r);
 			break;
 		case Awrite:
 			if(!t->closed){
@@ -2094,17 +2253,22 @@ loop(void *v)
 		case Aedit:
 			apply(t, ed);
 			break;
+		case Adead:
+			exited(t, x);
+			break;
+		case Anil:
+			t->nilsent = 1;
+			if(t->hangup){
+				postnote(PNGROUP, getpid(), "hangup");
+				postnote(PNPROC, getpid(), "hangup");
+			}
+			break;
 		case Aquit:
-			t->done = 1;
-			frclear(t->f, 1);
-			frclear(t->g, 1);
-			freeimage(t->gb);
-			freeimage(t->but2);
-			freeimage(t->but3);
-			freeimage(t->mod);
-			threadexits(nil);
+			t->quitting = 1;
+			break;
 		}
 	}
+	shutdown(t);
 }
 
 Tag*
@@ -2153,7 +2317,12 @@ tagopen(Mousectl *mc, Keyboardctl *kc, char *name)
 	t->wc = chancreate(sizeof(Event*), 32);
 	t->ec = chancreate(sizeof(Edit*), 64);
 	t->rz = chancreate(sizeof(int), 1);
-	t->quit = chancreate(sizeof(int), 1);
+	t->rzq = chancreate(sizeof(ulong), 1);
+	t->rzdone = chancreate(sizeof(ulong), 0);
+	t->quit = chancreate(sizeof(Channel*), 1);
+	t->dead = emalloc(sizeof *t->dead);
+	t->dead->ref.ref = 1;
+	t->dead->c = chancreate(sizeof(Exit*), 256);
 	t->b = screen;
 	t->font = font;
 	t->all = screen->r;
@@ -2182,15 +2351,12 @@ tagopen(Mousectl *mc, Keyboardctl *kc, char *name)
 void
 tagclose(Tag *tg)
 {
-	Tagx *t;
-	int one;
+	Channel *done;
 
-	t = tg->x;
-	if(t->closed && t->done)
-		return;
-	t->closed = 1;
-	one = 1;
-	nbsend(t->quit, &one);
+	done = chancreate(sizeof(ulong), 0);
+	sendp(tg->x->quit, done);
+	recvul(done);
+	chanfree(done);
 }
 
 int
@@ -2210,7 +2376,7 @@ tagwriteevent(Tag *tg, Event *e)
 {
 	Event *p;
 
-	if(tg->x->closed){
+	if(closed(tg->x)){
 		werrstr("tag closed");
 		return -1;
 	}
@@ -2227,7 +2393,7 @@ tagctl(Tag *tg, char *fmt, ...)
 	char *s, *p, *e;
 	int r;
 
-	if(tg->x->closed){
+	if(closed(tg->x)){
 		werrstr("tag closed");
 		return -1;
 	}
@@ -2258,7 +2424,7 @@ tagwrite(Tag *tg, char *file, void *buf, int n)
 {
 	char *s;
 
-	if(tg->x->closed){
+	if(closed(tg->x)){
 		werrstr("tag closed");
 		return -1;
 	}
@@ -2279,6 +2445,10 @@ tagmread(Tag *tg, char *file)
 	char *s;
 
 	t = tg->x;
+	if(closed(t)){
+		werrstr("tag closed");
+		return nil;
+	}
 	if(strcmp(file, "tag") != 0){
 		werrstr("no file %s", file);
 		return nil;
