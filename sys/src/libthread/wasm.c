@@ -1,10 +1,3 @@
-/*
- * libthread on wasm. A stack cannot be switched by hand there, so a thread is a fiber: a
- * coroutine of the runtime (k/src/proc/fibers.ts), with a stack and an asyncify buffer of its
- * own. A proc is a kernel process that shares this memory, and its scheduler is a fiber too; the
- * fibers of a proc use its kernel process. One fiber runs at a time, and a switch is at a call
- * that waits or at the imports below. sched.c's setjmp and longjmp are _threadjump and _threadpause.
- */
 #include <u.h>
 #include <libc.h>
 #include <thread.h>
@@ -18,7 +11,7 @@
 #define	EXPORT(name)
 #endif
 
-F(fiber_new) extern int p9web·fiber_new(void (*)(void*), void*, void*, int, void*, int, int);	/* the last: a new proc's rfork flags, or 0 */
+F(fiber_new) extern int p9web·fiber_new(void (*)(void*), void*, void*, int, void*, int, int);
 F(fiber_self) extern int p9web·fiber_self(void);
 F(fiber_getdata) extern void* p9web·fiber_getdata(void);
 F(fiber_setdata) extern void p9web·fiber_setdata(void*);
@@ -31,8 +24,8 @@ extern int rforkfn(int, void(*)(void*), void*);
 
 enum
 {
-	Minstack = 64*1024,	/* the C stack: only what a function takes the address of */
-	Abuf = 64*1024,	/* what asyncify saves of a stack */
+	Minstack = 64*1024,
+	Abuf = 64*1024,
 };
 
 EXPORT(p9web_fiber_main) void
@@ -69,7 +62,6 @@ _threadsetproc(Proc *p)
 	p9web·fiber_setdata(p);
 }
 
-/* The thread's own fiber: its stack is at least Minstack, whatever its creator asked. */
 void
 _threadinitstack(Thread *t, void (*f)(void*), void *arg)
 {
@@ -94,7 +86,6 @@ threadstart(void *v)
 	threadexits(nil);
 }
 
-/* _threadjump goes from p's scheduler to thread t, and comes back when t pauses. */
 void
 _threadjump(Thread *t)
 {
@@ -105,7 +96,6 @@ _threadjump(Thread *t)
 	p9web·fiber_block();
 }
 
-/* _threadpause goes from thread t to p's scheduler; a moribund thread does not come back. */
 void
 _threadpause(Proc *p, Thread *t)
 {
@@ -136,9 +126,6 @@ schedstart(void *v)
 	_schedinit(p);
 }
 
-/* _schedfork starts proc p: a kernel process in this memory, made by the rfork that makes it
- * (procrfork's flags too: what RFFDG copies is this proc's now, not when p first runs), and a
- * fiber for its scheduler. */
 int
 _schedfork(Proc *p)
 {
@@ -146,7 +133,6 @@ _schedfork(Proc *p)
 	return 0;
 }
 
-/* efork is _schedexec's child, as Plan 9's: the exec, or why it failed on e->fd[1]. */
 static void
 efork(void *v)
 {
@@ -164,9 +150,6 @@ efork(void *v)
 	_exits(buf);
 }
 
-/* _schedexec starts e->prog in a process of its own, with this proc's descriptors but the
- * close-on-exec ones, of which e->fd[1] tells procexec that it worked. Plan 9's child shares
- * this memory (RFMEM); here it is a copy that starts at efork (rforkfn), and exec replaces it. */
 int
 _schedexec(Execargs *e)
 {
@@ -207,9 +190,6 @@ _threadfirstproc(void)
 	firstsched = p9web·fiber_self();
 }
 
-/* _threadschedend ends proc p, whose threads are gone. The first proc ends as Plan 9's does,
- * with its message, and the others go on: the memory is theirs till the last of them ends. (Its
- * exits would end them all: threadexitsall's, here.) */
 void
 _threadschedend(char *msg)
 {
@@ -218,22 +198,50 @@ _threadschedend(char *msg)
 	p9web·fiber_exit();
 }
 
-/*
- * semacquire(2). The kernel cannot see this memory, and those who share a semaphore are the
- * fibers of this instance: one runs at a time, so the count needs no atomic instruction, and a
- * waiter blocks here, in a list by address, until a semrelease wakes it. Unlike the kernel's, a
- * wait is not interrupted by a note: it goes to the fiber when it is woken.
- */
 typedef struct Semwait Semwait;
 struct Semwait
 {
 	long	*addr;
 	int	fiber;
+	int	queued;
 	Semwait	*next;
 };
+static int semlk;
 static Semwait *semwait;
 
 static void
+semlock(void)
+{
+	while(_tas(&semlk))
+		;
+}
+
+static void
+semunlock(void)
+{
+	cas32((u32int*)&semlk, 1, 0);
+}
+
+static void
+semsleep(long *addr)
+{
+	Semwait w, **l;
+
+	w.addr = addr;
+	w.fiber = p9web·fiber_self();
+	w.queued = 1;
+	w.next = nil;
+	for(l = &semwait; *l != nil; l = &(*l)->next)
+		;
+	*l = &w;
+	do{
+		semunlock();
+		p9web·fiber_block();
+		semlock();
+	}while(w.queued);
+}
+
+static int
 semwake(long *addr)
 {
 	Semwait **l, *w;
@@ -241,58 +249,71 @@ semwake(long *addr)
 	for(l = &semwait; (w = *l) != nil; l = &w->next)
 		if(w->addr == addr){
 			*l = w->next;
+			w->queued = 0;
 			p9web·fiber_wake(w->fiber);
-			return;
+			return 1;
 		}
+	return 0;
 }
 
 int
 semacquire(long *addr, int block)
 {
-	Semwait w, **l;
+	int r;
 
-	if(*addr < 0){
+	semlock();
+	for(;;){
+		if(*addr < 0){
+			r = -1;
+			break;
+		}
+		if(*addr > 0){
+			--*addr;
+			r = 1;
+			break;
+		}
+		if(!block){
+			r = 0;
+			break;
+		}
+		semsleep(addr);
+	}
+	semunlock();
+	if(r < 0)
 		werrstr("bad arg in system call");
-		return -1;
-	}
-	while(*addr <= 0){
-		if(!block)
-			return 0;
-		w.addr = addr;
-		w.fiber = p9web·fiber_self();
-		w.next = nil;
-		for(l = &semwait; *l != nil; l = &(*l)->next)	/* the first to wait is the first woken */
-			;
-		*l = &w;
-		p9web·fiber_block();
-	}
-	--*addr;
-	return 1;
+	return r;
 }
 
-/* A timed wait polls: sleep lets the fibers run that will release it. */
 int
 tsemacquire(long *addr, ulong ms)
 {
 	vlong end;
 
 	end = nsec() + ms*1000000LL;
-	while(*addr <= 0){
+	for(;;){
+		semlock();
+		if(*addr > 0){
+			--*addr;
+			semunlock();
+			return 1;
+		}
+		semunlock();
 		if(nsec() >= end)
 			return 0;
 		sleep(1);
 	}
-	--*addr;
-	return 1;
 }
 
 long
 semrelease(long *addr, long n)
 {
-	long i;
+	long i, v;
 
+	semlock();
 	*addr += n;
-	for(i = 0; i < n; i++)
-		semwake(addr);
-	return *addr;
+	for(i = 0; i < n && semwake(addr); i++)
+		;
+	v = *addr;
+	semunlock();
+	return v;
 }
