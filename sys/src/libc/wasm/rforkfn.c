@@ -3,26 +3,21 @@
 #include <tos.h>
 #include "wasm.h"
 
-P9(forkentry) extern int p9web·forkentry(int);
-
-static void	(*entryf)(void*);
-static void	*entrya;
+P9(forkentry) extern int p9web·forkentry(int, void(*)(void*), void*);
 
 int
 rforkfn(int flags, void (*f)(void*), void *a)
 {
 	int r;
 
-	entryf = f;
-	entrya = a;
-	r = p9web·forkentry(flags|RFPROC);
+	r = p9web·forkentry(flags|RFPROC, f, a);
 	return r < 0 ? -1 : r;
 }
 
 EXPORT(p9web_forkentry) void
-p9web_forkentry(void)
+p9web_forkentry(void (*f)(void*), void *a)
 {
 	_tos->pid = getpid();
-	(*entryf)(entrya);
+	(*f)(a);
 	_exits(nil);
 }

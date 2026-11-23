@@ -1,0 +1,116 @@
+.TH X25519 2
+.SH NAME
+x25519, x25519base, ed25519pubkey, ed25519sign, ed25519verify \- elliptic curve key exchange and signatures on Curve25519
+.SH SYNOPSIS
+.B #include <u.h>
+.br
+.B #include <libc.h>
+.br
+.B #include <mp.h>
+.br
+.B #include <libsec.h>
+.PP
+.B
+uchar x25519base[32];
+.PP
+.B
+int x25519(uchar out[32], uchar scalar[32], uchar point[32])
+.PP
+.B
+void ed25519pubkey(uchar *pk, uchar *a)
+.PP
+.B
+void ed25519sign(uchar *sig, uchar *msg, ulong len, uchar *a, uchar *pk)
+.PP
+.B
+int ed25519verify(uchar *sig, uchar *msg, ulong len, uchar *pk)
+.SH DESCRIPTION
+.I X25519
+is the function of that name in RFC 7748:
+it sets
+.I out
+to the product of
+.I scalar
+and the point on Curve25519 whose u coordinate is
+.IR point ,
+each 32 bytes, little-endian.
+It clamps a copy of
+.I scalar
+as the RFC says
+and ignores the top bit of
+.IR point ;
+it changes neither argument.
+The top bit of a result is always 0.
+.I X25519
+returns 0, or \-1 if the result is all zero, as for a point of low order,
+whatever the scalar.
+.PP
+.I X25519base
+is the base point, u = 9.
+For a key exchange, each side fills a 32-byte secret with
+.I genrandom
+(see
+.IR rand (2))
+and sends
+.I x25519
+of the secret and
+.IR x25519base ;
+then
+.I x25519
+of its secret and the other side's public value
+gives each the same shared secret,
+which a key derivation function such as
+.I hkdf_x
+(see
+.IR sechash (2))
+should hash before use.
+.PP
+.I Ed25519pubkey
+sets the 32-byte public key
+.I pk
+of the 32-byte secret key
+.IR a ,
+as RFC 8032, section 5.1.5, says.
+.I Ed25519sign
+sets
+.I sig
+to the 64-byte signature of the
+.I len
+bytes of
+.I msg
+by
+.I a
+and its public key
+.IR pk .
+.I Ed25519verify
+returns 1 if
+.I sig
+is a signature of
+.I msg
+by the key whose public key is
+.IR pk ,
+and 0 if not.
+It takes what Go's
+.B crypto/ed25519
+takes: a public key whose y coordinate is not reduced, or whose x is 0 with its sign bit set,
+stands for the point it encodes, where RFC 8032's decoding refuses it;
+the signature's R must be the canonical encoding of [S]B \- [k]A, and S must be less than L.
+.PP
+These functions keep no state, and procs may call them at once.
+.SH SOURCE
+.B /sys/src/libsec/port/curve25519.c
+.br
+.B /sys/src/libsec/port/ed25519.c
+.SH SEE ALSO
+.IR rand (2),
+.IR rsa (2),
+.IR sechash (2)
+.br
+RFC 7748, Elliptic Curves for Security.
+.br
+RFC 8032, Edwards-Curve Digital Signature Algorithm (EdDSA).
+.SH DIAGNOSTICS
+.I X25519
+sets the error string to
+.B "x25519: low order point"
+when it returns \-1.
