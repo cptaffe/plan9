@@ -226,7 +226,7 @@ decnode(P *p, Hd *h)
 {
 	Tn *x, *f;
 	Mdbuf *b;
-	int i, j;
+	int j;
 
 	b = h->b;
 	f = _mddecode(p, b, h->q, h->l);
@@ -245,7 +245,6 @@ decnode(P *p, Hd *h)
 			break;
 		x = x->next;
 	}
-	USED(i);
 	return nil;
 }
 

@@ -97,7 +97,7 @@ readev(int fd, Winbuf *b, Event *e, Event *x)
 			x->oq0 = e->q0;
 			x->oq1 = e->q1;
 			x->flag = e->flag;
-			memmove(e, x, offsetof(Event, arg));
+			memmove(e, x, offsetof(Event, arg[0]));
 		}
 	}
 	if(e->flag&8){
