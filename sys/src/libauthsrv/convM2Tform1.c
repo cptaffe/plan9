@@ -28,7 +28,6 @@ convM2Tform1(char *ap, Ticket *f, char *key)
 	f->cuid[ANAMELEN-1] = 0;
 	STRING(suid, ANAMELEN);
 	f->suid[ANAMELEN-1] = 0;
-print(f->suid);
 	STRING(key, NONCELEN);
 	USED(p);
 }
