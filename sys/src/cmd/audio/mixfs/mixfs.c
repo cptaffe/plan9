@@ -13,46 +13,90 @@ enum {
 	NCHAN = 2,
 	ABUF = NBUF*NCHAN*2,
 	Nsec = 1000000000ULL,
+	STACK = 16*1024,
+};
+
+enum {
+	Dopen,
+	Didle,
+	Dwrite,
+	Dvolread,
+	Dvolwrite,
 };
 
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #define MAX(a,b) ((a)>(b)?(a):(b))
 
 typedef struct Stream Stream;
+typedef struct Dmsg Dmsg;
+
 struct Stream
 {
 	int	used;
 	int	mode;
-	int	flush;
 	int	run;
 	ulong	rp;
 	ulong	wp;
-	QLock	QLock;	/* p9web: named, for a compiler without Plan 9's conversion */
-	Rendez	Rendez;
+	Req	*req;
+	Req	**ereq;
+	uchar	*p;
+	int	n;
+	int	drain;
+};
+
+struct Dmsg
+{
+	int	op;
+	int	sweep;
+	uchar	*buf;
+	int	n;
+	Req	*r;
+	int	vol[2];
+	int	ok;
+	int	wasopen;
+	int	ms;
+	int	open;
+	int	null;
+	int	delay;
+	char	*err;
+	char	errbuf[ERRMAX];
 };
 
 ulong	mixrp;
-Lock	rplock;
 int	lbbuf[NBUF][NCHAN];
-
 int	mixbuf[NBUF][NCHAN];
-Lock	mixlock;
-
 Stream	streams[64];
-
-char	*devaudio;
-QLock	devlock;
-int	audiofd = -1;
-int	volfd = -1;
-
 int	volume[2] = {100, 100};
 int	vol64k[2] = {65536, 65536};
+int	mixdelay = NDELAY;
+int	sweep;
+int	devopen;
+int	devnull;
+int	devbusy;
+int	step;
+int	ctllast;
+Req	*ctlq;
+Req	**ectlq = &ctlq;
+Dmsg	dm;
+int	mixtid;
+uvlong	t0;
+uvlong	ns;
 
+char	*devaudio;
+int	audiofd = -1;
+int	volfd = -1;
 Pcmdesc	fmt;
-Lock	fmtlock;
 int	fmtchanged;
 int	isnulldev;
-int delay;
+int	delay;
+int	rate;
+
+Channel	*creq;
+Channel	*cclunk;
+Channel	*cdev;
+Channel	*cdevdone;
+Channel	*ctimer;
+Channel	*ctimerdone;
 
 void*
 emalloc(ulong n)
@@ -97,12 +141,10 @@ clip16(int v)
 void
 closeaudiodev(void)
 {
-	qlock(&devlock);
 	if(audiofd >= 0){
 		close(audiofd);
 		audiofd = -1;
 	}
-	qunlock(&devlock);
 }
 
 void
@@ -118,23 +160,17 @@ updfmt(void)
 		svol[1+n] = 0;
 		if((s = strstr(svol, "\nfmtout ")) != nil && (e = strchr(s+12, '\n')) != nil){
 			*e = 0;
-			lock(&fmtlock);
 			ok = fmtchanged = mkpcmdesc(s+8, &fmt) == 0;
-			unlock(&fmtlock);
 		}
 		if(!ok && (s = strstr(svol, "\nspeed ")) != nil && (n = strtol(s+6, &s, 10)) > 0){
-			lock(&fmtlock);
 			fmt = pcmdescdef;
 			fmt.rate = n;
 			ok = fmtchanged = fmt.rate > 0;
-			unlock(&fmtlock);
 		}
 	}
 	if(!ok){
-		lock(&fmtlock);
 		fmt = pcmdescdef;
 		fmtchanged = 1;
-		unlock(&fmtlock);
 	}
 }
 
@@ -189,12 +225,10 @@ reopendevs(char *name)
 	}
 	return -1;
 found:
-	qlock(&devlock);
 	free(devaudio);
 	devaudio = name;
 	isnulldev = 0;
 	audiofd = dup(afd, audiofd);
-	qunlock(&devlock);
 
 	close(afd);
 	if(volfd >= 0){
@@ -219,59 +253,6 @@ found:
 	return 0;
 }
 
-void
-fsopen(Req *r)
-{
-	Stream *s;
-
-	if(strcmp(r->fid->file->name, "audio") != 0){
-		respond(r, nil);
-		return;
-	}
-	for(s = streams; s < streams+nelem(streams); s++){
-		qlock(&s->QLock);
-		if(s->used == 0 && s->run == 0){
-			s->used = 1;
-			s->mode = r->ifcall.mode;
-			s->flush = 0;
-			qunlock(&s->QLock);
-
-			r->fid->aux = s;
-			respond(r, nil);
-			return;
-		}
-		qunlock(&s->QLock);
-	}
-	respond(r, "all streams in use");
-}
-
-void
-fsflush(Req *r)
-{
-	Fid *f = r->oldreq->fid;
-	Stream *s;
-
-	if(f->file != nil && strcmp(f->file->name, "audio") == 0 && (s = f->aux) != nil){
-		qlock(&s->QLock);
-		if(s->used && s->run){
-			s->flush = 1;
-			rwakeup(&s->Rendez);
-		}
-		qunlock(&s->QLock);
-	}
-	respond(r, nil);
-}
-
-void
-fsclunk(Fid *f)
-{
-	Stream *s;
-
-	if(f->file != nil && strcmp(f->file->name, "audio") == 0 && (s = f->aux) != nil)
-		s->used = 0;
-	f->aux = nil;
-}
-
 int
 eqfmt(Pcmdesc *a, Pcmdesc *b)
 {
@@ -283,242 +264,465 @@ eqfmt(Pcmdesc *a, Pcmdesc *b)
 		&& a->fmt == b->fmt;
 }
 
-void
-audioproc(void *)
+int
+isaudio(Fid *f)
 {
-	static uchar buf[ABUF];
-	int sweep, i, j, n, m, v, rate;
-	uvlong t0, dt, ns;
-	ulong rp;
-	Stream *s;
-	uchar *p, *bufconv;
-	Pcmconv	*conv;
+	return f != nil && f->file != nil && strcmp(f->file->name, "audio") == 0;
+}
 
-	threadsetname("audioproc");
-	conv = nil;
-	bufconv = nil;
-	sweep = 0;
+void
+devwrite(uchar *p, int n)
+{
+	static uchar *bufconv;
+	static Pcmconv *conv;
+	int m;
+
+	if(fmtchanged){
+		fmtchanged = 0;
+		free(bufconv);
+		bufconv = nil;
+		freepcmconv(conv);
+		conv = nil;
+		if(!eqfmt(&fmt, &pcmdescdef))
+		if((conv = allocpcmconv(&pcmdescdef, &fmt)) == nil ||
+		   (m = pcmratio(conv, ABUF)) < 0 ||
+		   (bufconv = malloc(m)) == nil){
+			fprint(2, "%s: %r\n", devaudio);
+			freepcmconv(conv);
+			conv = nil;
+		}
+		rate = fmt.rate;
+	}
+	if(conv != nil){
+		n = pcmconv(conv, p, bufconv, n);
+		p = bufconv;
+	}
+	if(write(audiofd, p, n) != n)
+		closeaudiodev();
+}
+
+char*
+volread(Dmsg *d)
+{
+	static char svol[4096];
+	Req *r;
+	char *f, *e;
+	int n, m;
+
+	r = d->r;
+	if(r->ifcall.offset == 0){
+		m = snprint(svol, sizeof(svol), "dev %s\nmix %d %d\nfmtout %!\nspeed %d\n",
+			devaudio?devaudio:"",
+			d->vol[0], d->vol[1],
+			pcmdescdef,
+			pcmdescdef.rate);
+		if(volfd >= 0 && (n = pread(volfd, svol+m, sizeof(svol)-m-1, 0)) > 0){
+			svol[m+n] = 0;
+			/* device's fmtout and speed are removed */
+			if((f = strstr(svol+m-1, "\nfmtout ")) != nil && (e = strchr(f+8, '\n')) != nil){
+				n -= e-f;
+				memmove(f, e, n+1);
+			}
+			if((f = strstr(svol+m-1, "\nspeed ")) != nil && (e = strchr(f+7, '\n')) != nil){
+				n -= e-f;
+				memmove(f, e, n+1);
+			}
+		}
+	}
+	readstr(r, svol);
+	return nil;
+}
+
+char*
+volwrite(Dmsg *d)
+{
+	char msg[64], *f[5];
+	Req *r;
+	int n, nf;
+
+	r = d->r;
+	snprint(msg, sizeof(msg), "%.*s",
+		utfnlen((char*)r->ifcall.data, r->ifcall.count), (char*)r->ifcall.data);
+	nf = tokenize(msg, f, nelem(f));
+	if(nf > 1 && strcmp(f[0], "dev") == 0){
+		if(reopendevs(f[1]) < 0)
+			goto err;
+	}else if(volfd >= 0){
+		if(nf > 1 && strcmp(f[0], "delay") == 0){
+			n = atoi(f[1]);
+			if(n < NQUANTA || n > NBUF)
+				goto err;
+			delay = n;
+		}
+		if(write(volfd, r->ifcall.data, r->ifcall.count) < 0)
+			goto err;
+	}else
+		return "bad msg";
+	return nil;
+err:
+	rerrstr(d->errbuf, sizeof d->errbuf);
+	return d->errbuf;
+}
+
+void
+devproc(void *)
+{
+	Dmsg *d;
+
+	threadsetname("devproc");
 	rate = fmt.rate;
 	delay = NDELAY;
-	ns = Nsec/pcmdescdef.rate;
-
-	t0 = nsec();
 	for(;;){
-		m = NBUF;
-		for(s = streams; s < streams+nelem(streams); s++){
-			qlock(&s->QLock);
-			if(s->run){
-				if(s->mode & OWRITE){
-					n = (long)(s->wp - mixrp);
-					if(n <= 0 && (s->used == 0 || sweep))
-						s->run = 0;
-					else if(n < m)
-						m = n;
-					if(n < delay)
-						rwakeup(&s->Rendez);
-				} else {
-					n = (long)(mixrp - s->rp);
-					if(n > NBUF && (s->used == 0 || sweep))
-						s->run = 0;
-					if(n > 0)
-						rwakeup(&s->Rendez);
-				}
-			}
-			qunlock(&s->QLock);
-		}
-		m %= NBUF;
-
-		if(m == 0){
-			int ms;
-
-			ms = 100;
+		d = recvp(cdev);
+		d->err = nil;
+		switch(d->op){
+		case Dopen:
+			d->ok = audiofd >= 0 || reopendevs(devaudio) >= 0;
+			if(!d->ok)
+				fprint(2, "%s: reopendevs: %r\n", argv0);
+			break;
+		case Didle:
+			d->ms = 100;
+			d->wasopen = audiofd >= 0;
 			if(audiofd >= 0){
-				if(sweep){
+				if(d->sweep){
 					closeaudiodev();
 				} else {
 					/* attempt to sleep just shortly before buffer underrun */
-					ms = seek(audiofd, 0, 2);
-					ms *= 800;
-					ms /= rate*NCHAN*2;
+					d->ms = seek(audiofd, 0, 2);
+					d->ms *= 800;
+					d->ms /= rate*NCHAN*2;
 				}
-				sweep = 1;
 			}
-			sleep(ms);
-			continue;
+			break;
+		case Dwrite:
+			devwrite(d->buf, d->n);
+			break;
+		case Dvolread:
+			d->err = volread(d);
+			break;
+		case Dvolwrite:
+			d->err = volwrite(d);
+			break;
 		}
-		sweep = 0;
-		if(audiofd < 0 && reopendevs(devaudio) < 0){
-			fprint(2, "%s: reopendevs: %r\n", argv0);
-			sleep(1000);
-			continue;
-		}
-
-		if(isnulldev){
-			dt = nsec() - t0;
-			m = (dt+ns-1)/ns;
-			m = MAX(NQUANTA, m);
-			m = MIN(m, NBUF);
-			t0 += dt;
-		}else
-			m = MIN(m, NQUANTA);
-
-		p = buf;
-		rp = mixrp;
-		for(i=0; i<m; i++){
-			for(j=0; j<NCHAN; j++){
-				v = clip16(mixbuf[rp % NBUF][j])*vol64k[j] / 65536;
-				lbbuf[rp % NBUF][j] = v;
-				mixbuf[rp % NBUF][j] = 0;
-				*p++ = v & 0xFF;
-				*p++ = v >> 8;
-			}
-			rp++;
-		}
-
-		/* barrier */
-		lock(&rplock);
-		mixrp = rp;
-		unlock(&rplock);
-
-		if(isnulldev){
-			sleep(5);
-			continue;
-		}
-
-		lock(&fmtlock);
-		if(fmtchanged){
-			fmtchanged = 0;
-			free(bufconv);
-			bufconv = nil;
-			freepcmconv(conv);
-			conv = nil;
-			if(!eqfmt(&fmt, &pcmdescdef))
-			if((conv = allocpcmconv(&pcmdescdef, &fmt)) == nil ||
-			   (n = pcmratio(conv, ABUF)) < 0 ||
-			   (bufconv = malloc(n)) == nil){
-				fprint(2, "%s: %r\n", devaudio);
-				freepcmconv(conv);
-				conv = nil;
-			}
-			rate = fmt.rate;
-		}
-		unlock(&fmtlock);
-
-		n = p - buf;
-		p = buf;
-		if(conv != nil){
-			n = pcmconv(conv, buf, bufconv, n);
-			p = bufconv;
-		}
-		if(write(audiofd, p, n) != n)
-			closeaudiodev();
+		d->open = audiofd >= 0;
+		d->null = isnulldev;
+		d->delay = delay;
+		sendp(cdevdone, d);
 	}
 }
 
 void
-fsread(Req *r)
+timerproc(void *)
 {
-	Srv *srv;
-	int i, j, n, m, v;
-	char *f, *e;
-	Stream *s;
-	uchar *p;
-
-	if(r->fid->file->aux == &volfd){
-		static char svol[4096];
-		if(r->ifcall.offset == 0){
-			m = snprint(svol, sizeof(svol), "dev %s\nmix %d %d\nfmtout %!\nspeed %d\n",
-				devaudio?devaudio:"",
-				volume[0], volume[1],
-				pcmdescdef,
-				pcmdescdef.rate);
-			if(volfd >= 0 && (n = pread(volfd, svol+m, sizeof(svol)-m-1, 0)) > 0){
-				svol[m+n] = 0;
-				/* device's fmtout and speed are removed */
-				if((f = strstr(svol+m-1, "\nfmtout ")) != nil && (e = strchr(f+8, '\n')) != nil){
-					n -= e-f;
-					memmove(f, e, n+1);
-				}
-				if((f = strstr(svol+m-1, "\nspeed ")) != nil && (e = strchr(f+7, '\n')) != nil){
-					n -= e-f;
-					memmove(f, e, n+1);
-				}
-			}
-		}
-		readstr(r, svol);
-		respond(r, nil);
-		return;
+	threadsetname("timerproc");
+	for(;;){
+		sleep(recvul(ctimer));
+		sendul(ctimerdone, 0);
 	}
+}
 
-	p = (uchar*)r->ofcall.data;
-	n = r->ifcall.count;
-	n &= ~(NCHAN*2 - 1);
-	r->ofcall.count = n;
-	n /= (NCHAN*2);
+void
+senddev(int op)
+{
+	dm.op = op;
+	devbusy = 1;
+	sendp(cdev, &dm);
+}
 
-	srv = r->srv;
-	srvrelease(srv);
-	s = r->fid->aux;
-	qlock(&s->QLock);
-	while(n > 0){
+void
+begin(Stream *s, Req *r)
+{
+	int n;
+
+	s->drain = 0;
+	if(r->ifcall.type == Tread){
+		s->p = (uchar*)r->ofcall.data;
+		n = r->ifcall.count;
+		n &= ~(NCHAN*2 - 1);
+		r->ofcall.count = n;
+	}else{
+		s->p = (uchar*)r->ifcall.data;
+		n = r->ifcall.count;
+		r->ofcall.count = n;
+	}
+	s->n = n / (NCHAN*2);
+}
+
+int
+readmore(Stream *s)
+{
+	int i, j, m, v;
+
+	while(s->n > 0){
 		if(s->run == 0){
 			s->rp = mixrp;
 			s->run = 1;
 		}
 		m = (long)(mixrp - s->rp);
 		if(m <= 0){
-			if(s->flush)
-				break;
 			s->run = 1;
-			rsleep(&s->Rendez);
-			continue;
+			return 0;
 		}
 		if(m > NBUF){
 			m = NBUF;
 			s->rp = mixrp - m;
 		}
-		if(m > n)
-			m = n;
+		if(m > s->n)
+			m = s->n;
 
 		for(i=0; i<m; i++){
 			for(j=0; j<NCHAN; j++){
 				v = lbbuf[s->rp % NBUF][j];
-				*p++ = v & 0xFF;
-				*p++ = v >> 8;
+				*s->p++ = v & 0xFF;
+				*s->p++ = v >> 8;
 			}
 			s->rp++;
 		}
 
-		n -= m;
+		s->n -= m;
 	}
-	s->flush = 0;
-	qunlock(&s->QLock);
-	respond(r, nil);
-	srvacquire(srv);
+	return 1;
+}
+
+int
+writemore(Stream *s)
+{
+	int i, j, m;
+
+	if(s->drain)
+		return 1;
+	while(s->n > 0){
+		if(s->run == 0){
+			s->wp = mixrp;
+			s->run = 1;
+		}
+		m = NBUF-1 - (long)(s->wp - mixrp);
+
+		if(m <= 0){
+			s->run = 1;
+			return 0;
+		}
+		if(m > s->n)
+			m = s->n;
+
+		for(i=0; i<m; i++){
+			for(j=0; j<NCHAN; j++){
+				mixbuf[s->wp % NBUF][j] += s16(s->p);
+				s->p += 2;
+			}
+			s->wp++;
+		}
+
+		s->n -= m;
+	}
+	s->drain = 1;
+	if((long)(s->wp - mixrp) >= mixdelay){
+		s->run = 1;
+		return 0;
+	}
+	return 1;
+}
+
+Req*
+dequeue(Req **l, Req ***e, Req *r)
+{
+	for(; *l != nil; l = (Req**)&(*l)->aux)
+		if(*l == r){
+			*l = r->aux;
+			if(*l == nil)
+				*e = l;
+			r->aux = nil;
+			return r;
+		}
+	return nil;
 }
 
 void
-fswrite(Req *r)
+service(Stream *s)
 {
-	Srv *srv;
-	int i, j, n, m;
-	Stream *s;
+	Req *r;
+	int done;
+
+	while((r = s->req) != nil){
+		if(r->ifcall.type == Tread)
+			done = readmore(s);
+		else
+			done = writemore(s);
+		if(!done)
+			return;
+		dequeue(&s->req, &s->ereq, r);
+		if(s->req != nil)
+			begin(s, s->req);
+		respond(r, nil);
+	}
+}
+
+void
+queue(Stream *s, Req *r)
+{
+	r->aux = nil;
+	*s->ereq = r;
+	s->ereq = (Req**)&r->aux;
+	if(s->req == r){
+		begin(s, r);
+		service(s);
+	}
+}
+
+void
+ctl(void)
+{
+	Req *r;
+
+	r = ctlq;
+	dequeue(&ctlq, &ectlq, r);
+	dm.r = r;
+	dm.vol[0] = volume[0];
+	dm.vol[1] = volume[1];
+	senddev(r->ifcall.type == Tread ? Dvolread : Dvolwrite);
+}
+
+void
+mix(int m)
+{
+	static uchar buf[ABUF];
+	uvlong dt;
+	int i, j, v;
+	ulong rp;
 	uchar *p;
 
-	if(r->fid->file->aux == &volfd){
-		char msg[64], *f[5];
-		int x[2], nf;
+	if(devnull){
+		dt = nsec() - t0;
+		m = (dt+ns-1)/ns;
+		m = MAX(NQUANTA, m);
+		m = MIN(m, NBUF);
+		t0 += dt;
+	}else
+		m = MIN(m, NQUANTA);
 
+	p = buf;
+	rp = mixrp;
+	for(i=0; i<m; i++){
+		for(j=0; j<NCHAN; j++){
+			v = clip16(mixbuf[rp % NBUF][j])*vol64k[j] / 65536;
+			lbbuf[rp % NBUF][j] = v;
+			mixbuf[rp % NBUF][j] = 0;
+			*p++ = v & 0xFF;
+			*p++ = v >> 8;
+		}
+		rp++;
+	}
+	mixrp = rp;
+
+	if(devnull){
+		sendul(ctimer, 5);
+		return;
+	}
+	dm.buf = buf;
+	dm.n = p - buf;
+	senddev(Dwrite);
+}
+
+void
+mixstep(void)
+{
+	int n, m;
+	Stream *s;
+
+	m = NBUF;
+	for(s = streams; s < streams+nelem(streams); s++){
+		if(s->run){
+			if(s->mode & OWRITE){
+				n = (long)(s->wp - mixrp);
+				if(n <= 0 && (s->used == 0 || sweep))
+					s->run = 0;
+				else if(n < m)
+					m = n;
+				if(n < mixdelay)
+					service(s);
+			} else {
+				n = (long)(mixrp - s->rp);
+				if(n > NBUF && (s->used == 0 || sweep))
+					s->run = 0;
+				if(n > 0)
+					service(s);
+			}
+		}
+	}
+	m %= NBUF;
+
+	if(m == 0){
+		dm.sweep = sweep;
+		senddev(Didle);
+		return;
+	}
+	sweep = 0;
+	if(!devopen){
+		senddev(Dopen);
+		return;
+	}
+	mix(m);
+}
+
+void
+devdone(Dmsg *d)
+{
+	devbusy = 0;
+	devopen = d->open;
+	devnull = d->null;
+	mixdelay = d->delay;
+	switch(d->op){
+	case Dopen:
+		if(d->ok)
+			step = 1;
+		else
+			sendul(ctimer, 1000);
+		break;
+	case Didle:
+		if(d->wasopen)
+			sweep = 1;
+		sendul(ctimer, d->ms);
+		break;
+	case Dwrite:
+		step = 1;
+		break;
+	case Dvolread:
+	case Dvolwrite:
+		respond(d->r, d->err);
+		break;
+	}
+}
+
+void
+mixopen(Req *r)
+{
+	Stream *s;
+
+	for(s = streams; s < streams+nelem(streams); s++){
+		if(s->used == 0 && s->run == 0){
+			s->used = 1;
+			s->mode = r->ifcall.mode;
+			r->fid->aux = s;
+			respond(r, nil);
+			return;
+		}
+	}
+	respond(r, "all streams in use");
+}
+
+void
+mixvol(Req *r)
+{
+	char msg[64], *f[5];
+	int x[2], nf;
+
+	if(r->ifcall.type == Twrite){
 		r->ofcall.count = r->ifcall.count;
 		snprint(msg, sizeof(msg), "%.*s",
 			utfnlen((char*)r->ifcall.data, r->ifcall.count), (char*)r->ifcall.data);
 		nf = tokenize(msg, f, nelem(f));
-		if(nf > 1 && strcmp(f[0], "dev") == 0){
-			if(reopendevs(f[1]) < 0){
-				responderror(r);
-				return;
-			}
-		}else if(nf > 1 && strcmp(f[0], "mix") == 0){
+		if(nf > 1 && strcmp(f[0], "mix") == 0){
 			x[0] = atoi(f[1]);
 			x[1] = nf < 3 ? x[0] : atoi(f[2]);
 			if(f[1][0] == '+' || f[1][0] == '-'){
@@ -532,102 +736,184 @@ fswrite(Req *r)
 			/* ≈60dB dynamic range; [0-100] → [0-65536] */
 			vol64k[0] = 65.536 * (exp(volume[0] * 0.0690876) - 1.0);
 			vol64k[1] = 65.536 * (exp(volume[1] * 0.0690876) - 1.0);
-		}else if(volfd >= 0){
-			if(nf > 1 && strcmp(f[0], "delay") == 0){
-				n = atoi(f[1]);
-				if(n < NQUANTA || n > NBUF){
-					responderror(r);
-					return;
-				}
-				delay = n;
-			}
-			if(write(volfd, r->ifcall.data, r->ifcall.count) < 0){
-				responderror(r);
-				return;
-			}
-		}else{
-			respond(r, "bad msg");
+			respond(r, nil);
 			return;
 		}
+	}
+	r->aux = nil;
+	*ectlq = r;
+	ectlq = (Req**)&r->aux;
+}
+
+void
+mixflush(Req *r)
+{
+	Req *o;
+	Stream *s;
+	int head;
+
+	o = r->oldreq;
+	if(dequeue(&ctlq, &ectlq, o) != nil)
+		respond(o, "interrupted");
+	else if((o->ifcall.type == Tread || o->ifcall.type == Twrite)
+	&& isaudio(o->fid) && (s = o->fid->aux) != nil){
+		head = s->req == o;
+		if(dequeue(&s->req, &s->ereq, o) != nil){
+			respond(o, "interrupted");
+			if(head && s->req != nil){
+				begin(s, s->req);
+				service(s);
+			}
+		}
+	}
+	respond(r, nil);
+}
+
+void
+mixstat(Req *r)
+{
+	Stream *s;
+
+	s = r->fid->aux;
+	r->d.length = 0;
+	if(s != nil && s->run){
+		r->d.length = (long)(s->wp - mixrp);
+		r->d.length *= NCHAN*2;
+	}
+	respond(r, nil);
+}
+
+void
+mixreq(Req *r)
+{
+	switch(r->ifcall.type){
+	case Topen:
+		mixopen(r);
+		break;
+	case Tstat:
+		mixstat(r);
+		break;
+	case Tflush:
+		mixflush(r);
+		break;
+	case Tread:
+	case Twrite:
+		if(r->fid->file->aux == &volfd)
+			mixvol(r);
+		else
+			queue(r->fid->aux, r);
+		break;
+	default:
+		respond(r, "bug in mixproc");
+		break;
+	}
+}
+
+void
+kick(void)
+{
+	for(;;){
+		if(devbusy)
+			return;
+		if(ctlq != nil && (!step || !ctllast)){
+			ctllast = 1;
+			ctl();
+		}else if(step){
+			step = 0;
+			ctllast = 0;
+			mixstep();
+		}else
+			return;
+	}
+}
+
+void
+mixproc(void *)
+{
+	Alt a[5];
+	Req *r;
+	Stream *s;
+	Dmsg *d;
+	ulong u;
+
+	threadsetname("mixproc");
+	ns = Nsec/pcmdescdef.rate;
+	t0 = nsec();
+	for(s = streams; s < streams+nelem(streams); s++)
+		s->ereq = &s->req;
+	a[0].op = CHANRCV;
+	a[0].c = creq;
+	a[0].v = &r;
+	a[1].op = CHANRCV;
+	a[1].c = cclunk;
+	a[1].v = &s;
+	a[2].op = CHANRCV;
+	a[2].c = cdevdone;
+	a[2].v = &d;
+	a[3].op = CHANRCV;
+	a[3].c = ctimerdone;
+	a[3].v = &u;
+	a[4].op = CHANEND;
+
+	step = 1;
+	for(;;){
+		kick();
+		switch(alt(a)){
+		case 0:
+			mixreq(r);
+			break;
+		case 1:
+			s->used = 0;
+			break;
+		case 2:
+			devdone(d);
+			break;
+		case 3:
+			step = 1;
+			break;
+		}
+	}
+}
+
+void
+fsopen(Req *r)
+{
+	if(!isaudio(r->fid)){
 		respond(r, nil);
 		return;
 	}
-
-	p = (uchar*)r->ifcall.data;
-	n = r->ifcall.count;
-	r->ofcall.count = n;
-	n /= (NCHAN*2);
-
-	srv = r->srv;
-	srvrelease(srv);
-	s = r->fid->aux;
-	qlock(&s->QLock);
-	while(n > 0){
-		if(s->run == 0){
-			s->wp = mixrp;
-			s->run = 1;
-		}
-		m = NBUF-1 - (long)(s->wp - mixrp);
-
-		if(m <= 0){
-			if(s->flush)
-				break;
-			s->run = 1;
-			rsleep(&s->Rendez);
-			continue;
-		}
-		if(m > n)
-			m = n;
-
-		lock(&mixlock);
-		for(i=0; i<m; i++){
-			for(j=0; j<NCHAN; j++){
-				mixbuf[s->wp % NBUF][j] += s16(p);
-				p += 2;
-			}
-			s->wp++;
-		}
-		unlock(&mixlock);
-
-		n -= m;
-	}
-	if((long)(s->wp - mixrp) >= delay && !s->flush){
-		s->run = 1;
-		rsleep(&s->Rendez);
-	}
-	s->flush = 0;
-	qunlock(&s->QLock);
-	respond(r, nil);
-	srvacquire(srv);
+	sendp(creq, r);
 }
 
 void
 fsstat(Req *r)
 {
-	Stream *s;
-
-	r->d.length = 0;
-	if(r->fid->file != nil && strcmp(r->fid->file->name, "audio") == 0 && (s = r->fid->aux) != nil){
-		qlock(&s->QLock);
-		if(s->run){
-			r->d.length = (long)(s->wp - mixrp);
-			r->d.length *= NCHAN*2;
-		}
-		qunlock(&s->QLock);
+	if(!isaudio(r->fid)){
+		r->d.length = 0;
+		respond(r, nil);
+		return;
 	}
-	respond(r, nil);
+	sendp(creq, r);
 }
 
 void
-fsstart(Srv *)
+fssend(Req *r)
+{
+	sendp(creq, r);
+}
+
+void
+fsclunk(Fid *f)
 {
 	Stream *s;
 
-	for(s=streams; s < streams+nelem(streams); s++){
-		s->used = s->run = 0;
-		s->Rendez.l = &s->QLock;
+	if(isaudio(f) && (s = f->aux) != nil){
+		if(threadid() == mixtid)
+			s->used = 0;
+		else
+			sendp(cclunk, s);
 	}
-	proccreate(audioproc, nil, 16*1024);
+	f->aux = nil;
 }
 
 void
@@ -638,12 +924,11 @@ fsend(Srv *)
 
 Srv fs = {
 	.open=		fsopen,
-	.read=		fsread,
-	.write=		fswrite,
+	.read=		fssend,
+	.write=		fssend,
 	.stat=		fsstat,
 	.destroyfid=	fsclunk,
-	.flush=		fsflush,
-	.start=		fsstart,
+	.flush=		fssend,
 	.end=		fsend,
 };
 
@@ -680,6 +965,16 @@ threadmain(int argc, char **argv)
 	fmtinstall('!', pcmdescfmt);
 	reopendevs(argv[0]);
 	closeaudiodev();
+
+	creq = chancreate(sizeof(void*), 0);
+	cclunk = chancreate(sizeof(void*), 0);
+	cdev = chancreate(sizeof(void*), 0);
+	cdevdone = chancreate(sizeof(void*), 0);
+	ctimer = chancreate(sizeof(ulong), 1);
+	ctimerdone = chancreate(sizeof(ulong), 0);
+	procrfork(devproc, nil, STACK, RFNAMEG);
+	proccreate(timerproc, nil, STACK);
+	mixtid = proccreate(mixproc, nil, STACK);
 
 	fs.tree = alloctree(nil, nil, DMDIR|0777, nil);
 	createfile(fs.tree->root, "audio", nil, 0666, nil);
