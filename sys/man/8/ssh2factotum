@@ -1,0 +1,87 @@
+.TH SSH2FACTOTUM 8
+.SH NAME
+ssh2factotum \- convert an OpenSSH ed25519 key to a factotum key
+.SH SYNOPSIS
+.B auth/ssh2factotum
+[
+.I file
+]
+.SH DESCRIPTION
+.I Ssh2factotum
+reads an OpenSSH private key, as
+.B ssh-keygen
+.B -t
+.B ed25519
+writes it, from
+.I file
+or from its standard input, and prints it as a key for
+.IR factotum (4):
+.IP
+.EX
+key proto=ed25519 pk=\fIpublic\fP comment=\fIcomment\fP !sk=\fIsecret\fP
+.EE
+.PP
+.I Public
+is the key's public half and
+.I secret
+its 32-byte seed, each in hexadecimal.
+.I Comment
+is the key's comment, quoted as
+.IR quote (2)
+quotes; a key with no comment has no
+.B comment=
+attribute.
+The secret is in a
+.B !
+attribute, so
+.I factotum
+does not show it.
+.PP
+The key must be in the
+.B openssh-key-v1
+format, between the lines
+.B "-----BEGIN OPENSSH PRIVATE KEY-----"
+and
+.BR "-----END OPENSSH PRIVATE KEY-----" ,
+hold one key, and have no passphrase.
+.SH EXAMPLES
+Give
+.I factotum
+the key that
+.B ssh
+uses, for
+.B auth/ssh-agent
+to sign with:
+.IP
+.EX
+auth/ssh2factotum $home/lib/ssh/id_ed25519 >/mnt/factotum/ctl
+.EE
+.PP
+Remove the passphrase from a copy of a key that has one first:
+.IP
+.EX
+cp id_ed25519 /tmp/k
+ssh-keygen -p -N '' -f /tmp/k
+auth/ssh2factotum /tmp/k >/mnt/factotum/ctl
+rm /tmp/k
+.EE
+.SH SOURCE
+.B /sys/src/cmd/auth/ssh2factotum.c
+.SH SEE ALSO
+.IR factotum (4),
+.IR auth (8)
+.SH DIAGNOSTICS
+.I Ssh2factotum
+prints nothing on its standard output when it fails.
+It fails when the input has no
+.B OPENSSH PRIVATE KEY
+lines or is not an
+.B openssh-key-v1
+key.
+It fails when the key has a passphrase, when the file holds more than one key, and when the check
+bytes differ.
+It fails when the key's type is not
+.BR ssh-ed25519 ,
+when a half of the key has the wrong length, and when the secret half's public half is not the key's.
+.SH BUGS
+It converts only ed25519 keys.
