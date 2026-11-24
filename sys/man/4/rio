@@ -67,6 +67,8 @@ That pid is specified by including the string
 .I pid
 in the attach specifier.  (See the Examples section
 .IR q.v. )
+An empty attach specifier creates no window: the mount gives the files of the window
+that has the keyboard focus, and fails if none has it.
 .PP
 When a window is created either by
 the
@@ -129,6 +131,13 @@ Like
 .RI ( q.v. ),
 a multiplexed version of the underlying device file, in this case representing the
 appearance of the mouse cursor when the mouse is within the corresponding window.
+.TP
+.B focus
+holds the id of the window that has the keyboard focus, as its
+.B winid
+does;
+it is the same in every window's directory.
+Reading it fails when no window has the focus.
 .TP
 .B label
 initially contains a string with the process ID of the lead process
