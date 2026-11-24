@@ -17,11 +17,17 @@ deck, Deck \- play sound, with a scrub bar
 .I Deck
 plays a list of sound files with a scrub bar.
 .I deck
-plays them in the window it is run in;
+plays them in the
+.IR rio (1)
+window it is run in, or, run where
+.B /dev
+is not a rio window's, as from
+.IR acme (1),
+in a new one;
 .IR Deck ,
-in the tag of an
-.IR acme (1)
-window, plays the files the window's lines name, the window's text being the playlist.
+in the tag of an acme window, plays the files the window's lines name, the window's text being
+the playlist, in a new rio window with a tag that looks and works as acme's
+.RI ( adraw (2)).
 .PP
 .I Deck's
 lines name files by their paths, or by paths from the window's directory,
@@ -38,6 +44,18 @@ and names of directories are passed by, and a line of names separated by tabs,
 as acme shows a directory, is a name each.
 It opens on the line at the window's selection, decoded and paused,
 and sets the selection to each track it plays.
+It adds
+.B Deck
+to the window's tag, and follows edits of the window's text.
+It opens the window through
+.IR acme (2),
+so under
+.IR amux (4)
+a window whose events another program holds, as
+.IR win (1)
+holds its window's, is passed over for a new one.
+When the window is renamed, Deck's tag and label follow, and its lines name files from the new
+directory.
 .PP
 .I deck
 plays its
@@ -126,17 +144,30 @@ Jump to that tenth of the track.
 .SS "Deck's commands"
 .TP
 .B Play Pause Next Prev
-in the tag do as their names say.
+in either tag do as their names say.
+.TP
+.B Get Put Undo Redo
+in Deck's tag are those of the text window.
 .TP
 .B Deck
-in the tag ends
+in the text window's tag ends
 .I Deck
-and shows the body again.
+and closes its window.
 .TP
 .B Del
-ends
+or
+.B Delete
+in Deck's tag ends
 .I Deck
-with its window.
+and closes its window; the text window stays.
+Deleting that window in rio ends
+.I Deck
+the same way.
+In the text window's tag, it deletes the window as acme's
+.B Del
+does, and
+.I Deck
+ends with it, as it does when the window is deleted any other way.
 .SH EXAMPLES
 Play a directory:
 .IP
@@ -161,7 +192,11 @@ the rule that plumbs sound to
 .IR audio (1),
 .IR plumber (4),
 .IR acme (1),
-.IR audio (3)
+.IR rio (1),
+.IR acme (2),
+.IR adraw (2),
+.IR audio (3),
+.IR amux (4)
 .SH BUGS
 A key's or the wheel's jump past what is decoded waits there for the decoder, shown as
 .BR wait ;
