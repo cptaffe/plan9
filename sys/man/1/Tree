@@ -1,6 +1,6 @@
 .TH TREE 1
 .SH NAME
-Tree \- a window's syntax tree, as an outline, in acme
+Tree \- an acme window's syntax tree, as an outline, in a rio window
 .SH SYNOPSIS
 .B Tree
 [
@@ -10,9 +10,16 @@ Tree \- a window's syntax tree, as an outline, in acme
 .I Tree
 in the tag of an
 .IR acme (1)
-window opens a window,
+window opens a window of
+.IR rio (1),
+by
+.B $wsys
+.RI ( graphics (2)),
+labeled
 .IB file +Tree\f1,
-that draws the parse of the first window's text as an outline.
+that draws the parse of the acme window's text as an outline,
+under a tag that looks and works as acme's
+.RI ( adraw (2)).
 The grammar is the one
 .IR hl (1)
 would color the file by, from the rules of
@@ -24,7 +31,7 @@ and the parse is its program's answer to a
 request.
 Given
 .IR winid ,
-it shows that window instead of
+it shows that acme window instead of
 .BR $winid .
 .PP
 Each row is a named node of the parse:
@@ -87,9 +94,9 @@ When the window's text changes under a move or a pipe,
 writes nothing and says the file changed.
 .PP
 .BI | cmd
-in
+typed in
 .IR Tree 's
-tag runs
+tag and run with button 2 runs
 .I cmd
 with
 .IR rc (1)
@@ -101,22 +108,60 @@ does: a command that fails still has its output put there, and
 .I Tree
 says how it failed.
 Undo takes it back, and text that no longer parses shows as error nodes.
+The command runs while
 .I Tree
-writes nothing only if the text changed while the command ran.
+goes on, and
+.B Kill
+in the tag stops it.
+.I Tree
+writes nothing if the text changed while the command ran or
+.B Kill
+stopped it.
+One command runs at a time, and a
+.B |
+with no command runs nothing.
 When the node's text has no newline at its end,
 .I Tree
 drops one the command adds there.
 .PP
+.B Undo
+and
+.B Redo
+in
 .IR Tree 's
-own text is its output, not something to edit: the outline, a row to a line.
-A row is a tab for each level below the top, then
-.L ▸
-for a closed node,
-.L ▾
-for an open one or a blank for a leaf, a blank,
-the field name and a colon and blank if there is one, the type,
-and a blank and the row's text if it has some.
-Its selection is the selected row.
+tag, or control-Z and control-R typed there,
+undo and redo the window it shows, as its own do.
+Other words in the tag run as
+.IR adraw (2)'s
+tag runs them, with
+.B $winid
+and
+.B $%
+the window it shows.
+.B Del
+in the tag closes
+.IR Tree 's
+window and ends it, and leaves the window it shows;
+so does rio's
+.B Delete
+of the window, and acme's
+.B Kill
+of
+.IR Tree .
+Deleting the window it shows ends
+.I Tree
+too and closes its window.
+When that window takes a new name,
+.I Tree
+renames its tag and its label and takes the new name's grammar, or says there is none.
+A grammar's program that answers
+.B tree
+with an error, as
+.B /bin/ts/pic
+does, gets no more requests, and
+.I Tree
+shows its answer.
+.PP
 Its colors are
 .IR theme (6)'s
 .B body
@@ -127,25 +172,12 @@ with
 for field names and the dim text, and
 .B function
 for definitions' names.
-Its window is always clean, so one
-.B Del
-deletes it and ends
-.IR Tree ,
-and so does deleting the window it shows.
-When that window takes a new name,
-.I Tree
-renames its own and takes the new name's grammar, or says there is none.
-A grammar's program that answers
-.B tree
-with an error, as
-.B /bin/ts/pic
-does, gets no more requests, and
-.I Tree
-shows its answer.
 .SH EXAMPLES
 In a C file's window, run
 .BR Tree ,
-select a function's row with button 1, then type this in its tag and sweep it with button 2
+select a function's row with button 1 in
+.IR Tree 's
+window, then type this in its tag and sweep it with button 2
 .IP
 .EX
 |sed 's/count/n/g'
@@ -170,8 +202,17 @@ plan9web's
 .SH SEE ALSO
 .IR acme (1),
 .IR hl (1),
+.IR rio (1),
+.IR adraw (2),
+.IR graphics (2),
 .IR acme (4),
 .IR theme (6)
+.SH DIAGNOSTICS
+.I Tree
+needs a window system:
+without
+.B $wsys
+it says so and exits.
 .SH BUGS
 A move works on text alone.
 A node that leaves an expression takes the operator before or after it along,
