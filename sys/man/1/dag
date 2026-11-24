@@ -191,9 +191,9 @@ keeps the last graph it drew, says
 error and its line, and makes no edits from the drawing until the text parses again;
 Undo, in
 .I dag
-or in the
-.I Dag
-window's tag, brings the graph back.
+or in
+.IR Dag 's
+tag, brings the graph back.
 .SS Atoms
 With
 .BR -e ,
@@ -236,12 +236,12 @@ the text.
 .I Dag
 is
 .I dag
-in an
+on an
 .IR acme (1)
 window, whose body is the graph's text.
 With no
 .IR file ,
-it draws the window it runs in,
+it takes the window it runs in,
 .BR $winid ;
 with one, outside a window, or in a window whose
 .B event
@@ -250,22 +250,50 @@ another program holds through
 as
 .I win
 does, it opens a new window on the file.
+The window stays text, to edit as any other;
+.I Dag
+draws the graph in a
+.IR rio (1)
+window of its own, opened by
+.I newwindow
+(see
+.IR graphics (2))
+on
+.B $wsys
+before it reads or changes the Acme window, or says
+.B "no $wsys"
+and exits, and the window keeps the text window's name as it changes,
+under a tag as Acme's
+.RI ( adraw (2))
+that holds the file's name,
+.BR "Del Snarf |" ,
+and
+.BR "Undo Redo Put Erase Tred" .
 An edit is one write of only the text it changes, guarded by the window's
 .B seq
-.RI ( acme (4)),
-so the window's
+.RI ( acme (4)).
 .BR Undo ,
 .B Redo
 and
 .B Put
-are Acme's, as are Command-Z and Command-Shift-Z, which write
-.B undo
+in
+.IR Dag 's
+tag, the menu's
+.BR Undo ,
+.B Redo
 and
+.BR Write ,
+and Command-Z and Command-Shift-Z in the picture, write
+.BR undo ,
 .B redo
+and
+.B put
 to the window's
-.BR ctl ;
+.BR ctl ,
+so they are Acme's;
 .I Dag
-draws the graph again after any change to the text, Undo's too.
+draws the graph again after any change to the text, Undo's too, and its tag's square
+shows whether the window has changes Put has not written.
 If the body changed since
 .I Dag
 last read it, the edit is not made:
@@ -275,10 +303,61 @@ says the file changed, reads the body again, and leaves dot.
 selects what dot covers when it starts, and sets dot as the selection changes:
 to the selection's statements when they make one stretch of text,
 and otherwise to an empty dot at the first of them.
+.PP
+In
+.IR Dag 's
+tag, a command beginning with
+.BR | ,
+.B <
+or
+.B >
+is
+.IR dag 's,
+as if typed, and
+.BR Erase ,
+.B Tred
+and
+.B Exit
+are the menu's.
+A command beginning with
+.BR | ,
+.B <
+or
+.B >
+runs while the picture goes on working, its name in the tag as Acme shows a running
+command, and
+.B Kill
+stops it; one runs at a time, and its output is not used if the text changed while it ran.
+A
+.B >
+command's output, its standard error and a failing status of its last command go to
+.BR +Errors .
+Other commands run as in an Acme tag, with
+.B $winid
+the text window and their errors in
+.BR +Errors ;
+.BR Dag ,
+the tag's name for a window with no name, does nothing there.
+.B Del
+there, or
+.BR Exit ,
+ends
+.I Dag
+and closes its window; the text window stays.
+Deleting the window in
+.I rio
+ends
+.I Dag
+too.
+.PP
+.I Dag
+adds itself to the text window's tag, and
+.B Dag
+there ends it too.
 .B Del
 and
 .B Delete
-are Acme's own, by the window's
+in that tag are Acme's own, by the window's
 .B ctl
 .RB ( del
 and
@@ -288,44 +367,15 @@ on a window with unsaved changes says so in
 .B +Errors
 and leaves it, and a second deletes it.
 .I Dag
-ends when the window is gone.
-.PP
-.I Dag
-adds itself to the window's tag.
-.B Dag
-there ends it, and the window shows its text, to edit as any other.
-While the graph shows, a command in the tag beginning with
-.BR | ,
-.B <
-or
-.B >
-is
-.IR dag 's,
-as if typed.
+ends, and its window closes, when the text window is gone.
 .B Edit
-stays Acme's, on dot: so
+in the text window's tag stays Acme's, on dot: so
 .B "Edit ,|tred"
 sends the whole body through
 .IR tred ,
 and
 .I Dag
 draws the result.
-The menu's
-.B Undo
-and
-.B Redo
-are acme's, as Command-Z is, and its
-.B Write
-is
-.BR Put ;
-its
-.BR Erase ,
-.B Tred
-and
-.B Exit
-are
-.IR Dag 's
-in the tag too.
 .SH EXAMPLES
 With part of a graph selected, remove the edges another path in that part implies:
 .IP
@@ -345,9 +395,9 @@ Remove repeated edges from the selection:
 |sort -u
 .EE
 .PP
-In a
-.I Dag
-window, remove the nodes no edge leaves, in the whole graph:
+In the tag of the text window of a
+.IR Dag ,
+remove the nodes no edge leaves, in the whole graph:
 .IP
 .EX
 Edit ,|gvpr -c 'N[outdegree==0]{delete(0,$)}'
@@ -364,6 +414,7 @@ and
 .IR tred (1),
 .IR gvpr (1),
 .IR pkg (1),
+.IR adraw (2),
 .IR acme (4)
 .SH BUGS
 Only
