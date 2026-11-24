@@ -213,16 +213,19 @@ Every other event goes back to acme, which handles it as it would have.
 However the program ends, by an event, a failure of
 .IR lmdir ,
 or a note, it deletes its layer, closes the event file, and its own window goes.
-Del or
+Del,
+.B Delete
+or
 .B Bits
 in the tag of
 .IR Bits 's
-own window ends it too, and the text window stays;
+own window ends it too, and the text window stays.
+Deleting that window in rio ends it the same way.
 .BR Put ,
 .B Undo
 and
 .B Redo
-there are the text window's.
+there are the text window's, and its tag and label follow the text window's name.
 .PP
 .B Huh
 .B -a

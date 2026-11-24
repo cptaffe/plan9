@@ -17,11 +17,13 @@ deck, Deck \- play sound, with a scrub bar
 .I Deck
 plays a list of sound files with a scrub bar.
 .I deck
-plays them in the window it is run in, or, run from
-.IR acme (1),
-in a new
+plays them in the
 .IR rio (1)
-window;
+window it is run in, or, run where
+.B /dev
+is not a rio window's, as from
+.IR acme (1),
+in a new one;
 .IR Deck ,
 in the tag of an acme window, plays the files the window's lines name, the window's text being
 the playlist, in a new rio window with a tag that looks and works as acme's
@@ -45,9 +47,15 @@ and sets the selection to each track it plays.
 It adds
 .B Deck
 to the window's tag, and follows edits of the window's text.
-A window whose events another program reads, as
-.IR win (1)'s,
-is passed over for a new one.
+It opens the window through
+.IR acme (2),
+so under
+.IR amux (4)
+a window whose events another program holds, as
+.IR win (1)
+holds its window's, is passed over for a new one.
+When the window is renamed, Deck's tag and label follow, and its lines name files from the new
+directory.
 .PP
 .I deck
 plays its
@@ -138,7 +146,7 @@ Jump to that tenth of the track.
 .B Play Pause Next Prev
 in either tag do as their names say.
 .TP
-.B Put Undo Redo
+.B Get Put Undo Redo
 in Deck's tag are those of the text window.
 .TP
 .B Deck
@@ -147,9 +155,14 @@ in the text window's tag ends
 and closes its window.
 .TP
 .B Del
+or
+.B Delete
 in Deck's tag ends
 .I Deck
 and closes its window; the text window stays.
+Deleting that window in rio ends
+.I Deck
+the same way.
 In the text window's tag, it deletes the window as acme's
 .B Del
 does, and
@@ -180,8 +193,10 @@ the rule that plumbs sound to
 .IR plumber (4),
 .IR acme (1),
 .IR rio (1),
+.IR acme (2),
 .IR adraw (2),
-.IR audio (3)
+.IR audio (3),
+.IR amux (4)
 .SH BUGS
 A key's or the wheel's jump past what is decoded waits there for the decoder, shown as
 .BR wait ;
