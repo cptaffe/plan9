@@ -4,10 +4,6 @@ Tree \- an acme window's syntax tree, as an outline, in a rio window
 .SH SYNOPSIS
 .B Tree
 [
-.B -o
-.I file
-]
-[
 .I winid
 ]
 .SH DESCRIPTION
@@ -112,8 +108,18 @@ does: a command that fails still has its output put there, and
 .I Tree
 says how it failed.
 Undo takes it back, and text that no longer parses shows as error nodes.
+The command runs while
 .I Tree
-writes nothing only if the text changed while the command ran.
+goes on, and
+.B Kill
+in the tag stops it.
+.I Tree
+writes nothing if the text changed while the command ran or
+.B Kill
+stopped it.
+One command runs at a time, and a
+.B |
+with no command runs nothing.
 When the node's text has no newline at its end,
 .I Tree
 drops one the command adds there.
@@ -136,7 +142,13 @@ the window it shows.
 in the tag closes
 .IR Tree 's
 window and ends it, and leaves the window it shows;
-deleting the window it shows ends
+so does rio's
+.B Delete
+of the window, and acme's
+.B Kill
+of
+.IR Tree .
+Deleting the window it shows ends
 .I Tree
 too and closes its window.
 When that window takes a new name,
@@ -160,20 +172,6 @@ with
 for field names and the dim text, and
 .B function
 for definitions' names.
-.PP
-With
-.BR -o ,
-.I Tree
-writes the outline to
-.I file
-each time it changes, a row to a line:
-a tab for each level below the top, then
-.L ▸
-for a closed node,
-.L ▾
-for an open one or a blank for a leaf, a blank,
-the field name and a colon and blank if there is one, the type,
-and a blank and the row's text if it has some.
 .SH EXAMPLES
 In a C file's window, run
 .BR Tree ,
@@ -209,6 +207,12 @@ plan9web's
 .IR graphics (2),
 .IR acme (4),
 .IR theme (6)
+.SH DIAGNOSTICS
+.I Tree
+needs a window system:
+without
+.B $wsys
+it says so and exits.
 .SH BUGS
 A move works on text alone.
 A node that leaves an expression takes the operator before or after it along,
