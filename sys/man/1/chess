@@ -619,6 +619,18 @@ deletes the window.
 However the text window goes,
 .I Chess
 ends with it, and the engine and the board's window too.
+.IR Rio 's
+.B Delete
+of the board's window ends
+.I Chess
+as
+.B Del
+in its tag does.
+When the text window is renamed, the board's tag and label,
+.IB file +Analysis
+and the dump directory follow within a second.
+.B Put
+in the board's tag of a text window with no name says so under the board.
 A note that ends
 .IR Chess ,
 as
