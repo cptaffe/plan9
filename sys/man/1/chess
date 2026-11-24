@@ -486,16 +486,18 @@ moves on from
 or the start (perft), to test its moves.
 .SS Chess
 .I Chess
-is
+runs
+.IR chess ,
+and
 .I chess
-in an
+with a board to show works on the text of an
 .IR acme (1)
-window whose body is the game, as
-.IR Sketch 's
-is its picture.
+window whenever
+.B /mnt/acme
+is there.
 With no
 .IR file ,
-it draws the window it is run from,
+it takes the window it is run from,
 .BR $winid ;
 with one, outside a window, or in a window whose
 .B event
@@ -505,6 +507,22 @@ as
 .I win
 does, it opens a new window,
 with the file's text if it exists.
+The board is in a
+.I rio
+window of its own, made by
+.IR newwindow (2)
+on
+.BR $wsys ,
+whose tag is the file's name, then
+.BR Put ,
+.BR Undo ,
+.BR Redo ,
+.BR Play ,
+.BR Replay ,
+.BR Analysis ,
+.B Engine
+and
+.BR "|chess -a" .
 Dot is acme's: stepping through the game moves it,
 so the text shows the same move when
 .I Chess
@@ -516,32 +534,60 @@ so
 takes it back and
 .B Put
 saves it.
+.BR Put ,
+.B Undo
+and
+.B Redo
+in the board's tag, and Command-Z and Command-Shift-Z on the board,
+are the text window's
+.BR put ,
+.B undo
+and
+.B redo
+.RI ( acme (4)'s
+.BR ctl ).
 When the body changes, by
 .BR Undo ,
 a pipe, or another program, the board follows it.
 .PP
 .I Chess
 adds
-.BR Chess ,
+.B Chess
+and
+.B "|chess -a"
+to the text window's tag, as words it does not have already.
+.B Chess
+there ends
+.IR Chess ,
+as
+.B Del
+in the board's tag does: the board's window goes, the engine stops, and the text window stays;
+.B Chess
+there again opens a new board.
+The board's words,
 .BR Play ,
-.B Analysis
+.BR "Play both" ,
+.BR Replay ,
+.BR Analysis ,
+.BR Engine ,
+.BR Flip ,
+.B Hint
 and
-.B "|chess -a"
-to the tag, as words it does not have already.
-.B Chess
-there puts it to sleep: its engine stops, the window shows its text, with
-.B Chess
-and
-.B "|chess -a"
-still in the tag and
-.B Play
-and
-.B Analysis
-gone, and every command but
-.B Chess
-is acme's;
-.B Chess
-there again wakes it, drawing the board with its engine and analysis as they were.
+.BR Eval ,
+work in the text window's tag too, and
+.BR "|chess -a" ,
+with arguments of its own if given, in either tag is
+.BR eval ,
+run from the position before the selection,
+with the analysis's engine and
+.B -t
+passed on.
+Other commands in the text window's tag are acme's: a
+.BR | ,
+.B <
+or
+.B >
+command works on the text at dot.
 .I Chess
 keeps the window's dump command
 .RB ( dumpbody
@@ -556,42 +602,12 @@ and
 .B -e
 as they are, so acme's
 .B Load
-brings the window back as it was.
-.BR Play ,
-.BR "Play both" ,
-.BR Replay ,
-.B Analysis
-.I name
-and
-.B Engine
-are as in a window of its own;
-.BR "|chess -a" ,
-with arguments of its own if given, is
-.BR eval ,
-run from the position before the selection,
-with the analysis's engine and
-.B -t
-passed on;
-and
-.B Flip
-and
-.B Analysis
-work too.
-Other commands are acme's: a
-.BR | ,
-.B <
-or
-.B >
-command works on the text at dot.
-Command-Z and Command-Shift-Z are acme's
-.B Undo
-and
-.BR Redo .
+brings the board back as it was.
 .I Chess
 writes to the body only if no one else has changed it since it last read it;
 if someone has, it says the file changed, reads it again, and leaves dot where it was.
 .B Del
-is ctl's
+in the text window's tag is ctl's
 .BR del :
 on a modified window acme says so in
 .B +Errors
@@ -599,9 +615,22 @@ and leaves it; a second
 .BR Del ,
 or
 .BR Delete ,
-deletes the window, ending
+deletes the window.
+However the text window goes,
 .I Chess
-and the engine with it.
+ends with it, and the engine and the board's window too.
+.IR Rio 's
+.B Delete
+of the board's window ends
+.I Chess
+as
+.B Del
+in its tag does.
+When the text window is renamed, the board's tag and label,
+.IB file +Analysis
+and the dump directory follow within a second.
+.B Put
+in the board's tag of a text window with no name says so under the board.
 A note that ends
 .IR Chess ,
 as
@@ -667,7 +696,9 @@ and
 .SH "SEE ALSO"
 .IR acme (1),
 .IR pkg (1),
-.IR sketch (1)
+.IR rio (1),
+.IR sketch (1),
+.IR adraw (2)
 .br
 Steven J. Edwards,
 ``Standard: Portable Game Notation Specification and Implementation Guide'', 1994.
