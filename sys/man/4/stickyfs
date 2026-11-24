@@ -11,19 +11,20 @@ stickyfs \- sticky's notes as files
 keeps the notes of
 .IR sticky (1):
 their text and its undo, their colors and their rectangles.
+and their windows.
 Each note has one window, a
 .IR rio (1)
 window that
-.B sticky
-.B -w
-.I n
-draws, and each window is a view of the server's note.
+.I stickyfs
+starts as a process of its own, and each window is a view of the server's note;
+.IR sticky (1)
+describes the windows.
 At start
 .I stickyfs
 reads the notes in
 .BR $home/lib/sticky ,
 posts
-.BI /srv/sticky. user . pid\fR,
+.BI /srv/sticky. user\fR,
 sets
 .B $stickysrv
 to it,
@@ -35,9 +36,7 @@ in the name space it was started in,
 and opens a window for each note, where the note was.
 With
 .B -h
-it opens none:
-.B sticky
-or a write of
+it opens none until a write of
 .B show
 to
 .B /mnt/sticky/ctl
@@ -46,7 +45,13 @@ A
 .I stickyfs
 that finds another running, by its
 .B /srv
-file, mounts that one in its own place and exits.
+file, mounts that one in its own place and exits;
+of two started at once, the one that posts first serves, and the other mounts it.
+A
+.B /srv
+file whose server is gone is removed.
+.I Stickyfs
+runs in a note group of its own, so that the shell that started it can go.
 .PP
 .B $home/lib/sticky
 holds, for each note
@@ -71,7 +76,10 @@ A create of
 .IB n .md\fR,
 for a number
 .I n
-no note has, makes a note and opens its window.
+no note has, makes a note and opens its window;
+for a note's number, it opens the note's file for writing, as a write with
+.B >
+does.
 .TP
 .IB n .meta
 lines
@@ -92,6 +100,20 @@ when the color or rectangle change,
 and these are what the next
 .I stickyfs
 reads.
+It writes each to
+.IB n .md.new
+first and renames it, so that a failed write leaves the note as it was;
+at start it finishes a rename that a crash cut short.
+It takes the numbers it loaded and the free ones, never a number that has a file beneath.
+An edit made to a note's file beneath the mount, by a window that lacks the mount,
+lasts until the server next writes that note, which replaces it;
+a new file put there keeps its number and stays, untouched,
+until the next
+.I stickyfs
+loads it.
+A name such as
+.B 01.md
+is not a note's, and a note's file holding a NUL is left alone.
 .PP
 .B /mnt/sticky
 is after
@@ -102,7 +124,7 @@ is after
 takes
 .BR exit ,
 which writes every note with text, removes the empty ones, ends every window
-and exits, and
+and exits, writing the notes again just before it goes; and
 .BR show ,
 which opens a window for each note that has none.
 .TP
@@ -143,7 +165,10 @@ A number written to it guards the next open of
 .B data
 or
 .B body
-for writing, which fails if the note has changed since.
+for writing, which fails if the note has changed since;
+the guard stays with the open file, and a write to it fails if anyone else has changed the
+note since its open or its last write, as in
+.IR acme (4).
 .TP
 .IB n /ctl
 a read gives the number, the length, dirty, the color, the rectangle,
@@ -174,12 +199,15 @@ is part of the last change, for undo),
 .B show
 (open a window for the note if it has none).
 .BI file " name"
-makes the note a window on a file, which
+makes a note fresh from
+.B new/ctl
+a window on a file, as
 .B sticky
 .I file
-registers so that
+does, so that
 .B exit
-ends it too; such a note has only
+ends it too; it fails on a note with text, a file or a window.
+Such a note has only
 .B ctl
 and
 .BR rdevent ,
@@ -198,23 +226,36 @@ and
 when the color or dirty changes, for a reread of
 .BR ctl .
 A reader is the note's window: while one is open the note is shown.
-When the last closes, a note with no text, or a window on a file, goes.
+When the last closes, a note with no text, or a window on a file, goes;
+a note with text whose window lived a few seconds, as one rio deletes,
+gets a new window, and one whose window ended at once waits for
+.BR show .
 A read gives end of file once the note is gone or the server exits.
 .PD
 .SH FILES
-.TF /srv/sticky.user.pid
+.TF /srv/sticky.user
 .TP
-.BI /srv/sticky. user . pid
+.BI /srv/sticky. user
 the server
 .TP
 .B $home/lib/sticky/*.md
 the notes, beneath the mount, which survive a reboot
 .SH SOURCE
 plan9web's
-.B src/cmd/sticky/fs.c
+.B src/cmd/sticky
 .SH SEE ALSO
 .IR sticky (1),
 .IR acme (4)
+.SH DIAGNOSTICS
+If a note can't be written, a write of
+.B exit
+fails with the reason and
+.I stickyfs
+keeps serving the notes; if a write fails as it goes, it prints the reason and keeps serving
+them, with their windows ended, until
+.B show
+or another
+.BR exit .
 .SH BUGS
 Files in
 .B $home/lib/sticky
