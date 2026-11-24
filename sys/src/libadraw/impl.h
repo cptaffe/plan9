@@ -76,6 +76,7 @@ struct Tagx
 	int	dirty;
 	int	expand;
 	int	winid;
+	char	*file;
 	Point	xy;
 	int	clicked;
 	ulong	clickmsec;
