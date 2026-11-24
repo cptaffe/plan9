@@ -191,7 +191,10 @@ window of its own, opened by
 (see
 .IR graphics (2))
 on
-.BR $wsys ,
+.B $wsys
+before it reads or changes the Acme window, or says
+.B "no $wsys"
+and exits, and the window keeps the text window's name as it changes,
 under a tag as Acme's
 .RI ( adraw (2))
 that holds the file's name,
@@ -265,7 +268,15 @@ end it as
 .B Grap
 does, other commands run as in an Acme tag, with
 .B $winid
-the text window, and these commands run in the file's directory.
+the text window,
+.BR Grap ,
+the tag's name for a window with no name, does nothing there,
+and these commands run in the file's directory.
+Deleting the window in
+.I rio
+ends
+.I Grap
+too.
 They work on the selection as text:
 the selected rows, one to a line in the file's order, a row joined to another by
 .B ;
@@ -326,14 +337,23 @@ pipes do,
 .I Grap
 writes what
 .I cmd
-prints whatever its exit status, and a failing status goes to
+prints whatever its exit status, and a failing status of its last command goes to
 .BR +Errors .
+A command runs while the drawing goes on working, its name in the tag as Acme shows a
+running command, and
+.B Kill
+stops it; one runs at a time, and its output is not used if the text or the selection
+changed while it ran.
 Output with a line that isn't a row or one of the selection's series lines
 takes the selected rows' place as it is, where the first of them was.
 A rewrite is one change to the body, so
 .IR acme 's
 .B Undo
-takes it back.
+takes it back;
+.IR Grap 's
+own
+.BR Undo ,
+and Command-Z, take back its last change, which it writes to the body.
 .IR Acme 's
 .B Edit
 works on dot as always:

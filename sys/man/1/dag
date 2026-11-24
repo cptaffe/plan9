@@ -259,7 +259,10 @@ window of its own, opened by
 (see
 .IR graphics (2))
 on
-.BR $wsys ,
+.B $wsys
+before it reads or changes the Acme window, or says
+.B "no $wsys"
+and exits, and the window keeps the text window's name as it changes,
 under a tag as Acme's
 .RI ( adraw (2))
 that holds the file's name,
@@ -316,16 +319,36 @@ as if typed, and
 and
 .B Exit
 are the menu's.
+A command beginning with
+.BR | ,
+.B <
+or
+.B >
+runs while the picture goes on working, its name in the tag as Acme shows a running
+command, and
+.B Kill
+stops it; one runs at a time, and its output is not used if the text changed while it ran.
+A
+.B >
+command's output, its standard error and a failing status of its last command go to
+.BR +Errors .
 Other commands run as in an Acme tag, with
 .B $winid
 the text window and their errors in
-.BR +Errors .
+.BR +Errors ;
+.BR Dag ,
+the tag's name for a window with no name, does nothing there.
 .B Del
 there, or
 .BR Exit ,
 ends
 .I Dag
 and closes its window; the text window stays.
+Deleting the window in
+.I rio
+ends
+.I Dag
+too.
 .PP
 .I Dag
 adds itself to the text window's tag, and
