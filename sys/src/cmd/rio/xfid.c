@@ -23,6 +23,7 @@ char Elong[] = 		"snarf buffer too long";
 char Eunkid[] = 	"unknown id in attach";
 char Ebadrect[] = 	"bad rectangle in attach";
 char Ewindow[] = 	"cannot make window";
+char Enofocus[] =	"no window has focus";
 char Enowindow[] = 	"window has no image";
 char Ebadmouse[] = 	"bad format on /dev/mouse";
 char Ebadwrect[] = 	"rectangle outside screen";
@@ -200,6 +201,9 @@ xfidattach(Xfid *x)
 			err = errbuf;
 		else
 			goto Allocate;
+	}else if(x->aname[0] == 0){
+		w = input;
+		err = Enofocus;
 	}else{
 		id = atoi(x->aname);
 		w = wlookid(id);
@@ -737,6 +741,14 @@ xfidread(Xfid *x)
 		t = estrdup(buf);
 		goto Text;
 
+	case Qfocus:
+		if(input == nil){
+			filsysrespond(x->fs, x, &fc, Enofocus);
+			break;
+		}
+		n = sprint(buf, "%11d ", input->id);
+		t = estrdup(buf);
+		goto Text;
 
 	case Qwinname:
 		n = strlen(w->name);

@@ -21,6 +21,7 @@ enum
 	Qcons,
 	Qconsctl,
 	Qcursor,
+	Qfocus,
 	Qwdir,
 	Qwinid,
 	Qwinname,

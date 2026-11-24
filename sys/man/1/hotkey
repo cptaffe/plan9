@@ -153,6 +153,50 @@ it passes through, or starts or finishes a rule for no mode.
 A key that breaks off a sequence of the mode's keys turns the mode off too,
 and is discarded with them, as with no mode on.
 .PP
+A line
+.BI label " regexp"
+starts a section of rules for the windows whose label matches
+.I regexp
+(see
+.IR regexp (6)),
+which apply while one of those windows has the keyboard focus;
+a line
+.B label
+alone goes back to the rules for every window.
+Sections with the same
+.I regexp
+are one section, and a window's section is the first, in the order of the rules, that matches its label.
+A section lasts to the next
+.B label
+or
+.B mode
+line or the end of its file, as a mode's does.
+A key that starts one of the window's rules starts it;
+other keys are matched against the rules for every window.
+A mode's rules come before both.
+.PP
+Window sections apply when
+.I cmd
+is
+.IR rio (1),
+or another window system that posts
+.BI /srv/rio. user . pid
+as
+.I rio
+does.
+.I Hotkey
+mounts it with an empty attach specifier, which gives the files of the window with the focus
+(see
+.IR rio (4)),
+and reads its
+.B focus
+file and that window's label as keys arrive.
+Programs label their windows with their name and then the file they show, as
+.B "tree /usr/glenda/f.c"
+does, so
+.B "label ^tree "
+selects Tree's windows.
+.PP
 Commands run in
 .IR hotkey 's
 name space and environment, with standard input
@@ -316,6 +360,8 @@ plan9web's
 .IR cons (3),
 .IR keyboard (2),
 .IR rio (1),
+.IR rio (4),
+.IR regexp (6),
 .IR plumber (4)
 .SH BUGS
 Rules cannot name keys that send nothing, such as Alt alone.
