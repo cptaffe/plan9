@@ -4,47 +4,40 @@ sticky \- notes in small colored windows, and Markdown shown styled
 .SH SYNOPSIS
 .B sticky
 [
-.B -n
-] [
 .B -c
 .I color
-] [
-.B -w
-.I n
 ] [
 .I file
 ]
 .SH DESCRIPTION
-.I Sticky
-keeps notes, as the Mac's Stickies does, each in a small
+Notes, as the Mac's Stickies keeps them, each in a small
 .IR rio (1)
 window of its own with a pastel background and an acme-like tag
-.RI ( adraw (2)).
-The notes are
+.RI ( adraw (2)),
+are
 .IR stickyfs (4)'s,
-which keeps their text and undo and gives each note one window;
+which keeps their text and undo and opens each note's window itself;
 riostart starts it.
-With no arguments, sticky opens a window for each note that has none,
-starting
-.I stickyfs
-if none runs, and makes a note if there are none;
-with
-.B -n
-it makes a new one, as
-.B New
-and Command-N do,
+.I Sticky
+is its client: it reads its standard input to the end and makes a note of it,
 in
 .I color
 if
 .B -c
-gives one.
-.B -w
-.I n
-is note
-.IR n 's
-window, which
+gives one, and
 .I stickyfs
-runs.
+opens the note's window.
+.B "echo foo | sticky"
+makes a note whose text is
+.BR foo ;
+an empty input makes an empty note.
+Given a
+.IR file ,
+sticky makes a window on the file instead, described below.
+Sticky starts
+.I stickyfs
+if none runs.
+.PP
 A note is the file
 .BI $home/lib/sticky/ n .md\fR,
 its text in Markdown, so that it reads well in
@@ -70,6 +63,9 @@ executed in the tag takes the note away.
 ends
 .I stickyfs
 and every window of its, and keeps the notes, so that the next riostart opens them again.
+A note whose window rio deletes gets a new window, where it was;
+.B "echo show >/mnt/sticky/ctl"
+opens a window for any note that has none.
 .PP
 A note's text edits as an acme window's body does:
 button 1 selects, a double click selects a word or the text between brackets or quotes,
@@ -182,28 +178,29 @@ shows the Markdown as it is, and again as styled.
 .PP
 Given a
 .IR file ,
-or run from the tag of an acme window on a file whose name ends in
-.BR .md ,
-.I sticky
-shows that file.
-When there is an acme, it shows the acme window's body, opening a window for the file if
-there is none:
-each edit in sticky is the smallest change to the window's Markdown, one Undo,
-and edits in acme show in sticky as you make them.
+sticky makes a window on that file, a note of
+.IR stickyfs 's
+that the disk does not keep;
+.B "sticky $%"
+in the tag of an acme window on a Markdown file is the usual way.
+When there is an acme, the window shows the acme window's body, opening an acme window
+for the file if there is none:
+each edit in the window is the smallest change to acme's Markdown, one Undo,
+and edits in acme show in the window as you make them.
 .BR Undo ,
 .B Redo
 and
 .B Put
-are acme's, and the tag is dirty as the window is.
-Sticky ends when acme deletes the window.
-While
-.I stickyfs
-runs, a window on a file is in its index too, and
-.B Exit
-ends it.
-With no acme, sticky edits the file itself, and
+are acme's, and the tag is dirty as the acme window is.
+The window ends when acme deletes the acme window, or at
+.BR Del .
+With no acme, the window edits the file itself, and
 .B Put
 writes it.
+.B Exit
+ends a file's window too, unless it has text that
+.B Put
+has not written: then it stays, and says so.
 .PP
 Sticky draws its text in
 .BR $stickyfont ,

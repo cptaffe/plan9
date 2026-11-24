@@ -2114,6 +2114,10 @@ loop(void *v)
 			freeimage(t->but2);
 			freeimage(t->but3);
 			freeimage(t->mod);
+			qlock(&t->lk);
+			free(t->file);
+			t->file = nil;
+			qunlock(&t->lk);
 			threadexits(nil);
 		}
 	}
