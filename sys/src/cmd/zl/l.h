@@ -90,6 +90,7 @@ enum
 	WI32EXTEND16	= 0xc1,
 	WPREFIX	= 0xfc,
 	WPREFIXV	= 0xfd,
+	WPREFIXA	= 0xfe,
 	WVOID	= 0x40,
 };
 

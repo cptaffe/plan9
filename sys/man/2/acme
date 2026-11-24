@@ -11,7 +11,6 @@ winaddr,
 winclosefiles,
 winctl,
 windel,
-windeleteall,
 winpath,
 wineventchan,
 winfd,
@@ -90,9 +89,6 @@ int	winctl(Win *w, char *fmt, ...)
 .PP
 .B
 int	windel(Win *w, int sure)
-.PP
-.B
-void	windeleteall(void)
 .PP
 .B
 char*	winpath(Win *w)
@@ -240,12 +236,6 @@ says.
 .I Winfree
 also frees the
 .BR Win .
-.I Windeleteall
-writes
-.B delete
-to the
-.B ctl
-file of every window the program has.
 .PP
 Many of these functions take a format
 .I fmt
@@ -450,13 +440,31 @@ which needs
 .PP
 .I Wineventchan
 returns a channel of
-.BR Event* .
-Its first call makes the channel and a proc that calls
-.I winreadevent
-and sends each event; nil comes after the last.
+.BR Event* ,
+or nil, with the error string set, if it cannot open the window's
+.B event
+file.
+Its first call opens that file, if it is not open, and makes the channel and a proc that
+reads events from its own copy of the file descriptor and sends each; nil comes after the last,
+when the window is deleted or the file fails, and the proc then ends.
 The proc fills two
 .BR Event s
-in turn, so an event stays good until the program receives the one after the next.
+in turn, so an event stays good until the program receives the one after the next,
+or until
+.IR winfree .
+.I Winfree
+stops the proc: it ends when its read next returns, at the next event or when the window
+is deleted, and gives that event back to acme if it is an
+.BR x ,
+.BR X ,
+.B l
+or
+.BR L ,
+as a program writes back an event it does not handle.
+A proc waiting for the program to take an event ends at once.
+Until it ends, the proc keeps the
+.B event
+file open.
 A program that uses
 .I wineventchan
 should not call
@@ -537,13 +545,18 @@ or \-1 if an edit to the body came after
 .IR seq .
 The library writes
 .B seq
-and opens the file it guards under one lock, which its own opens of
+and opens the file it guards under the
+.BR Win 's
+lock, which its opens of
 .BR body ,
 .BR data ,
-.B xdata
+.BR xdata ,
+.B style
 and
 .B rdevent
-also take, so that none of the program's opens takes another's guard.
+also take, so that none of the
+.BR Win 's
+opens takes another's guard.
 .PP
 .I Pipetowin
 runs the
@@ -611,13 +624,25 @@ The error string then names the file, as in
 .IR amux (4),
 .IR thread (2)
 .SH BUGS
+.I Sysrun
+does not wait for the command, so each call leaves a wait record,
+and a command that prints more than a kilobyte gets
+.B write on closed pipe
+when
+.I sysrun
+stops reading, as plan9port's does.
+.PP
 .I Openwin
 takes a file descriptor where plan9port's takes a 9P client's fid, so a program that passes nil passes \-1 here.
 .PP
 Without
 .IR amux ,
 .IR winseqopen 's
-lock is the program's own.
-Another program that writes the window's
+lock is the
+.BR Win 's
+own.
+Another
+.BR Win ,
+in this program or another, that writes the window's
 .B seq
 between this one's write and its open takes the guard.

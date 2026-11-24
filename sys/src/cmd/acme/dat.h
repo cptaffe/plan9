@@ -451,6 +451,7 @@ struct Fid {
   uchar rpart[UTFmax];
   vlong logoff; // for putlog
   int logmismatch;   /* 1: next log read returns "seq mismatch" error */
+  int logpart;       /* bytes of the rdevent message at logoff already read */
   int seq;           /* seq guard taken from w->wantseq at open; -1 if none */
 
   /* QWstyle write accumulation */

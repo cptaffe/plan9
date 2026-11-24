@@ -1,0 +1,211 @@
+.TH COW 1
+.SH NAME
+cow, spots \- run a command on a copy of this directory, and show what it changed
+.SH SYNOPSIS
+.B cow
+.I dir
+.I cmd
+[
+.I arg ...
+]
+.PP
+.B spots
+.I dir
+[
+.I base
+]
+.SH DESCRIPTION
+.I Cow
+runs
+.I cmd
+in a new name space where
+.IR cowfs (4)
+serves the current directory, with every change kept in
+.IR dir ,
+so that the real files do not change.
+.I Dir
+may be relative to the current directory;
+.I cow
+makes it if it does not exist.
+.I Cow
+refuses a
+.I dir
+that holds anything, or one inside the current directory.
+The command's standard output and error are its own:
+.I cow
+prints only its own errors.
+It keeps the changes whatever the command's status, and exits with that status.
+.PP
+.I Cow
+serves only the current directory and what lies below it.
+A command that changes to a directory outside it, or that names a file there, works on the real
+files.
+.PP
+.I Spots
+prints the changes kept in
+.I dir
+as a patch for
+.IR base ,
+or the current directory without one, which must be the tree
+.I cow
+served.
+For each file that the command made, removed, or changed, it prints Git's header,
+.BI "diff --git a/" path " b/" path \f1,
+then
+.B new file mode
+or
+.B deleted file mode
+for a file the command made or removed,
+or
+.B old mode
+and
+.B new mode
+when the execute bit changed,
+and then the unified diff,
+against
+.B /dev/null
+for a file made or removed.
+A mode is
+.B 100755
+when the owner may execute the file, and
+.B 100644
+otherwise.
+The header alone shows an empty file made or removed.
+A file changed and then changed back, or made and then removed, does not appear, and
+directories appear only through their files.
+A file removed and a file made with the same text, which is not empty, show as a rename:
+.BI "diff --git a/" old " b/" new \f1,
+then the mode lines if the execute bit changed,
+.BR "similarity index 100%" ,
+.BI "rename from " old \f1,
+and
+.BI "rename to " new \f1,
+with no diff.
+Each removed file, in the order of their paths, takes one made file:
+of those with its text, the one with the same last element, then the one whose path shares the
+longest start with its own, then the first in the order of their paths.
+.I Spots
+quotes a name holding a control character, a double quotation mark or a backslash as Git does, in
+double quotation marks with C's escapes.
+.I Spots
+leaves out Git's
+.B index
+line, so
+.B patch -p1
+and
+.B git apply
+both take its output.
+It leaves out of the patch each binary file whose text changed, one with a NUL byte anywhere in
+either version, naming it on standard error as
+.BI "spots: binary: " path \f1;
+the rename of a binary file and a change of its mode alone stay in the patch, as headers with no
+diff.
+It leaves out, too, each changed file whose path begins with
+.BR # ,
+which
+.IR patch (1)
+would take for a device and refuse, naming it as
+.BI "spots: device name: " path \f1;
+only the first element counts, so
+.B d/#n
+stays in.
+Such a path never pairs as a rename, so moving a file to or from one shows as a removal and a
+whole new file: the half under
+.B #
+is always left out, and the other half reaches the patch only as text, since
+.I spots
+leaves out a binary one as binary.
+It then exits with status
+.BR binary ,
+.BR "device name" ,
+or both, so that a pipeline knows the patch is partial.
+A file left out may hold the only copy of another file's text:
+after
+.BR "mv y x" ,
+where
+.B x
+is binary, the patch removes
+.B y
+and
+.I spots
+names only
+.BR x .
+.PP
+.I Spots
+ends with an error when it cannot do its work in full.
+It keeps its temporary files in a directory of its own,
+.BI /tmp/spots. pid . n\f1,
+taking the first
+.I n
+from 1 to 100 whose directory it can make, and removes only that one, when it ends or takes a note;
+when it can make none, it prints
+.B "spots: cannot make a temporary directory"
+and exits with status
+.BR tmp .
+When it cannot list the files that changed, because
+.I walk
+warns or fails, or
+.IR awk ,
+.I sort
+or
+.I mkdir
+fails, it prints
+.B "spots: cannot list the changes"
+and exits with status
+.BR list .
+When it cannot look through a file for NUL bytes, because
+.I freq
+fails or warns, it prints
+.B "spots: cannot look for NUL bytes"
+and exits with status
+.BR freq .
+When
+.I awk
+fails as it makes the patch, it prints
+.B "spots: cannot make the patch"
+and exits with status
+.BR awk ,
+and when
+.I diff
+fails, it exits with status
+.BR diff ,
+before it prints any of the patch.
+.PP
+.IR Cowfs
+notes the SHA-1 of each file of the real tree as it copies it;
+.I spots
+warns of a file whose text has changed since then, or that has gone, as applying its patch would
+undo that change.
+The warning also catches a wrong
+.I base
+for the files cowfs copied or removed.
+.SH EXAMPLES
+Work in a shell, keeping its changes apart, then save them as a patch:
+.IP
+.EX
+cow /tmp/e rc
+spots /tmp/e | patch
+.EE
+.SH SOURCE
+plan9web's
+.B rc/bin/cow
+and
+.B rc/bin/spots
+.SH SEE ALSO
+.IR diff (1),
+.IR patch (1),
+.IR cowfs (4)
+.SH BUGS
+Bytes past ASCII stay as they are in a name, as Git writes them with
+.B core.quotepath
+off.
+.PP
+.I Spots
+leaves a file out whole, so when the path of a file it leaves out, or of a directory that holds
+it, is a directory in one tree and a file in the other,
+.I patch
+refuses the whole patch.
+.PP
+.I Spots
+finds a rename only when the text is the same;
+a file renamed and changed shows as a removal and a creation.

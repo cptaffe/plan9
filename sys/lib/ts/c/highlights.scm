@@ -79,3 +79,58 @@
   name: (identifier) @function.special)
 
 (comment) @comment
+
+[
+  "!"
+  "%"
+  "%="
+  "&="
+  "*="
+  "/"
+  "/="
+  "<<"
+  "<<="
+  "<="
+  ">="
+  ">>"
+  ">>="
+  "^"
+  "^="
+  "|"
+  "|="
+  "~"
+  "?"
+  "..."
+] @operator
+(conditional_expression ":" @operator)
+
+[
+  "#elifdef"
+  "#elifndef"
+  "defined"
+  "auto"
+  "goto"
+  "register"
+  "restrict"
+  "_Atomic"
+  "_Noreturn"
+  "noreturn"
+  "_Alignas"
+  "alignas"
+  "_Alignof"
+  "alignof"
+  "offsetof"
+  "_Generic"
+  "asm"
+  "__asm__"
+  "__attribute__"
+  "thread_local"
+  "constexpr"
+] @keyword
+
+(preproc_def name: (identifier) @constant.macro)
+(preproc_ifdef name: (identifier) @constant.macro)
+(preproc_defined (identifier) @constant.macro)
+(preproc_params (identifier) @variable.parameter)
+(parameter_declaration declarator: (identifier) @variable.parameter)
+(parameter_declaration declarator: (pointer_declarator declarator: (identifier) @variable.parameter))

@@ -186,6 +186,22 @@ for dimmer marks, and
 .B sketchguide
 for guides.
 .TP
+.IR rtrace (1)
+.BR back ,
+.BR text ,
+.B ltext
+and
+.B border
+for its window, axis and rules;
+.B rtrace1
+to
+.B rtrace5
+for the kinds of its spans, in their order;
+.B rtracelife
+for its lanes' bands, and
+.B rtracesel
+for the selected lane.
+.TP
 .IR chess (1)
 .B chesslight
 and
@@ -216,15 +232,21 @@ with
 .BR tagsel 's
 for the move at dot.
 .TP
-.IR grapw (1)
+.IR vt (1)
 .B back
 and
 .B text
-for its paper and ink,
-.B ltext
-for the ring around the point under the mouse, and
-.B grapsel
-for the points of selected rows.
+for its background and text, as
+.IR rio 's;
+.B ansi0
+to
+.B ansi15
+for the 16 colors a terminal's programs name by number,
+black, red, green, yellow, blue, magenta, cyan and white, then their bright ones.
+.I Avt
+takes the same 16 and shows its text in
+.BR body 's
+colors.
 .SH FILES
 .TP
 .B /lib/theme

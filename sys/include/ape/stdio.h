@@ -168,6 +168,14 @@ char	*fgetln(FILE *, size_t *);
 void	flockfile(FILE *);
 int	ftrylockfile(FILE *);
 void	funlockfile(FILE *);
+int	getc_unlocked(FILE *);
+#define	getc_unlocked(f)	getc(f)
+int	getchar_unlocked(void);
+#define	getchar_unlocked()	getc(stdin)
+int	putc_unlocked(int, FILE *);
+#define	putc_unlocked(c, f)	putc(c, f)
+int	putchar_unlocked(int);
+#define	putchar_unlocked(c)	putc(c, stdout)
 #endif
 
 #ifdef _REENTRANT_SOURCE
@@ -175,9 +183,9 @@ char	*tmpnam_r(char *);
 char	*ctermid_r(char *);
 #endif
 
-#ifdef _BSD_EXTENSION
+#if _POSIX_C_SOURCE >= 2 || defined(_BSD_EXTENSION)
 #pragma lib "/$M/lib/ape/libbsd.a"
-FILE	*popen(char *, char *);
+FILE	*popen(const char *, const char *);
 int	pclose(FILE	*);
 #endif
 

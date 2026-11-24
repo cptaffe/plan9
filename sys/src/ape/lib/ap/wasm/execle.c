@@ -36,7 +36,7 @@ execle(const char *name, const char *arg0, const char *arg1, ...)
 		e = va_arg(ap, const char**);
 	}
 	va_end(ap);
-	r = execve(name, v, e);
+	r = execve(name, (char**)v, (char**)e);
 	free(v);
 	return r;
 }

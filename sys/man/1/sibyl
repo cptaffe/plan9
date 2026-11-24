@@ -106,6 +106,9 @@ or
 goes to the session's
 .BR ctl ;
 each alone shows the setting.
+A session that started with the local model, as
+.IR sibylfs (4)
+gives one when factotum has no key, says so once, before its first turn.
 .PP
 The commands of
 .B sibyl -i
@@ -251,7 +254,7 @@ which must be open as
 the text on standard input is a question on the session's
 .BR ask ,
 whose number is in
-.BI $home/lib/sibyl/ n .session1;
+.BI $home/lib/sibyl/ n .session\f1;
 .B sibyl -i
 answers it by sending it as a turn of its own, an aside on
 .B data

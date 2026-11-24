@@ -19,6 +19,7 @@ struct Pcmdesc
 extern	Pcmdesc	pcmdescdef; /* s16c2r44100 */
 
 int	pcmdescfmt(Fmt*);
+#pragma	varargck	type	"π"	Pcmdesc
 int	mkpcmdesc(char *f, Pcmdesc *d);
 
 Pcmconv	*allocpcmconv(Pcmdesc *in, Pcmdesc *out);

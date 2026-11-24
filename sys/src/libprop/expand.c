@@ -140,7 +140,7 @@ sym(Src *s, char **g, char *name, int n, int depth, Fmt *f)
 			na++;
 		}
 	if(na == 0)
-		sysfatal("expand: no rule for %.*s", n, name);
+		sysfatal("expand: no rule for %.*s", utfnlen(name, n), name);
 	if(depth < Deepest)
 		discard(s);
 	span(s, _propintern(name, n));
@@ -158,8 +158,11 @@ char*
 expand(Src *s, char **g, char *start, int depth)
 {
 	Fmt f;
+	char *t;
 
 	fmtstrinit(&f);
 	sym(s, g, start, strlen(start), depth, &f);
-	return fmtstrflush(&f);
+	if((t = fmtstrflush(&f)) == nil)
+		sysfatal("expand: out of memory");
+	return t;
 }

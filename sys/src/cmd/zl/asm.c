@@ -442,7 +442,7 @@ static void
 features(Buf *m)
 {
 	static char *f[] = {
-		"mutable-globals", "nontrapping-fptoint", "bulk-memory", "bulk-memory-opt", "sign-ext", "multivalue", "call-indirect-overlong", "exception-handling", "simd128",
+		"mutable-globals", "nontrapping-fptoint", "bulk-memory", "bulk-memory-opt", "sign-ext", "multivalue", "call-indirect-overlong", "exception-handling", "atomics", "simd128",
 	};
 	Buf b;
 	int i, n;

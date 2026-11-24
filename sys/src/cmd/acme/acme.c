@@ -128,7 +128,8 @@ threadmain(int argc, char *argv[])
 		swapscrollbuttons = TRUE;
 		break;
 	case 's':
-		ARGF();	/* -s stylefile: deprecated, ignored */
+		if(ARGF() == nil)
+			goto Usage;
 		break;
 	default:
 	Usage:

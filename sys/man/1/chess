@@ -15,6 +15,9 @@ chess, Chess \- a board for a game of chess in PGN
 .B -t
 .I ms
 ] [
+.B -D
+.I depth
+] [
 .I file
 ]
 .br
@@ -32,6 +35,9 @@ chess, Chess \- a board for a game of chess in PGN
 ] [
 .B -t
 .I ms
+] [
+.B -D
+.I depth
 ] [
 .B -f
 .I fen
@@ -64,6 +70,9 @@ chess, Chess \- a board for a game of chess in PGN
 ] [
 .B -t
 .I ms
+] [
+.B -D
+.I depth
 ] [
 .I file
 ]
@@ -361,7 +370,13 @@ In
 the engine plays the side to move: it moves now, and answers each move after
 by adding its own, in
 .I ms
-milliseconds.
+milliseconds, or after a search
+.I depth
+plies deep with
+.BR -D .
+With
+.BR -D ,
+the analysis's engine, and the hint's, search a position that deep, and stop.
 .B Play
 again stops it.
 .B "Play both"
@@ -419,6 +434,10 @@ after each move, in variations too, but a mate:
 in pawns from white's side, after
 .I ms
 milliseconds on the position, 1000 if not told, or
+.I depth
+plies deep with
+.BR -D ,
+or
 .B {#3}
 and
 .BR {#-3} ,

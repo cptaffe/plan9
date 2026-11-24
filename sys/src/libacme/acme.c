@@ -4,10 +4,6 @@
 #include <acme.h>
 #include "impl.h"
 
-static Win *windows;
-static Win *last;
-QLock _winseqlk;
-
 Win*
 newwin(void)
 {
@@ -119,13 +115,6 @@ openwin(int id, int ctl)
 	if(w->clone >= 0)
 		w->actl = ctl;
 	w->tag = w->body = w->addr = w->event = w->data = w->xdata = w->rdevent = -1;
-	w->next = nil;
-	w->prev = last;
-	if(last)
-		last->next = w;
-	else
-		windows = w;
-	last = w;
 	return w;
 }
 
@@ -160,31 +149,14 @@ winclosefiles(Win *w)
 void
 winfree(Win *w)
 {
+	Evreader *r;
+
 	winclosefiles(w);
-	if(w->c){
-		chanfree(w->c);
-		w->c = nil;
+	if((r = w->ev) != nil){
+		sendul(r->quit, 1);
+		_winevfree(r);
 	}
-	if(w->next)
-		w->next->prev = w->prev;
-	else
-		last = w->prev;
-	if(w->prev)
-		w->prev->next = w->next;
-	else
-		windows = w->next;
 	free(w);
-}
-
-void
-windeleteall(void)
-{
-	Win *w, *next;
-
-	for(w=windows; w; w=next){
-		next = w->next;
-		winctl(w, "delete");
-	}
 }
 
 int
@@ -196,12 +168,12 @@ _winopen(Win *w, char *name, int mode)
 	if(_winpath(w, name, buf, sizeof buf) == nil)
 		return -1;
 	if(_winguarded(name))
-		qlock(&_winseqlk);
+		qlock(&w->seqlk);
 	fd = open(buf, mode);
 	if(fd < 0)
 		werrstr("open %s: %r", buf);
 	if(_winguarded(name))
-		qunlock(&_winseqlk);
+		qunlock(&w->seqlk);
 	return fd;
 }
 

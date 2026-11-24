@@ -6,7 +6,7 @@ wcscpy(wchar_t *d, const wchar_t *s)
 	wchar_t *p;
 
 	p = d;
-	while(*p++ = *s++)
+	while((*p++ = *s++) != 0)
 		;
 	return d;
 }

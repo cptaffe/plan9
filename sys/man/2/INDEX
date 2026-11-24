@@ -72,7 +72,6 @@ winaddr acme
 winclosefiles acme
 winctl acme
 windel acme
-windeleteall acme
 wineventchan acme
 winfd acme
 winfree acme
@@ -1629,3 +1628,8 @@ publicscreen window
 topnwindows window
 topwindow window
 window window
+x25519 x25519
+x25519base x25519
+ed25519pubkey x25519
+ed25519sign x25519
+ed25519verify x25519

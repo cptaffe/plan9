@@ -76,7 +76,10 @@ typedef long ssize_t;
 #endif
 #ifdef _BSD_EXTENSION
 #define _SC_PHYS_PAGES		13
+#define _SC_AVPHYS_PAGES	16
 #endif
+#define _SC_GETPW_R_SIZE_MAX	14
+#define _SC_GETGR_R_SIZE_MAX	15
 
 /* pathconf argument */
 #define _PC_LINK_MAX		1
@@ -100,15 +103,18 @@ extern "C" {
 
 /* process primitives */
 extern int execl(const char *, const char *, ...);
-extern int execv(const char *, const char **);
+extern int execv(const char *, char *const []);
 extern int execle(const char *, const char *, const char *,  ...);
-extern int execve(const char *, const char **, const char **);
+extern int execve(const char *, char *const [], char *const []);
 extern int execlp(const char *, const char *, ...);
-extern int execvp(const char *, const char **);
+extern int execvp(const char *, char *const []);
 extern void _exit(int) __attribute__((__noreturn__));
 extern unsigned int alarm(unsigned int);
 extern int pause(void);
 extern unsigned int sleep(unsigned int);
+#if defined(_SUSV2_SOURCE) || defined(_BSD_EXTENSION)
+extern int usleep(unsigned int);
+#endif
 #ifdef __TYPES_H
 extern pid_t fork(void);
 #ifdef _BSD_EXTENSION
@@ -151,6 +157,7 @@ extern int getgroups(int, gid_t *);
 extern pid_t getpgrp(void);
 #if _POSIX_C_SOURCE >= 200809L || defined(_SUSV2_SOURCE)
 extern pid_t getpgid(pid_t);
+extern pid_t getsid(pid_t);
 #endif
 extern int setpgid(pid_t, pid_t);
 extern pid_t setsid(void);

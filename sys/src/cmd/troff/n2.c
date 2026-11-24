@@ -11,7 +11,7 @@
 
 #ifdef STRICT
 	/* not in ANSI or POSIX */
-FILE*	popen(char*, char*);
+FILE*	popen(const char*, const char*);
 #endif
 
 

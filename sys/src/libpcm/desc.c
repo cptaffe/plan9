@@ -1,6 +1,7 @@
 #include <u.h>
 #include <libc.h>
 #include <pcm.h>
+#include "impl.h"
 
 Pcmdesc	pcmdescdef =
 {
@@ -21,11 +22,93 @@ pcmdescfmt(Fmt *f)
 	return fmtprint(f, "%C%dc%dr%d", d.fmt, d.bits, d.channels, d.rate);
 }
 
+static int
+num(char **pp)
+{
+	char *p;
+	vlong v;
+
+	p = *pp;
+	if(*p < '0' || *p > '9')
+		return -1;
+	v = 0;
+	while(*p >= '0' && *p <= '9'){
+		v = v*10 + *p++ - '0';
+		if(v > 0x7fffffff)
+			return -1;
+	}
+	*pp = p;
+	return v;
+}
+
+int
+_pcmfields(Pcmdesc *d)
+{
+	int lo, hi, a;
+
+	if(d->rate < 1){
+		werrstr("invalid rate: %d", d->rate);
+		return -1;
+	}
+	if(d->channels < 1 || d->channels > Maxchan){
+		werrstr("invalid number of channels: %d", d->channels);
+		return -1;
+	}
+	switch(d->fmt){
+	case L's':
+	case L'S':
+	case L'u':
+	case L'U':
+		lo = 1;
+		hi = 32;
+		a = d->bits;
+		break;
+	case L'f':
+		lo = 32;
+		hi = 64;
+		a = 32;
+		break;
+	case L'a':
+	case L'µ':
+		lo = hi = 8;
+		a = 16;
+		break;
+	case 0:
+		werrstr("no sample format");
+		return -1;
+	default:
+		werrstr("unknown sample format %C", d->fmt);
+		return -1;
+	}
+	if(d->bits < lo || d->bits > hi || d->fmt == L'f' && d->bits != 32 && d->bits != 64){
+		werrstr("invalid bits for %C: %d", d->fmt, d->bits);
+		return -1;
+	}
+	if(d->abits != a){
+		werrstr("invalid bits after conversion for %C%d: %d", d->fmt, d->bits, d->abits);
+		return -1;
+	}
+	return 0;
+}
+
+int
+_pcmcheck(Pcmdesc *d)
+{
+	if(_pcmfields(d) < 0)
+		return -1;
+	if(d->framesz != (d->bits+7)/8 * d->channels){
+		werrstr("frame size %d for %d channels of %d bits", d->framesz, d->channels, d->bits);
+		return -1;
+	}
+	return 0;
+}
+
 int
 mkpcmdesc(char *f, Pcmdesc *d)
 {
 	Rune r;
 	char *p;
+	int *v;
 
 	memset(d, 0, sizeof(*d));
 	p = f;
@@ -33,10 +116,10 @@ mkpcmdesc(char *f, Pcmdesc *d)
 		p += chartorune(&r, p);
 		switch(r){
 		case L'r':
-			d->rate = strtol(p, &p, 10);
+			v = &d->rate;
 			break;
 		case L'c':
-			d->channels = strtol(p, &p, 10);
+			v = &d->channels;
 			break;
 		case L'm':
 			r = L'µ';
@@ -48,29 +131,32 @@ mkpcmdesc(char *f, Pcmdesc *d)
 		case L'a':
 		case L'µ':
 			d->fmt = r;
-			d->bits = d->abits = strtol(p, &p, 10);
+			v = &d->bits;
 			break;
 		default:
-			goto Bad;
+			werrstr("bad format %s: unknown letter %C", f, r);
+			return -1;
+		}
+		if((*v = num(&p)) < 0){
+			werrstr("bad format %s: %C needs a number", f, r);
+			return -1;
 		}
 	}
-	if(d->rate <= 0 || d->channels <= 0)
-		goto Bad;
-	if(d->fmt == L'a' || d->fmt == L'µ'){
-		if(d->bits != 8)
-			goto Bad;
+	switch(d->fmt){
+	case L'a':
+	case L'µ':
 		d->abits = 16;
-	} else if(d->fmt == L'f'){
-		if(d->bits != 32 && d->bits != 64)
-			goto Bad;
-		d->abits = sizeof(int)*8;
-	} else if(d->bits <= 0 || d->bits > 32)
-		goto Bad;
-	d->framesz = ((d->bits+7)/8) * d->channels;
-	if(d->framesz <= 0)
-		goto Bad;
+		break;
+	case L'f':
+		d->abits = 32;
+		break;
+	default:
+		d->abits = d->bits;
+	}
+	if(_pcmfields(d) < 0){
+		werrstr("bad format %s: %r", f);
+		return -1;
+	}
+	d->framesz = (d->bits+7)/8 * d->channels;
 	return 0;
-Bad:
-	werrstr("bad format: %s", f);
-	return -1;
 }

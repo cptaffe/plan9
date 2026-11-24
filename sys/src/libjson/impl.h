@@ -1,19 +1,18 @@
-/* The decoder's state, which json.h does not show. */
 struct Jsondec
 {
 	Biobuf	*b;
-	uchar	*p, *ep;	/* or the bytes left of a string */
-	int	peek;	/* the byte read ahead, or -1 */
-	vlong	off;	/* of the next byte */
-	char	*buf;	/* the token's text */
+	uchar	*p, *ep;
+	int	peek;
+	vlong	off;
+	char	*buf;
 	long	nbuf;
-	uchar	*stk;	/* the open containers: '[' or '{' */
+	uchar	*stk;
 	int	nstk, astk;
 	int	state;
-	char	*rec;	/* a raw value's text, while it is read */
+	char	*rec;
 	long	nrec, arec;
 	int	recording;
-	char	err[ERRMAX];	/* the first error, which every call after gives */
+	char	err[ERRMAX];
 };
 
 int	_jsonerr(Jsondec*, char*, ...);

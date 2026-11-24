@@ -90,31 +90,83 @@ sysrun(char *fmt, ...)
 	return buf;
 }
 
+void
+_winevfree(Evreader *r)
+{
+	if(decref(&r->ref) > 0)
+		return;
+	chanfree(r->c);
+	chanfree(r->quit);
+	free(r);
+}
+
+static void
+giveback(int fd, Event *e)
+{
+	char buf[64];
+	int n;
+
+	if(strchr("xXlL", e->c2) == nil)
+		return;
+	n = snprint(buf, sizeof buf, "%c%c%d %d \n", e->c1, e->c2, e->q0, e->q1);
+	write(fd, buf, n);
+}
+
 static void
 eventreader(void *v)
 {
-	Event e[2];
-	Win *w;
+	Evreader *r;
+	Event *e;
+	Alt a[3];
 	int i;
 
-	w = v;
-	i = 0;
-	for(;;){
-		if(winreadevent(w, &e[i]) <= 0)
+	r = v;
+	threadsetname("wineventchan");
+	a[0].c = r->c;
+	a[0].v = &e;
+	a[0].op = CHANSND;
+	a[1].c = r->quit;
+	a[1].v = nil;
+	a[1].op = CHANRCV;
+	a[2].op = CHANEND;
+	for(i = 0;; i = 1-i){
+		e = &r->e[i];
+		if(_winreadev(r->fd, &r->b, e, &r->x) <= 0)
+			e = nil;
+		if(alt(a) == 1){
+			if(e != nil)
+				giveback(r->fd, e);
 			break;
-		sendp(w->c, &e[i]);
-		i = 1-i;
+		}
+		if(e == nil)
+			break;
 	}
-	sendp(w->c, nil);
+	close(r->fd);
+	_winevfree(r);
 	threadexits(nil);
 }
 
 Channel*
 wineventchan(Win *w)
 {
-	if(w->c == nil){
-		w->c = chancreate(sizeof(Event*), 0);
-		proccreate(eventreader, w, 32*1024);
+	Evreader *r;
+	int fd;
+
+	if(w->c != nil)
+		return w->c;
+	if((fd = _winfid(w, "event")) < 0)
+		return nil;
+	r = emalloc(sizeof *r);
+	if((r->fd = dup(fd, -1)) < 0){
+		werrstr("dup event: %r");
+		free(r);
+		return nil;
 	}
+	r->ref.ref = 2;
+	r->c = chancreate(sizeof(Event*), 0);
+	r->quit = chancreate(sizeof(ulong), 1);
+	w->c = r->c;
+	w->ev = r;
+	proccreate(eventreader, r, 32*1024);
 	return w->c;
 }

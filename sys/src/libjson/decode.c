@@ -1,8 +1,3 @@
-/*
- * jsondecode: an object into a struct, by a table of its fields, as Go's json.Unmarshal does
- * into a struct: a key that no field has is skipped, and null leaves a field as it was. Keys
- * match fields' names exactly.
- */
 #include <u.h>
 #include <libc.h>
 #include <bio.h>
@@ -22,6 +17,31 @@ memdup(char *s, long n)
 }
 
 static int
+toint(char *s, vlong *v)
+{
+	uvlong n, max;
+	int neg, c;
+
+	neg = *s == '-';
+	if(neg)
+		s++;
+	max = neg ? (uvlong)1<<63 : ((uvlong)1<<63) - 1;
+	for(n = 0; (c = *s++) != 0; n = n*10 + c){
+		c -= '0';
+		if(n > (max - c)/10)
+			return -1;
+	}
+	*v = neg ? -n : n;
+	return 0;
+}
+
+static int
+range(Jsondec *d, Jsonfield *f, char *s, char *type)
+{
+	return _jsonerr(d, "%s: cannot unmarshal number %s into %s", f->name, s, type);
+}
+
+static int
 want(Jsondec *d, Jsonfield *f, char *what)
 {
 	return _jsonerr(d, "%s: want %s", f->name, what);
@@ -31,7 +51,8 @@ static int
 field(Jsondec *d, Jsonfield *f, void *p)
 {
 	Jsontok t;
-	char *e;
+	vlong v;
+	double x;
 	int r;
 
 	switch(f->kind){
@@ -56,12 +77,17 @@ field(Jsondec *d, Jsonfield *f, void *p)
 	case Jint:
 		if(t.type != JSONnumber || strpbrk(t.s, ".eE") != nil)
 			return want(d, f, "an integer");
-		*(vlong*)p = strtoll(t.s, &e, 10);
+		if(toint(t.s, &v) < 0)
+			return range(d, f, t.s, "int64");
+		*(vlong*)p = v;
 		return 0;
 	case Jfloat:
 		if(t.type != JSONnumber)
 			return want(d, f, "a number");
-		*(double*)p = strtod(t.s, &e);
+		x = strtod(t.s, nil);
+		if(isInf(x, 0))
+			return range(d, f, t.s, "float64");
+		*(double*)p = x;
 		return 0;
 	case Jnumber:
 		if(t.type != JSONnumber)
@@ -78,7 +104,6 @@ field(Jsondec *d, Jsonfield *f, void *p)
 	return _jsonerr(d, "%s: bad field kind %d", f->name, f->kind);
 }
 
-/* jsondecode reads an object (or null) into v, by the fields f, which end in one with a nil name. */
 int
 jsondecode(Jsondec *d, Jsonfield *fs, void *v)
 {

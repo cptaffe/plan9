@@ -518,7 +518,7 @@ xfidwrite(Xfid *x)
 		  * Problem: programs like dossrv, ftp produce illegal UTF;
 		  * we must cope by converting it first.
 		  */
-		snprint(buf, sizeof buf, "%.*s", cnt, x->data);
+		snprint(buf, sizeof buf, "%.*s", utfnlen(x->data, cnt), x->data);
 		if(buf[0] == '/'){
 			free(w->dir);
 			w->dir = estrdup(buf);

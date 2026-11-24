@@ -9,6 +9,9 @@ sibylfs \- sessions of a coding agent
 .B -d
 .I model
 ] [
+.B -l
+.I local
+] [
 .B -m
 .I mtpt
 ] [
@@ -17,6 +20,9 @@ sibylfs \- sessions of a coding agent
 ] [
 .B -s
 .I srvname
+] [
+.B -t
+.I temp
 ] [
 .B -u
 .I url
@@ -39,7 +45,11 @@ mounts one before Acme starts, so Acme and what it runs share it.
 Each session runs its own agent loop against Anthropic's Messages API, through
 .IR webfs (4),
 or OpenCode Go's for a model named
-.BI opencode-go/ id\f1;
+.BI opencode-go/ id\f1,
+or the local model of
+.IR lmfs (4)
+for one named
+.BI lm/ name\f1;
 .B -u
 and
 .B -o
@@ -52,6 +62,27 @@ The key is factotum's,
 .B service=anthropic
 or
 .BR service=opencode .
+When factotum has neither, a session starts with
+.I local
+.RB ( lm/qwen3-0.6b )
+instead, and its
+.B ctl
+says
+.BR nokey .
+A local model is asked through
+.BR /mnt/lm ,
+where
+.I sibylfs
+mounts
+.B /srv/lm
+if nothing is there yet, by
+.IR lmfs 's
+.BR gen :
+the conversation in Qwen3's chat template, thinking off, the tool in its
+.B <tool_call>
+tags, 512 tokens of reply at most, at temperature
+.I temp
+(0.7; 0 takes the likeliest token each time).
 .B doc/sibyl.md
 has the rest.
 .TF n/call/k/status
@@ -65,7 +96,10 @@ the fid is
 .IB n /ctl
 Reading gives
 .IR n ,
-then the model, the key's service, the effort, the role, the prompt file and the state.
+then the model, the key's service (none for a local model), the effort, the role, the prompt file
+and the state, and
+.B nokey
+if the session took the local model for want of a key.
 Writing takes
 .BI model " m" \f1,
 .BI effort " e" \f1,

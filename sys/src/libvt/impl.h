@@ -7,8 +7,9 @@ enum
 	Nparam = 32,
 	Nosc = 4096,
 	Ndumb = 256,
+	Nlinks = 65535,
+	Nlinkbytes = 1<<20,
 
-	/* the parser's states */
 	Ground = 0,
 	Esc,
 	Escint,
@@ -16,7 +17,7 @@ enum
 	Csiignore,
 	Osc,
 	Oscesc,
-	Str,	/* DCS, SOS, PM and APC, to their ST */
+	Str,
 	Stresc,
 };
 
@@ -28,7 +29,6 @@ struct Pen
 	ushort	link;
 };
 
-/* what DECSC keeps */
 struct Saved
 {
 	int	x;
@@ -44,31 +44,30 @@ struct Priv
 {
 	Vtline	*main;
 	Vtline	*alt;
-	int	top;	/* the scroll region, rows top to bot-1 */
+	int	top;
 	int	bot;
 	Pen	pen;
-	int	pending;	/* the last column was written: the next rune wraps */
+	int	pending;
 	uchar	*tabs;
-	int	g[2];	/* G0 and G1: 1 for DEC's line drawing */
-	int	shift;	/* SO: G1 is used */
-	Saved	saved[2];	/* the main screen's and the alternate's */
-	Rune	last;	/* for REP */
-	void	(*dumb)(Vt*, Rune*, int);	/* vtdumb's: the text goes here, and no screen is kept */
+	int	g[2];
+	int	shift;
+	Saved	saved[2];
+	Rune	last;
+	void	(*dumb)(Vt*, Rune*, int);
 	Rune	dbuf[Ndumb];
 	int	ndbuf;
 
 	int	state;
 	int	param[Nparam];
-	uchar	sub[Nparam];	/* param[i] came after a colon */
+	uchar	sub[Nparam];
 	int	nparam;
-	int	priv;	/* CSI's ? > = or <, or 0 */
-	int	inter;	/* the intermediate byte, or 0 */
+	int	priv;
+	int	inter;
 	char	osc[Nosc];
 	int	nosc;
 	uchar	utf[UTFmax];
 	int	nutf;
 
-	/* this frame's damage */
 	int	all;
 	uchar	*dirty;
 	Vtscroll	*scroll;
@@ -84,7 +83,11 @@ struct Priv
 	int	omode;
 	int	title;
 	int	bell;
-	int	cleardirty;	/* the last frame's dirty rows are still marked */
+	int	cleardirty;
+
+	ushort	*lh;
+	int	nlh;
+	long	linkbytes;
 };
 
 #define P(vt)	((Priv*)(vt)->priv)

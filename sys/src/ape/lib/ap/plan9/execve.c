@@ -8,7 +8,7 @@
 extern char **environ;
 
 int
-execve(const char *name, const char *argv[], const char *envp[])
+execve(const char *name, char *const argv[], char *const envp[])
 {
 	int n, f, i;
 	char **e, *ss, *se;
@@ -17,6 +17,7 @@ execve(const char *name, const char *argv[], const char *envp[])
 	char nam[256+5];
 	char buf[1000];
 
+	_execbuf();
 	_RFORK(RFCENVG);
 	/*
 	 * To pass _fdinfo[] across exec, put lines like
@@ -36,7 +37,7 @@ execve(const char *name, const char *argv[], const char *envp[])
 		}else if(flags&FD_ISOPEN){
 			ss = _ultoa(ss, n);
 			*ss++ = ' ';
-			ss = _ultoa(ss, flags);
+			ss = _ultoa(ss, flags&~(FD_BUFFERED|FD_BUFFEREDX));
 			*ss++ = ' ';
 			ss = _ultoa(ss, fi->oflags);
 			*ss++ = '\n';
@@ -109,7 +110,7 @@ execve(const char *name, const char *argv[], const char *envp[])
 			_CLOSE(f);
 		}
 	}
-	n = _EXEC(name, argv);
+	n = _EXEC(name, (char**)argv);
 	_syserrno();
 	return n;
 }

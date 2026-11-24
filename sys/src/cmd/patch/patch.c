@@ -156,7 +156,7 @@ gitperm(int mode, ulong perm)
 }
 
 int
-filetype(Diff *d)
+filetype(Pdiff *d)
 {
 	int m;
 
@@ -172,9 +172,9 @@ filetype(Diff *d)
 }
 
 char*
-patched(Diff *d, File *f, long *np)
+patched(Pdiff *d, File *f, long *np)
 {
-	Text t;
+	Ptext t;
 	char *b;
 
 	splittext(&t, f->buf, f->exists ? f->n : 0);
@@ -209,7 +209,7 @@ unset(File *f)
 }
 
 int
-apply(Diff *d)
+apply(Pdiff *d)
 {
 	File *s, *t;
 	char *b, *p;

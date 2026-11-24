@@ -1,0 +1,185 @@
+.TH RTRACE 1
+.SH NAME
+rtrace, ratrace2tl \- draw a timeline of lanes and spans
+.SH SYNOPSIS
+.B rtrace
+[
+.B -w
+]
+[
+.I file
+]
+.br
+.B aux/ratrace2tl
+[
+.I file
+]
+.SH DESCRIPTION
+.I Rtrace
+draws a timeline, in
+.IR timeline (6)'s
+format, read from
+.I file
+or its standard input, in its
+.IR rio (1)
+window, or with
+.B -w
+in a new one.
+Each lane is a row, under its parent and indented by its depth,
+with its label at the left.
+A faint band shows a lane's life, from its start to its end,
+and each span is a mark from its start to its end, colored by its kind.
+An axis across the top gives the time from the timeline's earliest,
+with ticks in ns, µs, ms or s as the view's width suits;
+a legend above it names the kinds by their colors,
+and the status line at the foot describes what is under the mouse.
+.PP
+.I Rtrace
+draws only what is in view, and draws spans narrower than a pixel that touch
+as one mark, in the color of the longest,
+so a timeline of millions of spans stays quick.
+.SS Mouse
+.TF button\ 1
+.TP
+button 1
+A drag pans the view, in time and down the lanes.
+A click on a lane selects it and shows its life,
+and a click on the selected lane clears the selection.
+.TP
+button 3
+A menu:
+.B timeline
+for the lanes and spans,
+.B kinds
+for a table of the spans by kind and name,
+.B tree
+for the lanes as a tree,
+.B all
+to show the whole timeline, and
+.BR exit .
+.TP
+wheel
+Over the spans, zooms the view in and out about the mouse;
+over the labels, scrolls the lanes.
+.PD
+.PP
+The status line shows the lane under the mouse and the time there,
+and, over a span, its kind, name, length and detail.
+.SS Keys
+.TF Tab
+.TP
+.B +
+Zoom in by a factor of two, about the view's middle, as
+.IR trace (1)'s
+does.
+.TP
+.B -
+Zoom out by a factor of two.
+.TP
+Tab
+Go to the next view: timeline, kinds, tree, and back to timeline.
+.TP
+.B q
+Delete
+Exit.
+.PD
+.SS Views
+The kinds view is a table, a row for each span name,
+with its kind's color, its count, its total time and a bar as long as its share of the longest total.
+The tree view lists the lanes as they nest, each with its count of spans;
+a click on a lane selects it and goes back to the timeline, showing its life.
+.SS Colors
+The theme
+.RI ( theme (6))
+gives the colors:
+.B back
+and
+.B text
+for the window,
+.B ltext
+for the axis and the lanes' counts,
+.B border
+for the rules,
+.B rtrace1
+to
+.B rtrace5
+for the kinds, in their order,
+.B rtracelife
+for the lanes' bands, and
+.B rtracesel
+for the selected lane.
+A sixth kind takes the first color again.
+.SS Ratrace2tl
+.I Aux/ratrace2tl
+reads the output of
+.IR ratrace (1),
+or the boot trace in
+.B /dev/ratrace
+(see
+.IR boottrace (8)),
+from
+.I file
+or its standard input, and writes a timeline.
+Each pid is a lane, nested under the process whose
+.B Rfork
+returned it, labeled with its pid and the text names it ran under,
+joined by
+.LR → .
+Each call is a span from its start to its stop,
+named by the call in lower case, with its arguments and its return, the pointers left out, for detail,
+and of one of five kinds:
+.B io
+(files and I/O) for open, create, close, pread, pwrite, seek, stat, fstat, wstat, fwstat, remove, dup, pipe and fd2path;
+.B ns
+(name space) for bind, mount, unmount and chdir;
+.B proc
+(processes) for rfork, exec, exits, await and notify;
+.B sync
+(waiting) for rendez, sleep and alarm;
+and
+.B misc
+(other) for the rest.
+An
+.B Exits
+is a span of no length at the process's last stop.
+Where
+.I ratrace
+wrote a call's start and end apart,
+.I ratrace2tl
+gives the end to the latest call still open whose end has that shape,
+and leaves out a child's first call, whose start
+.I ratrace
+does not show.
+.SH EXAMPLES
+Trace a command and draw its calls:
+.IP
+.EX
+ratrace -c /bin/ls /tmp >[2=1] >/dev/null | aux/ratrace2tl | rtrace
+.EE
+.PP
+Draw the boot so far, in a new window:
+.IP
+.EX
+aux/ratrace2tl /dev/ratrace | rtrace -w
+.EE
+.SH SOURCE
+plan9web's
+.B src/cmd/rtrace
+and
+.B src/cmd/ratrace2tl.c
+.SH "SEE ALSO"
+.IR ratrace (1),
+.IR trace (1),
+.IR timeline (6),
+.IR theme (6),
+.IR boottrace (8)
+.SH DIAGNOSTICS
+.I Rtrace
+exits with the line number of the first record it cannot read:
+a wrong magic or version, a record with too few fields, or a time that is not a number.
+.SH BUGS
+Plan 9's keyboard gives Tab for Shift-Tab, so Tab only goes forward;
+the menu goes to any view.
+.I Ratrace2tl
+joins a call's start and end by their order and their shape, which processes traced at once
+can confuse; the boot trace writes each call whole.

@@ -39,9 +39,35 @@ chesscheck	cc0000
 chesscomment	336633
 chesserror	cc0000
 
-# sketch(1) and grapw(1): text and back are their ink and paper
+# rtrace(1): its five kinds' colors, its lanes' bands and its selected lane
+rtrace1	3d7fb3
+rtrace2	8f6bb8
+rtrace3	c0563c
+rtrace4	3f9a6b
+rtrace5	a08a2d
+rtracelife	e7e7c6
+rtracesel	eaffff
+
+# sketch(1): text and back are its ink and paper
 sketchsel	cc0000
 sketchpoint	0000cc
 sketchdim	777777
 sketchguide	bbbbbb
-grapsel	cc0000
+
+# vt(1): the 16 colors a terminal's programs name
+ansi0	000000
+ansi1	b3261e
+ansi2	2e7d32
+ansi3	8a6100
+ansi4	1f4fbf
+ansi5	8e3fa3
+ansi6	00737a
+ansi7	b8b8b8
+ansi8	5f5f5f
+ansi9	cc3329
+ansi10	34843a
+ansi11	946c00
+ansi12	2f63d6
+ansi13	a04bb8
+ansi14	0b7c85
+ansi15	ffffff

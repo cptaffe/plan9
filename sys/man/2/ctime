@@ -272,6 +272,18 @@ and
 .I tmfmt
 then writes the offset in numbers.
 .PP
+As Go's
+.I Format
+does,
+.I tmfmt
+writes an offset with seconds less than a minute west of Greenwich as
+.LR +00:00:-59 ,
+and
+.IR tmparse ,
+as Go's
+.IR Parse ,
+refuses it.
+.PP
 The return values point to static data
 whose content is overwritten by each call.
 .PP

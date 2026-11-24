@@ -496,8 +496,15 @@ file had not been open.
 .B rdevent
 A copy of the window's events, read only: every message the
 .B event
-file would give, in its format, whether or not a program holds
+file would give, exactly as it gives it, whether or not a program holds
 .BR event ,
+so the text of an action longer than 256 characters is elided as there
+and a program that needs it reads it from
+.B body
+or
+.B xdata
+under the edit's
+.BR seq ;
 and
 .BI MS " q0 q1 " "0 0"
 when the body's selection is
@@ -508,7 +515,8 @@ and has stayed there a moment (so a sweep is one message), and when the file is 
 .B MS
 does not advance
 .BR seq .
-A read gives one message, and blocks until there is one.
+A read gives at most one message, and blocks until there is one;
+a read shorter than the message gives its first bytes, and the reads after it the rest.
 Any number of programs may read it, each from when it opened it;
 none writes anything back, and none holds up the window.
 A body
@@ -551,6 +559,14 @@ is still open, it replaces only those at the address, its runs' starts are relat
 and its names are added to the window's.
 A run whose name the window has not given takes the theme's colours.
 Reading gives the window's names and runs.
+Under a
+.B seq
+guard, the open and each write fail with
+.L "seq mismatch"
+after an edit, and an edit between the last write and the close drops the writes;
+a close reports no error, so a writer that needs to know reads
+.B seq
+again after closing.
 .TP
 .B tag
 holds contents of the window tag.  It may be read at any byte offset.
@@ -579,6 +595,8 @@ and the guard written to its
 belong to the window, not to the file that set them, so one program's write to either,
 between another's and its use, moves the other's.
 .IR Astyles (4)
+without
+.IR amux (4)
 sets
 .B addr
 for each partial write of
@@ -587,4 +605,9 @@ an edit by
 .B addr
 and
 .B data
-while the window's styles change can land in the wrong place.
+while the window's styles change can land in the wrong place,
+and a whole write of
+.B style
+after another program's write to
+.B addr
+replaces only the styles at that address.

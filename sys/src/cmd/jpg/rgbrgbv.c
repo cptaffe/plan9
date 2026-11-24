@@ -30,7 +30,7 @@ closest(int cr, int cg, int cb)
 }
 
 void
-main(int argc, char *argv[])
+main(int, char*[])
 {
 	int i, rgb;
 	int r, g, b;
@@ -45,7 +45,7 @@ main(int argc, char *argv[])
 		r = (rgb>>16) & 0xFF;
 		g = (rgb>>8) & 0xFF;
 		b = (rgb>>0) & 0xFF;
-		print("0x%.6ulX, ", (r<<16) | (g<<8) | b);
+		print("0x%.6ulX, ", (ulong)((r<<16) | (g<<8) | b));
 		if(i%8 == 7)
 			print("\n");
 	}

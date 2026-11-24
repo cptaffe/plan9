@@ -36,6 +36,7 @@ struct Tag
 Tag*	tagopen(Mousectl*, Keyboardctl*, char*);
 void	tagclose(Tag*);
 int	tagctl(Tag*, char*, ...);
+#pragma	varargck	argpos	tagctl	2
 int	tagwrite(Tag*, char*, void*, int);
 char*	tagmread(Tag*, char*);
 int	tagreadevent(Tag*, Event*);

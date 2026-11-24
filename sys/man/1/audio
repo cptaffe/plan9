@@ -317,7 +317,7 @@ signed big-endian integer format
 unsigned big-endian integer format
 .TP
 .BI f #
-floating point format where
+little-endian IEEE 754 floating point format where
 .I #
 has to be 32 or 64 for single- or double-precision
 .TP

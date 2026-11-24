@@ -63,6 +63,8 @@ OFILES=\
 	getlogin.$O\
 	getpgrp.$O\
 	getpgid.$O\
+	getsid.$O\
+	getpw_r.$O\
 	getpid.$O\
 	getppid.$O\
 	getpwnam.$O\
@@ -100,6 +102,7 @@ OFILES=\
 	setitimer.$O\
 	setpgid.$O\
 	setsid.$O\
+	strsignal.$O\
 	setuid.$O\
 	signal.$O\
 	sigpending.$O\
@@ -125,6 +128,7 @@ OFILES=\
 	utime.$O\
 	utimensat.$O\
 	utimes.$O\
+	usleep.$O\
 	wait.$O\
 	write.$O\
 

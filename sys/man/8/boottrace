@@ -1,0 +1,63 @@
+.TH BOOTTRACE 8
+.SH NAME
+boottrace \- trace every system call from the boot
+.SH SYNOPSIS
+.B node k/build/src/main/node.js --ratrace=\fIfile\fP
+[
+.I option ...
+]
+.B --
+.I command
+.PP
+.IB url ?ratrace
+.PP
+.B ratrace=1
+.SH DESCRIPTION
+.IR Ratrace (1)
+attaches to a process that already runs,
+so p9web's kernel can trace the boot itself:
+every system call of every process from the first, pid 1,
+in
+.IR ratrace 's
+format,
+a line for each call, written whole when the call ends,
+and an
+.B Exits
+line when it starts.
+.PP
+Under Node,
+.B --ratrace=\fIfile
+writes the trace to the host's
+.IR file .
+On the page,
+.B ?ratrace
+in its URL, or a line
+.B ratrace=1
+in its
+.IR plan9.ini (8),
+turns it on.
+Either way the kernel keeps the trace, up to 64 megabytes, in
+.BR /dev/ratrace .
+A read of
+.B /dev/ratrace
+sees the lines that were there when its reader opened the file,
+so a reader under the trace does not feed itself.
+.SH EXAMPLES
+Draw the boot so far, in a new window:
+.IP
+.EX
+aux/ratrace2tl /dev/ratrace | rtrace -w
+.EE
+.SH FILES
+.B /dev/ratrace
+.SH SOURCE
+plan9web's
+.B k/src/kernel/kernel.ts
+and
+.B k/src/kernel/dev.ts
+.SH "SEE ALSO"
+.IR ratrace (1),
+.IR rtrace (1),
+.IR plan9.ini (8)
+.SH BUGS
+The trace keeps its first 64 megabytes and drops the lines after them.

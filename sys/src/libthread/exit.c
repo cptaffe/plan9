@@ -35,7 +35,6 @@ threadexitsall(char *exitstr)
 	_threaddebug(DBGSCHED, "_threadexitsallstatus set to %p", _threadexitsallstatus);
 	mypid = getpid();
 #ifdef __wasm__
-	/* the first process's end ends those that share its memory */
 	exits(exitstr);
 #endif
 
