@@ -84,6 +84,7 @@ To change one for the other, turn the first off by its name in the tag, then sta
 marks the parts that cost the most, where something new or something wrong is going on;
 .I Bits
 colors every segment of the text in one of seven bands of bits a rune, and draws the text as a strip in a
+.IR rio (1)
 window of its own.
 .PP
 Each writes a layer of
@@ -154,8 +155,10 @@ colors each segment in its color,
 to
 .BR bits6 ,
 by its bits a rune: under 0.5, 0.5 to 1, 1 to 2, 2 to 3, 3 to 4.5, 4.5 to 6, and 6 or more.
-It also opens a drawn window, named for the file with
+It also opens a rio window, named for the file with
 .BR +Bits ,
+with a tag that looks and works as acme's
+.RI ( adraw (2)),
 that shows the text as a strip, a row for each of its lines and a block for each word, in its
 band's color, and beside it a bar for each paragraph, from
 .B bits
@@ -209,12 +212,20 @@ idea.
 Every other event goes back to acme, which handles it as it would have.
 However the program ends, by an event, a failure of
 .IR lmdir ,
-or a note, it deletes its layer and its own window, and closes the event files.
-Del or
+or a note, it deletes its layer, closes the event file, and its own window goes.
+Del,
+.B Delete
+or
 .B Bits
-in
+in the tag of
 .IR Bits 's
-own window ends it too.
+own window ends it too, and the text window stays.
+Deleting that window in rio ends it the same way.
+.BR Put ,
+.B Undo
+and
+.B Redo
+there are the text window's, and its tag and label follow the text window's name.
 .PP
 .B Huh
 .B -a
@@ -258,8 +269,10 @@ Huh Bits
 .SH SEE ALSO
 .IR acme (1),
 .IR bits (1),
+.IR rio (1),
 .IR segment (1),
 .IR acme (2),
+.IR adraw (2),
 .IR acme (4),
 .IR amux (4),
 .IR astyles (4),
