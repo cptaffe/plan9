@@ -69,7 +69,7 @@ Deleting an edge in a chain splits the chain there, and deleting a node in a gro
 from the group; the rest of the text stays as it was.
 While
 .I dot
-runs, Escape stops it, and the label of
+runs, Escape stops it, and the line at the foot of
 .IR dag 's
 window says so.
 .SS Mouse
