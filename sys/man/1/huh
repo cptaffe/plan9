@@ -1,22 +1,25 @@
 .TH HUH 1
 .SH NAME
-Huh, Bits \- mark the surprising parts of an acme window's text
+Huh, Huh+, Huh-, Bits, huh \- highlight the dense, unusual parts of an acme window's text
 .SH SYNOPSIS
 .B Huh
 [
-.B -a
+.B -t
 ] [
 .B -m
 .I lmdir
 ] [
-.B -t
-.I bpc
-] [
-.B -s
-.I bits
-] [
-.B -r
-.I rank
+.I density
+]
+.PP
+.B Huh+
+.br
+.B Huh-
+.PP
+.B Bits
+[
+.B -m
+.I lmdir
 ] [
 .B -p
 .I penalty
@@ -25,25 +28,29 @@ Huh, Bits \- mark the surprising parts of an acme window's text
 .I runes
 ]
 .PP
-.B Bits
+.B huh
 [
+.B -a
+] [
 .B -m
 .I lmdir
 ] [
-.B -t
-.I bpc
+.B -d
+.I density
+] [
+.B -l
+.I tokens
 ] [
 .B -s
 .I bits
 ] [
-.B -r
-.I rank
+.B -w
+.I width
 ] [
-.B -p
-.I penalty
+.B -n
+.I name
 ] [
-.B -l
-.I runes
+.I file ...
 ]
 .SH DESCRIPTION
 .I Huh
@@ -72,16 +79,18 @@ there, as
 .B lm
 posts it, since acme runs a command in acme's own namespace.
 Each is meant to be run from the window's tag.
-One of them follows a window at a time, as the window's
+Each follows the window by its
+.BR rdevent ,
+so it leaves the window's
 .B event
-has one owner: a second program on a window, under
-.IR amux (4),
-cannot open it and exits, and one that starts on a window whose
+to acme or another program, and both can follow one window.
+One that starts on a window whose
 .I astyles
-layers already include its own deletes its layer and exits.
-To change one for the other, turn the first off by its name in the tag, then start the other.
+layers already include its own deletes that layer and its own, and exits; the program whose
+layer is gone sees so within a quarter second and ends.
+So the same word in the tag turns it on and off.
 .I Huh
-marks the parts that cost the most, where something new or something wrong is going on;
+highlights the stretches where the text's information is, those that cost the most;
 .I Bits
 colors every segment of the text in one of seven bands of bits a rune, and draws the text as a strip in a
 .IR rio (1)
@@ -94,53 +103,91 @@ on the window,
 or
 .BR bits .
 It makes the layer, opens the window's
-.B event
-file, and then reads its body, so that no edit falls between.
+.B rdevent
+file from the window's
+.BR seq ,
+and then reads its body under the same
+.BR seq ,
+so that no edit falls between.
 It writes the text to a session of
 .IR lmdir 's
 .B data
-file, splits the tokens it gets back into segments, as
+file, after a preamble, the window's name as its tag has it, a colon and a blank line, as
+.IR bits (1)
+writes a file's, and leaves out the answer's lines for the preamble; a window with no name gets
+none.
+It marks the tokens it gets back and writes the layer;
+.I Bits
+splits them into segments first, as
 .IR segment (1)
-does, and writes the layer.
+does.
 Then it follows the window's edits, by the
 .B I
 and
 .B D
 events, in a copy of the body: after each one it writes the whole copy to
 .B data
-on a new open and closes the old one, which drops what was left of it, segments again from the
-segment before the change to the one after it, and writes the layer again, under
+on a new open and closes the old one, which drops what was left of it, marks again, and writes the layer again, under
 .IR astyles 's
 .B seq
 guard, so a layer from an older text is not kept.
 .PP
 .I Huh
-marks two kinds of runs:
-.TF stretches
-.TP
-.B stretches
-segments whose bits a rune pass
-.I bpc
-(4.5), in the color
-.BR huh ;
-.TP
-.B spikes
-tokens that cost more than
-.I bits
-(15) or stood below
-.I rank
-(50) among the model's guesses, as the word the token is in, in
-.BR huhspike ,
-a stronger color, even inside a stretch.
-.PD
-.LP
+highlights, in the color
+.BR huh ,
+the stretches that
+.I huh
+prints, below, at its defaults, and segments nothing.
+What it lights is where the model spends its bits: names, terms, code and figures, more than a
+sentence that is merely new to the text.
+It is meant for prose; code mostly falls under the floor, below.
+Once a text is first scored and has been idle for a second,
+.I Huh
+holds its cutoffs and remembers its highlights.
+After an edit, a run of tokens above the leaving cutoff stays highlighted while it overlaps a
+highlight from before, and a new one enters only with a token above the cutoff for 0.7 times
+the density, so a highlight away from the edit stays as it was.
+When the text has again been idle for a second with the whole answer in,
+.I Huh
+fits the cutoffs again, and highlights afresh as
+.I huh
+does, only when the runes above the held cutoff differ from the density's share by more than
+10% of it and by more than 128 runes.
+While a text is first scored, the cutoffs come from the tokens scored so far;
+Get, a new text and a change of density start afresh.
+.PP
+The density, in percent, from 5 to 30, sets the cutoff a highlight enters by, 10 by default; with
+the leaving cutoff and whole words, the highlights cover a little more of a dense text, about 13%
+of the tree's docs, and less of a bland one.
+.B $home/lib/huh
+holds the user's choice, a line
+.BI density " n"\f1,
+over the default.
+.I Huh+
+and
+.IR Huh- ,
+links to
+.IR Huh ,
+raise and lower it by 5, write
+.BR $home/lib/huh
+and print the new density,
+as
+.I Huh
+with a
+.I density
+does, swept in the tag as
+.BR "Huh 15" ;
+they need no window.
+A running
+.I Huh
+reads the file again when it changes, and marks again by the new density at once.
+.PP
 The colors are tints the programs give in their layers' own color lines, each with an opacity,
 so that
 .IR astyles (4)
 blends them over the text's other colors in either theme.
-It leaves out the text's first 40 tokens, which cost many bits for lack of context.
-The limits are the same for every file, so a mark means the same in each.
-.I Penalty
+.IR Bits '
+.I penalty
 and
 .I runes
 are
@@ -166,53 +213,23 @@ band's color, and beside it a bar for each paragraph, from
 its length the paragraph's bits alone, and its dark part those the text before it already had.
 Button 1 on the strip selects its token in the text's window and shows it;
 button 1 on a bar, its paragraph's start.
-Button 3 shows the token's alternatives, as below.
+Button 3 on the strip writes the token's alternatives, as
+.I Huh
+.B -t
+does, below.
 .PP
 The program reaches the window's files through
 .IR acme (2).
-It takes the window's events by reading the window's
-.B event
-file, whoever else reads it.
-Of the window's events:
-.TF Bits
-.TP
-.B Huh
-(in
-.IR Huh 's
-window) or
-.B Bits
-(in
-.IR Bits 's)
-ends the program, so the same word in the tag turns it on and off.
-.TP
-.B Get
-is written back; the program reads the reloaded body and colors it again.
-.TP
-.B Del
-is written back, and the program ends.
-.TP
-Button 3
-clicked, not swept, on a mark (in
-.IR Huh )
-or on colored text (in
-.IR Bits ),
-writes to the window's
-.B +Errors
-a line for the token clicked and one for each of the run's three costliest tokens:
-the token's address in the file, the token, its bits and rank, and the model's five likeliest
-tokens in its place, from
-.IR lmdir 's
-.BR top ,
-each with its bits.
-B3 on a line shows its token.
-The alternatives tell a misspelling, whose likeliest token is the right spelling, from a new
-idea.
-.PD
-.LP
-Every other event goes back to acme, which handles it as it would have.
-However the program ends, by an event, a failure of
+Acme handles every event in the text's window itself; the program only watches them.
+After a
+.BR Get ,
+it reads the reloaded body and colors it again.
+When the window is deleted its
+.B rdevent
+ends, and so does the program.
+However the program ends, by the window's deletion, a failure of
 .IR lmdir ,
-or a note, it deletes its layer, closes the event file, and its own window goes.
+its layer's deletion or a note, it deletes its layer, and its own window goes.
 Del,
 .B Delete
 or
@@ -228,7 +245,7 @@ and
 there are the text window's, and its tag and label follow the text window's name.
 .PP
 .B Huh
-.B -a
+.B -t
 writes the alternatives for the token at the window's dot to
 .B +Errors
 and exits, in any window, with or without
@@ -240,8 +257,80 @@ or
 in
 .B /lib/hotkey/acme
 runs it on the window with the focus.
+The line gives the token's address in the file, the token, its bits and rank, and the model's
+five likeliest tokens in its place, from
+.IR lmdir 's
+.BR top ,
+each with its bits; button 3 on the line shows the token.
+The alternatives tell a misspelling, whose likeliest token is the right spelling, from a new
+idea.
+.PP
+The command
+.I huh
+scores each
+.IR file ,
+or its standard input, once, and prints a line for each highlighted stretch:
+.IP
+.EX
+README.md:#2210,#2398 3.41
+.EE
+.LP
+its address and its score.
+A file goes to the model after its preamble, as in
+.IR bits (1),
+and its addresses are
+.IR file :# q0 ,# q1 .
+Standard input has no name, so it gets no preamble and its addresses are
+.RI # q0 ,# q1
+alone;
+.B -n
+gives it
+.I name
+for both.
+.PP
+Each token's bits are clipped at
+.I bits
+(15 by default) and spread over its runes, less, in a text's first 512 tokens, a position
+baseline: the bits a rune the first tokens of the tree's docs cost beyond those later in them,
+since a text's start costs more for lack of context even after its preamble.
+Each token's score is the clipped bits over the runes of a window of
+.I width
+tokens around it (32 by default), weighted by a triangle that falls off from the token.
+The cutoff is the score above which the tokens cover
+.I density
+percent of the text's runes, 10 by default; unlike
+.IR Huh ,
+.I huh
+reads no file.
+The cutoffs stop at a floor of 1.7 bits a rune, near the 90th percentile of the scores over the
+tree's docs, man pages and C, so a bland text gets less than its share, or nothing, and a text
+under twice
+.I width
+tokens gets nothing.
+A stretch is a run of tokens above the cutoff for 1.5 times the density that holds a token above
+the cutoff for the density, and is at least
+.I tokens
+tokens long (4 by default);
+.B -l
+.B 0
+keeps every one.
+A stretch's ends move out to the blanks around the words they fall in, up to 32 runes, so a
+highlight holds whole words, and stretches that then meet are one.
+A stretch's score is its tokens' scores, weighted by their runes.
+With
+.BR -a ,
+.I huh
+prints every stretch, a run of tokens above the median score, highlighted or not.
+Nothing is parsed: the text is plain text to the model, and every stretch comes from the tokens'
+bits and their places.
 .SH FILES
 .TF /lib/acme/layers
+.TP
+.B $home/lib/huh
+the user's density, written by
+.I Huh+
+and
+.IR Huh-
 .TP
 .B /lib/acme/layers
 places
@@ -262,7 +351,7 @@ on
 .BR /mnt/lm :
 .IP
 .EX
-Huh Bits
+Huh+ Huh- Huh Bits
 .EE
 .SH SOURCE
 .B src/cmd/huh
@@ -280,30 +369,11 @@ Huh Bits
 .IR theme (6),
 .B doc/words.md
 .SH BUGS
-The limits
-.IR bpc ,
-.I bits
-and
-.IR rank ,
-the bands' bounds, and
+The window, the clip and the position baseline come from a measurement with Qwen3-0.6B over the
+tree's docs, man pages and C
+.RB ( doc/words.md );
+the bands' bounds and
 .IR segment 's
 penalty and least length are placeholders, set on
 .IR lmsim 's
 model of bytes; the real model's scores over the tree's text will set them.
-.PP
-A command with a chorded argument loses the argument when written back.
-.PP
-On acme alone, without
-.IR amux (4),
-a window that
-.IR win (1)
-or another program reads gets no events after the program ends: acme keeps one reader of
-.BR event ,
-and the program's read takes the other's place.
-Under
-.IR amux ,
-Huh and Bits leave a window whose
-.B event
-another session holds, as
-.IR win 's
-does.

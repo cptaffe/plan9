@@ -10,13 +10,26 @@
 
 static sigset_t stdsigs = BITSIG(SIGHUP)|BITSIG(SIGINT)|BITSIG(SIGQUIT)|BITSIG(SIGILL)|
 		BITSIG(SIGABRT)|BITSIG(SIGFPE)|BITSIG(SIGKILL)|BITSIG(SIGSEGV)|BITSIG(SIGPIPE)|
-		BITSIG(SIGALRM)|BITSIG(SIGTERM)|BITSIG(SIGUSR1)|BITSIG(SIGUSR2);
+		BITSIG(SIGALRM)|BITSIG(SIGTERM)|BITSIG(SIGUSR1)|BITSIG(SIGUSR2)|BITSIG(SIGBUS)|
+		BITSIG(SIGCHLD)|BITSIG(SIGCONT)|BITSIG(SIGSTOP)|BITSIG(SIGTSTP)|BITSIG(SIGTTIN)|
+		BITSIG(SIGTTOU)|BITSIG(SIGWINCH)|BITSIG(SIGTRAP)|BITSIG(SIGSYS)|BITSIG(SIGURG)|
+		BITSIG(SIGIO)|BITSIG(SIGPROF)|BITSIG(SIGVTALRM)|BITSIG(SIGXCPU)|BITSIG(SIGXFSZ);
 
 int
 sigemptyset(sigset_t *set)
 {
 	*set = 0;
 	return 0;
+}
+
+static int
+valid(int signo)
+{
+	if(signo < SIGHUP || signo > SIGXFSZ){
+		errno = EINVAL;
+		return 0;
+	}
+	return 1;
 }
 
 int
@@ -31,11 +44,9 @@ sigaddset(sigset_t *set, int signo)
 {
 	int b;
 
-	b = BITSIG(signo);
-	if(!(b&stdsigs)){
-		errno = EINVAL;
+	if(!valid(signo))
 		return -1;
-	}
+	b = BITSIG(signo);
 	*set |= b;
 	return 0;
 }
@@ -45,11 +56,9 @@ sigdelset(sigset_t *set, int signo)
 {
 	int b;
 
-	b = BITSIG(signo);
-	if(!(b&stdsigs)){
-		errno = EINVAL;
+	if(!valid(signo))
 		return -1;
-	}
+	b = BITSIG(signo);
 	*set &= ~b;
 	return 0;
 }
@@ -59,10 +68,8 @@ sigismember(const sigset_t *set, int signo)
 {
 	int b;
 
-	b = BITSIG(signo);
-	if(!(b&stdsigs)){
-		errno = EINVAL;
+	if(!valid(signo))
 		return -1;
-	}
+	b = BITSIG(signo);
 	return (b&*set)? 1 : 0;
 }

@@ -29,6 +29,7 @@ rewrite rewrite
 smtpd smtpd
 snap snap
 style style
+termcap termcap
 thumbprint thumbprint
 users users
 ASCII utf

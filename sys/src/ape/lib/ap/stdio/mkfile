@@ -65,6 +65,7 @@ OFILES=\
 	strtodx.$O\
 	tmpnam.$O\
 	ungetc.$O\
+	unlocked.$O\
 	vfprintf.$O\
 	vfscanf.$O\
 	vprintf.$O\

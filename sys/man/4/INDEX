@@ -59,6 +59,8 @@ srvold9p srv
 srvssh srv
 ssh ssh
 stickyfs stickyfs
+syn syn
+ts syn
 32vfs tapefs
 cpiofs tapefs
 tapefs tapefs

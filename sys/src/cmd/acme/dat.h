@@ -454,6 +454,7 @@ struct Fid
 	uchar	rpart[UTFmax];
 	vlong	logoff;	/* for putlog */
 	int		logmismatch;
+	int		logpart;
 	int		seq;
 	int		styleopen;
 	int		stylehasaddr;

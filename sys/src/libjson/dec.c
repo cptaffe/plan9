@@ -1,7 +1,3 @@
-/*
- * The decoder: a stream's tokens, as Go's json.Decoder gives them (Token, More), which keeps
- * the commas and colons to itself. The escapes in strings are 9front's libjson's (MIT).
- */
 #include <u.h>
 #include <libc.h>
 #include <bio.h>
@@ -10,15 +6,15 @@
 
 enum
 {
-	Ttop,	/* a value, or the end */
-	Tarrstart,	/* after '[': a value or ']' */
-	Tarrval,	/* after an array's value: ',' or ']' */
-	Tarrcomma,	/* after an array's ',': a value */
-	Tobjstart,	/* after '{': a key or '}' */
-	Tobjkey,	/* after a key: ':' */
-	Tobjcolon,	/* after ':': a value */
-	Tobjval,	/* after an object's value: ',' or '}' */
-	Tobjcomma,	/* after an object's ',': a key */
+	Ttop,
+	Tarrstart,
+	Tarrval,
+	Tarrcomma,
+	Tobjstart,
+	Tobjkey,
+	Tobjcolon,
+	Tobjval,
+	Tobjcomma,
 };
 
 static Jsondec*
@@ -27,14 +23,15 @@ newdec(void)
 	Jsondec *d;
 
 	d = mallocz(sizeof *d, 1);
-	if(d == nil)
+	if(d == nil){
+		werrstr("json: out of memory");
 		return nil;
+	}
 	d->peek = -1;
 	d->state = Ttop;
 	return d;
 }
 
-/* jsondec decodes what b reads. */
 Jsondec*
 jsondec(Biobuf *b)
 {
@@ -45,7 +42,6 @@ jsondec(Biobuf *b)
 	return d;
 }
 
-/* jsondecmem decodes the n bytes at s. */
 Jsondec*
 jsondecmem(char *s, long n)
 {
@@ -94,8 +90,11 @@ grow(char **p, long *a, long n)
 	if(n <= *a)
 		return 0;
 	m = *a ? *a : 64;
-	while(m < n)
+	while(m < n){
+		if(m > 0x7FFFFFFF/2)
+			return -1;
 		m *= 2;
+	}
 	if((q = realloc(*p, m)) == nil)
 		return -1;
 	*p = q;
@@ -103,14 +102,15 @@ grow(char **p, long *a, long n)
 	return 0;
 }
 
-/* peekc is the next byte, or -1 at the end; getc takes it, into a raw value's text if one is read. */
 static int
 peekc(Jsondec *d)
 {
 	if(d->peek < 0){
-		if(d->b != nil)
+		if(d->b != nil){
 			d->peek = Bgetc(d->b);
-		else if(d->p < d->ep)
+			if(d->peek < 0 && d->b->state == Binactive && d->err[0] == 0)
+				_jsonerr(d, "read: %r");
+		}else if(d->p < d->ep)
 			d->peek = *d->p++;
 	}
 	return d->peek;
@@ -126,10 +126,11 @@ getc(Jsondec *d)
 		return -1;
 	d->peek = -1;
 	d->off++;
-	if(d->recording){
+	if(d->recording && d->err[0] == 0){
 		if(grow(&d->rec, &d->arec, d->nrec+2) < 0)
-			return _jsonerr(d, "out of memory");
-		d->rec[d->nrec++] = c;
+			_jsonerr(d, "out of memory");
+		else
+			d->rec[d->nrec++] = c;
 	}
 	return c;
 }
@@ -147,7 +148,6 @@ peeknonspace(Jsondec *d)
 	}
 }
 
-/* put adds b's n bytes to the token's text. */
 static int
 put(Jsondec *d, long *n, char *b, int m)
 {
@@ -180,7 +180,6 @@ hex4(Jsondec *d, Rune *r)
 	return 0;
 }
 
-/* rune adds r to the token's text. */
 static int
 rune(Jsondec *d, long *n, Rune r)
 {
@@ -189,10 +188,24 @@ rune(Jsondec *d, long *n, Rune r)
 	return put(d, n, b, runetochar(b, &r));
 }
 
-/*
- * str reads a string, its quote first, into the token's text. A surrogate pair's escapes are
- * one rune; a surrogate alone is U+FFFD, as Go has it.
- */
+static int
+escape(Jsondec *d, Rune *r)
+{
+	int c;
+
+	switch(c = getc(d)){
+	case 'n':	*r = '\n';	break;
+	case 'r':	*r = '\r';	break;
+	case 't':	*r = '\t';	break;
+	case 'f':	*r = '\f';	break;
+	case 'b':	*r = '\b';	break;
+	case '"': case '/': case '\\':	*r = c;	break;
+	case 'u':	return hex4(d, r);
+	default:	return _jsonerr(d, "bad escape \\%c", c);
+	}
+	return 0;
+}
+
 static int
 str(Jsondec *d, Jsontok *t)
 {
@@ -212,22 +225,8 @@ str(Jsondec *d, Jsontok *t)
 			return _jsonerr(d, "unterminated string");
 		r = c;
 		esc = c == '\\';
-		if(esc){
-			switch(c = getc(d)){
-			case 'n':	r = '\n';	break;
-			case 'r':	r = '\r';	break;
-			case 't':	r = '\t';	break;
-			case 'f':	r = '\f';	break;
-			case 'b':	r = '\b';	break;
-			case '"': case '/': case '\\':	r = c;	break;
-			case 'u':
-				if(hex4(d, &r) < 0)
-					return -1;
-				break;
-			default:
-				return _jsonerr(d, "bad escape \\%c", c);
-			}
-		}
+		if(esc && escape(d, &r) < 0)
+			return -1;
 		if(hi != 0){
 			if(esc && r >= 0xDC00 && r <= 0xDFFF){
 				r = 0x10000 + ((hi - 0xD800)<<10 | (r - 0xDC00));
@@ -271,7 +270,6 @@ isdigit(int c)
 	return c >= '0' && c <= '9';
 }
 
-/* digits takes the digits that come, at least one. */
 static int
 digits(Jsondec *d, long *n)
 {
@@ -288,7 +286,6 @@ digits(Jsondec *d, long *n)
 	return 0;
 }
 
-/* num reads a number, as JSON's grammar has it, and keeps its text. */
 static int
 num(Jsondec *d, Jsontok *t)
 {
@@ -300,7 +297,8 @@ num(Jsondec *d, Jsontok *t)
 		return -1;
 	if(peekc(d) == '-'){
 		ch = getc(d);
-		put(d, &n, &ch, 1);
+		if(put(d, &n, &ch, 1) < 0)
+			return -1;
 	}
 	if(peekc(d) == '0'){
 		ch = getc(d);
@@ -374,7 +372,6 @@ push(Jsondec *d, int c)
 	return 0;
 }
 
-/* afterval sets the state for after a value. */
 static void
 afterval(Jsondec *d)
 {
@@ -399,10 +396,67 @@ valueok(Jsondec *d)
 	return 0;
 }
 
-/*
- * jsontoken gives the next token: 1, or 0 at the end of the input (between values), or -1.
- * An object's keys are JSONstring tokens.
- */
+static int
+beginval(Jsondec *d, Jsontok *t, int c)
+{
+	if(!valueok(d))
+		return _jsonerr(d, "unexpected '%c'", c);
+	if(push(d, c) < 0)
+		return -1;
+	getc(d);
+	d->state = c == '[' ? Tarrstart : Tobjstart;
+	t->type = c;
+	return 1;
+}
+
+static int
+endval(Jsondec *d, Jsontok *t, int c)
+{
+	if(c == ']' && d->state != Tarrstart && d->state != Tarrval)
+		return _jsonerr(d, "unexpected ']'");
+	if(c == '}' && d->state != Tobjstart && d->state != Tobjval)
+		return _jsonerr(d, "unexpected '}'");
+	getc(d);
+	d->nstk--;
+	afterval(d);
+	t->type = c;
+	return 1;
+}
+
+static int
+string(Jsondec *d, Jsontok *t)
+{
+	if(d->state == Tobjstart || d->state == Tobjcomma){
+		if(str(d, t) < 0)
+			return -1;
+		d->state = Tobjkey;
+		return 1;
+	}
+	if(!valueok(d))
+		return _jsonerr(d, "unexpected string");
+	if(str(d, t) < 0)
+		return -1;
+	afterval(d);
+	return 1;
+}
+
+static int
+scalar(Jsondec *d, Jsontok *t, int c)
+{
+	if(!valueok(d))
+		return _jsonerr(d, "unexpected '%c'", c);
+	if(c == '-' || isdigit(c)){
+		if(num(d, t) < 0)
+			return -1;
+	}else if(lit(d, t) < 0)
+		return -1;
+	c = peekc(d);
+	if(c >= 0 && strchr(" \t\n\r,]}", c) == nil)
+		return _jsonerr(d, "unexpected '%c' after a value", c);
+	afterval(d);
+	return 1;
+}
+
 int
 jsontoken(Jsondec *d, Jsontok *t)
 {
@@ -415,6 +469,8 @@ jsontoken(Jsondec *d, Jsontok *t)
 		c = peeknonspace(d);
 		switch(c){
 		case -1:
+			if(d->err[0])
+				return _jsonerr(d, "");
 			if(d->state == Ttop)
 				return 0;
 			return _jsonerr(d, "unexpected end");
@@ -435,58 +491,17 @@ jsontoken(Jsondec *d, Jsontok *t)
 			continue;
 		case '[':
 		case '{':
-			if(!valueok(d))
-				return _jsonerr(d, "unexpected '%c'", c);
-			if(push(d, c) < 0)
-				return -1;
-			getc(d);
-			d->state = c == '[' ? Tarrstart : Tobjstart;
-			t->type = c;
-			return 1;
+			return beginval(d, t, c);
 		case ']':
-			if(d->state != Tarrstart && d->state != Tarrval)
-				return _jsonerr(d, "unexpected ']'");
-			goto End;
 		case '}':
-			if(d->state != Tobjstart && d->state != Tobjval)
-				return _jsonerr(d, "unexpected '}'");
-		End:
-			getc(d);
-			d->nstk--;
-			afterval(d);
-			t->type = c;
-			return 1;
+			return endval(d, t, c);
 		case '"':
-			if(d->state == Tobjstart || d->state == Tobjcomma){
-				if(str(d, t) < 0)
-					return -1;
-				d->state = Tobjkey;
-				return 1;
-			}
-			if(!valueok(d))
-				return _jsonerr(d, "unexpected string");
-			if(str(d, t) < 0)
-				return -1;
-			afterval(d);
-			return 1;
+			return string(d, t);
 		}
-		if(!valueok(d))
-			return _jsonerr(d, "unexpected '%c'", c);
-		if(c == '-' || isdigit(c)){
-			if(num(d, t) < 0)
-				return -1;
-		}else if(lit(d, t) < 0)
-			return -1;
-		/* a number or a literal ends where something else begins: 01 is no 0 then 1 */
-		c = peekc(d);
-		if(c >= 0 && strchr(" \t\n\r,]}", c) == nil)
-			return _jsonerr(d, "unexpected '%c' after a value", c);
-		afterval(d);
-		return 1;
+		return scalar(d, t, c);
 	}
 }
 
-/* jsonmore is whether the array or object being read has another element. */
 int
 jsonmore(Jsondec *d)
 {
@@ -498,7 +513,6 @@ jsonmore(Jsondec *d)
 	return c >= 0 && c != ']' && c != '}';
 }
 
-/* prepvalue takes what comes before a value (an array's ',', a key's ':'), as Go's tokenPrepareForDecode. */
 static int
 prepvalue(Jsondec *d)
 {
@@ -526,7 +540,6 @@ prepvalue(Jsondec *d)
 	return 0;
 }
 
-/* skip reads one value, all of it. */
 static int
 skip(Jsondec *d)
 {
@@ -545,7 +558,6 @@ skip(Jsondec *d)
 	return 0;
 }
 
-/* jsonskip reads the next value and drops it. */
 int
 jsonskip(Jsondec *d)
 {
@@ -554,7 +566,6 @@ jsonskip(Jsondec *d)
 	return skip(d);
 }
 
-/* jsonraw reads the next value and gives its text as it came, as Go's json.RawMessage. */
 int
 jsonraw(Jsondec *d, Jsonraw *r)
 {
@@ -568,6 +579,8 @@ jsonraw(Jsondec *d, Jsonraw *r)
 	d->recording = 0;
 	if(n < 0)
 		return -1;
+	if(d->err[0])
+		return _jsonerr(d, "");
 	r->s = malloc(d->nrec+1);
 	if(r->s == nil)
 		return _jsonerr(d, "out of memory");

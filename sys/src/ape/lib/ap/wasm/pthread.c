@@ -139,7 +139,7 @@ past(const struct timespec *t)
 	struct timespec now;
 
 	clock_gettime(CLOCK_REALTIME, &now);
-	return now.tv_sec > t->tv_sec || now.tv_sec == t->tv_sec && now.tv_nsec >= t->tv_nsec;
+	return now.tv_sec > t->tv_sec || (now.tv_sec == t->tv_sec && now.tv_nsec >= t->tv_nsec);
 }
 
 static int

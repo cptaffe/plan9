@@ -404,7 +404,7 @@ assignment(char *p)
 	while(*p==' ' || *p=='\t')
 			p++;
 	if((qval = expand(nil, p, nil)) == nil)
-		parseerror("%.*s: %r", n, var);
+		parseerror("%.*s: %r", utfnlen(var, n), var);
 	setvariable(var, n, p, qval);
 	return 1;
 }

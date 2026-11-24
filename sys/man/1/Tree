@@ -23,12 +23,16 @@ under a tag that looks and works as acme's
 The grammar is the one
 .IR hl (1)
 would color the file by, from the rules of
-.B $home/lib/ts
+.B $home/lib/syn
 or
-.BR /lib/ts ,
+.BR /lib/syn ,
 and the parse is its program's answer to a
 .B tree
-request.
+request, which
+.I Tree
+asks of the one
+.IR syn (4)
+it runs.
 Given
 .IR winid ,
 it shows that acme window instead of
@@ -187,7 +191,7 @@ to rename a variable in that function alone.
 .SH FILES
 .TF /sys/lib/ts/lang/tags.scm
 .TP
-.B /lib/ts
+.B /lib/syn
 the languages' rules
 .TP
 .BI /sys/lib/ts/ lang /tags.scm
@@ -206,6 +210,7 @@ plan9web's
 .IR adraw (2),
 .IR graphics (2),
 .IR acme (4),
+.IR syn (4),
 .IR theme (6)
 .SH DIAGNOSTICS
 .I Tree

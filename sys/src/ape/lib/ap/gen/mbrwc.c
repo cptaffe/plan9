@@ -102,7 +102,7 @@ mbrlen(const char *s, size_t n, mbstate_t *ps)
 int
 mbsinit(const mbstate_t *ps)
 {
-	return ps == 0 || ps->__n == 0 && ps->__c == 0;
+	return ps == 0 || (ps->__n == 0 && ps->__c == 0);
 }
 
 wint_t

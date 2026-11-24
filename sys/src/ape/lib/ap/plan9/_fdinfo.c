@@ -129,7 +129,7 @@ sfdinit(int usedproc, char *s, char *se)
 			fi = &_fdinfo[fd];
 			if(usedproc && !(fi->flags&FD_ISOPEN))
 				continue;	/* should probably ignore all of $_fdinit */
-			fi->flags = fl;
+			fi->flags = fl&~(FD_BUFFERED|FD_BUFFEREDX);
 			fi->oflags = ofl;
 			if(_isatty(fd))
 				fi->flags |= FD_ISTTY;

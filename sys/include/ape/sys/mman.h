@@ -21,6 +21,19 @@
 #define	MS_INVALIDATE	2
 #define	MS_SYNC	4
 
+#define	POSIX_MADV_NORMAL	0
+#define	POSIX_MADV_RANDOM	1
+#define	POSIX_MADV_SEQUENTIAL	2
+#define	POSIX_MADV_WILLNEED	3
+#define	POSIX_MADV_DONTNEED	4
+#ifdef _BSD_EXTENSION
+#define	MADV_NORMAL	POSIX_MADV_NORMAL
+#define	MADV_RANDOM	POSIX_MADV_RANDOM
+#define	MADV_SEQUENTIAL	POSIX_MADV_SEQUENTIAL
+#define	MADV_WILLNEED	POSIX_MADV_WILLNEED
+#define	MADV_DONTNEED	POSIX_MADV_DONTNEED
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -28,6 +41,11 @@ extern "C" {
 extern void	*mmap(void*, size_t, int, int, int, off_t);
 extern int	munmap(void*, size_t);
 extern int	msync(void*, size_t, int);
+extern int	mprotect(void*, size_t, int);
+extern int	posix_madvise(void*, size_t, int);
+#ifdef _BSD_EXTENSION
+extern int	madvise(void*, size_t, int);
+#endif
 
 #ifdef __cplusplus
 }

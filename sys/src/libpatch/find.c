@@ -3,7 +3,7 @@
 #include <patch.h>
 
 void
-splittext(Text *t, char *buf, long n)
+splittext(Ptext *t, char *buf, long n)
 {
 	char *p, *e, *q;
 	int m;
@@ -14,7 +14,7 @@ splittext(Text *t, char *buf, long n)
 			q = e-1;
 		m++;
 	}
-	t->l = emalloc((m+1)*sizeof(Line));
+	t->l = emalloc(m+1 > ~(ulong)0/sizeof(Pline) ? ~(ulong)0 : (m+1)*sizeof(Pline));
 	t->n = m;
 	m = 0;
 	for(p = buf; p < e; p = q+1){
@@ -27,10 +27,10 @@ splittext(Text *t, char *buf, long n)
 }
 
 static int
-match(Text *t, int at, Text *o)
+match(Ptext *t, int at, Ptext *o)
 {
 	int i;
-	Line *a, *b;
+	Pline *a, *b;
 
 	if(at < 0 || at+o->n > t->n)
 		return 0;
@@ -44,7 +44,7 @@ match(Text *t, int at, Text *o)
 }
 
 static int
-expect(Hunk *h)
+expect(Phunk *h)
 {
 	if(h->oldcnt == 0)
 		return h->oldln;
@@ -52,7 +52,7 @@ expect(Hunk *h)
 }
 
 int
-findhunk(Diff *d, Hunk *h, Text *t, int lo, int drift)
+findhunk(Pdiff *d, Phunk *h, Ptext *t, int lo, int drift)
 {
 	int at, hi, f, b, begin, end;
 
@@ -87,10 +87,10 @@ findhunk(Diff *d, Hunk *h, Text *t, int lo, int drift)
 }
 
 int
-placehunks(Diff *d, Text *t, int *at)
+placehunks(Pdiff *d, Ptext *t, int *at)
 {
 	int i, lo, drift;
-	Hunk *h;
+	Phunk *h;
 
 	lo = 0;
 	drift = 0;
@@ -107,7 +107,7 @@ placehunks(Diff *d, Text *t, int *at)
 }
 
 static char*
-put(char *p, Line *l, int n)
+put(char *p, Pline *l, int n)
 {
 	int i;
 
@@ -119,7 +119,7 @@ put(char *p, Line *l, int n)
 }
 
 static long
-size(Line *l, int n)
+size(Pline *l, int n)
 {
 	long m;
 	int i;
@@ -131,12 +131,12 @@ size(Line *l, int n)
 }
 
 char*
-applydiff(Diff *d, Text *t, long *np)
+applydiff(Pdiff *d, Ptext *t, long *np)
 {
 	int i, *at, k;
 	long n;
 	char *b, *p, *e;
-	Hunk *h;
+	Phunk *h;
 
 	at = emalloc((d->nh+1)*sizeof(int));
 	if(placehunks(d, t, at) < 0){

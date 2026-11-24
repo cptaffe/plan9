@@ -42,7 +42,7 @@ winseqopen(Win *w, char *file, int seq, int mode)
 		return -1;
 	n = snprint(s, sizeof s, "%d", seq);
 	fd = -1;
-	qlock(&_winseqlk);
+	qlock(&w->seqlk);
 	if((sfd = open(buf, OWRITE)) < 0)
 		werrstr("open %s: %r", buf);
 	else if(write(sfd, s, n) != n)
@@ -51,7 +51,7 @@ winseqopen(Win *w, char *file, int seq, int mode)
 		werrstr("open %s: %r", buf);
 	if(sfd >= 0)
 		close(sfd);
-	qunlock(&_winseqlk);
+	qunlock(&w->seqlk);
 	return fd;
 }
 
@@ -59,7 +59,7 @@ int
 winseqwrite(Win *w, int seq, char *addr, void *a, int n)
 {
 	char *s;
-	int fd, m, k;
+	int fd, m, k, j;
 
 	if(addr != nil && winaddr(w, "%s", addr) < 0)
 		return -1;
@@ -69,15 +69,20 @@ winseqwrite(Win *w, int seq, char *addr, void *a, int n)
 	m = 0;
 	do{
 		k = n-m < 4096 ? n-m : 4096;
-		while(m+k < n && k > 0 && (s[m+k]&0xC0) == 0x80)
-			k--;
+		for(j = 0; j < UTFmax-1 && m+k-j < n && (s[m+k-j]&0xC0) == 0x80; j++)
+			;
+		if(m+k-j >= n || (s[m+k-j]&0xC0) != 0x80)
+			k -= j;
 		if(write(fd, s+m, k) != k){
 			werrstr("write data: %r");
 			close(fd);
 			return -1;
 		}
-		if(m == 0 && k < n)
-			winctl(w, "nomark");
+		if(m == 0 && k < n && winctl(w, "nomark") < 0){
+			werrstr("nomark: %r");
+			close(fd);
+			return -1;
+		}
 		m += k;
 	}while(m < n);
 	close(fd);

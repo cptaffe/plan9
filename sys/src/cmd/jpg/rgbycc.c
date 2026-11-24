@@ -58,7 +58,7 @@ closest(int Y, int Cb, int Cr)
 }
 
 void
-main(int argc, char *argv[])
+main(int, char*[])
 {
 	int i, rgb;
 	int r, g, b;
@@ -86,7 +86,7 @@ main(int argc, char *argv[])
 		r = Y;
 		g = Cb;
 		b = Cr;
-		print("0x%.6ulX, ", (r<<16) | (g<<8) | b);
+		print("0x%.6ulX, ", (ulong)((r<<16) | (g<<8) | b));
 		if(i%8 == 7)
 			print("\n");
 	}

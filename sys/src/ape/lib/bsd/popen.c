@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <errno.h>
 #include "lib.h"
 #include "sys9.h"
 
@@ -25,7 +26,7 @@ struct a_child {
 	int	myside;
 	int	hisside;
 	int	to;
-	char	*cmd;
+	const char	*cmd;
 };
 
 static void
@@ -45,7 +46,7 @@ child(void *v)
 }
 
 FILE *
-popen(char *cmd, char *mode)
+popen(const char *cmd, const char *mode)
 {
 	int p[2];
 	int myside, hisside, pid;
@@ -92,7 +93,8 @@ pclose(FILE *ptr)
 		return 0;
 	if (!the_fork[ind].done) {
 		do {
-			r = wait(&status);
+			while((r = wait(&status)) == -1 && errno == EINTR)
+				;
 			for (f = 0; f < MAXFORKS; f++)
 				if (the_fork[f].pid == r) {
 					the_fork[f].done = 1;

@@ -1,8 +1,14 @@
 #include "ed25519.c"
 
 /*
- * test vectors from RFC8032, 7.1, tests 1-3, and RFC7748, 5.2 and 6.1; then random keys,
- * messages and points, as many as argv[1] says
+ * test vectors from RFC8032, 7.1, tests 1-3, and RFC7748, 5.2 and 6.1; signatures under
+ * public keys that Go 1.27's crypto/ed25519 takes and RFC 8032 does not (y not reduced, or x 0
+ * with its sign set: the identity twice, a point of order 4 once), one under the identity with
+ * R the identity, and one with that R not reduced, which Go refuses; the constant tables against
+ * what they are computed from; x25519's inputs left as they were, a key exchange whose public
+ * values have the top bit 0, and four low order points, which Go 1.27's crypto/ecdh refuses,
+ * refused with "x25519: low order point"; then random keys, messages and points, as many as
+ * argv[1] says
  */
 typedef struct Sigtest Sigtest;
 struct Sigtest {
@@ -30,6 +36,53 @@ Sigtest sigtests[] = {
 	"af82",
 	"6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac"
 	"18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a",
+};
+
+typedef struct Vtest Vtest;
+struct Vtest {
+	char	*pk;
+	char	*msg;
+	char	*sig;
+	int	ok;
+};
+
+Vtest vtests[] = {
+	"eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+	"",
+	"5866666666666666666666666666666666666666666666666666666666666666"
+	"0100000000000000000000000000000000000000000000000000000000000000",
+	1,
+
+	"0100000000000000000000000000000000000000000000000000000000000080",
+	"",
+	"5866666666666666666666666666666666666666666666666666666666666666"
+	"0100000000000000000000000000000000000000000000000000000000000000",
+	1,
+
+	"edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+	"70397765622030",
+	"16030e0ff1d6226b8ad6ff918b288668c1c3e5e45269487f85479bb4a9fb11af"
+	"0700000000000000000000000000000000000000000000000000000000000000",
+	1,
+
+	"0100000000000000000000000000000000000000000000000000000000000000",
+	"",
+	"0100000000000000000000000000000000000000000000000000000000000000"
+	"0000000000000000000000000000000000000000000000000000000000000000",
+	1,
+
+	"0100000000000000000000000000000000000000000000000000000000000000",
+	"",
+	"eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"
+	"0000000000000000000000000000000000000000000000000000000000000000",
+	0,
+};
+
+char *lowtests[] = {
+	"0000000000000000000000000000000000000000000000000000000000000000",
+	"0100000000000000000000000000000000000000000000000000000000000000",
+	"e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800",
+	"e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b880",
 };
 
 typedef struct Dhtest Dhtest;
@@ -121,11 +174,61 @@ randoms(int nr)
 }
 
 void
+fecheck(char *name, Fe got, Fe want)
+{
+	uchar g[32], w[32];
+
+	fetobytes(g, got);
+	fetobytes(w, want);
+	if(memcmp(g, w, 32) != 0){
+		print("%s: got %.*H, want %.*H\n", name, 32, g, 32, w);
+		fails++;
+	}
+}
+
+void
+tables(void)
+{
+	uchar s[32];
+	Fe t, x;
+	Pt b;
+
+	feset(t, 121666);
+	feinv(t, t);
+	feset(x, 121665);
+	femul(x, x, t);
+	feneg(x, x);
+	fecheck("d", d, x);
+	feadd(x, x, x);
+	fecheck("d2", d2, x);
+	fesq(x, sqrtm1);
+	feset(t, 1);
+	feneg(t, t);
+	fecheck("sqrtm1²", x, t);
+	feset(t, 5);
+	feinv(t, t);
+	feset(x, 4);
+	femul(x, x, t);
+	fetobytes(s, x);
+	if(ptdecode(&b, s) < 0){
+		print("base: 4/5 not decoded\n");
+		fails++;
+		return;
+	}
+	fecheck("base x", base.x, b.x);
+	fecheck("base y", base.y, b.y);
+	fecheck("base z", base.z, b.z);
+	fecheck("base t", base.t, b.t);
+}
+
+void
 main(int argc, char **argv)
 {
 	uchar sk[32], pk[32], m[8], sig[64], k[32], u[32], z[32], x[32], y[32], z2[32];
+	char err[ERRMAX];
 	int i, n;
 	Sigtest *t;
+	Vtest *v;
 	Dhtest *d;
 
 	fmtinstall('H', encodefmt);
@@ -147,24 +250,57 @@ main(int argc, char **argv)
 			fails++;
 		}
 	}
+	for(i = 0; i < nelem(vtests); i++){
+		v = &vtests[i];
+		hex(pk, v->pk);
+		n = hex(m, v->msg);
+		hex(sig, v->sig);
+		if(ed25519verify(sig, m, n, pk) != v->ok){
+			print("ed25519verify vector %d: got %d, want %d\n", i, !v->ok, v->ok);
+			fails++;
+		}
+	}
+	tables();
 	for(i = 0; i < nelem(dhtests); i++){
 		d = &dhtests[i];
 		hex(k, d->k);
 		hex(u, d->u);
-		x25519(z, k, u);
+		memmove(x, k, 32);
+		memmove(y, u, 32);
+		if(x25519(z, k, u) < 0){
+			print("x25519 %d: %r\n", i);
+			fails++;
+		}
 		check("x25519", i, z, d->out, 32);
+		if(memcmp(x, k, 32) != 0 || memcmp(y, u, 32) != 0){
+			print("x25519 %d: changed its input\n", i);
+			fails++;
+		}
 	}
-	curve25519_dh_new(x, y);
-	curve25519_dh_new(k, u);
-	if(!curve25519_dh_finish(x, u, z) || !curve25519_dh_finish(k, y, z2) || memcmp(z, z2, 32) != 0){
-		print("curve25519_dh: no shared secret\n");
+	genrandom(x, 32);
+	genrandom(k, 32);
+	if(x25519(y, x, x25519base) < 0 || x25519(u, k, x25519base) < 0
+	|| x25519(z, x, u) < 0 || x25519(z2, k, y) < 0 || memcmp(z, z2, 32) != 0){
+		print("x25519: no shared secret: %r\n");
 		fails++;
 	}
-	memset(u, 0, 32);
-	curve25519_dh_new(x, y);
-	if(curve25519_dh_finish(x, u, z)){
-		print("curve25519_dh: took a zero key\n");
+	if((y[31] | u[31]) & 0x80){
+		print("x25519: a public value with its top bit set\n");
 		fails++;
+	}
+	for(i = 0; i < nelem(lowtests); i++){
+		hex(u, lowtests[i]);
+		werrstr("");
+		if(x25519(z, x, u) != -1){
+			print("x25519 low order %d: took %s\n", i, lowtests[i]);
+			fails++;
+			continue;
+		}
+		rerrstr(err, sizeof err);
+		if(strcmp(err, "x25519: low order point") != 0){
+			print("x25519 low order %d: got error \"%s\", want \"x25519: low order point\"\n", i, err);
+			fails++;
+		}
 	}
 	randoms(argc > 1 ? atoi(argv[1]) : 100);
 	if(fails)

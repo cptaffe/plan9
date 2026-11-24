@@ -332,6 +332,7 @@ setq1(P *p, Blk *b)
 	case Mdpara:
 		if(b->nseg > 0){
 			b->q0 = b->seg[0].b;
+			b->line = b->seg[0].line;
 			e = trimend(p, b);
 		}
 		break;
@@ -339,6 +340,7 @@ setq1(P *p, Blk *b)
 		if(b->flags & Mdsetext){
 			if(b->nseg > 0){
 				b->q0 = b->seg[0].b;
+				b->line = b->seg[0].line;
 				e = trimend(p, b);
 			}
 		}else if(b->nseg > 0)
@@ -348,6 +350,8 @@ setq1(P *p, Blk *b)
 	case Mdhtml:
 		if(b->nseg > 0)
 			e = b->seg[b->nseg-1].e;
+		if(b->type == Mdcode && b->tn != nil && b->tn->q1 > e)
+			e = b->tn->q1;
 		break;
 	case Mdtable:
 	case Mdrow:
@@ -390,7 +394,6 @@ Blk*
 _mdfinal(P *p, Blk *b)
 {
 	Blk *up;
-	int i;
 
 	up = b->up;
 	b->open = 0;
@@ -647,8 +650,8 @@ static Blk*
 tablehead(P *p, Blk *para)
 {
 	Cell *dc, *hc;
-	int nd, nh, i, l, r, k, e;
-	Blk *t, *pp, *rw, *x;
+	int nd, nh, i, l, r, e;
+	Blk *t, *pp, *rw;
 	Seg *g;
 	uchar *h;
 
@@ -697,8 +700,6 @@ tablehead(P *p, Blk *para)
 		e--;
 	tmark(p, t, p->ls + p->fns, p->ls + e, p->line);
 	t->q1 = p->ls + e;
-	for(x = rw->kid; x != nil; x = x->next)
-		;
 	free(h);
 	free(hc);
 	free(dc);
@@ -900,7 +901,7 @@ opennew(P *p, Blk **cp, int all)
 			c = addkid(p, c, Mdcode, p->fns);
 			c->flags |= Mdfenced;
 			c->c = pk(p, p->fns);
-			c->w = m > 255 ? 255 : m;
+			c->w = m > 65535 ? 65535 : m;
 			c->foff = p->fns - p->off;
 			c->aux = c->foff;
 			bmark(p, c, Mdcode, p->fns, p->fns+m);
@@ -952,7 +953,6 @@ opennew(P *p, Blk **cp, int all)
 				c->c = ch;
 				c->aux = start;
 			}
-			x = c;
 			c = addkid(p, c, Mditem, mpos);
 			c->flags |= type;
 			c->c = ch;
@@ -961,7 +961,6 @@ opennew(P *p, Blk **cp, int all)
 			c->pad = lev;
 			c->w = c->moff + c->pad;
 			omark(p, c, Mditem, mpos, mpos+m);
-			USED(x);
 		}else if(indented && !lazy && !p->blank){
 			advance(p, 4, 1);
 			c = addkid(p, c, Mdcode, p->off);
@@ -973,14 +972,12 @@ opennew(P *p, Blk **cp, int all)
 				x = tablerow(p, c);
 			if(x != nil && (x != c || x->type == Mdtable && ct == Mdpara)){
 				c = x;
-			}else if(ct == Mditem && (p->ext & Mdxtask) && (m = _mdscantask(p->b, p->nb, 0)) > 0){
+			}else if(ct == Mditem && c->kid == nil && (p->ext & Mdxtask) && _mdscantask(p->b, p->nb, p->fns) > 0){
 				c->flags |= Mdtodo;
-				for(i = p->off; i < p->nb && p->b[i] != '['; i++)
-					;
-				omark(p, c, Mdtask, i, i+3);
-				if(strstr((char*)p->b, "[x]") != nil || strstr((char*)p->b, "[X]") != nil)
+				omark(p, c, Mdtask, p->fns, p->fns+3);
+				if(p->b[p->fns+1] == 'x' || p->b[p->fns+1] == 'X')
 					c->flags |= Mdchecked;
-				advance(p, 3, 0);
+				advance(p, p->fns + 3 - p->off, 0);
 				break;
 			}else
 				break;
@@ -1058,9 +1055,7 @@ addtext(P *p, Blk *c, Blk *lm)
 			end = hend;
 		}
 		advance(p, p->fns - p->off, 0);
-		if(c->type == Mdhead && (c->flags & Mdsetext) && p->off >= p->nb-1)
-			;
-		else
+		if(c->type != Mdhead || !(c->flags & Mdsetext) || p->off < p->nb-1)
 			addline(p, c, end);
 	}else{
 		c = addkid(p, c, Mdpara, p->fns);

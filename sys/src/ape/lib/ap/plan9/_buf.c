@@ -503,3 +503,9 @@ copynotehandler(void *, char *)
 	_NOTED(1);
 	return 0;
 }
+
+void
+_execbuf(void)
+{
+	_killmuxsid();
+}

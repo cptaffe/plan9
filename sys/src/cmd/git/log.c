@@ -26,7 +26,7 @@ filteradd(Pfilt *pf, char *path)
 	int i;
 
 	if((e = strchr(path, '/')) != nil)
-		p = smprint("%.*s", (int)(e - path), path);
+		p = smprint("%.*s", utfnlen(path, e - path), path);
 	else
 		p = strdup(path);
 
@@ -133,7 +133,6 @@ nextline(char *p, char *e)
 static void
 show(Object *o)
 {
-	Tm tm;
 	char *p, *q, *e;
 
 	assert(o->type == GCommit);

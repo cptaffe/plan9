@@ -54,7 +54,7 @@ tgamma(double x)
 		errno = ERANGE;
 		return signbit(x)? -HUGE_VAL: HUGE_VAL;
 	}
-	if(x < 0 && x == floor(x) || x == -HUGE_VAL){
+	if((x < 0 && x == floor(x)) || x == -HUGE_VAL){
 		errno = EDOM;
 		return NaN();
 	}

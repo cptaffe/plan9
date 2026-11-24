@@ -56,6 +56,21 @@ to the window's size, and tells
 when it changes.
 A program's title is the window's label.
 .PP
+The text and background are the theme's
+.B text
+and
+.B back
+(see
+.IR theme (6)),
+as
+.IR rio 's
+windows have them,
+and the 16 colors a program names by number are its
+.B ansi0
+to
+.BR ansi15 ;
+the other 240 of xterm's 256, and colors given as RGB, are as named.
+.PP
 Lines that leave the top of the screen are kept, the last 2000.
 The wheel moves through them, or, when a program asks for the mouse,
 button 1 and the wheel go to it.
@@ -79,7 +94,7 @@ for a host that has no
 .TP
 .B b
 changes the color scheme to white text on a black background,
-but potentially with colors from escape sequences.
+but potentially with colors from escape sequences, the theme's.
 .TP
 .B c
 changes the color scheme to monochrome (no colors).
@@ -174,4 +189,6 @@ The down arrow key advances a page without sending the character to the host.
 .SH SOURCE
 .B /sys/src/cmd/vt
 .SH SEE ALSO
-.IR vt (2)
+.IR vt (2),
+.IR termcap (6),
+.IR theme (6)

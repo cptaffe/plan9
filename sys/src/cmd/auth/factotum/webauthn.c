@@ -93,7 +93,8 @@ webauthninit(Proto *p, Fsstate *fss)
 	}
 	if((s->invite = _strfindattr(k->privattr, "!invite")) != nil)
 		s->invite = estrdup(s->invite);
-	curve25519_dh_new(s->x, s->cpub);
+	genrandom(s->x, sizeof s->x);
+	x25519(s->cpub, s->x, x25519base);
 	fss->phasename = phasenames;
 	fss->maxphase = Maxphase;
 	fss->phase = CHaveUser;
@@ -311,7 +312,7 @@ ask(Fsstate *fss, State *s, char *a)
 	uchar id[32];
 	uchar nonce[32], spub[32], z[32], t[SHA2_256dlen];
 	DigestState *ds;
-	int i, ret;
+	int i, r, ret;
 
 	p = a;
 	for(i = 0; i < 4; i++){
@@ -345,10 +346,10 @@ ask(Fsstate *fss, State *s, char *a)
 	ds = sha2_256(spub, sizeof spub, nil, ds);
 	sha2_256(nonce, sizeof nonce, t, ds);
 	memmove(s->t, t, sizeof t);
-	if(curve25519_dh_finish(s->x, spub, z) == 0){
-		memset(z, 0, sizeof z);
-		return failure(fss, "the server's key gives no shared secret");
-	}
+	r = x25519(z, s->x, spub);
+	memset(s->x, 0, sizeof s->x);
+	if(r < 0)
+		return failure(fss, "the server's key: %r");
 	hkdf_x(t, sizeof t, (uchar*)info, sizeof info-1, z, sizeof z,
 		s->secret, sizeof s->secret, hmac_sha2_256, SHA2_256dlen);
 	memset(z, 0, sizeof z);

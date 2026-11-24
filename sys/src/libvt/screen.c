@@ -251,6 +251,7 @@ vtfree(Vt *vt)
 	for(i = 1; i <= vt->nlinks; i++)
 		free(vt->links[i]);
 	free(vt->links);
+	free(p->lh);
 	free(vt->title);
 	free(p->dirty);
 	free(p->tabs);

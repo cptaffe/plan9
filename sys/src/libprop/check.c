@@ -156,7 +156,7 @@ loadregs(void)
 		if(*p == 0)
 			continue;
 		n = strcspn(p, " ");
-		if(n == 0 || p[n] != ' ' || p[n+1+strspn(p+n+1, "0123456789 ")] != 0){
+		if(n == 0 || p[n+strspn(p+n, "0123456789 ")] != 0){
 			werrstr("%s:%d: not a property's name and choices", regf, ln);
 			free(b);
 			return -1;
@@ -628,7 +628,7 @@ report(char *name, char *err, char *first, char *notes, uvlong *v, int nv, char 
 			q = strchr(p, '\n');
 			if(q == nil)
 				q = p + strlen(p);
-			print("\t%.*s\n", (int)(q-p), p);
+			print("\t%.*s\n", utfnlen(p, q-p), p);
 			if(*q == '\n')
 				q++;
 		}
@@ -688,6 +688,8 @@ failed(char *name, Prop *p, void *a, Src *s, char *err, char *how)
 	if(_propstop){
 		t = smprint("%s; interrupted after %d shrinks in %d runs", how, h.steps, h.runs);
 		report(name, h.err, h.first, h.notes, h.v, h.nv, t);
+		if(regf != nil)
+			savereg(name, h.v, h.nv);
 		exits("interrupted");
 	}
 	if(k != Fail){
@@ -723,7 +725,11 @@ replayregs(char *name, Prop *p, void *a)
 		n = strcspn(regs[i], " ");
 		if(strncmp(regs[i], name, n) != 0 || name[n] != 0)
 			continue;
-		nv = choices(regs[i]+n, &v);
+		if((nv = choices(regs[i]+n, &v)) < 0){
+			fprint(2, "%s: -R %s: %s: %r\n", argv0 != nil ? argv0 : "prop", regf, name);
+			bad = 1;
+			continue;
+		}
 		s = _propnew(Replay);
 		s->in = v;
 		s->nin = nv;
@@ -746,12 +752,83 @@ replayregs(char *name, Prop *p, void *a)
 	return bad ? -1 : 0;
 }
 
+static int
+randruns(char *name, Prop *p, void *a)
+{
+	Src *s, *m;
+	char *e, *how;
+	int i, nd, nfull, k;
+
+	m = _propnew(Rand);
+	m->x = seed ^ strhash(name);
+	s = _propnew(Rand);
+	e = nil;
+	nd = nfull = 0;
+	k = 0;
+	for(i = 0; i < nruns; ){
+		s->size = i*10/nruns + _proprnd(m)%3;
+		s->x = _proprnd(m);
+		k = run(s, p, a, &e);
+		if(_propstop)
+			stopped(name, i);
+		if(k == Discard){
+			if(s->nv >= Maxchoice)
+				nfull++;
+			if(++nd > 10*nruns + 100){
+				print("%s: gave up after %d runs and %d discards", name, i, nd);
+				if(nfull > 0)
+					print(", %d at the limit of %d choices", nfull, Maxchoice);
+				print("\n");
+				nfail++;
+				k = -1;
+				break;
+			}
+			continue;
+		}
+		i++;
+		if(k == Fail){
+			how = smprint("found by run %d with -s %llud -n %d", i, seed, nruns);
+			k = failed(name, p, a, s, e, how);
+			free(how);
+			break;
+		}
+	}
+	if(k == Pass && verbose)
+		print("%s: %d runs pass, %d discarded\n", name, nruns, nd);
+	srcfree(s);
+	srcfree(m);
+	return k < 0 ? -1 : 0;
+}
+
+static int
+fromb(char *name, Prop *p, void *a)
+{
+	Src *s;
+	char *e;
+	int k;
+
+	e = nil;
+	s = srcbytes(bytes, nbytes);
+	k = run(s, p, a, &e);
+	if(_propstop)
+		stopped(name, 0);
+	if(k == Fail){
+		k = failed(name, p, a, s, e, "from -b");
+		srcfree(s);
+		return k;
+	}
+	if(verbose || k == Discard)
+		print("%s: %s on -b\n", name, k == Pass ? "passes" : "discards its choices");
+	srcfree(s);
+	return 0;
+}
+
 int
 forall(char *name, Prop *p, void *a)
 {
-	Src *s, *m;
-	char *e, *how, *n;
-	int i, nd, k;
+	Src *s;
+	char *e, *n;
+	int k;
 
 	if(!named(name))
 		return 0;
@@ -779,52 +856,7 @@ forall(char *name, Prop *p, void *a)
 	}
 	if(regf != nil && replayregs(name, p, a) < 0)
 		return -1;
-	if(nbytes >= 0){
-		s = srcbytes(bytes, nbytes);
-		k = run(s, p, a, &e);
-		if(_propstop)
-			stopped(name, 0);
-		if(k == Fail){
-			k = failed(name, p, a, s, e, "from -b");
-			srcfree(s);
-			return k;
-		}
-		if(verbose || k == Discard)
-			print("%s: %s on -b\n", name, k == Pass ? "passes" : "discards its choices");
-		srcfree(s);
-		return 0;
-	}
-	m = _propnew(Rand);
-	m->x = seed ^ strhash(name);
-	s = _propnew(Rand);
-	nd = 0;
-	k = 0;
-	for(i = 0; i < nruns; ){
-		s->size = i*10/nruns + _proprnd(m)%3;
-		s->x = _proprnd(m);
-		k = run(s, p, a, &e);
-		if(_propstop)
-			stopped(name, i);
-		if(k == Discard){
-			if(++nd > 10*nruns + 100){
-				print("%s: gave up after %d runs and %d discards\n", name, i, nd);
-				nfail++;
-				k = -1;
-				break;
-			}
-			continue;
-		}
-		i++;
-		if(k == Fail){
-			how = smprint("found by run %d with -s %llud", i, seed);
-			k = failed(name, p, a, s, e, how);
-			free(how);
-			break;
-		}
-	}
-	if(k == Pass && verbose)
-		print("%s: %d runs pass, %d discarded\n", name, nruns, nd);
-	srcfree(s);
-	srcfree(m);
-	return k < 0 ? -1 : 0;
+	if(nbytes >= 0)
+		return fromb(name, p, a);
+	return randruns(name, p, a);
 }

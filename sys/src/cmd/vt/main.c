@@ -68,11 +68,6 @@ char *menutext3[] = {
 Menu	menu2 = { menutext2 };
 Menu	menu3 = { menutext3 };
 
-ulong ansi[16] = {
-	0x000000, 0xAA0000, 0x00AA00, 0xFF5500, 0x0000FF, 0xAA00AA, 0x00AAAA, 0x7F7F7F,
-	0x555555, 0xFF5555, 0x55FF55, 0xFFFF55, 0x5555FF, 0xFF55FF, 0x55FFFF, 0xFFFFFF,
-};
-
 Vt	*vt;
 Mousectl	*mc;
 Keyboardctl	*kc;
@@ -80,6 +75,7 @@ Channel	*hostc;
 char	*term;
 int	nocolor;
 ulong	fgrgb, bgrgb;
+ulong	pal[16];
 int	CW, NS;
 Image	*bordercol;
 Image	*red;
@@ -154,32 +150,22 @@ colimg(ulong rgb)
 	return colors[ncolors++].i;
 }
 
-int
-cube(int n)
+void
+theme(int blkbg)
 {
-	return n ? 55+40*n : 0;
-}
+	char name[16];
+	int i;
 
-ulong
-rgbof(ulong c, ulong def)
-{
-	int i, g;
-
-	switch(c & 0xFF000000){
-	case Vindex:
-		i = c & 0xFF;
-		if(i < 16)
-			return ansi[i];
-		if(i < 232){
-			i -= 16;
-			return cube(i/36)<<16 | cube(i/6%6)<<8 | cube(i%6);
-		}
-		g = 8+10*(i-232);
-		return g<<16 | g<<8 | g;
-	case Vrgb:
-		return c & 0xFFFFFF;
+	fgrgb = themecolor("text", DBlack) >> 8;
+	bgrgb = themecolor("back", DWhite) >> 8;
+	if(blkbg){
+		fgrgb = 0xFFFFFF;
+		bgrgb = 0x000000;
 	}
-	return def;
+	for(i = 0; i < 16; i++){
+		snprint(name, sizeof name, "ansi%d", i);
+		pal[i] = themecolor(name, vtansi[i]<<8 | 0xFF) >> 8;
+	}
 }
 
 void
@@ -193,8 +179,8 @@ style(Vtcell *c, Image **fg, Image **bg)
 		f = b = Vdefault;
 	if((c->attr & Vbold) && (f & 0xFF000000) == Vindex && (f & 0xFF) < 8)
 		f += 8;
-	f = rgbof(f, fgrgb);
-	b = rgbof(b, bgrgb);
+	f = vtrgb(f, pal, fgrgb);
+	b = vtrgb(b, pal, bgrgb);
 	if(c->attr & Vreverse){
 		t = f;
 		f = b;
@@ -214,7 +200,7 @@ void
 drawline(int y, Vtcell *c, int n)
 {
 	Image *fg, *bg;
-	Point p;
+	Point p, q;
 	int x, e, k;
 
 	if(n > vt->cols)
@@ -229,14 +215,12 @@ drawline(int y, Vtcell *c, int n)
 			for(k = x; k < e; k++)
 				if(c[k].r != ' ' && c[k].r != 0 && !(c[k].attr & Vcont))
 					runestringn(screen, pt(k, y), fg, ZP, font, &c[k].r, 1);
-		if(c[x].attr & Vunder){
-			p = pt(x, y);
-			draw(screen, Rect(p.x, p.y+font->ascent+1, pt(e, y).x, p.y+font->ascent+2), fg, nil, ZP);
-		}
-		if(c[x].attr & Vstrike){
-			p = pt(x, y);
-			draw(screen, Rect(p.x, p.y+NS/2, pt(e, y).x, p.y+NS/2+1), fg, nil, ZP);
-		}
+		p = pt(x, y);
+		q = pt(e, y);
+		if(c[x].attr & Vunder)
+			draw(screen, Rect(p.x, p.y+font->ascent+1, q.x, p.y+font->ascent+2), fg, nil, ZP);
+		if(c[x].attr & Vstrike)
+			draw(screen, Rect(p.x, p.y+NS/2, q.x, p.y+NS/2+1), fg, nil, ZP);
 	}
 }
 
@@ -864,8 +848,7 @@ threadmain(int argc, char **argv)
 		sysfatal("initkeyboard: %r");
 	NS = font->height;
 	CW = stringwidth(font, "m");
-	fgrgb = blkbg ? 0xFFFFFF : 0x000000;
-	bgrgb = blkbg ? 0x000000 : 0xFFFFFF;
+	theme(blkbg);
 	red = allocimage(display, Rect(0,0,1,1), screen->chan, 1, DRed);
 	bordercol = allocimage(display, Rect(0,0,1,1), screen->chan, 1, 0xCCCCCCFF);
 	cursback = allocimage(display, Rect(0, 0, CW+1, NS+1), screen->chan, 0, DNofill);

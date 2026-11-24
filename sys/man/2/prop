@@ -191,7 +191,10 @@ random inputs.
 .BI -s " seed"
 Start the random choices from
 .IR seed .
-A run with the same seed and properties gives the same inputs.
+A run with the same seed,
+.BR -n ,
+and properties gives the same inputs, since a run's size grows with its place among the
+.I runs .
 By default the seed is random, and a failure shows it.
 .TP
 .BI -r " choices"
@@ -212,10 +215,10 @@ Before the random inputs, replay each case that
 .I file
 holds for the property, and shrink and show those that still fail;
 if one fails, make no random inputs.
-A line of the file is a property's name and its choices.
+A line of the file is a property's name and its choices, which may be none.
 .I Forall
 adds the choices of each failure it shows to the file, if the file does not hold them,
-and makes the file if it does not exist.
+and makes the file if it does not exist; it adds the failure it shows after an interrupt too.
 .TP
 .B -f
 Run each input in a child process
@@ -276,11 +279,12 @@ A failure reads:
 sortdup: sort lost an element
 	in: 0 0
 	out: 0
-	found by run 2 with -s 1; 4 shrinks in 49 runs
+	found by run 2 with -s 1 -n 100; 4 shrinks in 49 runs
 	tprop -r '1 0 1 0 0' sortdup
 .EE
 .PP
-The last line is the shrunk input's choices, as the property read them.
+The line before the last says how to make the case found again; the last is the shrunk
+input's choices, as the property read them.
 The shrinker keeps any failure, so the shrunk case can fail in another way than the case first found;
 if its string differs, a line
 .B first failure:
@@ -503,14 +507,47 @@ ICFP 2000.
 ends the program with
 .I sysfatal
 if it cannot read the
+.BR -r ,
+.B -b
+or
 .B -R
-file, or a line of it is not a name and numbers;
+file, or a line of the
+.B -R
+file is not a name and numbers;
 .I forall
 does the same if a
 .I fork
 or
 .I pipe
 fails.
+The other routines end it the same way on a mistake in the test program, where a run that
+went on would report on a property it never checked:
+.I pick
+with no alternatives,
+.I discard
+outside a run,
+.I mutate
+with no examples, and a grammar that
+.I expand
+cannot read: a class with no
+.B ]
+or with nothing in it, a
+.B <
+with no
+.BR > ,
+or a symbol with no rule.
+.I Expand
+also ends it when memory for its text runs out, as
+.I emalloc
+does.
+A test program has no caller to give these errors to.
+.PP
+A run that makes more than 16384 choices is discarded;
+.I forall
+says how many of its discards were for that when it gives up,
+and under
+.I srcbytes
+it is a pass, as any discard is.
 .SH BUGS
 Without
 .BR -f ,

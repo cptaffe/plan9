@@ -226,7 +226,7 @@ decnode(P *p, Hd *h)
 {
 	Tn *x, *f;
 	Mdbuf *b;
-	int i, j;
+	int j;
 
 	b = h->b;
 	f = _mddecode(p, b, h->q, h->l);
@@ -245,7 +245,6 @@ decnode(P *p, Hd *h)
 			break;
 		x = x->next;
 	}
-	USED(i);
 	return nil;
 }
 
@@ -382,8 +381,6 @@ oldat(Md *m, u32int o, Mdcur *c)
 	memset(&x, 0, sizeof x);
 	for(;;){
 		if(c->q0 == o && (c->flags & Fnew) && _mdisblock(c->type)){
-			if(found)
-				mdcurfree(&x);
 			mdcurcopy(&x, c);
 			found = 1;
 		}
@@ -405,6 +402,7 @@ path(Mdcur *c, int *np)
 	int n, i;
 	Hd t;
 
+	memset(&x, 0, sizeof x);
 	mdcurcopy(&x, c);
 	h = nil;
 	n = 0;
@@ -469,20 +467,6 @@ converge(P *p, Md *m, long delta, long *dl, Hd **ohp, int *onp, Mdcur *oc)
 }
 
 static int
-refcmp(void *a, void *b)
-{
-	Mdref *x, *y;
-	int r;
-
-	x = a;
-	y = b;
-	r = strcmp(x->key, y->key);
-	if(r != 0)
-		return r;
-	return x->off < y->off ? -1 : x->off > y->off;
-}
-
-static int
 haskey(Mdref *r, int n, char *k)
 {
 	int lo, hi, m, c;
@@ -513,12 +497,6 @@ hasit(u32int *h, int n, u32int x)
 	return 0;
 }
 
-static uvlong
-bloom(u32int h)
-{
-	return 1ULL<<(h & 63) | 1ULL<<((h>>6) & 63);
-}
-
 static void
 inl1(P *p, Tn *t)
 {
@@ -547,7 +525,7 @@ inl1(P *p, Tn *t)
 	}
 	t->kid = t->last = nil;
 	t->scan = nil;
-	_mdinline(p, t, t->seg, t->nseg, 1);
+	_mdinline(p, t, t->seg, t->nseg);
 	for(i = 0; i < n; i++){
 		k = mk[i];
 		k->up = k->next = k->prev = k->kid = k->last = nil;
@@ -602,7 +580,7 @@ fixbuf(P *p, Mdbuf *b, u32int q, u32int l, u32int *hs, int nh, uvlong *ob)
 }
 
 static Mdp*
-fixkid(P *p, Mdp *x, u32int q, u32int l, uvlong bl, u32int *hs, int nh, uvlong *ob)
+fixkid(P *p, Mdp *x, int shared, u32int q, u32int l, uvlong bl, u32int *hs, int nh, uvlong *ob)
 {
 	Mdtree *t, *c;
 	int i, j;
@@ -613,6 +591,7 @@ fixkid(P *p, Mdp *x, u32int q, u32int l, uvlong bl, u32int *hs, int nh, uvlong *
 	if(x->kind == Pbuf)
 		return fixbuf(p, (Mdbuf*)x, q, l, hs, nh, ob);
 	t = (Mdtree*)x;
+	shared |= t->ref > 1;
 	c = nil;
 	kq = q;
 	kl = l;
@@ -622,10 +601,10 @@ fixkid(P *p, Mdp *x, u32int q, u32int l, uvlong bl, u32int *hs, int nh, uvlong *
 		kl += t->k[i].dl;
 		kb = t->k[i].s.bloom;
 		if(kb & bl){
-			np = fixkid(p, t->k[i].p, kq, kl, bl, hs, nh, &kb);
+			np = fixkid(p, t->k[i].p, shared, kq, kl, bl, hs, nh, &kb);
 			if(np != nil){
 				if(c == nil){
-					if(t->ref == 1)
+					if(!shared)
 						c = t;
 					else{
 						c = emalloc(sizeof *c);
@@ -673,11 +652,10 @@ defsfrom(P *p, Md *m, u32int lo, u32int hi, long delta)
 }
 
 static ulong
-linestart(char *s, ulong n, ulong e)
+linestart(char *s, ulong e)
 {
 	ulong j;
 
-	USED(n);
 	for(j = e; j > 0; j--)
 		if(s[j-1] == '\n' || s[j-1] == '\r' && s[j] != '\n')
 			return j;
@@ -696,6 +674,8 @@ mdedit(Md *m, char *s, ulong n, ulong q0, ulong q1, ulong nq1)
 	Blk *b, *a, *ob, **chain;
 	Ul u;
 	Md *nm;
+	Mdtree *root;
+	Mdp *np;
 	Tn *t;
 	u32int *hs;
 	uvlong bl, rb;
@@ -708,14 +688,14 @@ mdedit(Md *m, char *s, ulong n, ulong q0, ulong q1, ulong nq1)
 	p = _mdnewp(s, n);
 	p->ext = m->ext;
 	e = q0 > 0 ? q0-1 : 0;
-	L = linestart(s, n, e);
+	L = linestart(s, e);
 	h = nil;
 	nh = 0;
 	cut = 0;
 	ls = 0;
 	memset(&yr, 0, sizeof yr);
 	if(q0 > 0 && L > 0 && lastnew(m, L, &yr)){
-		cut = linestart(s, n, yr.q0);
+		cut = linestart(s, yr.q0);
 		h = path(&yr, &nh);
 		chain = emalloc((nh+1)*sizeof chain[0]);
 		for(j = 0; j < nh; j++){
@@ -781,59 +761,39 @@ mdedit(Md *m, char *s, ulong n, ulong q0, ulong q1, ulong nq1)
 	_mdfinish(p);
 	_mdfinal(p, p->root);
 	defsfrom(p, m, cut, conv ? ohi : ~0U, delta);
-	qsort(p->def, p->ndef, sizeof p->def[0], refcmp);
-	p->nkey = 0;
-	p->key = emalloc((p->ndef+1)*sizeof p->key[0]);
-	for(i = 0; i < p->ndef; i++)
-		if(p->nkey == 0 || strcmp(p->key[p->nkey-1], p->def[i].key) != 0)
-			p->key[p->nkey++] = p->def[i].key;
+	_mdkeys(p);
 	hs = emalloc((p->nkey + m->nref + 1)*sizeof hs[0]);
 	nchg = 0;
 	bl = 0;
 	for(i = 0; i < p->nkey; i++)
 		if(!haskey(m->ref, m->nref, p->key[i])){
 			hs[nchg] = _mdhash(p->key[i]);
-			bl |= bloom(hs[nchg]);
+			bl |= _mdbloom(hs[nchg]);
 			nchg++;
 		}
 	for(i = 0; i < m->nref; i++)
 		if((i == 0 || strcmp(m->ref[i].key, m->ref[i-1].key) != 0) && !_mdlookup(p, m->ref[i].key)){
 			hs[nchg] = _mdhash(m->ref[i].key);
-			bl |= bloom(hs[nchg]);
+			bl |= _mdbloom(hs[nchg]);
 			nchg++;
 		}
 	t = _mdpack(p, p->root);
-	nm = emalloc(sizeof *nm);
-	nm->s = s;
-	nm->n = n;
-	nm->ext = m->ext;
+	root = (Mdtree*)t->a.p;
+	if(nchg > 0){
+		np = fixkid(p, (Mdp*)root, 0, 0, 0, bl, hs, nchg, &rb);
+		if(np != nil && np != (Mdp*)root){
+			_mddecref((Mdp*)root);
+			root = (Mdtree*)np;
+		}
+	}
+	nm = _mdsnap(p, root);
 	nm->seq = m->seq + 1;
 	nm->r0 = cut;
 	nm->r1 = conv ? ohi + delta : n;
-	nm->root = (Mdtree*)t->a.p;
-	if(nchg > 0){
-		Mdp *np;
-
-		np = fixkid(p, (Mdp*)nm->root, 0, 0, bl, hs, nchg, &rb);
-		if(np != nil && np != (Mdp*)nm->root){
-			_mddecref((Mdp*)nm->root);
-			nm->root = (Mdtree*)np;
-		}
-	}
-	nm->nref = p->ndef;
-	nm->ref = emalloc((p->ndef+1)*sizeof nm->ref[0]);
-	for(i = 0; i < p->ndef; i++){
-		nm->ref[i] = p->def[i];
-		nm->ref[i].key = strdup(p->def[i].key);
-	}
 	free(hs);
 	free(h);
 	free(oh);
 	mdcurfree(&yr);
-	_mdfreearena(p);
-	free(p->b);
-	free(p->def);
-	free(p->key);
-	free(p);
+	_mdfreep(p);
 	return nm;
 }

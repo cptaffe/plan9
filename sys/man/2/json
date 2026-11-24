@@ -93,6 +93,13 @@ bytes at
 The input may hold any number of values, one after another, with white space between them.
 .I Jsondecfree
 frees a decoder.
+A read of
+.I b
+that fails is an error, not the end of the input.
+Arrays and objects nest at most
+.B Jsondepth
+(10000) deep, as in Go; one deeper is the error
+.LR "too deep" .
 .PP
 .I Jsontoken
 reads the next token into
@@ -186,6 +193,23 @@ an array, say, with
 and
 .IR jsonmore .
 Strings are malloc'd.
+A number for a
+.B Jint
+that has a fraction or an exponent, or is outside a
+.BR vlong ,
+and one for a
+.B Jfloat
+that rounds past the largest
+.B double
+either way,
+are errors, as Go's
+.B Unmarshal
+gives them:
+.LR "cannot unmarshal number 1e400 into float64" ,
+and the member stays as it was.
+A number too small for a
+.B double
+is 0, as in Go.
 As in Go, a key that no entry names is skipped, and
 .B null
 leaves a member as it was; unlike Go, a key matches only a name that is the same.
@@ -224,7 +248,14 @@ or an array
 closes what was opened last.
 In an object,
 .I jsonkey
-comes before each value.
+comes before each value, and nowhere else: a key outside an object, a key after a key,
+a value with no key, an end after a key, an end with nothing open, and a
+.I jsonbegin
+of anything but
+.B {
+and
+.B [
+are errors, which stay as any other.
 .IR Jsonstring ,
 .IR jsonstringn ,
 .IR jsonnumber
@@ -307,8 +338,33 @@ the input where it was found.
 An encoder's
 .I err
 is set once one of its writes has failed, and every write after fails.
+.PP
+Unlike the other libraries that take the program's
+.I emalloc
+(see
+.IR html (2)),
+libjson calls
+.I malloc
+and keeps going when memory runs out, since servers call it while they hold state:
+.I jsondec
+and
+.I jsondecmem
+return nil with the error string
+.LR "json: out of memory" ,
+and a decoder's routines return \-1 with
+.L "out of memory"
+in its error, which stays.
+The encoder's
+.I Fmt
+grows as
+.IR fmtstrinit 's
+does, and a write that cannot grow it fails.
 .SH BUGS
 Numbers are not checked when they are encoded, nor is a raw value.
+A key that comes twice in an object leaves the member its last value, as in Go, and the
+string of the first is not freed: the member may hold what the program put there, which
+.I jsondecode
+cannot tell from its own.
 Unlike 9front's
 .IR json (2),
 there is no tree of values: a program reads into its own structs.

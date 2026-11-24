@@ -38,7 +38,7 @@ mask(int how, const sigset_t *set, sigset_t *oset)
 		_psigblocked = *set;
 	else
 		return EINVAL;
-	_psigblocked &= ~BITSIG(SIGKILL);
+	_psigblocked &= ~(BITSIG(SIGKILL)|BITSIG(SIGSTOP));
 	return 0;
 }
 

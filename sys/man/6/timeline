@@ -1,0 +1,109 @@
+.TH TIMELINE 6
+.SH NAME
+timeline \- lanes and spans of time, for rtrace
+.SH DESCRIPTION
+A timeline is text, a record to a line, that
+.IR rtrace (1)
+draws.
+It holds
+.IR lanes ,
+rows that may nest under one another,
+and
+.IR spans ,
+intervals of time on a lane,
+each of a
+.IR kind
+that gives its color.
+.PP
+The first line is the magic and the version:
+.IP
+.EX
+timeline 1
+.EE
+.PP
+Each line after it is a record: a name, then fields separated by blanks
+(spaces or tabs).
+The last field of a record is the rest of its line, blanks and all.
+A blank line, and a line that starts with
+.LR # ,
+holds nothing.
+A reader skips a record whose name it does not know,
+so a later version may add records that this one's readers pass over;
+one that changes what a record here means changes the version.
+.TP
+.BI kind " id name"
+The display name of a kind.
+.I Id
+is a word, the one spans name;
+.I name
+is the rest of the line.
+Kinds take colors in the order of their
+.B kind
+records, and a kind that has none takes the next color when a span first names it.
+.TP
+.BI lane " id parent start end label"
+A lane.
+.I Id
+is a word, unique among lanes.
+.I Parent
+is the
+.I id
+of the lane it nests under, or
+.L -
+for none; a parent may come after its children.
+.I Start
+and
+.I end
+are its life, in nanoseconds, or
+.L -
+when the lane's own spans give it.
+.I Label
+is the rest of the line.
+.TP
+.BI span " lane start end kind name detail"
+A span on lane
+.IR lane ,
+from
+.I start
+to
+.IR end ,
+in nanoseconds, with
+.I start
+no later than
+.IR end .
+.I Kind
+is a kind's
+.IR id ;
+.I name
+is a word that groups spans, a system call's name for one, which
+.IR rtrace 's
+table counts;
+.I detail
+is the rest of the line, what
+.I rtrace
+shows for the span.
+A span may name a lane that has no
+.B lane
+record; the lane is then its own label, with no parent.
+.PP
+Times are decimal integers, nanoseconds from any origin the writer chooses,
+the same for every line; a reader shows them from the earliest.
+Records may come in any order.
+.SH EXAMPLES
+A shell that forks a child, which runs
+.IR echo (1):
+.IP
+.EX
+timeline 1
+kind io files and I/O
+kind proc processes
+lane 35 - - - 35 rc
+lane 37 35 - - 37 rc → echo
+span 35 1000 4200 io open Open "/env/home" 0x0 = 4
+span 35 5000 5100 proc rfork Rfork 0x2014 = 37
+span 37 6000 6400 io pwrite Pwrite 1 "hi." 3 -1 = 3
+span 35 5200 9000 proc await Await = 23
+.EE
+.SH "SEE ALSO"
+.IR ratrace (1),
+.IR rtrace (1)

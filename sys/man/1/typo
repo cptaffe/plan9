@@ -1,0 +1,251 @@
+.TH TYPO 1
+.SH NAME
+typo \- find possible typographical errors
+.SH SYNOPSIS
+.B typo
+[
+.B -13nr
+]
+[
+.B -m
+.I max
+]
+[
+.B -t
+.I threshold
+]
+[
+.I file ...
+]
+.SH DESCRIPTION
+.I Typo
+reads the
+.I files
+(standard input if none) and prints each word in them that is not a common English word,
+with its index of peculiarity, in decreasing order of that index,
+words of the same index in alphabetical order.
+An index of 10 or more is peculiar: such a word holds a sequence of letters
+seen almost nowhere else in the document, and is often a misspelling.
+Before them it prints each word that repeats the word before it,
+as in
+.LR "the the" ,
+a common typographical error.
+.PP
+Each word is printed on a line with its address, its index in brackets, and the word,
+.IP
+.EX
+/sys/man/1/rc:846:18 [15] ctrl
+.EE
+.PP
+and each repeat with its address and the word, as it is in the text, followed by
+.LR repeats .
+The address is the file, the line and the column, counted in characters from 1,
+of the repeat or of the word's first occurrence;
+standard input has the name
+.LR stdin .
+Button 3 on the address in
+.IR acme (1)
+opens the file there, by the
+.IR plumber (4)'s
+rules for
+.IB file : line : column\f1.
+.PP
+A word repeats the one before it when the two are the same, upper and lower case aside,
+with only white space between them,
+across lines and files.
+For this a word is a run of characters other than white space,
+less any characters that are neither letters nor digits at either end;
+it may hold letters, apostrophes and hyphens, and a run with anything else in it,
+such as a number, breaks the sequence, as does a
+.IR troff
+request, whose line is not read.
+.PP
+The statistics are the document's own.
+.I Typo
+counts each digram and trigram of letters in its words,
+the start and end of a word counting as a letter, so that
+.L once
+gives the digrams
+.LR "\ o" ,
+.LR on ,
+.LR nc ,
+.L ce
+and
+.L "e\ "
+and the trigrams
+.LR "\ on" ,
+.LR onc ,
+.L nce
+and
+.LR "ce\ " .
+For each trigram
+.I xyz
+of a word it takes
+.IP
+.EX
+(log n(xy) + log n(yz))/2 \- log n(xyz)
+.EE
+.PP
+the log of a count of 0 or 1 being \-10, and the word's index is the largest of these, at least 0.
+The counts are approximate, as
+.IR typo 's
+always kept them: each is a small counter, incremented with a probability
+that falls as it grows, so that its value is about the logarithm of the count.
+They start from
+.BR /sys/lib/typo/salt ,
+the counts of a sample of English.
+The words of
+.B /sys/lib/typo/w2006
+are not printed.
+.PP
+For the index a word is a run of two or more letters, any letter that Unicode counts as one,
+and its upper case is mapped into lower case.
+Lines that begin with
+.L .
+or
+.L '
+are
+.IR troff (1)
+requests and are ignored.
+An apostrophe within a word is dropped,
+.L %
+is ignored, and a word hyphenated at the end of a line is joined to its rest.
+.PP
+The options are:
+.TP
+.B -1
+Print the Sixth Edition's output: one column of index and word, with no addresses and no repeats.
+.TP
+.B -3
+Print the Sixth Edition's output in three columns, by
+.IR pr (1),
+with the header
+.BI "Possible typo's in" " file"\f1,
+as it printed by default.
+.TP
+.B -n
+Start the counts from nothing, not from English:
+for a document in another language.
+.TP
+.B -r
+Print no repeats.
+.TP
+.BI -m " max
+Print at most
+.I max
+words.
+.TP
+.BI -t " threshold
+Print only words whose index is at least
+.IR threshold .
+.SH EXAMPLES
+.EX
+% typo /sys/man/1/cb | sed 3q
+/sys/man/1/cb:20:1 from repeats
+/sys/man/1/cb:45:23 [15] macros
+/sys/man/1/cb:3:17 [14] beautifier
+.EE
+.SH FILES
+.TF /sys/lib/typo/LICENSE.pike
+.TP
+.B /sys/lib/typo/salt
+digram and trigram counts of English, as Research Unix kept them in
+.BR /usr/lib/salt
+.TP
+.B /sys/lib/typo/w2006
+common words, one a line
+.TP
+.B /sys/lib/typo/LICENSE
+Caldera's license for
+.B salt
+and
+.B w2006
+.TP
+.B /sys/lib/typo/LICENSE.pike
+the license of Rob Pike's
+.I typo
+.SH SOURCE
+plan9web's
+.B src/cmd/typo.c
+.SH SEE ALSO
+.IR spell (1),
+.IR deroff (1)
+.br
+Robert Morris and Lorinda L. Cherry,
+``Computer Detection of Typographical Errors'',
+.I IEEE Transactions on Professional Communication
+PC-18, 1 (March, 1975), pp. 54-64.
+.SH HISTORY
+.I Typo
+is Robert Morris and Lorinda Cherry's, of Bell Labs.
+It first appeared in the Third Edition of Research Unix (1973),
+and was much used until
+.I spell
+came in the Fifth.
+This one follows the Sixth Edition's
+.BR /usr/source/s2/typo.c ,
+whose output it gives for a document in ASCII with
+.B -1
+or
+.BR -3 ,
+and its
+.B salt
+and
+.B w2006
+are that edition's
+.BR /usr/lib/salt
+and
+.BR /usr/lib/w2006 ,
+under Caldera's 2002 license for Research Unix through the Seventh Edition.
+The
+.B salt
+is from Rob Pike's copy, in
+.BR https://github.com/robpike/typo ,
+with a CR taken out before each of its 113 newlines,
+which a conversion to CRLF had put there.
+.PP
+The report of repeats, the addresses, one word a line, and
+.BR -m ,
+.B -t
+and
+.B -r
+are from Pike's
+.I typo
+in Go (2023), whose
+.B -n
+is
+.B -m
+here, as
+.B -n
+was the Sixth Edition's.
+His repeats pass over punctuation between the words, as in
+.LR "null, null" ,
+and over numbers and other runs with no letters,
+which end a repeat here.
+His index, the root mean square of the trigrams' indices over the document's counts alone,
+is not taken.
+With five misspellings planted in each of 52 documents
+(8 manual pages through
+.IR deroff (1),
+4 of plan9web's documents and
+.BR /lib/constitution ,
+4 times each),
+transpositions, dropped, doubled and changed letters of words used elsewhere in the document,
+this
+.I typo
+ranks 46 of the 260 among its first 10 words, 113 among 25 and 176 among 50,
+and Pike's 1, 24 and 64.
+.PP
+The paper says that the index adopted was the root mean square of the trigrams' indices;
+the program took the largest, and so does this one.
+.SH BUGS
+Because of the mapping into lower case and the dropped apostrophes,
+a word's index may be printed in a form not in the original text:
+.L process's
+is printed as
+.LR processs ,
+though its address finds it.
+.PP
+Requests within a line and
+.IR troff 's
+escapes are read as text.

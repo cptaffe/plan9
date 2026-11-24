@@ -1,14 +1,6 @@
 #pragma	src	"/sys/src/libacme"
 #pragma	lib	"libacme.a"
 
-/*
- * Acme's windows by their files in /mnt/acme (acme(4)), with plan9port's libacme's interface,
- * on open, read and write, through a session of amux(4) when /mnt/amux has the window. The
- * window's files are opened as they are first used and kept. winreadrdevent reads rdevent as
- * winreadevent reads event; winseqopen and winseqwrite are guarded by seq. It needs <u.h>,
- * <libc.h> and <thread.h> first. See acme(2).
- */
-
 typedef struct Event	Event;
 typedef struct Win	Win;
 typedef struct Winbuf	Winbuf;
@@ -53,8 +45,8 @@ struct Win
 	int	xdata;
 	int	rdevent;
 	Channel	*c;
-	Win	*next;
-	Win	*prev;
+	void	*ev;
+	QLock	seqlk;
 
 	Winbuf	eb;
 	Winbuf	rb;
@@ -84,7 +76,6 @@ int	winreadevent(Win*, Event*);
 int	winwrite(Win*, char*, void*, int);
 int	winwriteevent(Win*, Event*);
 int	winopenfd(Win*, char*, int);
-void	windeleteall(void);
 void	winfree(Win*);
 void	winclosefiles(Win*);
 Channel*	wineventchan(Win*);
@@ -105,3 +96,4 @@ void*	erealloc(void*, ulong);
 #pragma	varargck	argpos	pipewinto	4
 #pragma	varargck	argpos	pipetowin	4
 #pragma	varargck	argpos	sysrun	1
+#pragma	varargck	type	"E"	Event*

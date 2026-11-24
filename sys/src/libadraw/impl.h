@@ -4,6 +4,8 @@ typedef struct Expand Expand;
 typedef struct Job Job;
 typedef struct Feed Feed;
 typedef struct Edit Edit;
+typedef struct Dead Dead;
+typedef struct Exit Exit;
 
 struct Run
 {
@@ -29,6 +31,19 @@ struct Job
 	int	winid;
 	char	*file;
 	Channel	*c;
+	Channel	*errc;
+};
+
+struct Dead
+{
+	Ref	ref;
+	Channel	*c;
+};
+
+struct Exit
+{
+	int	pid;
+	char	*name;
 };
 
 struct Edit
@@ -51,7 +66,11 @@ struct Tagx
 	Channel	*wc;
 	Channel	*ec;
 	Channel	*rz;
+	Channel	*rzq;
+	Channel	*rzdone;
 	Channel	*quit;
+	Channel	*donec;
+	Dead	*dead;
 	QLock	lk;
 	Lock	sl;
 	char	*snap;
@@ -85,7 +104,9 @@ struct Tagx
 	int	filled;
 	int	closed;
 	int	hangup;
-	int	done;
+	int	quitting;
+	int	nilwant;
+	int	nilsent;
 };
 
 char*	_adrawstrdup(char*);

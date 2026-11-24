@@ -224,7 +224,8 @@ xfidwinlogopen(Xfid *x, Window *w)
 
 	l = logof(x, w);
 	wantseq = x->f->seq;
-
+	x->f->logpart = 0;
+	x->f->logmismatch = 0;
 	qlock(&l->lk);
 	if(!l->closed){
 		if(l->nf >= l->mf){
@@ -274,9 +275,9 @@ void
 xfidwinlogread(Xfid *x, Window *w)
 {
 	Fcall fc;
-	int i, n;
+	int i, n, m;
 	WinEditLog *l;
-	char *p;
+	char *p, *s;
 	vlong min;
 
 	l = logof(x, w);
@@ -338,8 +339,17 @@ xfidwinlogread(Xfid *x, Window *w)
 		respond(x, &fc, nil);
 		return;
 	}
-	p = estrdup(l->ev[i]);
-	x->f->logoff++;
+	s = l->ev[i] + x->f->logpart;
+	m = strlen(s);
+	if(m > x->fcall.count){
+		m = x->fcall.count;
+		x->f->logpart += m;
+	}else{
+		x->f->logpart = 0;
+		x->f->logoff++;
+	}
+	p = emalloc(m);
+	memmove(p, s, m);
 
 	min = l->start + l->nev;
 	for(i=0; i<l->nf; i++)
@@ -360,7 +370,7 @@ xfidwinlogread(Xfid *x, Window *w)
 	winclose(w);
 
 	fc.data = p;
-	fc.count = strlen(p);
+	fc.count = m;
 	respond(x, &fc, nil);
 	free(p);
 }

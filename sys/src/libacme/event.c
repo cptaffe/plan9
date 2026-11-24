@@ -79,8 +79,8 @@ gete(int fd, Winbuf *b, Event *e)
 	return 1;
 }
 
-static int
-readev(int fd, Winbuf *b, Event *e, Event *x)
+int
+_winreadev(int fd, Winbuf *b, Event *e, Event *x)
 {
 	int r;
 
@@ -97,7 +97,7 @@ readev(int fd, Winbuf *b, Event *e, Event *x)
 			x->oq0 = e->q0;
 			x->oq1 = e->q1;
 			x->flag = e->flag;
-			memmove(e, x, offsetof(Event, arg));
+			memmove(e, x, offsetof(Event, arg[0]));
 		}
 	}
 	if(e->flag&8){
@@ -118,7 +118,7 @@ winreadevent(Win *w, Event *e)
 
 	if((fd = _winfid(w, "event")) < 0)
 		return -1;
-	return readev(fd, &w->eb, e, &w->e2);
+	return _winreadev(fd, &w->eb, e, &w->e2);
 }
 
 int
@@ -128,7 +128,7 @@ winreadrdevent(Win *w, Event *e)
 
 	if((fd = _winfid(w, "rdevent")) < 0)
 		return -1;
-	return readev(fd, &w->rb, e, &w->r2);
+	return _winreadev(fd, &w->rb, e, &w->r2);
 }
 
 int

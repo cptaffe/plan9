@@ -8,11 +8,9 @@ enum { NPRIVATES = 16 };
 extern void main(int, char**);
 extern char __stack_high[];
 
-Tos *_tos;
 void *_privates;
 int _nprivates;
 char *argv0;
-static Tos tos;
 static void *privates[NPRIVATES];
 #ifdef __clang__
 extern char __heap_base[];
@@ -25,10 +23,9 @@ _start(void)
 {
 	int *a;
 
-	_tos = &tos;
 	_privates = privates;
 	_nprivates = NPRIVATES;
-	tos.pid = getpid();
+	_tos->pid = getpid();
 	a = *(int**)(__stack_high - sizeof(int*));
 	main(a[0], (char**)(a+1));
 	exits("main");
@@ -57,7 +54,7 @@ brk_(void *p)
 	ulong have, want;
 
 	have = wasm·memory_size();
-	want = ((uintptr)p + 65535) >> 16;
+	want = ((uvlong)(uintptr)p + 65535) >> 16;
 	if(want > have && wasm·memory_grow(want-have) == (ulong)-1){
 		werrstr("no memory");
 		return -1;
@@ -81,6 +78,10 @@ sbrk(ulong n)
 	uintptr b;
 
 	b = ((uintptr)bloc + 7) & ~7;
+	if(b+n < b){
+		werrstr("no memory");
+		return (void*)-1;
+	}
 	if(brk_((void*)(b+n)) < 0)
 		return (void*)-1;
 	bloc = (char*)b + n;
@@ -88,28 +89,8 @@ sbrk(ulong n)
 }
 #endif
 
-int
-_tas(int *p)
-{
-	int v;
-
-	v = *p;
-	*p = 1;
-	return v;
-}
-
 ulong getfcr(void) { return 0; }
 void setfcr(ulong v) { USED(v); }
 ulong getfsr(void) { return 0; }
 void setfsr(ulong v) { USED(v); }
 void cycles(uvlong *t) { *t = 0; }
-
-long ainc(long *p) { return ++*p; }
-long adec(long *p) { return --*p; }
-
-#pragma weak semacquire
-int semacquire(long *p, int block) { USED(block); if(*p > 0){ --*p; return 1; } return 0; }
-#pragma weak tsemacquire
-int tsemacquire(long *p, ulong ms) { USED(ms); return semacquire(p, 0); }
-#pragma weak semrelease
-long semrelease(long *p, long n) { *p += n; return *p; }
