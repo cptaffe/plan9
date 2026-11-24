@@ -20,6 +20,10 @@ sketch \- draw with constraints, after Sutherland's Sketchpad
 .br
 .B Sketch
 [
+.B -l
+.I log
+]
+[
 .I file
 ]
 .br
@@ -41,7 +45,11 @@ sketch \- draw with constraints, after Sutherland's Sketchpad
 .I Sketch
 is Ivan Sutherland's Sketchpad (1963) for a
 .IR rio (1)
-window.
+window; run from
+.IR acme (1),
+it draws an acme window's text (see
+.I Sketch
+below).
 A drawing is points, lines, arcs and text, held together by constraints:
 lines that meet share a point, and constraints such as horizontal, parallel or equal length
 hold among the points.
@@ -443,11 +451,23 @@ names each thing it points at as the drawing will, and gives every move of a dra
 .I Sketch
 is
 .I sketch
-in an
-.IR acme (1)
-window, whose body is the drawing: the text under it is the picture's
+by the name
+.IR acme (1)'s
+tags run, and
+.IR sketch ,
+run where
+.B /mnt/acme
+is, as from acme, and without
+.BR -d ,
+is
+.IR Sketch .
+It draws an acme window's text, the picture's
 .IR pic (1),
-rewritten after each change, so
+in a
+.IR rio (1)
+window of its own, made through
+.BR $wsys ,
+and rewrites the text after each change, so
 .B Put
 saves it.
 With no
@@ -461,23 +481,36 @@ another program holds through
 .IR amux (4),
 as
 .I win
-does, it opens a new window,
+does, it opens a new acme window,
 with the file's text if it exists.
+An edit of the text in acme, or by another program, is drawn as it is made,
+and can be undone in the drawing.
+While the text doesn't parse, the drawing stays as it was, the message line says why,
+and changes to the drawing are not written until the text parses again.
+A change to the drawing that meets an edit made meanwhile in acme is dropped,
+and the drawing follows the edited text.
 .PP
 .I Sketch
-adds itself to the window's tag.
-.B Sketch
-there ends it, and the window shows its text, to edit as any other;
-.B Sketch
-again draws it, or says in
-.B +Errors
-why it cannot.
-While the drawing shows,
+adds itself to the acme window's tag, and holds the window's
+.B event
+file, passing on all but
+.BR Sketch ,
+which ends the drawing.
+The drawing's window has a tag as acme's
+.RI ( adraw (2)),
+naming the file, as the acme window's name changes, with
+.BR Undo ,
+.B Redo
+and
+.BR Put .
 .B Undo
 and
 .B Redo
 are
 .IR sketch 's,
+as are Command-Z and Command-Shift-Z in the drawing,
+.B Put
+writes the acme window's file,
 and a command beginning with
 .BR | ,
 .B <
@@ -492,11 +525,18 @@ what comes back replaces the selection where it was,
 keeping its names and the points it shares with the rest of the drawing.
 The menu's commands are
 .IR Sketch 's
-in the tag too, acting on what the mouse was last at in the drawing.
+in that tag too, acting on what the mouse was last at in the drawing.
 .B Del
-deletes the window, ending
+there ends
 .I Sketch
-with it.
+and closes its window, selecting in the acme window the lines of the things designated;
+the acme window stays.
+Deleting the acme window ends
+.I Sketch
+too, as do rio's
+.B Delete
+of its window and acme's
+.BR Kill .
 .PP
 .I Rot
 and
@@ -532,6 +572,7 @@ and
 .B rc/bin/scale
 .SH "SEE ALSO"
 .IR pic (1),
+.IR adraw (2),
 .IR acme (4)
 .br
 Ivan E. Sutherland,
@@ -545,11 +586,8 @@ writes of the window's text are guarded by the window's
 .BR seq ,
 which other programs, such as
 .IR hl (1),
-also arm; if two arm it at once, a write can fail, and
-.I Sketch
-then asks for the text to be read again with
-.B Sketch
-twice.
+also arm; if two arm it at once, a write can fail:
+the drawing then shows the text as it is, and the change is lost.
 A long text is written in pieces, as one Undo;
 another program's edit between two pieces leaves part of it written.
 .br
