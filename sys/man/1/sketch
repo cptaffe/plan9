@@ -20,6 +20,10 @@ sketch \- draw with constraints, after Sutherland's Sketchpad
 .br
 .B Sketch
 [
+.B -l
+.I log
+]
+[
 .I file
 ]
 .br
@@ -453,7 +457,9 @@ tags run, and
 .IR sketch ,
 run where
 .B /mnt/acme
-is, as from acme, is
+is, as from acme, and without
+.BR -d ,
+is
 .IR Sketch .
 It draws an acme window's text, the picture's
 .IR pic (1),
@@ -479,6 +485,10 @@ does, it opens a new acme window,
 with the file's text if it exists.
 An edit of the text in acme, or by another program, is drawn as it is made,
 and can be undone in the drawing.
+While the text doesn't parse, the drawing stays as it was, the message line says why,
+and changes to the drawing are not written until the text parses again.
+A change to the drawing that meets an edit made meanwhile in acme is dropped,
+and the drawing follows the edited text.
 .PP
 .I Sketch
 adds itself to the acme window's tag, and holds the window's
@@ -488,7 +498,7 @@ file, passing on all but
 which ends the drawing.
 The drawing's window has a tag as acme's
 .RI ( adraw (2)),
-naming the file, with
+naming the file, as the acme window's name changes, with
 .BR Undo ,
 .B Redo
 and
@@ -523,7 +533,10 @@ and closes its window, selecting in the acme window the lines of the things desi
 the acme window stays.
 Deleting the acme window ends
 .I Sketch
-too.
+too, as do rio's
+.B Delete
+of its window and acme's
+.BR Kill .
 .PP
 .I Rot
 and
