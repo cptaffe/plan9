@@ -48,3 +48,4 @@ Flayer	*flwhich(Point);
 
 extern	Image	*maincols[NCOL];
 extern	Image	*cmdcols[NCOL];
+extern	Image	*back;

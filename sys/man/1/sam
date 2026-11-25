@@ -885,7 +885,8 @@ source for the separate terminal part
 .IR sed (1),
 .IR grep (1),
 .IR rio (1),
-.IR regexp (6).
+.IR regexp (6),
+.IR theme (6).
 .PP
 Rob Pike,
 ``The text editor sam''.

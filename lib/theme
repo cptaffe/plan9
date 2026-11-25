@@ -81,6 +81,15 @@ but3	3f7a45
 colback	15171c
 colrule	0c0e12
 
+# sam's terminal, samterm: its files' windows, as acme's bodies, and its command window, as tags
+sam	fg=d4d4cc bg=1b1e24
+samsel	fg=f2eedc bg=4b4530
+samborder	3a404c
+samcmd	fg=c9d3df bg=222833
+samcmdsel	fg=eef3f8 bg=3b4a5e
+samcmdborder	56647a
+samback	15171c
+
 # libcontrol
 pale	2c313a
 entry	222833
