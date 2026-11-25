@@ -1330,6 +1330,8 @@ copy:
 		regialloc(&nod1, n, Z);
 		lcgen(n, &nod1);
 	}
+	gnilreg(ACHKRD, nod1.reg);
+	gnilreg(ACHKWR, nod2.reg);
 	nextpc();
 	p->as = ACOPY;
 	p->from.type = D_CONST;

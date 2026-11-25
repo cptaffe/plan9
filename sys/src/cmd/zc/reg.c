@@ -163,8 +163,8 @@ rewrite(Adr *a, int as)
 	}
 }
 
-void
-regopt(Prog *p0)
+static void
+regopt1(Prog *p0)
 {
 	Prog *p;
 	int i, j, n;
@@ -219,4 +219,187 @@ regopt(Prog *p0)
 			p->to.offset = 0;
 			break;
 		}
+}
+
+void
+regopt(Prog *p0)
+{
+	regopt1(p0);
+	nilopt(p0);
+}
+
+static	char	rchk[NREG];
+static	short	rsrc[NREG];
+static	char	lchk[NVARS];
+
+static void
+forget(void)
+{
+	int i;
+
+	for(i=0; i<NREG; i++) {
+		rchk[i] = 0;
+		rsrc[i] = -1;
+	}
+	for(i=0; i<NVARS; i++)
+		lchk[i] = 0;
+}
+
+static int
+istarget(long pc, long *t, int nt)
+{
+	int lo, hi, m;
+
+	lo = 0;
+	hi = nt;
+	while(lo < hi) {
+		m = (lo+hi)/2;
+		if(t[m] < pc)
+			lo = m+1;
+		else
+			hi = m;
+	}
+	return lo < nt && t[lo] == pc;
+}
+
+static int
+pccmp(void *a, void *b)
+{
+	long x, y;
+
+	x = *(long*)a;
+	y = *(long*)b;
+	if(x < y)
+		return -1;
+	return x > y;
+}
+
+static int
+isnamed(Adr *a)
+{
+	return a->type == D_CONST && a->sym != S && a->name != D_NONE;
+}
+
+static void
+setreg(Prog *p)
+{
+	int r, k;
+
+	r = p->to.reg;
+	if(r < 0 || r >= NREG)
+		return;
+	rchk[r] = 0;
+	rsrc[r] = -1;
+	if(p->as != AMOVW)
+		return;
+	switch(p->from.type) {
+	case D_REG:
+		k = p->from.reg;
+		if(k >= 0 && k < NREG && k != r) {
+			rchk[r] = rchk[k];
+			rsrc[r] = rsrc[k];
+		}
+		break;
+	case D_LOCAL:
+		k = p->from.offset;
+		if(p->from.reg == KI32 && k >= 0 && k < NVARS) {
+			rchk[r] = lchk[k];
+			rsrc[r] = k;
+		}
+		break;
+	case D_CONST:
+		rchk[r] = isnamed(&p->from);
+		break;
+	}
+}
+
+static void
+setlocal(Prog *p)
+{
+	int i, k, r;
+
+	k = p->to.offset;
+	if(k < 0 || k >= NVARS)
+		return;
+	lchk[k] = 0;
+	for(i=0; i<NREG; i++)
+		if(rsrc[i] == k)
+			rsrc[i] = -1;
+	if(p->as != AMOVW || p->to.reg != KI32)
+		return;
+	if(p->from.type == D_REG) {
+		r = p->from.reg;
+		if(r >= 0 && r < NREG) {
+			lchk[k] = rchk[r];
+			rsrc[r] = k;
+		}
+	} else if(isnamed(&p->from))
+		lchk[k] = 1;
+}
+
+static	long*	brtab;
+static	int	mbrtab;
+
+void
+nilopt(Prog *p0)
+{
+	Prog *p;
+	long *t;
+	int nt, r;
+	vlong o;
+
+	nt = 0;
+	for(p = p0->link; p != P && p->as != ATEXT; p = p->link) {
+		if(p->to.type != D_BRANCH)
+			continue;
+		if(nt >= mbrtab) {
+			mbrtab = mbrtab ? 2*mbrtab : 1024;
+			t = alloc(mbrtab*sizeof(long));
+			if(nt > 0)
+				memmove(t, brtab, nt*sizeof(long));
+			brtab = t;
+		}
+		brtab[nt++] = p->to.offset;
+	}
+	t = brtab;
+	qsort(t, nt, sizeof(long), pccmp);
+	forget();
+	for(p = p0->link; p != P && p->as != ATEXT; p = p->link) {
+		if(istarget(p->pc, t, nt))
+			forget();
+		switch(p->as) {
+		case ACHKRD:
+		case ACHKWR:
+			r = p->from.reg;
+			if(r < 0 || r >= NREG)
+				continue;
+			if(rchk[r]) {
+				p->as = ANOP;
+				p->from = zprog.from;
+				p->to = zprog.to;
+				continue;
+			}
+			o = p->from.offset;
+			if(o > -NILGUARD+1 && o < NILGUARD-1) {
+				rchk[r] = 1;
+				if(rsrc[r] >= 0)
+					lchk[rsrc[r]] = 1;
+			}
+			continue;
+		case ACALL:
+			if(p->to.sym != S && strcmp(p->to.sym->name, "setjmp") == 0) {
+				forget();
+				continue;
+			}
+			rchk[REGRET] = 0;
+			rsrc[REGRET] = -1;
+			continue;
+		case ACOPY:
+			continue;
+		}
+		if(p->to.type == D_REG)
+			setreg(p);
+		else if(p->to.type == D_LOCAL)
+			setlocal(p);
+	}
 }
