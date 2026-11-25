@@ -2,6 +2,7 @@ NPROC=1
 </$objtype/mkfile
 
 install:V:
+	if(~ $objtype wasm) exit ''
 	SYS=`{sed '/^#define._X[123]/d; s/#define.([A-Z0-9_]*).*/\1/' sys.h}
 	for(I in $SYS) {
 		i=`{echo $I|tr A-Z a-z}
