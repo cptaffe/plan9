@@ -584,7 +584,10 @@ ccom(Node *f)
 
 	switch(f->c){
 	case NUM:
-		f->m = strtomp(f->s->n, nil, 0, nil);
+		if(strncmp(f->s->n, "0x", 2) == 0)
+			f->m = strtomp(f->s->n+2, nil, 16, nil);
+		else
+			f->m = strtomp(f->s->n, nil, 10, nil);
 		if(f->m == nil)
 			diag(f, "bad constant");
 		goto out;
