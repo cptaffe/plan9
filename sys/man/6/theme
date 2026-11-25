@@ -129,6 +129,23 @@ and
 .BR bodysel ,
 a bare color is the background.
 .TP
+.I sam
+.B sam
+for its files' windows and
+.B samcmd
+for its command window, text and background,
+.B samsel
+and
+.B samcmdsel
+for selections,
+.B samborder
+and
+.B samcmdborder
+for their borders and scroll bars, and
+.B samback
+for space no window covers.
+For the first four, a bare color is the background.
+.TP
 .I page
 .B back
 around the image, as
@@ -264,6 +281,7 @@ again
 .IR rio (1),
 .IR acme (1),
 .IR acme (4),
+.IR sam (1),
 .IR astyles (4),
 .IR control (2),
 .IR color (6)

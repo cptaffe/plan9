@@ -4,6 +4,7 @@
 # rio: back text high htext border title ltitle hold lhold palehold size rioback
 # menus: menuback menuhigh menubord menutext menuhtext
 # acme's windows: tag body tagsel bodysel tagborder bodyborder modbutton colbutton but2 but3
+# sam's: sam samsel samborder samcmd samcmdsel samcmdborder samback
 
 # Text in acme's style files and astyles(4)'s layers, by role
 comment	fg=336633 bg=f0fff0

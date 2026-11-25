@@ -22,6 +22,35 @@ void		lldelete(Flayer*);
 
 Image	*maincols[NCOL];
 Image	*cmdcols[NCOL];
+Image	*back;
+
+static Image*
+colimage(ulong v)
+{
+	return allocimage(display, Rect(0,0,1,1), screen->chan, 1, v);
+}
+
+static void
+themecols(Image **cols, char *name, char *sel, char *bord)
+{
+	Themecol *c;
+	ulong v;
+
+	if((c = themelook(name)) != nil){
+		if((v = c->bg ? c->bg : c->col) != 0)
+			cols[BACK] = colimage(v);
+		if(c->fg)
+			cols[TEXT] = colimage(c->fg);
+	}
+	if((c = themelook(sel)) != nil){
+		if((v = c->bg ? c->bg : c->col) != 0)
+			cols[HIGH] = colimage(v);
+		if(c->fg)
+			cols[HTEXT] = colimage(c->fg);
+	}
+	if((v = themecolor(bord, 0)) != 0)
+		cols[BORD] = colimage(v);
+}
 
 void
 flstart(Rectangle r)
@@ -41,6 +70,9 @@ flstart(Rectangle r)
 	cmdcols[BORD] = allocimage(display, Rect(0,0,2,2), screen->chan, 1, DPurpleblue);
 	cmdcols[TEXT] = display->black;
 	cmdcols[HTEXT] = display->black;
+
+	themecols(maincols, "sam", "samsel", "samborder");
+	themecols(cmdcols, "samcmd", "samcmdsel", "samcmdborder");
 }
 
 void
@@ -98,12 +130,12 @@ void
 flclose(Flayer *l)
 {
 	if(l->visible == All)
-		draw(screen, l->entire, display->white, nil, ZP);
+		draw(screen, l->entire, back, nil, ZP);
 	else if(l->visible == Some){
 		if(l->f.b == 0)
 			l->f.b = allocimage(display, l->entire, screen->chan, 0, DNofill);
 		if(l->f.b){
-			draw(l->f.b, l->entire, display->white, nil, ZP);
+			draw(l->f.b, l->entire, back, nil, ZP);
 			flrefresh(l, l->entire, 0);
 		}
 	}
@@ -365,7 +397,7 @@ flresize(Rectangle dr)
 	if(0 && Dx(dr)==Dx(olDrect) && Dy(dr)==Dy(olDrect))
 		move = 1;
 	else
-		draw(screen, lDrect, display->white, nil, ZP);
+		draw(screen, lDrect, back, nil, ZP);
 	for(i=0; i<nllist; i++){
 		l = llist[i];
 		l->lastsr = ZR;
