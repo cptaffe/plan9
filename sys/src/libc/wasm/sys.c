@@ -42,6 +42,11 @@ struct Pdata
 		long	*jump;
 		int	jret;
 	} note;
+	void	(*notify)(void*, char*);
+	int	noting;
+	int	trapping;
+	int	trapfd;
+	ulong	trappid;
 };
 
 P9(proc_getdata) extern Pdata* p9web·proc_getdata(void);
@@ -72,6 +77,7 @@ _procstart(void (*f)(void*), void *a)
 
 	memset(&d, 0, sizeof d);
 	d.tos.pid = getpid();
+	d.notify = pdata()->notify;
 	p9web·proc_setdata(&d);
 	(*f)(a);
 	p9web·proc_setdata(nil);
@@ -178,14 +184,86 @@ _exits(char *s)
 int
 notify(void (*f)(void*, char*))
 {
-	return neg(p9web·notify(f));
+	if(p9web·notify(f) < 0)
+		return -1;
+	pdata()->notify = f;
+	return 0;
+}
+
+static void
+suicide(char *msg)
+{
+	char buf[64], *e;
+	int fd, n;
+	ulong pid;
+
+	pid = pdata()->tos.pid;
+	snprint(buf, sizeof buf, "/proc/%lud/status", pid);
+	n = 0;
+	if((fd = open(buf, OREAD)) >= 0){
+		n = read(fd, buf, 27);
+		close(fd);
+	}
+	if(n <= 0){
+		e = argv0 != nil ? argv0 : "?";
+		n = strlen(e);
+		if(n > 27)
+			n = 27;
+		memmove(buf, e, n);
+	}
+	while(n > 0 && buf[n-1] == ' ')
+		n--;
+	buf[n] = 0;
+	fprint(2, "%s %lud: suicide: %s\n", buf, pid, msg);
 }
 
 int
 noted(int v)
 {
-	longjmp(pdata()->note.j, v == NCONT ? 2 : 1);
+	Pdata *p;
+
+	p = pdata();
+	if(v == NDFLT && p->trapping && strncmp(p->note.buf, "sys: trap: ", 11) == 0)
+		suicide(p->note.buf);
+	longjmp(p->note.j, v == NCONT ? 2 : 1);
 	return 0;
+}
+
+void
+_trap(int kind, ulong addr)
+{
+	Pdata *p;
+	char msg[ERRMAX], f[32];
+	int n, again;
+
+	p = pdata();
+	if(kind == 0)
+		snprint(msg, sizeof msg, "sys: trap: divide error");
+	else
+		snprint(msg, sizeof msg, "sys: trap: fault %s addr=0x%lux", kind == 2 ? "write" : "read", addr);
+	n = strlen(msg);
+	again = 1;
+	while(p->notify != nil && !p->noting){
+		if(p->trappid != p->tos.pid){
+			snprint(f, sizeof f, "/proc/%lud/note", p->tos.pid);
+			if((p->trapfd = open(f, OWRITE|OCEXEC)) < 0)
+				break;
+			p->trappid = p->tos.pid;
+			again = 0;
+		}
+		p->trapping = 1;
+		if(write(p->trapfd, msg, n) != n){
+			p->trapping = 0;
+			p->trappid = 0;
+			if(!again)
+				break;
+			again = 0;
+			continue;
+		}
+		p->trapping = 0;
+	}
+	suicide(msg);
+	_exits(msg);
 }
 
 EXPORT(p9web_note_buf) char*
@@ -208,11 +286,15 @@ p9web_note(void (*f)(void*, char*))
 	p = pdata();
 	switch(setjmp(p->note.j)){
 	case 0:
+		p->noting = 1;
 		(*f)(p->note.ureg, p->note.buf);
+		p->noting = 0;
 		return 0;
 	case 2:
+		p->noting = 0;
 		return p->note.jump != nil ? 2 : 1;
 	}
+	p->noting = 0;
 	return 0;
 }
 
@@ -236,6 +318,7 @@ p9web_notejmp(void)
 	p = pdata();
 	j = p->note.jump;
 	p->note.jump = nil;
+	p->trapping = 0;
 	longjmp(j, p->note.jret);
 }
 

@@ -95,5 +95,9 @@ char*	anames[] =
 	"VNEG",
 	"VNOT",
 	"VSUM",
+	"CHKDIV",
+	"CHKDIVS",
+	"CHKRD",
+	"CHKWR",
 	"LAST",
 };

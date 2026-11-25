@@ -779,6 +779,85 @@ call(Prog *p)
 }
 
 static void
+trapcall(Prog *p)
+{
+	Sym *s;
+
+	s = p->to.sym;
+	if(s == S || s->fidx < 0) {
+		diag("%s: check without _trap", cur->name);
+		return;
+	}
+	if(s->sig != p->sig)
+		diag("%s: call of %s: signature mismatch", cur->name, s->name);
+	if(rflag) {
+		op(WCALL);
+		rfield(RFUNC, s, 0, 0, s->fidx);
+	} else
+		op2(WCALL, s->fidx);
+}
+
+static void
+chkdiv(Prog *p)
+{
+	int c;
+	Adr ra;
+
+	c = cls(p->reg);
+	opnd(&p->from, c);
+	op(c == 'V' ? WI64EQZ : WI32EQZ);
+	if(p->as == ACHKDIVS) {
+		memset(&ra, 0, sizeof ra);
+		ra.type = D_REG;
+		ra.reg = p->reg;
+		opnd(&ra, c);
+		if(c == 'V') {
+			i64c(~0x7fffffffffffffffLL);
+			op(WI64EQ);
+		} else {
+			i32c(0x80000000);
+			op(WI32EQ);
+		}
+		opnd(&p->from, c);
+		if(c == 'V') {
+			i64c(-1);
+			op(WI64EQ);
+		} else {
+			i32c(-1);
+			op(WI32EQ);
+		}
+		op(WI32AND);
+		op(WI32OR);
+	}
+	op(WIF);
+	op(WVOID);
+	i32c(TRAPDIV);
+	i32c(0);
+	trapcall(p);
+	op(WEND);
+}
+
+static void
+chknil(Prog *p)
+{
+	lget(p->from.reg);
+	i32c(p->from.offset + NILGUARD);
+	op(WI32ADD);
+	i32c(2*NILGUARD);
+	op(WI32LTU);
+	op(WIF);
+	op(WVOID);
+	i32c(p->as == ACHKWR ? TRAPWRITE : TRAPREAD);
+	lget(p->from.reg);
+	if(p->from.offset != 0) {
+		i32c(p->from.offset);
+		op(WI32ADD);
+	}
+	trapcall(p);
+	op(WEND);
+}
+
+static void
 use(int r)
 {
 	if(r >= 0 && r < NALLREG && r != NOREG)
@@ -1557,6 +1636,14 @@ ins(Prog *p)
 		break;
 	case AVSUM:
 		vsum(p);
+		break;
+	case ACHKDIV:
+	case ACHKDIVS:
+		chkdiv(p);
+		break;
+	case ACHKRD:
+	case ACHKWR:
+		chknil(p);
 		break;
 	}
 

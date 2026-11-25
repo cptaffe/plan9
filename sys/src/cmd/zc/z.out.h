@@ -5,6 +5,7 @@
 #define	NOREG	127
 #define NOPROF	(1<<0)
 #define DUPOK	(1<<1)
+#define	NILGUARD	4096
 
 enum
 {
@@ -151,6 +152,11 @@ enum	as
 	AVNEG,
 	AVNOT,
 	AVSUM,
+
+	ACHKDIV,
+	ACHKDIVS,
+	ACHKRD,
+	ACHKWR,
 
 	ALAST,
 };

@@ -77,6 +77,8 @@ ginit(void)
 	symrathole->class = CGLOBL;
 	symrathole->type = t;
 
+	symtrap = slookup("_trap");
+
 	nodrat = new(ONAME, Z, Z);
 	nodrat->sym = symrathole;
 	nodrat->type = types[TIND];
@@ -138,6 +140,7 @@ nextpc(void)
 	p = alloc(sizeof(*p));
 	*p = zprog;
 	p->lineno = nearln;
+	p->pc = pc;
 	pc++;
 	if(firstp == P) {
 		firstp = p;
@@ -851,16 +854,107 @@ gmove(Node *f, Node *t)
 	greg(f, t);
 }
 
+static void
+gtrap(Adr *a)
+{
+	*a = zprog.to;
+	a->type = D_OREG;
+	a->name = D_EXTERN;
+	a->sym = symtrap;
+	a->offset = 0;
+}
+
+static int
+ismemop(int a)
+{
+	switch(a) {
+	case AMOVB:
+	case AMOVBU:
+	case AMOVH:
+	case AMOVHU:
+	case AMOVW:
+	case AMOVV:
+	case AMOVF:
+	case AMOVD:
+	case AVMOV:
+	case AVLOADW:
+	case AVLOADH:
+	case AVLOADHU:
+	case AVLOADB:
+	case AVLOADBU:
+		return 1;
+	}
+	return 0;
+}
+
+void
+gnilchk(int a, Adr *m)
+{
+	if(!debug['C'])
+		return;
+	if(m->type != D_OREG || m->name != D_NONE || m->sym != S)
+		return;
+	if(m->reg == NOREG || m->reg == REGSP || m->reg >= VREG)
+		return;
+	nextpc();
+	p->as = a;
+	p->from = *m;
+	gtrap(&p->to);
+	if(debug['g'])
+		print("%P\n", p);
+}
+
+void
+gnilreg(int a, int r)
+{
+	Adr m;
+
+	m = zprog.from;
+	m.type = D_OREG;
+	m.reg = r;
+	m.offset = 0;
+	gnilchk(a, &m);
+}
+
+static void
+gdivchk(int a, Node *f, int r)
+{
+	Adr d;
+
+	d = zprog.from;
+	naddr(f, &d);
+	if(d.type == D_CONST || d.type == D_VCONST) {
+		if(d.offset != 0 && (a != ACHKDIVS || d.offset != -1))
+			return;
+	}
+	nextpc();
+	p->as = a;
+	p->from = d;
+	p->reg = r;
+	gtrap(&p->to);
+	if(debug['g'])
+		print("%P\n", p);
+}
+
 void
 gins(int a, Node *f, Node *t)
 {
+	Adr fa, ta;
 
+	fa = zprog.from;
+	ta = zprog.to;
+	if(f != Z)
+		naddr(f, &fa);
+	if(t != Z)
+		naddr(t, &ta);
+	if(ismemop(a)) {
+		gnilchk(ACHKRD, &fa);
+		gnilchk(ACHKWR, &ta);
+	}
 	nextpc();
 	p->as = a;
-	if(f != Z)
-		naddr(f, &p->from);
-	if(t != Z)
-		naddr(t, &p->to);
+	p->from = fa;
+	p->to = ta;
 	if(debug['g'])
 		print("%P\n", p);
 }
@@ -990,6 +1084,11 @@ gopcode(int o, Node *f1, Node *f2, Node *t)
 		gopcode(o, f1, &nod, t);
 		regfree(&nod);
 		return;
+	}
+	if(a >= ADIV && a <= AMODU && t != Z && t->type != T && !typefd[t->type->etype]) {
+		ta = zprog.from;
+		naddr(f2 != Z ? f2 : t, &ta);
+		gdivchk(a == ADIV ? ACHKDIVS : ACHKDIV, f1, ta.reg);
 	}
 	nextpc();
 	p->as = a;

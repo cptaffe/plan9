@@ -38,6 +38,7 @@ struct	Prog
 	Adr	to;
 	Prog*	link;
 	long	lineno;
+	long	pc;
 	char	as;
 	char	reg;
 };
@@ -84,6 +85,7 @@ EXTERN	Node	vregnode;
 EXTERN	Node	fregnode;
 EXTERN	char	string[NSNAME];
 EXTERN	Sym*	symrathole;
+EXTERN	Sym*	symtrap;
 EXTERN	Node	znode;
 EXTERN	Prog	zprog;
 EXTERN	int	reg[NALLREG];
@@ -124,6 +126,8 @@ void	raddr(Node*, Prog*);
 void	naddr(Node*, Adr*);
 void	gmove(Node*, Node*);
 void	gins(int a, Node*, Node*);
+void	gnilchk(int, Adr*);
+void	gnilreg(int, int);
 void	gopcode(int, Node*, Node*, Node*);
 int	samaddr(Node*, Node*);
 void	gbranch(int);
@@ -164,6 +168,7 @@ int	Sconv(Fmt*);
 int	Nconv(Fmt*);
 
 void	regopt(Prog*);
+void	nilopt(Prog*);
 void	vcgen(Node*, Node*);
 
 #pragma	varargck	type	"A"	int

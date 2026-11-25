@@ -142,7 +142,7 @@ static void
 scancalls(Sym *s, void (*f)(Sym*, Prog*, Sig*))
 {
 	Prog *p;
-	Sig sg;
+	Sig sg, tg;
 
 	memset(&sg, 0, sizeof sg);
 	for(p = s->text; p != P; p = p->link) {
@@ -152,6 +152,15 @@ scancalls(Sym *s, void (*f)(Sym*, Prog*, Sig*))
 				continue;
 			}
 			sg.p[sg.np++] = kindof(p);
+			continue;
+		}
+		if(p->as >= ACHKDIV && p->as <= ACHKWR) {
+			memset(&tg, 0, sizeof tg);
+			tg.np = 2;
+			tg.p[0] = KI32;
+			tg.p[1] = KI32;
+			tg.r = KNONE;
+			(*f)(s, p, &tg);
 			continue;
 		}
 		if(p->as == ACALL) {

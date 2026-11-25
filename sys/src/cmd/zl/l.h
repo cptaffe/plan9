@@ -29,6 +29,10 @@ enum
 	SLINK,
 	SUNDEF,
 
+	TRAPDIV	= 0,
+	TRAPREAD,
+	TRAPWRITE,
+
 	LABEL	= 1<<0,
 	ARGV	= 1<<1,
 };
@@ -78,9 +82,14 @@ enum
 	WF64CONST	= 0x44,
 	WI32EQ	= 0x46,
 	WI32NE	= 0x47,
+	WI32EQZ	= 0x45,
+	WI32LTU	= 0x49,
+	WI64EQZ	= 0x50,
+	WI64EQ	= 0x51,
 	WI32ADD	= 0x6a,
 	WI32SUB	= 0x6b,
 	WI32AND	= 0x71,
+	WI32OR	= 0x72,
 	WF64NEG	= 0x9a,
 	WI32WRAP	= 0xa7,
 	WI64EXTENDU	= 0xad,
