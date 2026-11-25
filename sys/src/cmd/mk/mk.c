@@ -65,6 +65,7 @@ unpretend(Node *n)
 	MADESET(n, NOTMADE);
 	n->flags &= ~(CANPRETEND|PRETENDING);
 	n->time = 0;
+	n->pass = 0;
 }
 
 int
@@ -170,8 +171,10 @@ work(Node *node, Node *p, Arc *parc)
 			did = work(a->n, node, a) || did;
 			ready = 0;
 		}
-	if(ready == 0)	/* try later unless nothing has happened for -k's sake */
+	if(ready == 0){	/* try later unless nothing has happened for -k's sake */
+		node->pass = 0;
 		return(did || work(node, p, parc));
+	}
 	did = dorecipe(node) || did;
 	return(did);
 }

@@ -30,6 +30,8 @@ static	Sym**	work;
 static	int	nwork, mwork;
 static	int	quiet;
 
+static	int	islibc(char*);
+
 void
 usage(void)
 {
@@ -163,7 +165,19 @@ addlib(void)
 		diag("too many autolibs; skipping %s", p);
 		return;
 	}
-	library[nlibrary++] = p;
+	for(i = nlibrary; i > libloaded && islibc(library[i-1]); i--)
+		library[i] = library[i-1];
+	library[i] = p;
+	nlibrary++;
+}
+
+static int
+islibc(char *p)
+{
+	char *s;
+
+	s = strrchr(p, '/');
+	return strcmp(s != nil ? s+1 : p, "libc.a") == 0;
 }
 
 void

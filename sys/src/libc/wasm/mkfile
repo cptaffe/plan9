@@ -10,6 +10,7 @@ CFILES=\
 	main9.c\
 	memmove.c\
 	memset.c\
+	nsec.c\
 	procfork.c\
 	rforkfn.c\
 	sem.c\

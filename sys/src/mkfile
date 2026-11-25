@@ -3,6 +3,8 @@
 LIBS=\
 	lib9p\
 	libString\
+	libacme\
+	libadraw\
 	libaml\
 	libauth\
 	libauthsrv\
@@ -21,21 +23,28 @@ LIBS=\
 	libhtml\
 	libhttpd\
 	libip\
+	libjson\
 	liblex\
 	libmach\
+	libmd\
 	libmemdraw\
 	libmemlayer\
 	libmp\
 	libndb\
 	liboventi\
+	libpatch\
+	libpcm\
 	libplumb\
+	libprop\
 	libregexp\
 	libscribble\
 	libsec\
 	libstdio\
 	libsunrpc\
 	libthread\
+	libtok\
 	libventi\
+	libvt\
 
 
 CMDS=cmd\

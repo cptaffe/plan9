@@ -1,6 +1,9 @@
 *.[68]
 [68].*
 *.a[68]
+*.z
+z.*
+*.az
 *.o
 usr/glenda/tmp
 sys/log
