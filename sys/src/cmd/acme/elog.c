@@ -37,7 +37,7 @@ struct Buflog
 
 enum
 {
-	Buflogsize = sizeof(Buflog)/sizeof(Rune)
+	Buflogsize = sizeof(Buflog)/sizeof(Rune),
 };
 
 /*
@@ -47,7 +47,7 @@ enum
 enum
 {
 	Minstring = 16,		/* distance beneath which we merge changes */
-	Maxstring = RBUFSIZE	/* maximum length of change we will merge into one */
+	Maxstring = RBUFSIZE,	/* maximum length of change we will merge into one */
 };
 
 void

@@ -14,7 +14,7 @@
 
 enum
 {
-	Slop = 100	/* room to grow with reallocation */
+	Slop = 100,	/* room to grow with reallocation */
 };
 
 static

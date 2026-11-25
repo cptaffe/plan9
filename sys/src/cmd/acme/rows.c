@@ -13,15 +13,6 @@
 #include "dat.h"
 #include "fns.h"
 
-static Rune Lcolhdr[] = {
-	'N', 'e', 'w', 'c', 'o', 'l', ' ',
-	'K', 'i', 'l', 'l', ' ',
-	'P', 'u', 't', 'a', 'l', 'l', ' ',
-	'D', 'u', 'm', 'p', ' ',
-	'E', 'x', 'i', 't', ' ',
-	0
-};
-
 void
 rowinit(Row *row, Rectangle r)
 {
@@ -43,7 +34,7 @@ rowinit(Row *row, Rectangle r)
 	r1.min.y = r1.max.y;
 	r1.max.y += Border;
 	draw(screen, r1, colrule, nil, ZP);
-	textinsert(t, 0, Lcolhdr, 29, TRUE);
+	textinsert(t, 0, L"Newcol Kill Putall Dump Exit ", 29, TRUE);
 	textsetselect(t, t->file->b.nc, t->file->b.nc);
 }
 
@@ -125,7 +116,7 @@ rowresize(Row *row, Rectangle r)
 		if(i == row->ncol-1)
 			r1.max.x = r.max.x;
 		else
-			r1.max.x = r.min.x + (c->r.max.x-or.min.x)*Dx(r)/Dx(or);
+			r1.max.x = r.min.x+(c->r.max.x-or.min.x)*Dx(r)/Dx(or);
 		if(i > 0){
 			r2 = r1;
 			r2.max.x = r2.min.x+Border;
@@ -137,14 +128,12 @@ rowresize(Row *row, Rectangle r)
 }
 
 void
-rowdragcol(Row *row, Column *c, int _0)
+rowdragcol(Row *row, Column *c, int)
 {
 	Rectangle r;
 	int i, b, x;
 	Point p, op;
 	Column *d;
-
-	USED(_0);
 
 	clearmouse();
 	setcursor(mousectl, &boxcursor);
@@ -314,12 +303,8 @@ rowclean(Row *row)
 
 extern Command *command;
 
-/*
- * untagcmds takes the names of running commands, which acme put there,
- * out of the n runes of the row's tag in r; a command that a load runs
- * again puts its name back.
- */
-static int
+static
+int
 untagcmds(Rune *r, int n)
 {
 	Command *c;
@@ -346,7 +331,6 @@ rowdump(Row *row, char *file)
 	Column *c;
 	Window *w, *w1;
 	Text *t;
-	static Rune Lpluserrors[] = { '+', 'E', 'r', 'r', 'o', 'r', 's', 0 };
 
 	if(row->ncol == 0)
 		return FALSE;
@@ -407,7 +391,7 @@ rowdump(Row *row, char *file)
 			wincommit(w, &w->body);
 			wincommit(w, &w->tag);
 			t = &w->body;
-			if(t->file->nname>=7 && runeeq(Lpluserrors, 7, t->file->name+(t->file->nname-7), 7))
+			if(t->file->nname>=7 && runeeq(L"+Errors", 7, t->file->name+(t->file->nname-7), 7))
 				continue;
 			/* windows owned by others get special treatment */
 			if(w->nopen[QWevent] > 0)
@@ -451,10 +435,12 @@ rowdump(Row *row, char *file)
 					fontname);
 			}else if(w->dumpstr){
 				dumped = TRUE;
-				Bprint(b, "E%11d %11d %11d %11d %11.7f %11d %s\n", i, 0,
+				Bprint(b, "E%11d %11d %11d %11d %11.7f %11d %s\n", i,
+					0,
 					w->body.q0, w->body.q1,
 					100.0*(w->r.min.y-c->r.min.y)/Dy(c->r),
-					w->body.file->b.nc, fontname);
+					w->body.file->b.nc,
+					fontname);
 			}else if((w->dirty==FALSE && access(a, 0)==0) || w->isdir){
 				dumped = FALSE;
 				t->file->dumpid = w->id;
@@ -477,13 +463,13 @@ rowdump(Row *row, char *file)
 			m = min(RBUFSIZE, w->tag.file->b.nc);
 			bufread(&w->tag.file->b, 0, r, m);
 			n = 0;
-			while(n<m) {
+			while(n<m){
 				start = n;
 				while(n<m && r[n]!='\n')
 					n++;
 				Bprint(b, "%.*S", n-start, r+start);
-				if(n<m) {
-					Bputc(b, 0xff); // \n in tag becomes 0xff byte (invalid UTF)
+				if(n<m){
+					Bputc(b, 0xff);	/* \n in tag becomes 0xff byte (invalid UTF) */
 					n++;
 				}
 			}
@@ -593,11 +579,10 @@ rowloadfonts(char *file)
 	Bterm(b);
 }
 
-static void
+static
+void
 rowloadmark(Window *w)
 {
-	static Rune nl[] = { '\n', 0 };
-	static Rune mark[] = { '(', 'r', 'e', 'l', 'o', 'a', 'd', 'e', 'd', ')', '\n', 0 };
 	Rune c;
 	uint n;
 
@@ -605,12 +590,13 @@ rowloadmark(Window *w)
 	if(n > 0){
 		bufread(&w->body.file->b, n-1, &c, 1);
 		if(c != '\n')
-			textinsert(&w->body, n++, nl, 1, TRUE);
+			textinsert(&w->body, n++, L"\n", 1, TRUE);
 	}
-	textinsert(&w->body, n, mark, runestrlen(mark), TRUE);
+	textinsert(&w->body, n, L"(reloaded)\n", 11, TRUE);
 }
 
-static int
+static
+int
 rowloadcmd(Biobuf *b, int *linep, Window *w)
 {
 	char *l, *t;

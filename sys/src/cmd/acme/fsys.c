@@ -38,25 +38,22 @@ static	Xfid*	fsysremove(Xfid*, Fid*);
 static	Xfid*	fsysstat(Xfid*, Fid*);
 static	Xfid*	fsyswstat(Xfid*, Fid*);
 
-Xfid* 	(*fcall[Tmax])(Xfid*, Fid*);
-
-static void
-initfcall(void)
+Xfid* 	(*fcall[Tmax])(Xfid*, Fid*) =
 {
-	fcall[Tflush]	= fsysflush;
-	fcall[Tversion]	= fsysversion;
-	fcall[Tauth]	= fsysauth;
-	fcall[Tattach]	= fsysattach;
-	fcall[Twalk]	= fsyswalk;
-	fcall[Topen]	= fsysopen;
-	fcall[Tcreate]	= fsyscreate;
-	fcall[Tread]	= fsysread;
-	fcall[Twrite]	= fsyswrite;
-	fcall[Tclunk]	= fsysclunk;
-	fcall[Tremove]= fsysremove;
-	fcall[Tstat]	= fsysstat;
-	fcall[Twstat]	= fsyswstat;
-}
+	[Tflush]	= fsysflush,
+	[Tversion]	= fsysversion,
+	[Tauth]	= fsysauth,
+	[Tattach]	= fsysattach,
+	[Twalk]	= fsyswalk,
+	[Topen]	= fsysopen,
+	[Tcreate]	= fsyscreate,
+	[Tread]	= fsysread,
+	[Twrite]	= fsyswrite,
+	[Tclunk]	= fsysclunk,
+	[Tremove]= fsysremove,
+	[Tstat]	= fsysstat,
+	[Twstat]	= fsyswstat,
+};
 
 char Eperm[] = "permission denied";
 char Eexist[] = "file does not exist";
@@ -120,14 +117,13 @@ void	fsysproc(void *);
 void
 fsysinit(void)
 {
-	int p[2], fd;
+	int p[2];
+	int fd;
 	char buf[12];
 	char *u, *srv;
 
-	initfcall();
 	if(pipe(p) < 0)
 		error("can't create pipe");
-	/* the mount end: runproc mounts it, and /srv/acme.user.pid, or -S's, gives it to others */
 	cfd = p[0];
 	sfd = p[1];
 	fmtinstall('F', fcallfmt);
@@ -146,7 +142,7 @@ fsysinit(void)
 }
 
 void
-fsysproc(void *v)
+fsysproc(void *)
 {
 	int n;
 	Xfid *x;
@@ -156,7 +152,6 @@ fsysproc(void *v)
 
 	threadsetname("fsysproc");
 
-	USED(v);
 	x = nil;
 	for(;;){
 		buf = emalloc(messagesize+UTFmax);	/* overflow for appending partial rune in xfidwrite */
@@ -316,11 +311,10 @@ respond(Xfid *x, Fcall *t, char *err)
 
 static
 Xfid*
-fsysversion(Xfid *x, Fid *f)
+fsysversion(Xfid *x, Fid*)
 {
 	Fcall t;
 
-	USED(f);
 	if(x->fcall.msize < 256)
 		return respond(x, &t, "version: message size too small");
 	messagesize = x->fcall.msize;
@@ -333,20 +327,18 @@ fsysversion(Xfid *x, Fid *f)
 
 static
 Xfid*
-fsysauth(Xfid *x, Fid *f)
+fsysauth(Xfid *x, Fid*)
 {
 	Fcall t;
 
-	USED(f);
 	return respond(x, &t, "acme: authentication not required");
 }
 
 static
 Xfid*
-fsysflush(Xfid *x, Fid *f)
+fsysflush(Xfid *x, Fid*)
 {
-	USED(f);
-	sendp(x->c, (void*)xfidflush);
+	sendp(x->c, xfidflush);
 	return nil;
 }
 
@@ -560,7 +552,7 @@ fsysopen(Xfid *x, Fid *f)
 	if(((f->dir->perm&~(DMDIR|DMAPPEND))&m) != m)
 		goto Deny;
 
-	sendp(x->c, (void*)xfidopen);
+	sendp(x->c, xfidopen);
 	return nil;
 
     Deny:
@@ -569,17 +561,16 @@ fsysopen(Xfid *x, Fid *f)
 
 static
 Xfid*
-fsyscreate(Xfid *x, Fid *f)
+fsyscreate(Xfid *x, Fid*)
 {
 	Fcall t;
 
-	USED(f);
 	return respond(x, &t, Eperm);
 }
 
 static
 int
-idcmp(const void *a, const void *b)
+idcmp(void *a, void *b)
 {
 	return *(int*)a - *(int*)b;
 }
@@ -634,7 +625,7 @@ fsysread(Xfid *x, Fid *f)
 				}
 			}
 			qunlock(&row.lk);
-			qsort(ids, nids, sizeof ids[0], (int(*)(void*, void*))idcmp);
+			qsort(ids, nids, sizeof ids[0], idcmp);
 			j = 0;
 			dt.name = buf;
 			for(; j<nids && i<e; i+=len){
@@ -658,16 +649,15 @@ fsysread(Xfid *x, Fid *f)
 		free(b);
 		return x;
 	}
-	sendp(x->c, (void*)xfidread);
+	sendp(x->c, xfidread);
 	return nil;
 }
 
 static
 Xfid*
-fsyswrite(Xfid *x, Fid *f)
+fsyswrite(Xfid *x, Fid*)
 {
-	USED(f);
-	sendp(x->c, (void*)xfidwrite);
+	sendp(x->c, xfidwrite);
 	return nil;
 }
 
@@ -676,17 +666,16 @@ Xfid*
 fsysclunk(Xfid *x, Fid *f)
 {
 	fsysdelid(f->mntdir);
-	sendp(x->c, (void*)xfidclose);
+	sendp(x->c, xfidclose);
 	return nil;
 }
 
 static
 Xfid*
-fsysremove(Xfid *x, Fid *f)
+fsysremove(Xfid *x, Fid*)
 {
 	Fcall t;
 
-	USED(f);
 	return respond(x, &t, Eperm);
 }
 
@@ -705,11 +694,10 @@ fsysstat(Xfid *x, Fid *f)
 
 static
 Xfid*
-fsyswstat(Xfid *x, Fid *f)
+fsyswstat(Xfid *x, Fid*)
 {
 	Fcall t;
 
-	USED(f);
 	return respond(x, &t, Eperm);
 }
 
@@ -737,7 +725,7 @@ newfid(int fid)
 }
 
 uint
-getclock(void)
+getclock()
 {
 	return time(0);
 }

@@ -15,16 +15,6 @@
 static	Point		prevmouse;
 static	Window	*mousew;
 
-Range
-range(int q0, int q1)
-{
-	Range r;
-
-	r.q0 = q0;
-	r.q1 = q1;
-	return r;
-}
-
 Runestr
 runestr(Rune *r, uint n)
 {
@@ -81,14 +71,13 @@ errorwin1(Rune *dir, int ndir, Rune **incl, int nincl)
 	Window *w;
 	Rune *r;
 	int i, n;
-	static Rune Lpluserrors[] = { '+', 'E', 'r', 'r', 'o', 'r', 's', 0 };
 
 	r = runemalloc(ndir+8);
-	if((n = ndir) != 0){
+	if(n = ndir){	/* assign = */
 		runemove(r, dir, ndir);
 		r[n++] = L'/';
 	}
-	runemove(r+n, Lpluserrors, 7);
+	runemove(r+n, L"+Errors", 7);
 	n += 7;
 	w = lookfile(r, n);
 	if(w == nil){
@@ -393,7 +382,7 @@ restoremouse(Window *w)
 	int did;
 
 	did = 0;
-	if(mousew!=nil && mousew==w) {
+	if(mousew!=nil && mousew==w){
 		moveto(mousectl, prevmouse);
 		did = 1;
 	}

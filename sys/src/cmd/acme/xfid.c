@@ -23,29 +23,22 @@ char	Ebadaddr[]	= "bad address syntax";
 char	Eaddr[]		= "address out of range";
 char	Einuse[]		= "already in use";
 char	Ebadevent[]	= "bad event syntax";
+extern char Eperm[];
 
-/*
- * seqok reports whether x's seq guard, taken from w->wantseq when the
- * file was opened, still matches the window.  A fid without a guard
- * always passes.
- */
-static int
+static
+int
 seqok(Xfid *x, Window *w)
 {
 	return x->f->seq < 0 || x->f->seq == w->seq;
 }
 
-/*
- * seqadvance moves x's guard past an edit x itself just made, so a
- * further guarded write on the same fid continues the compare-and-swap.
- */
-static void
+static
+void
 seqadvance(Xfid *x, Window *w)
 {
 	if(x->f->seq >= 0)
 		x->f->seq = w->seq;
 }
-extern char Eperm[];
 
 static
 void
@@ -134,7 +127,6 @@ xfidopen(Xfid *x)
 		case QWxdata:
 		case QWstyle:
 		case QWrdevent:
-			/* The guard moves onto this fid; see wantseq in dat.h. */
 			x->f->seq = w->wantseq;
 			w->wantseq = -1;
 			break;
@@ -146,8 +138,8 @@ xfidopen(Xfid *x)
 			break;
 		case QWaddr:
 			if(w->nopen[q]++ == 0){
-				w->addr = range(0, 0);
-				w->limit = range(-1,-1);
+				w->addr = (Range){0,0};
+				w->limit = (Range){-1,-1};
 			}
 			break;
 		case QWdata:
@@ -168,21 +160,15 @@ xfidopen(Xfid *x)
 			xfidwinlogopen(x, w);
 			break;
 		case QWstyle:
-			/*
-			 * Snapshot addr at open time; it is consumed at clunk.
-			 * Fail immediately if this fid's seq guard doesn't match,
-			 * same as data rejecting a mismatched write.
-			 */
-			if((x->fcall.mode & 3) == OWRITE ||
-			   (x->fcall.mode & 3) == ORDWR){
+			if((x->fcall.mode&3) == OWRITE || (x->fcall.mode&3) == ORDWR){
 				if(!seqok(x, w)){
 					winunlock(w);
 					respond(x, &fc, "seq mismatch");
 					return;
 				}
-				x->f->styleopen    = 1;
+				x->f->styleopen = 1;
 				x->f->stylehasaddr = w->hasaddr;
-				x->f->styleaddr    = w->addr;
+				x->f->styleaddr = w->addr;
 			}
 			break;
 		case QWrdsel:
@@ -230,7 +216,7 @@ xfidopen(Xfid *x)
 			seq++;
 			filemark(t->file);
 			cut(t, t, nil, FALSE, TRUE, nil, 0);
-			w->wrselrange = range(t->q1, t->q1);
+			w->wrselrange = (Range){t->q1, t->q1};
 			w->nomark = TRUE;
 			break;
 		case QWeditout:
@@ -244,7 +230,7 @@ xfidopen(Xfid *x)
 				respond(x, &fc, Einuse);
 				return;
 			}
-			w->wrselrange = range(t->q1, t->q1);
+			w->wrselrange = (Range){t->q1, t->q1};
 			break;
 		}
 		winunlock(w);
@@ -308,7 +294,7 @@ xfidclose(Xfid *x)
 			if(--w->nopen[q] == 0)
 				w->hasaddr = 0;
 			break;
-		case QWevent:
+		case QWevent:	/* BUG: do we need to shut down Xfid? */
 			if(--w->nopen[q] == 0){
 				if(!w->isdir && w->col!=nil){
 					w->filemenu = TRUE;
@@ -326,17 +312,16 @@ xfidclose(Xfid *x)
 			break;
 		case QWstyle:
 			if(x->f->styleopen){
-				/* Runs computed for an older body are dropped. */
 				if(seqok(x, w))
 					xfidstyleflush(w, x->f->stylebuf, x->f->nstylebuf,
-					               x->f->stylehasaddr, x->f->styleaddr);
+						x->f->stylehasaddr, x->f->styleaddr);
 				if(x->f->stylehasaddr)
 					w->hasaddr = 0;
 				free(x->f->stylebuf);
-				x->f->stylebuf     = nil;
-				x->f->nstylebuf    = 0;
-				x->f->mstylebuf    = 0;
-				x->f->styleopen    = 0;
+				x->f->stylebuf = nil;
+				x->f->nstylebuf = 0;
+				x->f->mstylebuf = 0;
+				x->f->styleopen = 0;
 				x->f->stylehasaddr = 0;
 			}
 			break;
@@ -411,7 +396,6 @@ xfidread(Xfid *x)
 	case QWseq:
 		sprint(buf, "%d\n", w->seq);
 		goto Readbuf;
-
 	case QWaddr:
 		textcommit(&w->body, TRUE);
 		clampaddr(w);
@@ -454,27 +438,12 @@ xfidread(Xfid *x)
 		break;
 
 	case QWstyle:
-	{
 		if(!seqok(x, w)){
 			respond(x, &fc, "seq mismatch");
 			break;
 		}
-		/* Return current body styles as "idx start end\n" text. */
-		char *b;
-		uint n;
 		b = winstyleprint(w);
-		n = strlen(b);
-		off = x->fcall.offset;
-		if(off > n)
-			off = n;
-		if(off + x->fcall.count > n)
-			x->fcall.count = n - off;
-		fc.count = x->fcall.count;
-		fc.data  = b + off;
-		respond(x, &fc, nil);
-		free(b);
-		break;
-	}
+		goto Readb;
 
 	case QWdata:
 		if(!seqok(x, w)){
@@ -531,7 +500,8 @@ xfidread(Xfid *x)
 	winunlock(w);
 }
 
-static int
+static
+int
 shouldscroll(Text *t, uint q0, int qid)
 {
 	if(qid == Qcons)
@@ -576,13 +546,14 @@ void
 xfidwrite(Xfid *x)
 {
 	Fcall fc;
-	int c, qid, nb, nr, eval;
-	char buf[64], *err;
+	int c, n, qid, nb, nr, eval;
+	char buf[64], tmp[32], *err;
 	Window *w;
 	Rune *r;
 	Range a;
 	Text *t;
 	uint q0, tq0, tq1;
+	Fid *f;
 
 	qid = FILE(x->f->qid);
 	w = x->f->w;
@@ -662,18 +633,15 @@ xfidwrite(Xfid *x)
 		break;
 
 	case QWseq:
-	{
-		char tmp[32];
-		int n = x->fcall.count;
+		n = x->fcall.count;
 		if(n >= (int)sizeof tmp)
 			n = sizeof tmp - 1;
 		memmove(tmp, x->fcall.data, n);
-		tmp[n] = '\0';
+		tmp[n] = 0;
 		w->wantseq = atoi(tmp);
 		fc.count = x->fcall.count;
 		respond(x, &fc, nil);
 		break;
-	}
 
 	case QWdata:
 		if(!seqok(x, w)){
@@ -727,28 +695,21 @@ xfidwrite(Xfid *x)
 		break;
 
 	case QWstyle:
-	{
-		/*
-		 * Accumulate write data in the Fid's stylebuf.  Parsing and
-		 * winframesync are deferred to xfidclose so the whole Apply
-		 * (open → N writes → close) is one atomic update.
-		 */
-		Fid *f = x->f;
-		int  n = x->fcall.count;
+		f = x->f;
+		n = x->fcall.count;
 		if(!seqok(x, w)){
 			respond(x, &fc, "seq mismatch");
 			break;
 		}
-		if(f->nstylebuf + n > f->mstylebuf){
-			f->mstylebuf = f->nstylebuf + n + 4096;
-			f->stylebuf  = erealloc(f->stylebuf, f->mstylebuf);
+		if(f->nstylebuf+n > f->mstylebuf){
+			f->mstylebuf = f->nstylebuf+n+4096;
+			f->stylebuf = erealloc(f->stylebuf, f->mstylebuf);
 		}
-		memmove(f->stylebuf + f->nstylebuf, x->fcall.data, n);
+		memmove(f->stylebuf+f->nstylebuf, x->fcall.data, n);
 		f->nstylebuf += n;
 		fc.count = x->fcall.count;
 		respond(x, &fc, nil);
 		break;
-	}
 
 	case QWtag:
 		t = &w->tag;
@@ -1033,8 +994,7 @@ out:
 			undo(&w->body, nil, nil, p[0]=='u', 0, nil, 0);
 			qunlock(&row.lk);
 			m = 4;
-		}else
-		{
+		}else{
 			err = Ebadctl;
 			break;
 		}
@@ -1116,6 +1076,7 @@ xfideventwrite(Xfid *x, Window *w)
 			goto Rescue;
 		}
 		qunlock(&row.lk);
+
 	}
 
     Out:

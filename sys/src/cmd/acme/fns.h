@@ -9,7 +9,7 @@ void	warningew(Window*, Mntdir*, char*, ...);
 #define	fbufalloc()	emalloc(BUFSIZE)
 #define	fbuffree(x)	free(x)
 
-void	plumblook(Plumbmsg *m);
+void	plumblook(Plumbmsg*m);
 void	plumbshow(Plumbmsg*m);
 void	acmeputsnarf(void);
 void	acmegetsnarf(void);
@@ -28,8 +28,7 @@ void	savemouse(Window*);
 int	restoremouse(Window*);
 void	clearmouse(void);
 void	allwindows(void(*)(Window*, void*), void*);
-uint seqof(Window*, int);
-
+uint	seqof(Window*, int);
 uint loadfile(int, uint, int*, int(*)(void*, uint, Rune*, int), void*, DigestState*);
 void	movetodel(Window*);
 
@@ -79,8 +78,8 @@ char*	runetobyte(Rune*, int);
 Rune*	bytetorune(char*, int*);
 void	fsysinit(void);
 Mntdir*	fsysmount(Rune*, int, Rune**, int);
-void		fsysdelid(Mntdir*);
 void		fsysincid(Mntdir*);
+void		fsysdelid(Mntdir*);
 Xfid*		respond(Xfid*, Fcall*, char*);
 int		rxcompile(Rune*);
 int		rgetc(void*, uint);
@@ -105,15 +104,12 @@ long	nlcounttopos(Text*, long, long, long);
 Rune*	parsetag(Window*, int, int*);
 
 Runestr	runestr(Rune*, uint);
-Range range(int, int);
 
 #define	runemalloc(a)		(Rune*)emalloc((a)*sizeof(Rune))
 #define	runerealloc(a, b)	(Rune*)erealloc((a), (b)*sizeof(Rune))
 #define	runemove(a, b, c)	memmove((a), (b), (c)*sizeof(Rune))
 
 int	ismtpt(char*);
-
-/* style management — per-window named palette (feature2) */
 void	winclearstyle(Window*);
 void	winframesync(Window*);
 void	winparsestyle(Window*, char*, int, int, Range);

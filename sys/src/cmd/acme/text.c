@@ -15,7 +15,6 @@
 
 Image	*tagcols[NCOL];
 Image	*textcols[NCOL];
-static Rune Ldot[] = { '.', 0 };
 
 enum{
 	TABDIR = 3	/* width of tabs in directory windows */
@@ -63,21 +62,11 @@ textredraw(Text *t, Rectangle r, Font *f, Image *b, int odx)
 			textreset(t);
 			textcolumnate(t, t->w->dlp,  t->w->ndl);
 			textshow(t, 0, 0, 1);
-			/*
-			 * The entire directory text was regenerated; any existing
-			 * style byte-offsets refer to a layout that no longer exists.
-			 * Drop them so future redraws and scrolls start clean.
-			 */
 			winclearstyle(t->w);
 		}
 	}else{
 		textfill(t);
 		textsetselect(t, t->q0, t->q1);
-		/*
-		 * Re-apply per-window styles after textfill has drawn the frame
-		 * content with plain colours.  frredraw inside winframesync
-		 * repaints everything with the correct style colours.
-		 */
 		if(t->what == Body && t->w != nil && t->w->nwpalette > 0)
 			winframesync(t->w);
 	}
@@ -131,7 +120,7 @@ textclose(Text *t)
 }
 
 int
-dircmp(const void *a, const void *b)
+dircmp(void *a, void *b)
 {
 	Dirlist *da, *db;
 	int i, n;
@@ -151,8 +140,6 @@ textcolumnate(Text *t, Dirlist **dlp, int ndl)
 	int i, j, w, colw, mint, maxt, ncol, nrow;
 	Dirlist *dl;
 	uint q1;
-	static Rune Lnl[] = { '\n', 0 };
-	static Rune Ltab[] = { '\t', 0 };
 
 	if(t->file->ntext > 1)
 		return;
@@ -187,17 +174,17 @@ textcolumnate(Text *t, Dirlist **dlp, int ndl)
 				break;
 			w = dl->wid;
 			if(maxt-w%maxt < mint){
-				fileinsert(t->file, q1, Ltab, 1);
+				fileinsert(t->file, q1, L"\t", 1);
 				q1++;
 				w += mint;
 			}
 			do{
-				fileinsert(t->file, q1, Ltab, 1);
+				fileinsert(t->file, q1, L"\t", 1);
 				q1++;
 				w += maxt-(w%maxt);
 			}while(w < colw);
 		}
-		fileinsert(t->file, q1, Lnl, 1);
+		fileinsert(t->file, q1, L"\n", 1);
 		q1++;
 	}
 }
@@ -272,7 +259,7 @@ textload(Text *t, uint q0, char *file, int setqid)
 			}
 			free(dbuf);
 		}
-		qsort(dlp, ndl, sizeof(Dirlist*), (int(*)(void*, void*))dircmp);
+		qsort(dlp, ndl, sizeof(Dirlist*), dircmp);
 		t->w->dlp = dlp;
 		t->w->ndl = ndl;
 		textcolumnate(t, dlp, ndl);
@@ -285,10 +272,10 @@ textload(Text *t, uint q0, char *file, int setqid)
 		q1 = q0 + fileload(t->file, q0, fd, &nulls, h);
 	}
 	if(setqid){
-		if(h != nil) {
+		if(h != nil){
 			sha1(nil, 0, t->file->sha1, h);
 			h = nil;
-		} else {
+		}else{
 			memset(t->file->sha1, 0, sizeof t->file->sha1);
 		}
 		t->file->dev = d->dev;
@@ -412,11 +399,8 @@ textinsert(Text *t, uint q0, Rune *r, uint n, int tofile)
 		t->q0 += n;
 	if(q0 < t->org)
 		t->org += n;
-	else if(q0 <= t->org+t->fr.nchars){
+	else if(q0 <= t->org+t->fr.nchars)
 		frinsert(&t->fr, r, r+n, q0-t->org);
-		/* frinsert now owns frstyleinsert + frdrawrange internally */
-	}
-	/* keep file-absolute style layers in sync */
 	if(t->what == Body && t->w != nil && t->w->nwruns > 0)
 		winstyleinsert(t->w, q0, n);
 	if(t->what == Body && t->w != nil)
@@ -524,10 +508,9 @@ textdelete(Text *t, uint q0, uint q1, int tofile)
 			p0 = 0;
 		}else
 			p0 = q0 - t->org;
-		frdelete(&t->fr, p0, p1);	/* frstyledelete called internally */
+		frdelete(&t->fr, p0, p1);
 		textfill(t);
 	}
-	/* keep file-absolute style layers in sync */
 	if(t->what == Body && t->w != nil && t->w->nwruns > 0)
 		winstyledelete(t->w, q0, q1);
 	if(t->what == Body && t->w != nil)
@@ -578,7 +561,7 @@ textbswidth(Text *t, Rune c)
 				--q;
 			break;
 		}
-		if(c == 0x17){		/* ^W: erase word */
+		if(c == 0x17){
 			eq = isalnum(r);
 			if(eq && skipping)	/* found one; stop skipping */
 				skipping = FALSE;
@@ -589,8 +572,6 @@ textbswidth(Text *t, Rune c)
 	}
 	return t->q0-q;
 }
-
-/* Distance to BOL, if xtabs is true then \t is counted as tabstop */
 int
 textbacklinewidth(Text *t, uint nline, int xtabs)
 {
@@ -609,8 +590,6 @@ textbacklinewidth(Text *t, uint nline, int xtabs)
 	}
 	return t->q0-q+tb;
 }
-
-/* Distance to next BOL, if xtabs is true then \t is counted as tabstop */
 int
 textforwardlinewidth(Text *t, uint nline, int xtabs)
 {
@@ -621,7 +600,7 @@ textforwardlinewidth(Text *t, uint nline, int xtabs)
 	tb = 0;
 	while(q < t->file->b.nc){
 		r = textreadc(t, q);
-		if(r == '\n' && !--nline) { /* eat the last newline */
+		if(r == '\n' && !--nline){
 			++q;
 			break;
 		}
@@ -691,7 +670,7 @@ textcomplete(Text *t)
 		}
 		if(dir.nr == 0){
 			dir.nr = 1;
-			dir.r = runestrdup(Ldot);
+			dir.r = runestrdup(L".");
 		}
 		runemove(tmp, dir.r, dir.nr);
 		tmp[dir.nr] = '/';
@@ -716,7 +695,7 @@ textcomplete(Text *t)
 			dir.nr, dir.r,
 			dir.nr>0 && dir.r[dir.nr-1]!='/' ? "/" : "",
 			nstr, str,
-			c->nmatch ? "" : ": no matches in:");
+			c->nmatch? "" : ": no matches in:");
 		for(i=0; i<c->nfile; i++)
 			warning(nil, " %s\n", c->filename[i]);
 	}
@@ -764,18 +743,13 @@ texttype(Text *t, Rune r)
 		if(t->what == Tag)
 			goto Tagdown;
 		typecommit(t);
-
-		/* go forward one line, then current line offset */
 		nnb = textforwardlinewidth(t, 1, FALSE);
 		nb = nnb + textbacklinewidth(t, 1, TRUE);
-
-		/* go forward until we reach our original offset or EOL */
-		while (t->q0+nnb<t->file->b.nc && nb>nnb && (r=textreadc(t, t->q0+nnb))!='\n') {
-			if (r=='\t' && t->tabstop)
+		while(t->q0+nnb<t->file->b.nc && nb>nnb && (r=textreadc(t, t->q0+nnb))!='\n'){
+			if(r=='\t' && t->tabstop)
 				nb -= t->tabstop-1;
 			nnb++;
 		}
-
 		textshow(t, t->q0+nnb, t->q0+nnb, TRUE);
 		return;
 	case Kscrollonedown:
@@ -795,18 +769,13 @@ texttype(Text *t, Rune r)
 		if(t->what == Tag)
 			goto Tagup;
 		typecommit(t);
-
-		/* back up two lines, go forward current line offset */
 		nnb = textbacklinewidth(t, 2, FALSE);
-		nb = nnb - textbacklinewidth(t, 1, TRUE); /* can be negative */
-
-		/* go forward until we reach our original offset or EOL */
-		while (t->q0-nnb<t->file->b.nc && nnb>nb && (r=textreadc(t, t->q0-nnb))!='\n') {
-			if (r=='\t' && t->tabstop)
+		nb = nnb - textbacklinewidth(t, 1, TRUE);
+		while(t->q0-nnb<t->file->b.nc && nnb>nb && (r=textreadc(t, t->q0-nnb))!='\n'){
+			if(r=='\t' && t->tabstop)
 				nb += t->tabstop-1;
 			nnb--;
 		}
-
 		textshow(t, t->q0-nnb, t->q0-nnb, TRUE);
 		return;
 	case Kscrolloneup:
@@ -832,7 +801,7 @@ texttype(Text *t, Rune r)
 		typecommit(t);
 		if(t->iq1 > t->org+t->fr.nchars) {
 			if(t->iq1 > t->file->b.nc) {
-				// should not happen, but does. and it will crash textbacknl.
+				/* should not happen, but does. and it will crash textbacknl. */
 				t->iq1 = t->file->b.nc;
 			}
 			q0 = textbacknl(t, t->iq1, 1);
@@ -860,11 +829,11 @@ texttype(Text *t, Rune r)
 		cut(t, t, nil, TRUE, FALSE, nil, 0);
 		return;
 	case 0x1A:	/* ^Z: undo */
-	 	typecommit(t);
+		typecommit(t);
 		undo(t, nil, nil, TRUE, 0, nil, 0);
 		return;
 	case 0x12:	/* ^R: redo */
-	 	typecommit(t);
+		typecommit(t);
 		undo(t, nil, nil, FALSE, 0, nil, 0);
 		return;
 
@@ -912,10 +881,8 @@ texttype(Text *t, Rune r)
 		t->iq1 = t->q1;
 		return;
 	}
-
-	switch(r) {
+	switch(r){
 	case 0x08:	/* ^H: erase character */
-		/* if there is a selection, delete it */
 		if(t->q1 > t->q0){
 			if(t->ncache != 0)
 				error("text.type");
@@ -940,7 +907,7 @@ texttype(Text *t, Rune r)
 			return;
 		nr = runestrlen(rp);
 		break;	/* fall through to normal insertion case */
-	case 0x1B: /* Esc */
+	case 0x1B:
 		if(t->eq0 != ~0) {
 			if(t->eq0 <= t->q0)
 				textsetselect(t, t->eq0, t->q0);
@@ -1010,7 +977,6 @@ texttype(Text *t, Rune r)
 		}
 		break; /* fall through to normal code */
 	}
-
 	/* otherwise ordinary character; just insert, typically in caches of all texts */
 	for(i=0; i<t->file->ntext; i++){
 		u = t->file->text[i];
@@ -1227,7 +1193,7 @@ textshow(Text *t, uint q0, uint q1, int doselect)
 	qe = t->org+t->fr.nchars;
 	tsd = FALSE;	/* do we call textscrdraw? */
 	nc = t->file->b.nc+t->ncache;
-	if(t->org <= q0){
+	if(t->org<=q0){
 		if(nc==0 || q0<qe)
 			tsd = TRUE;
 		else if(q0==qe && qe==nc){
@@ -1268,11 +1234,6 @@ region(int a, int b)
 void
 selrestore(Frame *f, Point pt0, uint p0, uint p1)
 {
-	/*
-	 * Redraw [p0,p1) with the correct colours for the current selection
-	 * (f->p0, f->p1) and per-character styles.  frdrawrange handles both
-	 * dimensions simultaneously, replacing the old manual case analysis.
-	 */
 	frdrawrange(f, pt0, p0, p1);
 }
 
@@ -1342,7 +1303,7 @@ textsetselect(Text *t, uint q0, uint q1)
  */
 enum {
 	DELAY = 2,
-	MINMOVE = 4
+	MINMOVE = 4,
 };
 
 uint
@@ -1471,10 +1432,10 @@ textselect3(Text *t, uint *q0, uint *q1)
 	return h;
 }
 
-static Rune left1[] =  { '{', '[', '(', '<', 0xab, 0 };
-static Rune right1[] = { '}', ']', ')', '>', 0xbb, 0 };
-static Rune left2[] =  { '\n', 0 };
-static Rune left3[] =  { '\'', '"', '`', 0 };
+static Rune left1[] =  { L'{', L'[', L'(', L'<', L'«', 0 };
+static Rune right1[] = { L'}', L']', L')', L'>', L'»', 0 };
+static Rune left2[] =  { L'\n', 0 };
+static Rune left3[] =  { L'\'', L'"', L'`', 0 };
 
 static
 Rune *left[] = {
@@ -1532,7 +1493,6 @@ textdoubleclick(Text *t, uint *q0, uint *q1)
 			return;
 		}
 	}
-
 	/* try filling out word to right */
 	while(*q1<t->file->b.nc && isalnum(textreadc(t, *q1)))
 		(*q1)++;
@@ -1569,9 +1529,11 @@ textclickmatch(Text *t, int cl, int cr, int dir, uint *q)
 	return cl=='\n' && nest==1;
 }
 
-// Is the text starting at location q an html tag?
-// Return 1 for <a>, -1 for </a>, 0 for no tag or <a />.
-// Set *q1, if non-nil, to the location after the tag.
+/*
+ * Is the text starting at location q an html tag?
+ * Return 1 for <a>, -1 for </a>, 0 for no tag or <a />.
+ * Set *q1, if non-nil, to the location after the tag.
+ */
 static int
 ishtmlstart(Text *t, uint q, uint *q1)
 {
@@ -1592,16 +1554,18 @@ ishtmlstart(Text *t, uint q, uint *q1)
 	}
 	if(q1)
 		*q1 = q;
-	if(c1 == '/')	// closing tag
+	if(c1 == '/')	/* closing tag */
 		return -1;
-	if(c2 == '/' || c2 == '!')	// open + close tag or comment
+	if(c2 == '/' || c2 == '!')	/* open + close tag or comment */
 		return 0;
 	return 1;
 }
 
-// Is the text ending at location q an html tag?
-// Return 1 for <a>, -1 for </a>, 0 for no tag or <a />.
-// Set *q0, if non-nil, to the start of the tag.
+/*
+ * Is the text ending at location q an html tag?
+ * Return 1 for <a>, -1 for </a>, 0 for no tag or <a />.
+ * Set *q0, if non-nil, to the start of the tag.
+ */
 static int
 ishtmlend(Text *t, uint q, uint *q0)
 {
@@ -1622,9 +1586,9 @@ ishtmlend(Text *t, uint q, uint *q0)
 	}
 	if(q0)
 		*q0 = q;
-	if(c1 == '/')	// closing tag
+	if(c1 == '/')	/* closing tag */
 		return -1;
-	if(c2 == '/' || c2 == '!')	// open + close tag or comment
+	if(c2 == '/' || c2 == '!')	/* open + close tag or comment */
 		return 0;
 	return 1;
 }
@@ -1636,7 +1600,7 @@ textclickhtmlmatch(Text *t, uint *q0, uint *q1)
 	uint q, nq;
 
 	q = *q0;
-	// after opening tag?  scan forward for closing tag
+	/* after opening tag?  scan forward for closing tag */
 	if(ishtmlend(t, q, nil) == 1) {
 		depth = 1;
 		while(q < t->file->b.nc) {
@@ -1654,7 +1618,7 @@ textclickhtmlmatch(Text *t, uint *q0, uint *q1)
 		}
 	}
 
-	// before closing tag?  scan backward for opening tag
+	/* before closing tag?  scan backward for opening tag */
 	if(ishtmlstart(t, q, nil) == -1) {
 		depth = -1;
 		while(q > 0) {
@@ -1734,7 +1698,6 @@ textsetorigin(Text *t, uint org, int exact)
 	textsetselect(t, t->q0, t->q1);
 	if(fixup && t->fr.p1 > t->fr.p0)
 		frdrawsel(&t->fr, frptofchar(&t->fr, t->fr.p1-1), t->fr.p1-1, t->fr.p1, 1);
-	/* re-apply styles: t->org just changed so frame-relative offsets must be recomputed */
 	if(t->what == Body && t->w != nil && t->w->nwpalette > 0)
 		winframesync(t->w);
 }

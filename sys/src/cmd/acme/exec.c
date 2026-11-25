@@ -31,7 +31,7 @@ Buffer	snarfbuf;
  *	n: length of s  (s is *not* NUL-terminated)
  */
 
-void doabort(Text*, Text*, Text*, int, int, Rune*, int);
+void	doabort(Text*, Text*, Text*, int, int, Rune*, int);
 void	del(Text*, Text*, Text*, int, int, Rune*, int);
 void	delcol(Text*, Text*, Text*, int, int, Rune*, int);
 void	dotfiles(Text*, Text*, Text*, int, int, Rune*, int);
@@ -65,67 +65,37 @@ struct Exectab
 	int		flag2;
 };
 
-static Rune LAbort[] = { 'A', 'b', 'o', 'r', 't', 0 };
-static Rune LCut[] = { 'C', 'u', 't', 0 };
-static Rune LDel[] = { 'D', 'e', 'l', 0 };
-static Rune LDelcol[] = { 'D', 'e', 'l', 'c', 'o', 'l', 0 };
-static Rune LDelete[] = { 'D', 'e', 'l', 'e', 't', 'e', 0 };
-static Rune LDump[] = { 'D', 'u', 'm', 'p', 0 };
-static Rune LEdit[] = { 'E', 'd', 'i', 't', 0 };
-static Rune LExit[] = { 'E', 'x', 'i', 't', 0 };
-static Rune LFont[] = { 'F', 'o', 'n', 't', 0 };
-static Rune LGet[] = { 'G', 'e', 't', 0 };
-static Rune LID[] = { 'I', 'D', 0 };
-static Rune LIncl[] = { 'I', 'n', 'c', 'l', 0 };
-static Rune LIndent[] = { 'I', 'n', 'd', 'e', 'n', 't', 0 };
-static Rune LKill[] = { 'K', 'i', 'l', 'l', 0 };
-static Rune LLoad[] = { 'L', 'o', 'a', 'd', 0 };
-static Rune LLocal[] = { 'L', 'o', 'c', 'a', 'l', 0 };
-static Rune LLook[] = { 'L', 'o', 'o', 'k', 0 };
-static Rune LNew[] = { 'N', 'e', 'w', 0 };
-static Rune LNewcol[] = { 'N', 'e', 'w', 'c', 'o', 'l', 0 };
-static Rune LPaste[] = { 'P', 'a', 's', 't', 'e', 0 };
-static Rune LPut[] = { 'P', 'u', 't', 0 };
-static Rune LPutall[] = { 'P', 'u', 't', 'a', 'l', 'l', 0 };
-static Rune LRedo[] = { 'R', 'e', 'd', 'o', 0 };
-static Rune LSend[] = { 'S', 'e', 'n', 'd', 0 };
-static Rune LSnarf[] = { 'S', 'n', 'a', 'r', 'f', 0 };
-static Rune LSort[] = { 'S', 'o', 'r', 't', 0 };
-static Rune LTab[] = { 'T', 'a', 'b', 0 };
-static Rune LUndo[] = { 'U', 'n', 'd', 'o', 0 };
-static Rune LZerox[] = { 'Z', 'e', 'r', 'o', 'x', 0 };
-
 Exectab exectab[] = {
-	{ LAbort,		doabort,	FALSE,	XXX,		XXX,		},
-	{ LCut,		cut,		TRUE,	TRUE,	TRUE	},
-	{ LDel,		del,		FALSE,	FALSE,	XXX		},
-	{ LDelcol,		delcol,	FALSE,	XXX,		XXX		},
-	{ LDelete,		del,		FALSE,	TRUE,	XXX		},
-	{ LDump,		dump,	FALSE,	TRUE,	XXX		},
-	{ LEdit,		edit,		FALSE,	XXX,		XXX		},
-	{ LExit,		xexit,	FALSE,	XXX,		XXX		},
-	{ LFont,		fontx,	FALSE,	XXX,		XXX		},
-	{ LGet,		get,		FALSE,	TRUE,	XXX		},
-	{ LID,		id,		FALSE,	XXX,		XXX		},
-	{ LIncl,		incl,		FALSE,	XXX,		XXX		},
-	{ LIndent,		indent,	FALSE,	XXX,		XXX		},
-	{ LKill,		xkill,		FALSE,	XXX,		XXX		},
-	{ LLoad,		dump,	FALSE,	FALSE,	XXX		},
-	{ LLocal,		local,	FALSE,	XXX,		XXX		},
-	{ LLook,		look,		FALSE,	XXX,		XXX		},
-	{ LNew,		new,		FALSE,	XXX,		XXX		},
-	{ LNewcol,	newcol,	FALSE,	XXX,		XXX		},
-	{ LPaste,		paste,	TRUE,	TRUE,	XXX		},
-	{ LPut,		put,		FALSE,	XXX,		XXX		},
-	{ LPutall,		putall,	FALSE,	XXX,		XXX		},
-	{ LRedo,		undo,	FALSE,	FALSE,	XXX		},
-	{ LSend,		sendx,	TRUE,	XXX,		XXX		},
-	{ LSnarf,		cut,		FALSE,	TRUE,	FALSE	},
-	{ LSort,		sort,		FALSE,	XXX,		XXX		},
-	{ LTab,		tab,		FALSE,	XXX,		XXX		},
-	{ LUndo,		undo,	FALSE,	TRUE,	XXX		},
-	{ LZerox,		zeroxx,	FALSE,	XXX,		XXX		},
-	{ nil, 			0,		0,		0,		0		}
+	{ L"Abort",	doabort,	FALSE,	XXX,		XXX		},
+	{ L"Cut",		cut,		TRUE,	TRUE,	TRUE	},
+	{ L"Del",		del,		FALSE,	FALSE,	XXX		},
+	{ L"Delcol",	delcol,	FALSE,	XXX,		XXX		},
+	{ L"Delete",	del,		FALSE,	TRUE,	XXX		},
+	{ L"Dump",	dump,	FALSE,	TRUE,	XXX		},
+	{ L"Edit",		edit,		FALSE,	XXX,		XXX		},
+	{ L"Exit",		xexit,		FALSE,	XXX,		XXX		},
+	{ L"Font",		fontx,	FALSE,	XXX,		XXX		},
+	{ L"Get",		get,		FALSE,	TRUE,	XXX		},
+	{ L"ID",		id,		FALSE,	XXX,		XXX		},
+	{ L"Incl",		incl,		FALSE,	XXX,		XXX		},
+	{ L"Indent",	indent,	FALSE,	XXX,		XXX		},
+	{ L"Kill",		xkill,		FALSE,	XXX,		XXX		},
+	{ L"Load",		dump,	FALSE,	FALSE,	XXX		},
+	{ L"Local",		local,	FALSE,	XXX,		XXX		},
+	{ L"Look",		look,		FALSE,	XXX,		XXX		},
+	{ L"New",		new,		FALSE,	XXX,		XXX		},
+	{ L"Newcol",	newcol,	FALSE,	XXX,		XXX		},
+	{ L"Paste",		paste,	TRUE,	TRUE,	XXX		},
+	{ L"Put",		put,		FALSE,	XXX,		XXX		},
+	{ L"Putall",		putall,	FALSE,	XXX,		XXX		},
+	{ L"Redo",		undo,	FALSE,	FALSE,	XXX		},
+	{ L"Send",		sendx,	TRUE,	XXX,		XXX		},
+	{ L"Snarf",		cut,		FALSE,	TRUE,	FALSE	},
+	{ L"Sort",		sort,		FALSE,	XXX,		XXX		},
+	{ L"Tab",		tab,		FALSE,	XXX,		XXX		},
+	{ L"Undo",		undo,	FALSE,	TRUE,	XXX		},
+	{ L"Zerox",	zeroxx,	FALSE,	XXX,		XXX		},
+	{ nil, 			nil,		0,		0,		0		},
 };
 
 Exectab*
@@ -277,7 +247,6 @@ executerunestr(Text *t, Rune *r, int external)
 		f = 0;
 		if(e)
 			f |= 1;
-		/* TODO: add support for arg */
 		c = 'x';
 		if(t->what == Body)
 			c = 'X';
@@ -303,7 +272,7 @@ executerunestr(Text *t, Rune *r, int external)
 
 	b = runetobyte(r, nr);
 	dir = dirname(t, nil, 0);
-	if(dir.nr==1 && dir.r[0]=='.'){	/* sigh */
+	if(dir.nr==1 && dir.r[0]=='.'){
 		free(dir.r);
 		dir.r = nil;
 		dir.nr = 0;
@@ -383,17 +352,9 @@ getbytearg(Text *argt, int doaddr, int dofile, char **bp)
 }
 
 void
-doabort(Text *__0, Text *_0, Text *_1, int _2, int _3, Rune *_4, int _5)
+doabort(Text*, Text*, Text*, int, int, Rune*, int)
 {
 	static int n;
-
-	USED(__0);
-	USED(_0);
-	USED(_1);
-	USED(_2);
-	USED(_3);
-	USED(_4);
-	USED(_5);
 
 	if(n++ == 0)
 		warning(nil, "executing Abort again will call abort()\n");
@@ -402,20 +363,13 @@ doabort(Text *__0, Text *_0, Text *_1, int _2, int _3, Rune *_4, int _5)
 }
 
 void
-newcol(Text *et, Text *_0, Text *_1, int _2, int _3, Rune *_4, int _5)
+newcol(Text *et, Text*, Text*, int, int, Rune*, int)
 {
 	Column *c;
 	Window *w;
 
-	USED(_0);
-	USED(_1);
-	USED(_2);
-	USED(_3);
-	USED(_4);
-	USED(_5);
-
 	c = rowadd(et->row, nil, -1);
-	if(c) {
+	if(c){
 		w = coladd(c, nil, nil, -1);
 		winsettag(w);
 		xfidlog(w, "new");
@@ -423,18 +377,11 @@ newcol(Text *et, Text *_0, Text *_1, int _2, int _3, Rune *_4, int _5)
 }
 
 void
-delcol(Text *et, Text *_0, Text *_1, int _2, int _3, Rune *_4, int _5)
+delcol(Text *et, Text*, Text*, int, int, Rune*, int)
 {
 	int i;
 	Column *c;
 	Window *w;
-
-	USED(_0);
-	USED(_1);
-	USED(_2);
-	USED(_3);
-	USED(_4);
-	USED(_5);
 
 	c = et->col;
 	if(c==nil || colclean(c)==0)
@@ -450,14 +397,8 @@ delcol(Text *et, Text *_0, Text *_1, int _2, int _3, Rune *_4, int _5)
 }
 
 void
-del(Text *et, Text *_0, Text *_1, int flag1, int _2, Rune *_3, int _4)
+del(Text *et, Text*, Text*, int flag1, int, Rune*, int)
 {
-	USED(_0);
-	USED(_1);
-	USED(_2);
-	USED(_3);
-	USED(_4);
-
 	if(et->col==nil || et->w == nil)
 		return;
 	if(flag1 || et->w->body.file->ntext>1 || winclean(et->w, FALSE))
@@ -465,15 +406,8 @@ del(Text *et, Text *_0, Text *_1, int flag1, int _2, Rune *_3, int _4)
 }
 
 void
-sort(Text *et, Text *_0, Text *_1, int _2, int _3, Rune *_4, int _5)
+sort(Text *et, Text*, Text*, int, int, Rune*, int)
 {
-	USED(_0);
-	USED(_1);
-	USED(_2);
-	USED(_3);
-	USED(_4);
-	USED(_5);
-
 	if(et->col)
 		colsort(et->col);
 }
@@ -489,18 +423,12 @@ seqof(Window *w, int isundo)
 }
 
 void
-undo(Text *et, Text *_0, Text *_1, int flag1, int _2, Rune *_3, int _4)
+undo(Text *et, Text*, Text*, int flag1, int, Rune*, int)
 {
 	int i, j;
 	Column *c;
 	Window *w;
 	uint seq;
-
-	USED(_0);
-	USED(_1);
-	USED(_2);
-	USED(_3);
-	USED(_4);
 
 	if(et==nil || et->w== nil)
 		return;
@@ -594,16 +522,10 @@ getname(Text *t, Text *argt, Rune *arg, int narg, int isput)
 }
 
 void
-zeroxx(Text *et, Text *t, Text *_1, int _2, int _3, Rune *_4, int _5)
+zeroxx(Text *et, Text *t, Text*, int, int, Rune*, int)
 {
 	Window *nw;
 	int c, locked;
-
-	USED(_1);
-	USED(_2);
-	USED(_3);
-	USED(_4);
-	USED(_5);
 
 	locked = FALSE;
 	if(t!=nil && t->w!=nil && t->w!=et->w){
@@ -631,17 +553,18 @@ zeroxx(Text *et, Text *t, Text *_1, int _2, int _3, Rune *_4, int _5)
 }
 
 typedef struct TextAddr TextAddr;
-struct TextAddr {
-	long lorigin; // line+rune for origin
-	long rorigin;
-	long lq0; // line+rune for q0
-	long rq0;
-	long lq1; // line+rune for q1
-	long rq1;
+struct TextAddr
+{
+	long	lorigin;	/* line+rune for origin */
+	long	rorigin;
+	long	lq0;	/* line+rune for q0 */
+	long	rq0;
+	long	lq1;	/* line+rune for q1 */
+	long	rq1;
 };
 
 void
-get(Text *et, Text *t, Text *argt, int flag1, int _0, Rune *arg, int narg)
+get(Text *et, Text *t, Text *argt, int flag1, int, Rune *arg, int narg)
 {
 	char *name;
 	Rune *r;
@@ -651,8 +574,6 @@ get(Text *et, Text *t, Text *argt, int flag1, int _0, Rune *arg, int narg)
 	Text *u;
 	Dir *d;
 	long q0, q1;
-
-	USED(_0);
 
 	if(flag1)
 		if(et==nil || et->w==nil)
@@ -676,7 +597,7 @@ get(Text *et, Text *t, Text *argt, int flag1, int _0, Rune *arg, int narg)
 		}
 	}
 	addr = emalloc((t->file->ntext)*sizeof(TextAddr));
-	for(i=0; i<t->file->ntext; i++) {
+	for(i=0; i<t->file->ntext; i++){
 		a = &addr[i];
 		u = t->file->text[i];
 		a->lorigin = nlcount(u, 0, u->org, &a->rorigin);
@@ -708,9 +629,8 @@ get(Text *et, Text *t, Text *argt, int flag1, int _0, Rune *arg, int narg)
 	for(i=0; i<t->file->ntext; i++){
 		u = t->file->text[i];
 		textsetselect(&u->w->tag, u->w->tag.file->b.nc, u->w->tag.file->b.nc);
-		if(samename) {
+		if(samename){
 			a = &addr[i];
-			// warning(nil, "%d %d %d %d %d %d\n", a->lorigin, a->rorigin, a->lq0, a->rq0, a->lq1, a->rq1);
 			q0 = nlcounttopos(u, 0, a->lq0, a->rq0);
 			q1 = nlcounttopos(u, q0, a->lq1, a->rq1);
 			textsetselect(u, q0, q1);
@@ -720,15 +640,6 @@ get(Text *et, Text *t, Text *argt, int flag1, int _0, Rune *arg, int narg)
 		textscrdraw(u);
 	}
 	free(addr);
-	/*
-	 * textreset+textload bypass textinsert/textdelete, so winstyleinsert
-	 * and winstyledelete are never called.  The wruns offsets from before
-	 * the Get are now wrong for the new content.  Clear them immediately
-	 * and repaint so stale style spans are never visible on the new body.
-	 * The compositor only flushes to N/style when a layer is explicitly
-	 * written, so it will not re-populate wruns until a highlight tool
-	 * calls Apply with spans for the new content.
-	 */
 	winclearstyle(w);
 	winframesync(w);
 	xfidlog(w, "get");
@@ -752,7 +663,7 @@ checksha1(char *name, File *f, Dir *d)
 	free(buf);
 	close(fd);
 	sha1(nil, 0, out, h);
-	if(memcmp(out, f->sha1, sizeof out) == 0) {
+	if(memcmp(out, f->sha1, sizeof out) == 0){
 		f->dev = d->dev;
 		f->qidpath = d->qid.path;
 		f->mtime = d->mtime;
@@ -778,7 +689,7 @@ putfile(File *f, int q0, int q1, Rune *namer, int nname)
 	if(d!=nil && runeeq(namer, nname, f->name, f->nname)){
 		if(f->dev!=d->dev || f->qidpath!=d->qid.path || f->mtime != d->mtime)
 			checksha1(name, f, d);
-		if(f->dev!=d->dev || f->qidpath!=d->qid.path || f->mtime != d->mtime) {
+		if(f->dev!=d->dev || f->qidpath!=d->qid.path || f->mtime != d->mtime){
 			if(f->unread)
 				warning(nil, "%s not written; file already exists\n", name);
 			else
@@ -789,17 +700,18 @@ putfile(File *f, int q0, int q1, Rune *namer, int nname)
 			goto Rescue1;
 		}
 	}
-
 	fd = create(name, OWRITE, 0666);
 	if(fd < 0){
 		warning(nil, "can't create file %s: %r\n", name);
 		goto Rescue1;
 	}
-	// Use bio in order to force the writes to be large and
-	// block-aligned (bio's default is 8K). This is not strictly
-	// necessary; it works around some buggy underlying
-	// file systems that mishandle unaligned writes.
-	// https://codereview.appspot.com/89550043/
+	/*
+	 * Use bio in order to force the writes to be large and
+	 * block-aligned (bio's default is 8K). This is not strictly
+	 * necessary; it works around some buggy underlying
+	 * file systems that mishandle unaligned writes.
+	 * https://codereview.appspot.com/89550043/
+	 */
 	b = emalloc(sizeof *b);
 	Binit(b, fd, OWRITE);
 	r = fbufalloc();
@@ -825,7 +737,7 @@ putfile(File *f, int q0, int q1, Rune *namer, int nname)
 			goto Rescue2;
 		}
 	}
-	if(Bflush(b) < 0) {
+	if(Bflush(b) < 0){
 		warning(nil, "can't write file %s: %r\n", name);
 		goto Rescue2;
 	}
@@ -833,9 +745,9 @@ putfile(File *f, int q0, int q1, Rune *namer, int nname)
 	retc = close(fd);
 	free(b);
 	b = nil;
-	if(ret < 0 || retc < 0) {
+	if(ret < 0 || retc < 0){
 		warning(nil, "can't write file %s: %r\n", name);
-		goto Rescue2; // flush or close failed
+		goto Rescue2;	/* flush or close failed */
 	}
 	if(runeeq(namer, nname, f->name, f->nname)){
 		if(q0!=0 || q1!=f->b.nc){
@@ -843,16 +755,18 @@ putfile(File *f, int q0, int q1, Rune *namer, int nname)
 			w->dirty = TRUE;
 			f->unread = TRUE;
 		}else{
-			// In case the file is on NFS, reopen the fd
-			// before dirfstat to cause the attribute cache
-			// to be updated (otherwise the mtime in the
-			// dirfstat below will be stale and not match
-			// what NFS sees).  The file is already written,
-			// so this should be a no-op when not on NFS.
-			// Opening for OWRITE (but no truncation)
-			// in case we don't have read permission.
-			// (The create above worked, so we probably
-			// still have write permission.)
+			/*
+			 * In case the file is on NFS, reopen the fd
+			 * before dirfstat to cause the attribute cache
+			 * to be updated (otherwise the mtime in the
+			 * dirfstat below will be stale and not match
+			 * what NFS sees).  The file is already written,
+			 * so this should be a no-op when not on NFS.
+			 * Opening for OWRITE (but no truncation)
+			 * in case we don't have read permission.
+			 * (The create above worked, so we probably
+			 * still have write permission.)
+			 */
 			fd = open(name, OWRITE);
 			d1 = dirfstat(fd);
 			close(fd);
@@ -885,7 +799,7 @@ putfile(File *f, int q0, int q1, Rune *namer, int nname)
 	return;
 
     Rescue2:
-	if(b != nil) {
+	if(b != nil){
 		Bterm(b);
 		free(b);
 		close(fd);
@@ -924,25 +838,25 @@ trimspaces(Text *et)
 
 	r = fbufalloc();
 	q0 = f->b.nc;
-	delstart = q0; /* end of current space run, or 0 if no active run; = q0 to delete spaces before EOF */
-	while(q0 > 0) {
+	delstart = q0;	/* end of current space run, or 0 if no active run; = q0 to delete spaces before EOF */
+	while(q0 > 0){
 		n = RBUFSIZE;
 		if(n > q0)
 			n = q0;
 		q0 -= n;
 		bufread(&f->b, q0, r, n);
-		for(i=n; ; i--) {
-			if(i == 0 || (r[i-1] != ' ' && r[i-1] != '\t')) {
-				// Found non-space or start of buffer. Delete active space run.
-				if(q0+i < delstart) {
-					if(!marked) {
+		for(i=n; ; i--){
+			if(i == 0 || (r[i-1] != ' ' && r[i-1] != '\t')){
+				/* Found non-space or start of buffer. Delete active space run. */
+				if(q0+i < delstart){
+					if(!marked){
 						marked = 1;
 						seq++;
 						filemark(f);
 					}
 					textdelete(t, q0+i, delstart, TRUE);
 				}
-				if(i == 0) {
+				if(i == 0){
 					/* keep run active into tail of next buffer */
 					if(delstart > 0)
 						delstart = q0;
@@ -950,7 +864,7 @@ trimspaces(Text *et)
 				}
 				delstart = 0;
 				if(r[i-1] == '\n')
-					delstart = q0+i-1; /* delete spaces before this newline */
+					delstart = q0+i-1;	/* delete spaces before this newline */
 			}
 		}
 	}
@@ -961,17 +875,13 @@ trimspaces(Text *et)
 }
 
 void
-put(Text *et, Text *_0, Text *argt, int _1, int _2, Rune *arg, int narg)
+put(Text *et, Text*, Text *argt, int, int, Rune *arg, int narg)
 {
 	int nname;
 	Rune  *namer;
 	Window *w;
 	File *f;
 	char *name;
-
-	USED(_0);
-	USED(_1);
-	USED(_2);
 
 	if(et==nil || et->w==nil || et->w->isdir)
 		return;
@@ -982,10 +892,6 @@ put(Text *et, Text *_0, Text *argt, int _1, int _2, Rune *arg, int narg)
 		warning(nil, "no file name\n");
 		return;
 	}
-	/*
-	 * Flush the typing cache: the ctl "put" path, unlike B2, does not
-	 * commit first, and trimspaces and putfile both work on f->b.
-	 */
 	wincommit(w, &w->body);
 	if(w->autoindent)
 		trimspaces(et);
@@ -996,13 +902,9 @@ put(Text *et, Text *_0, Text *argt, int _1, int _2, Rune *arg, int narg)
 }
 
 void
-dump(Text *_0, Text *_1, Text *argt, int isdump, int _2, Rune *arg, int narg)
+dump(Text *, Text *, Text *argt, int isdump, int, Rune *arg, int narg)
 {
 	char *name;
-
-	USED(_0);
-	USED(_1);
-	USED(_2);
 
 	if(narg)
 		name = runetobyte(arg, narg);
@@ -1016,14 +918,10 @@ dump(Text *_0, Text *_1, Text *argt, int isdump, int _2, Rune *arg, int narg)
 }
 
 void
-cut(Text *et, Text *t, Text *_0, int dosnarf, int docut, Rune *_2, int _3)
+cut(Text *et, Text *t, Text*, int dosnarf, int docut, Rune*, int)
 {
 	uint q0, q1, n, locked, c;
 	Rune *r;
-
-	USED(_0);
-	USED(_2);
-	USED(_3);
 
 	/*
 	 * if not executing a mouse chord (et != t) and snarfing (dosnarf)
@@ -1087,15 +985,11 @@ cut(Text *et, Text *t, Text *_0, int dosnarf, int docut, Rune *_2, int _3)
 }
 
 void
-paste(Text *et, Text *t, Text *_0, int selectall, int tobody, Rune *_1, int _2)
+paste(Text *et, Text *t, Text*, int selectall, int tobody, Rune*, int)
 {
 	int c;
 	uint q, q0, q1, n;
 	Rune *r;
-
-	USED(_0);
-	USED(_1);
-	USED(_2);
 
 	/* if(tobody), use body of executing window  (Paste or Send command) */
 	if(tobody && et!=nil && et->w!=nil){
@@ -1144,13 +1038,10 @@ paste(Text *et, Text *t, Text *_0, int selectall, int tobody, Rune *_1, int _2)
 }
 
 void
-look(Text *et, Text *t, Text *argt, int _0, int _1, Rune *arg, int narg)
+look(Text *et, Text *t, Text *argt, int, int, Rune *arg, int narg)
 {
 	Rune *r;
 	int n;
-
-	USED(_0);
-	USED(_1);
 
 	if(et && et->w){
 		t = &et->w->body;
@@ -1169,17 +1060,9 @@ look(Text *et, Text *t, Text *argt, int _0, int _1, Rune *arg, int narg)
 	}
 }
 
-static Rune Lnl[] = { '\n', 0 };
-
 void
-sendx(Text *et, Text *t, Text *_0, int _1, int _2, Rune *_3, int _4)
+sendx(Text *et, Text *t, Text*, int, int, Rune*, int)
 {
-	USED(_0);
-	USED(_1);
-	USED(_2);
-	USED(_3);
-	USED(_4);
-
 	if(et->w==nil)
 		return;
 	t = &et->w->body;
@@ -1188,7 +1071,7 @@ sendx(Text *et, Text *t, Text *_0, int _1, int _2, Rune *_3, int _4)
 	textsetselect(t, t->file->b.nc, t->file->b.nc);
 	paste(t, t, nil, TRUE, TRUE, nil, 0);
 	if(textreadc(t, t->file->b.nc-1) != '\n'){
-		textinsert(t, t->file->b.nc, Lnl, 1, TRUE);
+		textinsert(t, t->file->b.nc, L"\n", 1, TRUE);
 		textsetselect(t, t->file->b.nc, t->file->b.nc);
 	}
 	t->iq1 = t->q1;
@@ -1196,14 +1079,10 @@ sendx(Text *et, Text *t, Text *_0, int _1, int _2, Rune *_3, int _4)
 }
 
 void
-edit(Text *et, Text *_0, Text *argt, int _1, int _2, Rune *arg, int narg)
+edit(Text *et, Text*, Text *argt, int, int, Rune *arg, int narg)
 {
 	Rune *r;
 	int len;
-
-	USED(_0);
-	USED(_1);
-	USED(_2);
 
 	if(et == nil)
 		return;
@@ -1217,16 +1096,8 @@ edit(Text *et, Text *_0, Text *argt, int _1, int _2, Rune *arg, int narg)
 }
 
 void
-xexit(Text *et, Text *_0, Text *_1, int _2, int _3, Rune *_4, int _5)
+xexit(Text*, Text*, Text*, int, int, Rune*, int)
 {
-	USED(et);
-	USED(_0);
-	USED(_1);
-	USED(_2);
-	USED(_3);
-	USED(_4);
-	USED(_5);
-
 	if(rowclean(&row)){
 		sendul(cexit, 0);
 		threadexits(nil);
@@ -1234,20 +1105,12 @@ xexit(Text *et, Text *_0, Text *_1, int _2, int _3, Rune *_4, int _5)
 }
 
 void
-putall(Text *et, Text *_0, Text *_1, int _2, int _3, Rune *_4, int _5)
+putall(Text*, Text*, Text*, int, int, Rune*, int)
 {
 	int i, j, e;
 	Window *w;
 	Column *c;
 	char *a;
-
-	USED(et);
-	USED(_0);
-	USED(_1);
-	USED(_2);
-	USED(_3);
-	USED(_4);
-	USED(_5);
 
 	for(i=0; i<row.ncol; i++){
 		c = row.col[i];
@@ -1273,28 +1136,17 @@ putall(Text *et, Text *_0, Text *_1, int _2, int _3, Rune *_4, int _5)
 
 
 void
-id(Text *et, Text *_0, Text *_1, int _2, int _3, Rune *_4, int _5)
+id(Text *et, Text*, Text*, int, int, Rune*, int)
 {
-	USED(_0);
-	USED(_1);
-	USED(_2);
-	USED(_3);
-	USED(_4);
-	USED(_5);
-
 	if(et && et->w)
 		warning(nil, "/mnt/acme/%d/\n", et->w->id);
 }
 
 void
-local(Text *et, Text *_0, Text *argt, int _1, int _2, Rune *arg, int narg)
+local(Text *et, Text*, Text *argt, int, int, Rune *arg, int narg)
 {
 	char *a, *aa;
 	Runestr dir;
-
-	USED(_0);
-	USED(_1);
-	USED(_2);
 
 	aa = getbytearg(argt, TRUE, TRUE, &a);
 
@@ -1308,15 +1160,10 @@ local(Text *et, Text *_0, Text *argt, int _1, int _2, Rune *arg, int narg)
 }
 
 void
-xkill(Text *_0, Text *_1, Text *argt, int _2, int _3, Rune *arg, int narg)
+xkill(Text*, Text*, Text *argt, int, int, Rune *arg, int narg)
 {
 	Rune *a, *cmd, *r;
 	int na;
-
-	USED(_0);
-	USED(_1);
-	USED(_2);
-	USED(_3);
 
 	getarg(argt, FALSE, FALSE, &r, &na);
 	if(r)
@@ -1333,11 +1180,8 @@ xkill(Text *_0, Text *_1, Text *argt, int _2, int _3, Rune *arg, int narg)
 	}
 }
 
-static Rune Lfix[] = { 'f', 'i', 'x', 0 };
-static Rune Lvar[] = { 'v', 'a', 'r', 0 };
-
 void
-fontx(Text *et, Text *t, Text *argt, int _0, int _1, Rune *arg, int narg)
+fontx(Text *et, Text *t, Text *argt, int, int, Rune *arg, int narg)
 {
 	Rune *a, *r, *flag, *file;
 	int na, nf;
@@ -1345,9 +1189,6 @@ fontx(Text *et, Text *t, Text *argt, int _0, int _1, Rune *arg, int narg)
 	Reffont *newfont;
 	Dirlist *dp;
 	int i, fix;
-
-	USED(_0);
-	USED(_1);
 
 	if(et==nil || et->w==nil)
 		return;
@@ -1362,7 +1203,7 @@ fontx(Text *et, Text *t, Text *argt, int _0, int _1, Rune *arg, int narg)
 			break;
 		r = runemalloc(narg-na+1);
 		runemove(r, arg, narg-na);
-		if(runeeq(r, narg-na, Lfix, 3) || runeeq(r, narg-na, Lvar, 3)){
+		if(runeeq(r, narg-na, L"fix", 3) || runeeq(r, narg-na, L"var", 3)){
 			free(flag);
 			flag = r;
 		}else{
@@ -1374,7 +1215,7 @@ fontx(Text *et, Text *t, Text *argt, int _0, int _1, Rune *arg, int narg)
 	}
 	getarg(argt, FALSE, TRUE, &r, &na);
 	if(r)
-		if(runeeq(r, na, Lfix, 3) || runeeq(r, na, Lvar, 3)){
+		if(runeeq(r, na, L"fix", 3) || runeeq(r, na, L"var", 3)){
 			free(flag);
 			flag = r;
 		}else{
@@ -1384,7 +1225,7 @@ fontx(Text *et, Text *t, Text *argt, int _0, int _1, Rune *arg, int narg)
 		}
 	fix = 1;
 	if(flag)
-		fix = runeeq(flag, runestrlen(flag), Lfix, 3);
+		fix = runeeq(flag, runestrlen(flag), L"fix", 3);
 	else if(file == nil){
 		newfont = rfget(FALSE, FALSE, FALSE, nil);
 		if(newfont)
@@ -1419,15 +1260,11 @@ fontx(Text *et, Text *t, Text *argt, int _0, int _1, Rune *arg, int narg)
 }
 
 void
-incl(Text *et, Text *_0, Text *argt, int _1, int _2, Rune *arg, int narg)
+incl(Text *et, Text*, Text *argt, int, int, Rune *arg, int narg)
 {
 	Rune *a, *r;
 	Window *w;
 	int na, n, len;
-
-	USED(_0);
-	USED(_1);
-	USED(_2);
 
 	if(et==nil || et->w==nil)
 		return;
@@ -1456,15 +1293,11 @@ incl(Text *et, Text *_0, Text *argt, int _1, int _2, Rune *arg, int narg)
 	}
 }
 
-static Rune LON[] = { 'O', 'N', 0 };
-static Rune LOFF[] = { 'O', 'F', 'F', 0 };
-static Rune Lon[] = { 'o', 'n', 0 };
-
 enum {
 	IGlobal = -2,
 	IError = -1,
 	Ion = 0,
-	Ioff = 1
+	Ioff = 1,
 };
 
 static int
@@ -1472,36 +1305,31 @@ indentval(Rune *s, int n)
 {
 	if(n < 2)
 		return IError;
-	if(runestrncmp(s, LON, n) == 0){
+	if(runestrncmp(s, L"ON", n) == 0){
 		globalautoindent = TRUE;
 		warning(nil, "Indent ON\n");
 		return IGlobal;
 	}
-	if(runestrncmp(s, LOFF, n) == 0){
+	if(runestrncmp(s, L"OFF", n) == 0){
 		globalautoindent = FALSE;
 		warning(nil, "Indent OFF\n");
 		return IGlobal;
 	}
-	return runestrncmp(s, Lon, n) == 0;
+	return runestrncmp(s, L"on", n) == 0;
 }
 
 static void
-fixindent(Window *w, void *arg)
+fixindent(Window *w, void*)
 {
-	USED(arg);
 	w->autoindent = globalautoindent;
 }
 
 void
-indent(Text *et, Text *_0, Text *argt, int _1, int _2, Rune *arg, int narg)
+indent(Text *et, Text*, Text *argt, int, int, Rune *arg, int narg)
 {
 	Rune *a, *r;
 	Window *w;
 	int na, len, autoindent;
-
-	USED(_0);
-	USED(_1);
-	USED(_2);
 
 	w = nil;
 	if(et!=nil && et->w!=nil)
@@ -1522,16 +1350,12 @@ indent(Text *et, Text *_0, Text *argt, int _1, int _2, Rune *arg, int narg)
 }
 
 void
-tab(Text *et, Text *_0, Text *argt, int _1, int _2, Rune *arg, int narg)
+tab(Text *et, Text*, Text *argt, int, int, Rune *arg, int narg)
 {
 	Rune *a, *r;
 	Window *w;
 	int na, len, tab;
 	char *p;
-
-	USED(_0);
-	USED(_1);
-	USED(_2);
 
 	if(et==nil || et->w==nil)
 		return;
@@ -1583,7 +1407,6 @@ runproc(void *argvp)
 	int pipechar;
 	char buf[512];
 	int ret;
-	/*static void *parg[2]; */
 	char *rcarg[4];
 	void **argv;
 
@@ -1702,6 +1525,7 @@ runproc(void *argvp)
 		sfd[1] = open("/dev/null", OWRITE);
 		sfd[2] = dup(erroutfd, -1);
 	}
+
 	if(win)
 		winclose(win);
 
@@ -1757,6 +1581,7 @@ runproc(void *argvp)
 	goto Fail;
 
 Hard:
+
 	/*
 	 * ugly: set path = (. $cputype /bin)
 	 * should honor $path if unusual.
@@ -1861,13 +1686,13 @@ run(Window *win, char *s, Rune *rdir, int ndir, int newns, char *argaddr, char *
 	arg[0] = win;
 	arg[1] = s;
 	arg[2] = rdir;
-	arg[3] = (void*)(uintptr)ndir;
-	arg[4] = (void*)(uintptr)newns;
+	arg[3] = (void*)ndir;
+	arg[4] = (void*)newns;
 	arg[5] = argaddr;
 	arg[6] = xarg;
 	arg[7] = c;
 	arg[8] = cpid;
-	arg[9] = (void*)(uintptr)iseditcmd;
+	arg[9] = (void*)iseditcmd;
 	proccreate(runproc, arg, STACK);
 	/* mustn't block here because must be ready to answer mount() call in run() */
 	arg = emalloc(2*sizeof(void*));

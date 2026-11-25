@@ -34,7 +34,7 @@ struct Undo
 
 enum
 {
-	Undosize = sizeof(Undo)/sizeof(Rune)
+	Undosize = sizeof(Undo)/sizeof(Rune),
 };
 
 File*

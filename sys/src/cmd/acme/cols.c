@@ -12,17 +12,6 @@
 #include "dat.h"
 #include "fns.h"
 
-static Rune Lheader[] = {
-	'N', 'e', 'w', ' ',
-	'C', 'u', 't', ' ',
-	'P', 'a', 's', 't', 'e', ' ',
-	'S', 'n', 'a', 'r', 'f', ' ',
-	'S', 'o', 'r', 't', ' ',
-	'Z', 'e', 'r', 'o', 'x', ' ',
-	'D', 'e', 'l', 'c', 'o', 'l', ' ',
-	0
-};
-
 void
 colinit(Column *c, Rectangle r)
 {
@@ -43,7 +32,7 @@ colinit(Column *c, Rectangle r)
 	r1.min.y = r1.max.y;
 	r1.max.y += Border;
 	draw(screen, r1, colrule, nil, ZP);
-	textinsert(t, 0, Lheader, 38, TRUE);
+	textinsert(t, 0, L"New Cut Paste Snarf Sort Zerox Delcol ", 38, TRUE);
 	textsetselect(t, t->file->b.nc, t->file->b.nc);
 	draw(screen, t->scrollr, colbutton, nil, colbutton->r.min);
 	c->safe = TRUE;
@@ -152,7 +141,6 @@ coladd(Column *c, Window *w, Window *clone, int y)
 	/* don't move the mouse to the new window if a mouse button is depressed */
 	if(!mousectl->Mouse.buttons)
 		moveto(mousectl, addpt(w->tag.scrollr.max, Pt(3, 3)));
-
 	barttext = &w->body;
 	return w;
 }
@@ -198,7 +186,7 @@ colclose(Column *c, Window *w, int dofree)
 		r.max.y = w->r.max.y;
 	}
 	draw(screen, r, textcols[BACK], nil, ZP);
-	if(c->safe) {
+	if(c->safe){
 		if(!didmouse && up)
 			w->showdel = TRUE;
 		winresize(w, r, FALSE, TRUE);
@@ -274,7 +262,7 @@ colresize(Column *c, Rectangle r)
 
 static
 int
-colcmp(const void *a, const void *b)
+colcmp(void *a, void *b)
 {
 	Rune *r1, *r2;
 	int i, nr1, nr2;
@@ -305,7 +293,7 @@ colsort(Column *c)
 	rp = emalloc(c->nw*sizeof(Rectangle));
 	wp = emalloc(c->nw*sizeof(Window*));
 	memmove(wp, c->w, c->nw*sizeof(Window*));
-	qsort(wp, c->nw, sizeof(Window*), (int(*)(void*, void*))colcmp);
+	qsort(wp, c->nw, sizeof(Window*), colcmp);
 	for(i=0; i<c->nw; i++)
 		rp[i] = wp[i]->r;
 	r = c->r;
@@ -553,7 +541,7 @@ coldragwin(Column *c, Window *w, int but)
 		r.max.y = c->w[i+1]->r.min.y-Border;
 	winresize(w, r, c->safe, TRUE);
 	c->safe = TRUE;
-	winmousebut(w);
+    	winmousebut(w);
 }
 
 Text*

@@ -350,22 +350,7 @@ windelete(Window *w)
 		w->eventx = nil;
 		sendp(x->c, nil);	/* wake him up */
 	}
-
-	/*
-	 * Wake every blocked <winid>/log reader.  winlogfree sets l->closed=1
-	 * and calls rwakeupall while w->body.file is still valid (the window
-	 * has not been freed yet — that only happens when decref reaches 0 in
-	 * winclose).  Calling it here (during the logical deletion from the
-	 * column) rather than inside winclose (after textclose has nulled
-	 * w->body.file) eliminates the NULL-deref crash in winlock.
-	 */
 	winlogfree(w);
-
-	/*
-	 * Log the deletion now, not when the last reference is dropped in
-	 * winclose: tools that watch acme/log keep the window's files open
-	 * until they see "del", so waiting for the final close never logs it.
-	 */
 	xfidlog(w, "del");
 }
 
@@ -399,16 +384,14 @@ winsetname(Window *w, Rune *name, int n)
 	Text *t;
 	Window *v;
 	int i;
-	static Rune Lslashguide[] = { '/', 'g', 'u', 'i', 'd', 'e', 0 };
-	static Rune Lpluserrors[] = { '+', 'E', 'r', 'r', 'o', 'r', 's', 0 };
 
 	t = &w->body;
 	if(runeeq(t->file->name, t->file->nname, name, n) == TRUE)
 		return;
 	w->isscratch = FALSE;
-	if(n>=6 && runeeq(Lslashguide, 6, name+(n-6), 6))
+	if(n>=6 && runeeq(L"/guide", 6, name+(n-6), 6))
 		w->isscratch = TRUE;
-	else if(n>=7 && runeeq(Lpluserrors, 7, name+(n-7), 7))
+	else if(n>=7 && runeeq(L"+Errors", 7, name+(n-7), 7))
 		w->isscratch = TRUE;
 	filesetname(t->file, name, n);
 	for(i=0; i<t->file->ntext; i++){
@@ -458,9 +441,6 @@ wincleartag(Window *w)
 Rune*
 parsetag(Window *w, int extra, int *len)
 {
-	static Rune Ldelsnarf[] = { ' ', 'D', 'e', 'l', ' ', 'S', 'n', 'a', 'r', 'f', 0 };
-	static Rune Lspacepipe[] = { ' ', '|', 0 };
-	static Rune Ltabpipe[] = { '\t', '|', 0 };
 	int i;
 	Rune *r, *p, *pipe;
 
@@ -473,10 +453,10 @@ parsetag(Window *w, int extra, int *len)
 	 * If we find " Del Snarf" in the left half of the tag
 	 * (before the pipe), that ends the file name.
 	 */
-	pipe = runestrstr(r, Lspacepipe);
-	if((p = runestrstr(r, Ltabpipe)) != nil && (pipe == nil || p < pipe))
+	pipe = runestrstr(r, L" |");
+	if((p = runestrstr(r, L"\t|")) != nil && (pipe == nil || p < pipe))
 		pipe = p;
-	if((p = runestrstr(r, Ldelsnarf)) != nil && (pipe == nil || p < pipe))
+	if((p = runestrstr(r, L" Del Snarf")) != nil && (pipe == nil || p < pipe))
 		i = p - r;
 	else {
 		for(i=0; i<w->tag.file->b.nc; i++)
@@ -493,14 +473,6 @@ winsettag1(Window *w)
 	int i, j, k, n, bar, dirty, resize;
 	Rune *new, *old, *r;
 	uint q0, q1;
-	static Rune Ldelsnarf[] = { ' ', 'D', 'e', 'l', ' ',
-		'S', 'n', 'a', 'r', 'f', 0 };
-	static Rune Lundo[] = { ' ', 'U', 'n', 'd', 'o', 0 };
-	static Rune Lredo[] = { ' ', 'R', 'e', 'd', 'o', 0 };
-	static Rune Lget[] = { ' ', 'G', 'e', 't', 0 };
-	static Rune Lput[] = { ' ', 'P', 'u', 't', 0 };
-	static Rune Llook[] = { ' ', 'L', 'o', 'o', 'k', ' ', 0 };
-	static Rune Lpipe[] = { ' ', '|', 0 };
 
 	/* there are races that get us here with stuff in the tag cache, so we take extra care to sync it */
 	if(w->tag.ncache!=0 || w->tag.file->mod)
@@ -521,28 +493,28 @@ winsettag1(Window *w)
 	if(w->body.file->nname != 0)
 		runemove(new, w->body.file->name, w->body.file->nname);
 	i += w->body.file->nname;
-	runemove(new+i, Ldelsnarf, 10);
+	runemove(new+i, L" Del Snarf", 10);
 	i += 10;
 	if(w->filemenu){
 		if(w->body.needundo || w->body.file->delta.nc>0 || w->body.ncache){
-			runemove(new+i, Lundo, 5);
+			runemove(new+i, L" Undo", 5);
 			i += 5;
 		}
 		if(w->body.file->epsilon.nc > 0){
-			runemove(new+i, Lredo, 5);
+			runemove(new+i, L" Redo", 5);
 			i += 5;
 		}
 		dirty = w->body.file->nname && (w->body.ncache || w->body.file->seq!=w->putseq);
 		if(!w->isdir && dirty){
-			runemove(new+i, Lput, 4);
+			runemove(new+i, L" Put", 4);
 			i += 4;
 		}
 	}
 	if(w->isdir){
-		runemove(new+i, Lget, 4);
+		runemove(new+i, L" Get", 4);
 		i += 4;
 	}
-	runemove(new+i, Lpipe, 2);
+	runemove(new+i, L" |", 2);
 	i += 2;
 	r = runestrchr(old, '|');
 	if(r)
@@ -550,7 +522,7 @@ winsettag1(Window *w)
 	else{
 		k = w->tag.file->b.nc;
 		if(w->body.file->seq == 0){
-			runemove(new+i, Llook, 6);
+			runemove(new+i, L" Look ", 6);
 			i += 6;
 		}
 	}

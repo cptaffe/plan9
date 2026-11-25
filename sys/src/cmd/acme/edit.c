@@ -50,7 +50,7 @@ struct cmdtab cmdtab[]={
 	'q',	0,	0,	0,	0,	aNo,	0,	0,	q_cmd,
 	'!',	0,	0,	0,	0,	aNo,	0,	linex,	plan9_cmd,
  */
-	0,	0,	0,	0,	0,	0,	0,	0
+	0,	0,	0,	0,	0,	0,	0,	0,
 };
 
 Cmd	*parsecmd(int);
@@ -60,7 +60,7 @@ void	freecmd(void);
 void	okdelim(int);
 
 Rune	*cmdstartp;
-Rune *cmdendp;
+Rune	*cmdendp;
 Rune	*cmdp;
 Channel	*editerrc;
 
@@ -76,13 +76,14 @@ int	editing = Inactive;
 String*	newstring(int);
 
 void
-editthread(void *v)
+editthread(void*)
 {
 	Cmd *cmdp;
 
-	USED(v);
 	threadsetname("editthread");
 	while((cmdp=parsecmd(0)) != 0){
+//		ocurfile = curfile;
+//		loaded = curfile && !curfile->unread;
 		if(cmdexec(curtext, cmdp) == 0)
 			break;
 		freecmd();
@@ -91,29 +92,26 @@ editthread(void *v)
 }
 
 void
-allelogterm(Window *w, void *x)
+allelogterm(Window *w, void*)
 {
-	USED(x);
 	elogterm(w->body.file);
 }
 
 void
-alleditinit(Window *w, void *x)
+alleditinit(Window *w, void*)
 {
-	USED(x);
 	textcommit(&w->tag, TRUE);
 	textcommit(&w->body, TRUE);
 	w->body.file->editclean = FALSE;
 }
 
 void
-allupdate(Window *w, void *x)
+allupdate(Window *w, void*)
 {
 	Text *t;
 	int i;
 	File *f;
 
-	USED(x);
 	t = &w->body;
 	f = t->file;
 	if(f->curtext != t)	/* do curtext only */

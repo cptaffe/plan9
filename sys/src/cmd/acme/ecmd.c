@@ -173,11 +173,10 @@ a_cmd(Text *t, Cmd *cp)
 }
 
 int
-b_cmd(Text *t, Cmd *cp)
+b_cmd(Text*, Cmd *cp)
 {
 	File *f;
 
-	USED(t);
 	f = tofile(cp->u.text);
 	if(nest == 0)
 		pfilename(f);
@@ -220,9 +219,8 @@ c_cmd(Text *t, Cmd *cp)
 }
 
 int
-d_cmd(Text *t, Cmd *cp)
+d_cmd(Text *t, Cmd*)
 {
-	USED(cp);
 	if(addr.r.q1 > addr.r.q0)
 		elogdelete(t->file, addr.r.q0, addr.r.q1);
 	t->q0 = addr.r.q0;
@@ -268,7 +266,7 @@ D_cmd(Text *t, Cmd *cp)
 			runemove(n, dir.r, dir.nr);
 			n[dir.nr] = '/';
 			runemove(n+dir.nr+1, r, nn);
-			rs = cleanrname(runestr(n, dir.nr+1+nn));
+			rs = cleanrname((Runestr){n, dir.nr+1+nn});
 		}
 		w = lookfile(rs.r, rs.nr);
 		if(w == nil){
@@ -347,7 +345,6 @@ e_cmd(Text *t, Cmd *cp)
 	return TRUE;
 }
 
-static Rune Lempty[] = { 0 };
 int
 f_cmd(Text *t, Cmd *cp)
 {
@@ -357,7 +354,7 @@ f_cmd(Text *t, Cmd *cp)
 
 	if(cp->u.text == nil){
 		empty.n = 0;
-		empty.r = Lempty;
+		empty.r = L"";
 		str = &empty;
 	}else
 		str = cp->u.text;
@@ -418,7 +415,7 @@ move(File *f, Address addr2)
 		copy(f, addr2);
 		elogdelete(f, addr.r.q0, addr.r.q1);
 	}else if(addr.r.q0==addr2.r.q0 && addr.r.q1==addr2.r.q1){
-		; /* move to self; no-op */
+		;	/* move to self; no-op */
 	}else
 		editerror("move overlaps itself");
 }
@@ -438,9 +435,8 @@ m_cmd(Text *t, Cmd *cp)
 }
 
 int
-p_cmd(Text *t, Cmd *cp)
+p_cmd(Text *t, Cmd*)
 {
-	USED(cp);
 	return pdisplay(t->file);
 }
 
@@ -482,7 +478,7 @@ s_cmd(Text *t, Cmd *cp)
 	buf = allocstring(0);
 	for(m=0; m<nrp; m++){
 		buf->n = 0;
-		buf->r[0] = '\0';
+		buf->r[0] = L'\0';
 		sel = rp[m];
 		for(i = 0; i<cp->u.text->n; i++)
 			if((c = cp->u.text->r[i])=='\\' && i<cp->u.text->n-1){
@@ -582,8 +578,6 @@ x_cmd(Text *t, Cmd *cp)
 int
 X_cmd(Text *t, Cmd *cp)
 {
-	USED(t);
-
 	filelooper(t, cp, cp->cmdc=='X');
 	return TRUE;
 }
@@ -814,7 +808,7 @@ pdisplay(File *f)
 		if(np>RBUFSIZE-1)
 			np = RBUFSIZE-1;
 		bufread(&f->b, p1, buf, np);
-		buf[np] = '\0';
+		buf[np] = L'\0';
 		warning(nil, "%S", buf);
 		p1 += np;
 	}
@@ -951,14 +945,14 @@ alllooper(Window *w, void *v)
 
 	lp = v;
 	cp = lp->cp;
-/*	if(w->isscratch || w->isdir) */
-/*		return; */
+//	if(w->isscratch || w->isdir)
+//		return;
 	t = &w->body;
 	/* only use this window if it's the current window for the file */
 	if(t->file->curtext != t)
 		return;
-/*	if(w->nopen[QWevent] > 0) */
-/*		return; */
+//	if(w->nopen[QWevent] > 0)
+//		return;
 	/* no auto-execute on files without names */
 	if(cp->re==nil && t->file->nname==0)
 		return;
@@ -1002,14 +996,14 @@ filelooper(Text *t, Cmd *cp, int XY)
 	 */
 	allwindows(alllocker, (void*)1);
 	globalincref = 1;
-	
+
 	/*
 	 * Unlock the window running the X command.
 	 * We'll need to lock and unlock each target window in turn.
 	 */
 	if(t && t->w)
 		winunlock(t->w);
-	
+
 	for(i=0; i<loopstruct.nw; i++) {
 		targ = &loopstruct.w[i]->body;
 		if(targ && targ->w)
@@ -1021,7 +1015,6 @@ filelooper(Text *t, Cmd *cp, int XY)
 
 	if(t && t->w)
 		winlock(t->w, cp->cmdc);
-
 	allwindows(alllocker, (void*)0);
 	globalincref = 0;
 	free(loopstruct.w);
@@ -1084,7 +1077,7 @@ cmdaddress(Addr *ap, Address a, int sign)
 
 		case '\'':
 editerror("can't handle '");
-/*			a.r = f->mark; */
+//			a.r = f->mark;
 			break;
 
 		case '?':
@@ -1165,8 +1158,8 @@ alltofile(Window *w, void *v)
 	/* only use this window if it's the current window for the file */
 	if(t->file->curtext != t)
 		return;
-/*	if(w->nopen[QWevent] > 0) */
-/*		return; */
+//	if(w->nopen[QWevent] > 0)
+//		return;
 	if(runeeq(tp->r->r, tp->r->n, t->file->name, t->file->nname))
 		tp->f = t->file;
 }
@@ -1199,8 +1192,8 @@ allmatchfile(Window *w, void *v)
 	/* only use this window if it's the current window for the file */
 	if(t->file->curtext != t)
 		return;
-/*	if(w->nopen[QWevent] > 0) */
-/*		return; */
+//	if(w->nopen[QWevent] > 0)
+//		return;
 	if(filematch(w->body.file, tp->r)){
 		if(tp->f != nil)
 			editerror("too many files match \"%S\"", tp->r->r);

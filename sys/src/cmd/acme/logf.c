@@ -12,26 +12,26 @@
 #include "dat.h"
 #include "fns.h"
 
-// State for global log file.
+/* State for global log file. */
 typedef struct Log Log;
 struct Log
 {
 	QLock lk;
 	Rendez r;
 
-	vlong start; // msg[0] corresponds to 'start' in the global sequence of events
+	vlong start; /* msg[0] corresponds to 'start' in the global sequence of events */
 
-	// queued events (nev=entries in ev, mev=capacity of p)
+	/* queued events (nev=entries in ev, mev=capacity of p) */
 	char **ev;
 	int nev;
 	int mev;
 
-	// open acme/put files that need to read events
+	/* open acme/put files that need to read events */
 	Fid **f;
 	int nf;
 	int mf;
 
-	// active (blocked) reads waiting for events
+	/* active (blocked) reads waiting for events */
 	Xfid **read;
 	int nread;
 	int mread;
@@ -106,12 +106,6 @@ xfidlogread(Xfid *x)
 
 	i = x->f->logoff - eventlog.start;
 	if(i < 0 || i >= eventlog.nev){
-		/*
-		 * Our position was GC'd out from under us — the FID was
-		 * closed (xfidlogclose) while we were sleeping, removing it
-		 * from eventlog.f so the GC could advance eventlog.start past
-		 * x->f->logoff.  Return empty (EOF) so the client re-opens.
-		 */
 		qunlock(&eventlog.lk);
 		respond(x, &fc, nil);
 		return;
@@ -176,7 +170,7 @@ xfidlog(Window *w, char *op)
 		dumpseq++;
 	qlock(&eventlog.lk);
 	if(eventlog.nev >= eventlog.mev) {
-		// Remove and free any entries that all readers have read.
+		/* Remove and free any entries that all readers have read. */
 		min = eventlog.start + eventlog.nev;
 		for(i=0; i<eventlog.nf; i++) {
 			if(min > eventlog.f[i]->logoff)
@@ -191,7 +185,7 @@ xfidlog(Window *w, char *op)
 			memmove(eventlog.ev, eventlog.ev+n, eventlog.nev*sizeof eventlog.ev[0]);
 		}
 
-		// Otherwise grow.
+		/* Otherwise grow. */
 		if(eventlog.nev >= eventlog.mev) {
 			eventlog.mev = eventlog.mev*2;
 			if(eventlog.mev == 0)
@@ -211,15 +205,6 @@ xfidlog(Window *w, char *op)
 	qunlock(&eventlog.lk);
 }
 
-/* ------------------------------------------------------------------ */
-/* Per-window body-edit notification log (<winid>/log).                */
-/* Readers block; no write-back protocol.                              */
-/* ------------------------------------------------------------------ */
-
-/*
- * xfidwinlogopen - register a fid as a reader of this window's edit log.
- * Called with the window locked.
- */
 static int
 isedit(Window *w, WinEditLog *l, char *s)
 {
@@ -233,61 +218,49 @@ static WinEditLog*	logof(Xfid*, Window*);
 void
 xfidwinlogopen(Xfid *x, Window *w)
 {
-	WinEditLog *l = logof(x, w);
-	int wantseq = x->f->seq;	/* moved onto this fid by xfidopen */
-	int i;
+	WinEditLog *l;
+	int wantseq, i;
 	ulong lo;
 
+	l = logof(x, w);
+	wantseq = x->f->seq;
 	x->f->logpart = 0;
 	x->f->logmismatch = 0;
 	qlock(&l->lk);
 	if(!l->closed){
 		if(l->nf >= l->mf){
 			l->mf = l->mf ? l->mf*2 : 8;
-			l->f = erealloc(l->f, l->mf * sizeof l->f[0]);
+			l->f = erealloc(l->f, l->mf*sizeof l->f[0]);
 		}
 		l->f[l->nf++] = x->f;
-		w->dotage = 0;		/* a new reader is told where dot is */
+		w->dotage = 0;
 		w->sentq0 = w->sentq1 = ~0;
 		if(wantseq >= 0){
-			/*
-			 * An edit's line advances seq and an S line does not, so
-			 * the place after seq wantseq is the first line whose seq
-			 * is past it; seq before the first kept line is lo.
-			 */
-			for(i = 0; i < l->nev && l->evseq[i] <= wantseq; i++)
+			for(i=0; i<l->nev && l->evseq[i]<=wantseq; i++)
 				;
 			lo = l->nev > 0 ? l->evseq[0] - isedit(w, l, l->ev[0]) : w->seq;
 			if(wantseq < lo || wantseq > w->seq)
 				x->f->logmismatch = 1;
 			else
 				x->f->logoff = l->start + i;
-		} else
+		}else
 			x->f->logoff = l->start + l->nev;
 	}
 	qunlock(&l->lk);
 }
 
-/*
- * xfidwinlogclose - deregister a fid.  Called with the window locked.
- */
 void
 xfidwinlogclose(Xfid *x, Window *w)
 {
 	int i;
-	WinEditLog *l = logof(x, w);
+	WinEditLog *l;
 
+	l = logof(x, w);
 	qlock(&l->lk);
 	if(!l->closed){
-		for(i = 0; i < l->nf; i++){
+		for(i=0; i<l->nf; i++){
 			if(l->f[i] == x->f){
 				l->f[i] = l->f[--l->nf];
-				/*
-				 * Wake any read blocked on this fid so it can
-				 * detect the deregistration and return EOF
-				 * promptly, rather than hanging until the next
-				 * edit event or window close.
-				 */
 				if(l->r.l == nil)
 					l->r.l = &l->lk;
 				rwakeupall(&l->r);
@@ -298,48 +271,23 @@ xfidwinlogclose(Xfid *x, Window *w)
 	qunlock(&l->lk);
 }
 
-/*
- * xfidwinlogread - blocking read.
- *
- * Called by xfidread with the window locked.  We release the window
- * lock before blocking (same pattern as xfideventread) and re-acquire
- * it before returning so the caller's winunlock() is correctly paired.
- *
- * Lock ordering: the window lock is always acquired before l->lk
- * (matching textinsert/textdelete -> winevent).  Therefore we must
- * release the window lock BEFORE taking l->lk and re-acquire it AFTER
- * releasing l->lk to avoid an inversion deadlock.
- */
 void
 xfidwinlogread(Xfid *x, Window *w)
 {
 	Fcall fc;
 	int i, n, m;
-	WinEditLog *l = logof(x, w);
+	WinEditLog *l;
 	char *p, *s;
 	vlong min;
 
+	l = logof(x, w);
 	memset(&fc, 0, sizeof fc);
-
-	/* First read: error if seq guard was set but position was unavailable. */
 	if(x->f->logmismatch){
 		x->f->logmismatch = 0;
 		respond(x, &fc, "seq mismatch");
 		return;
 	}
 
-	/*
-	 * Release the window lock before any potentially blocking
-	 * operation.  Re-acquire it at every return path.
-	 *
-	 * Explicitly bump the reference count across the winunlock/winlock
-	 * gap so that winclose cannot free w->body.file (via textclose) in
-	 * the window between us releasing the lock and re-acquiring it.
-	 * Without this, a concurrent winclose reaching decref==0 could null
-	 * w->body.file before winlock reads it, crashing in winlock's
-	 * "f = w->body.file; for(i=0; i<f->ntext; ...)".
-	 * The matching winclose() is called at every re-acquire site below.
-	 */
 	incref(&w->ref);
 	winunlock(w);
 
@@ -347,31 +295,26 @@ xfidwinlogread(Xfid *x, Window *w)
 	if(l->r.l == nil)
 		l->r.l = &l->lk;
 
-	/* Return EOF immediately if the window is already gone. */
 	if(l->closed){
 		qunlock(&l->lk);
 		winlock(w, 'F');
-		winclose(w);	/* release the extra ref taken before winunlock */
+		winclose(w);
 		respond(x, &fc, nil);
 		return;
 	}
 
 	if(l->nread >= l->mread){
 		l->mread = l->mread ? l->mread*2 : 8;
-		l->read = erealloc(l->read, l->mread * sizeof l->read[0]);
+		l->read = erealloc(l->read, l->mread*sizeof l->read[0]);
 	}
 	l->read[l->nread++] = x;
 
 	x->flushed = FALSE;
-	while(x->f->logoff >= l->start + l->nev && !x->flushed && !l->closed)
+	while(x->f->logoff >= l->start+l->nev && !x->flushed && !l->closed)
 		rsleep(&l->r);
 
-	/*
-	 * winlogfree sets closed=1 and frees l->read under the same
-	 * lock hold, so we must not touch l->read after seeing closed=1.
-	 */
 	if(!l->closed){
-		for(i = 0; i < l->nread; i++){
+		for(i=0; i<l->nread; i++){
 			if(l->read[i] == x){
 				l->read[i] = l->read[--l->nread];
 				break;
@@ -382,28 +325,14 @@ xfidwinlogread(Xfid *x, Window *w)
 	if(x->flushed || l->closed){
 		qunlock(&l->lk);
 		winlock(w, 'F');
-		winclose(w);	/* release the extra ref taken before winunlock */
-		/*
-		 * flush(9p): if the server has not responded to the request
-		 * being flushed before sending Rflush, it must not do so
-		 * afterward.  Only send EOF when the window was closed but
-		 * the read was not flushed; in the flushed case Rflush has
-		 * already been sent, so sending Rread here would violate the
-		 * protocol and corrupt 9pserve's tag recycling.
-		 */
+		winclose(w);
 		if(l->closed && !x->flushed)
-			respond(x, &fc, nil);  /* 0 bytes = EOF */
+			respond(x, &fc, nil);
 		return;
 	}
 
 	i = x->f->logoff - l->start;
 	if(i < 0 || i >= l->nev){
-		/*
-		 * Our position was GC'd out from under us: a concurrent
-		 * xfidwinlogclose deregistered this fid from l->f, the GC
-		 * advanced l->start past our logoff, and then we woke up.
-		 * Respond with EOF so the client knows to reopen.
-		 */
 		qunlock(&l->lk);
 		winlock(w, 'F');
 		winclose(w);
@@ -422,24 +351,23 @@ xfidwinlogread(Xfid *x, Window *w)
 	p = emalloc(m);
 	memmove(p, s, m);
 
-	/* GC: remove entries every open reader has consumed. */
 	min = l->start + l->nev;
-	for(i = 0; i < l->nf; i++)
+	for(i=0; i<l->nf; i++)
 		if(l->f[i]->logoff < min)
 			min = l->f[i]->logoff;
 	if(min > l->start){
 		n = (int)(min - l->start);
-		for(i = 0; i < n; i++)
+		for(i=0; i<n; i++)
 			free(l->ev[i]);
 		l->nev -= n;
 		l->start += n;
-		memmove(l->ev, l->ev + n, l->nev * sizeof l->ev[0]);
-		memmove(l->evseq, l->evseq + n, l->nev * sizeof l->evseq[0]);
+		memmove(l->ev, l->ev+n, l->nev*sizeof l->ev[0]);
+		memmove(l->evseq, l->evseq+n, l->nev*sizeof l->evseq[0]);
 	}
 
 	qunlock(&l->lk);
-	winlock(w, 'F');  /* re-acquire window lock before returning */
-	winclose(w);	/* release the extra ref taken before winunlock */
+	winlock(w, 'F');
+	winclose(w);
 
 	fc.data = p;
 	fc.count = m;
@@ -447,10 +375,6 @@ xfidwinlogread(Xfid *x, Window *w)
 	free(p);
 }
 
-/*
- * xfidwinlogflush - cancel a pending read for the given tag.
- * Called from xfidflush with the window locked.
- */
 static void
 logflush(Xfid *x, WinEditLog *l)
 {
@@ -458,7 +382,7 @@ logflush(Xfid *x, WinEditLog *l)
 
 	qlock(&l->lk);
 	if(!l->closed){
-		for(i = 0; i < l->nread; i++){
+		for(i=0; i<l->nread; i++){
 			if(l->read[i]->fcall.tag == x->fcall.oldtag){
 				l->read[i]->flushed = TRUE;
 				rwakeupall(&l->r);
@@ -493,8 +417,8 @@ logappend(Window *w, WinEditLog *l, char *s)
 	}
 	if(l->nev >= l->mev){
 		l->mev = l->mev ? l->mev*2 : 8;
-		l->ev = erealloc(l->ev, l->mev * sizeof l->ev[0]);
-		l->evseq = erealloc(l->evseq, l->mev * sizeof l->evseq[0]);
+		l->ev = erealloc(l->ev, l->mev*sizeof l->ev[0]);
+		l->evseq = erealloc(l->evseq, l->mev*sizeof l->evseq[0]);
 	}
 	l->evseq[l->nev] = w->seq;
 	l->ev[l->nev++] = s;
@@ -510,14 +434,6 @@ winrdevent(Window *w, int c1, char *s)
 	logappend(w, &w->rdlog, smprint("%c%s", c1, s));
 }
 
-/*
- * winlogfree - called from winclose.
- *
- * Sets closed=1, wakes every blocked reader, and frees all heap
- * storage under a single lock hold.  Readers that re-acquire l->lk
- * after being woken will see closed=1 and will not touch l->read,
- * l->ev, or l->f, so this is free of use-after-free races.
- */
 static void
 logfree(WinEditLog *l)
 {
@@ -528,18 +444,19 @@ logfree(WinEditLog *l)
 	if(l->r.l == nil)
 		l->r.l = &l->lk;
 	rwakeupall(&l->r);
-
-	/* Free under the lock so woken readers see nil, not stale pointers. */
-	for(i = 0; i < l->nev; i++)
+	for(i=0; i<l->nev; i++)
 		free(l->ev[i]);
 	free(l->ev);
 	free(l->f);
 	free(l->read);
 	free(l->evseq);
 	l->evseq = nil;
-	l->ev   = nil; l->nev = l->mev = 0;
-	l->f    = nil; l->nf  = l->mf  = 0;
-	l->read = nil; l->nread = l->mread = 0;
+	l->ev = nil;
+	l->nev = l->mev = 0;
+	l->f = nil;
+	l->nf = l->mf = 0;
+	l->read = nil;
+	l->nread = l->mread = 0;
 	qunlock(&l->lk);
 }
 
@@ -549,12 +466,6 @@ winlogfree(Window *w)
 	logfree(&w->rdlog);
 }
 
-/*
- * winlogdot - append MS q0 q1 0 0, the body's dot, to the window's
- * rdevent.  It is not an edit, so seq stays: a style written under the
- * guard of the edit before it is still good.  dotthread calls it when
- * dot has settled where it was not when last written.
- */
 void
 winlogdot(Window *w)
 {

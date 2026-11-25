@@ -37,13 +37,12 @@ timercancel(Timer *t)
 
 static
 void
-timerproc(void *v)
+timerproc(void*)
 {
 	int i, nt, na, dt, del;
 	Timer **t, *x;
 	uint old, new;
 
-	USED(v);
 	threadsetname("timerproc");
 	rfork(RFFDG);
 	t = nil;

@@ -16,13 +16,13 @@ enum
 {
 	None = 0,
 	Fore = '+',
-	Back = '-'
+	Back = '-',
 };
 
 enum
 {
 	Char,
-	Line
+	Line,
 };
 
 int
@@ -49,11 +49,13 @@ isregexc(int r)
 	return FALSE;
 }
 
-// nlcounttopos starts at q0 and advances nl lines,
-// being careful not to walk past the end of the text,
-// and then nr chars, being careful not to walk past
-// the end of the current line.
-// It returns the final position.
+/*
+ * nlcounttopos starts at q0 and advances nl lines,
+ * being careful not to walk past the end of the text,
+ * and then nr chars, being careful not to walk past
+ * the end of the current line.
+ * It returns the final position.
+ */
 long
 nlcounttopos(Text *t, long q0, long nl, long nr)
 {
@@ -86,7 +88,7 @@ number(uint showerr, Text *t, Range r, int line, int dir, int size, int *evalp)
 		if(line<0 || line>t->file->b.nc)
 			goto Rescue;
 		*evalp = TRUE;
-		return range(line, line);
+		return (Range){line, line};
 	}
 	q0 = r.q0;
 	q1 = r.q1;
@@ -99,7 +101,7 @@ number(uint showerr, Text *t, Range r, int line, int dir, int size, int *evalp)
 			if(textreadc(t, q1++) == '\n' || q1==t->file->b.nc)
 				if(--line > 0)
 					q0 = q1;
-		if(line==1 && q1==t->file->b.nc) // 6 goes to end of 5-line file
+		if(line==1 && q1==t->file->b.nc) /* 6 goes to end of 5-line file */
 			break;
 		if(line > 0)
 			goto Rescue;
@@ -129,7 +131,7 @@ number(uint showerr, Text *t, Range r, int line, int dir, int size, int *evalp)
 			--q0;
 	}
 	*evalp = TRUE;
-	return range(q0, q1);
+	return (Range){q0, q1};
 
     Rescue:
 	if(showerr)
@@ -225,7 +227,7 @@ address(uint showerr, Text *t, Range lim, Range ar, void *a, uint q0, uint q1, i
 				if(c == '.')
 					r = ar;
 				else
-					r = range(t->file->b.nc, t->file->b.nc);
+					r = (Range){t->file->b.nc, t->file->b.nc};
 			if(q < q1)
 				dir = Fore;
 			else
