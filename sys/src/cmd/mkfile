@@ -10,8 +10,9 @@ YFLAGS=-d
 NOTSYS=sml|dup|.+\..+
 BUGGERED=unix
 OUTOFDATE=old
+REPLACED=webfs|git
 
-NOMK=$NOTSYS|$BUGGERED|$OUTOFDATE
+NOMK=$NOTSYS|$BUGGERED|$OUTOFDATE|$REPLACED
 
 cpuobjtype=`{sed -n 's/^O=//p' /$cputype/mkfile}
 DIRS=`{ls -l | sed '/^d/!d; s/.* //; /^('$NOMK')$/d'}

@@ -515,7 +515,7 @@ where the server takes them.
 .SH SOURCE
 .B src/cmd/lmsim
 .br
-.B src/cmd/test/tlm.c
+.B src/cmd/ktest/tlm.c
 .SH SEE ALSO
 .IR bits (1),
 .IR segment (1),

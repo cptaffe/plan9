@@ -492,7 +492,7 @@ and shrink what it finds with
 .SH SOURCE
 .B /sys/src/libprop
 .SH SEE ALSO
-.I /sys/src/cmd/test/tprop.c
+.I /sys/src/cmd/ktest/tprop.c
 in plan9web, which holds a property for each pass,
 .br
 David R. MacIver and Alastair F. Donaldson,

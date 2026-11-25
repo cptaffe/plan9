@@ -409,6 +409,7 @@ ropen(Fid *f)
 		if(mode != OREAD)
 			return Eperm;
 		rhdr.qid = r->qid;
+		rhdr.iounit = messagesize-IOHDRSZ;
 		return 0;
 	}
 	if(mode & ORCLOSE){
