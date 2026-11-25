@@ -1,0 +1,155 @@
+.TH U9CPU 1
+.SH NAME
+u9cpu \- run a command on a Linux host, in this name space
+.SH SYNOPSIS
+.B u9cpu
+[
+.B -h
+.I host
+] [
+.B -c
+.I cmd args ...
+]
+.SH DESCRIPTION
+.I U9cpu
+runs a command on
+.IR host ,
+or the host named in
+.B $cpu
+if there is no
+.B -h
+option, a Linux machine that sees the name space
+.I u9cpu
+runs in, as Plan 9's cpu server does.
+The command's standard input, output and error are
+.IR u9cpu 's,
+and its exit status is
+.IR u9cpu 's.
+Its directory is
+.IR u9cpu 's
+working directory: the host's own, if it has one by that name,
+else this name space's, under
+.BR /mnt/term .
+.PP
+With
+.BR -c ,
+the rest of the command line is run by the host's
+.IR sh .
+Without, the user's login shell runs on a pseudo-terminal,
+.I u9cpu
+makes its own terminal raw, and the size is
+.IR ptty 's
+(see
+.IR vt (1)),
+else
+.B $COLS
+and
+.BR $LINES .
+.PP
+A host is named in
+.BR $home/lib/cpu ,
+then
+.BR /lib/cpu ,
+files in the format of
+.IR ndb (6):
+.IP
+.EX
+cpu=build1 cmd="ssh build1"
+cpu=app cmd="ssh build1 docker exec -i app" ns=/lib/namespace.untrusted
+.EE
+.PP
+.B cmd
+is the host's transport, an
+.IR rc (1)
+command line that, given a command, runs it on the host
+with the transport's standard input and output:
+.IR ssh (1),
+or a container runtime's
+.BR "exec -i" .
+.PP
+.I U9cpu
+needs the
+.B u9cpu
+package (see
+.IR pkg (1)),
+as
+.B ssh
+needs its own.
+Each
+.I u9cpu
+has a session of its own, which runs the transport twice, by
+.IR ferry (1),
+which ships its host end, also named
+.IR u9cpu ,
+to the host: once with
+.BR "u9cpu -n" ,
+to which
+.IR exportfs (4)
+serves
+.IR u9cpu 's
+name space, and once with
+.BR "u9cpu -c -n" ,
+which serves the host's commands as Inferno's
+.IR cmd (3)
+does.
+.I U9cpu
+mounts the second on
+.BR /mnt/cpu ,
+in a name space of its own, and makes its command by its
+.BR clone .
+The session lasts until either stream ends or
+.I u9cpu
+does.
+If the host has
+.BR ns= ,
+the name space exported is one made from that file by
+.I newns
+(see
+.IR auth (2)
+and
+.IR namespace (6)).
+.PP
+On the host,
+.I u9cpu
+makes the name space, in a user and mount name space of the host's,
+by FUSE: the host's root, with this name space at
+.B /mnt/term
+and its
+.BI /usr/ user
+at
+.BI /usr/ user\f1.
+A host with no FUSE refuses it, and
+.I u9cpu
+fails with the reason.
+.SH FILES
+.TF $home/lib/cpu
+.TP
+.B /lib/cpu
+hosts
+.TP
+.B $home/lib/cpu
+the user's hosts, searched first
+.PD
+.SH SOURCE
+plan9web's
+.B src/cmd/u9cpu.c
+and
+.B src/u9cpu
+.SH SEE ALSO
+.IR ferry (1),
+.IR pkg (1),
+.IR ssh (1),
+.IR vt (1),
+.IR exportfs (4),
+.IR ndb (6)
+.SH BUGS
+The session sees the name space as it was when
+.I u9cpu
+started; binds and mounts made later are not reflected.
+.PP
+A change in the window's size is not passed on.
+.PP
+An interrupt ends
+.BR "u9cpu -c" ,
+and its command is killed, not sent
+.BR SIGINT .

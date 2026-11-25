@@ -402,7 +402,7 @@ mdcurfree(&c);
 .IR prop (2),
 .I doc/mdparse.md
 and
-.I src/cmd/test/tmd.c
+.I src/cmd/ktest/tmd.c
 in plan9web,
 .br
 John MacFarlane et al.,
