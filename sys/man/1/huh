@@ -149,11 +149,11 @@ whose layer is gone sees so within a quarter second and ends.
 So the word in the tag turns it on and off.
 .PP
 .I Huh
-highlights, in the color
-.BR huh ,
-the stretches that
+highlights the stretches that
 .I huh
-prints, below, at its defaults, and segments nothing.
+prints, below, at its defaults, and segments nothing, each in the color of its heat on
+.IR Crux 's
+ramp, below, so a passage has one color in the text and in the strip.
 What it lights is where the model spends its bits: names, terms, code and figures, more than a
 sentence that is merely new to the text.
 It is meant for prose; code mostly falls under the floor, below.
@@ -199,9 +199,25 @@ A running
 reads the file again when it changes, and marks again by the new density at once.
 .PP
 .IR Huh 's
-color is a tint it gives in its layer's own color line, with an opacity, so that
+colors are eight tints,
+.B huh0
+to
+.BR huh7 ,
+that it gives in its layer's own color lines when it starts, from the theme's
+.B body
+background and
+.B comment
+color.
+Tint
+.I k
+is the ramp's color at heat
+.RI ( k +0.5)/8,
+and a stretch takes the tint of its heat, that of its score on the relative scale, in eighths.
+Each has an opacity of about 28%, so that
 .IR astyles (4)
-blends it over the text's other colors in either theme.
+blends it over the text's other colors, and the body's text keeps a contrast of at least 4.5 to 1
+on it in the dark and light themes.
+Text below the cutoffs is not tinted.
 .PP
 .I Crux
 is a script.
