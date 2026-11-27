@@ -1,6 +1,6 @@
 .TH HUH 1
 .SH NAME
-Huh, Huh+, Huh-, Bits, huh \- highlight the dense, unusual parts of an acme window's text
+Huh, Huh+, Huh-, Crux, huh, crux \- highlight the dense, unusual parts of an acme window's text
 .SH SYNOPSIS
 .B Huh
 [
@@ -16,17 +16,7 @@ Huh, Huh+, Huh-, Bits, huh \- highlight the dense, unusual parts of an acme wind
 .br
 .B Huh-
 .PP
-.B Bits
-[
-.B -m
-.I lmdir
-] [
-.B -p
-.I penalty
-] [
-.B -l
-.I runes
-]
+.B Crux
 .PP
 .B huh
 [
@@ -52,11 +42,32 @@ Huh, Huh+, Huh-, Bits, huh \- highlight the dense, unusual parts of an acme wind
 ] [
 .I file ...
 ]
+.PP
+.B crux
+[
+.B -m
+.I lmdir
+] [
+.B -w
+.I winid
+]
+.PP
+.B crux
+.B -l
+[
+.B -m
+.I lmdir
+] [
+.B -n
+.I name
+] [
+.I file ...
+]
 .SH DESCRIPTION
 .I Huh
 and
-.I Bits
-color the text of the
+.I Crux
+show the text of the
 .IR acme (1)
 window
 .B $winid
@@ -83,26 +94,20 @@ Each follows the window by its
 .BR rdevent ,
 so it leaves the window's
 .B event
-to acme or another program, and both can follow one window.
-One that starts on a window whose
-.I astyles
-layers already include its own deletes that layer and its own, and exits; the program whose
-layer is gone sees so within a quarter second and ends.
-So the same word in the tag turns it on and off.
+to acme or another program, and both run on one window at once, each by itself: neither reads
+the other's output or knows its name.
 .I Huh
 highlights the stretches where the text's information is, those that cost the most;
-.I Bits
-colors every segment of the text in one of seven bands of bits a rune, and draws the text as a strip in a
+.I Crux
+draws the whole text as a strip in a
 .IR rio (1)
-window of its own.
+window of its own, each token colored by the same score
+.I Huh
+highlights by, so the strip's hottest parts are
+.IR Huh 's
+highlights.
 .PP
-Each writes a layer of
-.IR astyles (4)
-on the window,
-.B huh
-or
-.BR bits .
-It makes the layer, opens the window's
+Each opens the window's
 .B rdevent
 file from the window's
 .BR seq ,
@@ -116,21 +121,32 @@ file, after a preamble, the window's name as its tag has it, a colon and a blank
 .IR bits (1)
 writes a file's, and leaves out the answer's lines for the preamble; a window with no name gets
 none.
-It marks the tokens it gets back and writes the layer;
-.I Bits
-splits them into segments first, as
-.IR segment (1)
-does.
 Then it follows the window's edits, by the
 .B I
 and
 .B D
 events, in a copy of the body: after each one it writes the whole copy to
 .B data
-on a new open and closes the old one, which drops what was left of it, marks again, and writes the layer again, under
+on a new open and closes the old one, which drops what was left of it, and marks or draws again
+from the answer.
+.PP
+.I Huh
+writes a layer of
+.IR astyles (4)
+on the window,
+.BR huh ,
+under
 .IR astyles 's
 .B seq
 guard, so a layer from an older text is not kept.
+A
+.I Huh
+that starts on a window whose layers already include
+.B huh
+deletes that layer and its own, and exits; the
+.I Huh
+whose layer is gone sees so within a quarter second and ends.
+So the word in the tag turns it on and off.
 .PP
 .I Huh
 highlights, in the color
@@ -182,67 +198,146 @@ A running
 .I Huh
 reads the file again when it changes, and marks again by the new density at once.
 .PP
-The colors are tints the programs give in their layers' own color lines, each with an opacity,
-so that
+.IR Huh 's
+color is a tint it gives in its layer's own color line, with an opacity, so that
 .IR astyles (4)
-blends them over the text's other colors in either theme.
-.IR Bits '
-.I penalty
-and
-.I runes
-are
-.IR segment 's
-.B -p
-and
-.BR -l .
+blends it over the text's other colors in either theme.
 .PP
-.I Bits
-colors each segment in its color,
-.B bits0
-to
-.BR bits6 ,
-by its bits a rune: under 0.5, 0.5 to 1, 1 to 2, 2 to 3, 3 to 4.5, 4.5 to 6, and 6 or more.
-It also opens a rio window, named for the file with
-.BR +Bits ,
-with a tag that looks and works as acme's
+.I Crux
+is a script.
+It runs
+.IR crux ,
+an ordinary
+.I rio
+program, on the window
+.BR $winid ,
+in a window of its own that
+.IR window (1)
+makes at the top right of acme's, by its old form with a rectangle, which mounts
+.B $wsys
+in the caller's name space, so that
+.I crux
+still has acme's
+.BR /mnt/acme .
+The script takes acme's
+.B /dev
+binding away first, whose empty
+.B draw
+keeps programs acme runs from drawing, and sends
+.IR crux 's
+diagnostics to acme's
+.BR +Errors .
+.I Crux
+adds no layer to the text's window.
+.PP
+.IR Crux 's
+window has a tag that looks and works as acme's
 .RI ( adraw (2)),
-that shows the text as a strip, a row for each of its lines and a block for each word, in its
-band's color, and beside it a bar for each paragraph, from
-.B bits
-.BR -p :
-its length the paragraph's bits alone, and its dark part those the text before it already had.
-Button 1 on the strip selects its token in the text's window and shows it;
-button 1 on a bar, its paragraph's start.
-Button 3 on the strip writes the token's alternatives, as
+named for the file with
+.BR +Crux ,
+and is labeled
+.B crux
+and the file.
+It shows the text as a strip: a row for each of its lines, 6 pixels high, and a cell 4 pixels wide
+for each rune that is not blank, colored by the heat of its token, both scaled up on a screen
+of high resolution.
+Once it has the text,
+.I crux
+makes its window as wide as the longest line needs and as tall as the text, below its tag,
+whose lines wrap to show every word, within the screen
+.I rio
+manages, by a
+.B resize
+of its
+.B /dev/wctl
+.RI ( rio (4)),
+and leaves its size alone after that.
+The strip's cells keep their size whatever the window's: a text taller than the window scrolls, by
+a scroll bar at the window's left that works as acme's, button 1 moving back, button 2 to the
+place clicked and button 3 forward, and by the wheel, a sixth of the rows a turn, and the
+lines past the window's right edge are cut.
+A resize shows more or less of the strip, from the same row.
+.PP
+A token's heat is its smoothed score, as
+.I huh
+computes it below, placed on a ramp from 0 to 1.
+The scale is relative by default: the score less the text's median score, over 1.5 times the
+spread of its scores, their standard deviation weighted by runes and at least 0.1 bits a rune,
+so a uniform text stays cool and its highest scores are hottest.
+.B Abs
+in
+.IR crux 's
+tag makes the scale absolute, 0 to 3 bits a rune in every text;
+.B Rel
+makes it relative again.
+.B Heat
+turns the heat off, leaving the text's shape in the theme's
+.B comment
+color, and on again.
+The heat is blurred a little, across a row more than between rows, so it fades at a token's edge;
+clicks still land on exact tokens.
+The ramp is matplotlib's inferno, which keeps equal steps of score equal steps of color.
+Its cold end is the theme's
+.B body
+background, tinted toward the
+.B comment
+color where there is text; on a dark theme it runs up inferno to pale yellow, and on a light one
+it runs the other way in lightness, through yellow, orange and red to deep purple, so the hottest
+text is the darkest.
+Until the text is scored, and while it is first scored for the rest of it, the text is drawn in
+its cold color.
+.PP
+A mark between the scroll bar and the strip shows the lines of the text window's dot, which
+.B rdevent
+reports as
+.BR MS ;
+when dot moves out of the rows the strip shows, the strip scrolls to keep it in view, a third of
+the way down.
+Button 1 on the strip selects its token in the text's window and shows it.
+Button 3 on the strip writes the token's line to
+.BR +Errors ,
+as
 .I Huh
 .B -t
-does, below.
+does, below, with its smoothed score after its bits.
 .PP
 The program reaches the window's files through
 .IR acme (2).
 Acme handles every event in the text's window itself; the program only watches them.
 After a
 .BR Get ,
-it reads the reloaded body and colors it again.
+it reads the reloaded body and marks or draws it again.
 When the window is deleted its
 .B rdevent
 ends, and so does the program.
-However the program ends, by the window's deletion, a failure of
+However
+.I Huh
+ends, by the window's deletion, a failure of
 .IR lmdir ,
-its layer's deletion or a note, it deletes its layer, and its own window goes.
-Del,
+its layer's deletion or a note, it deletes its layer.
+Del or
 .B Delete
-or
-.B Bits
-in the tag of
-.IR Bits 's
-own window ends it too, and the text window stays.
-Deleting that window in rio ends it the same way.
+in
+.IR crux 's
+tag ends
+.IR crux ,
+and the text window stays; deleting its window in
+.I rio
+ends it the same way.
 .BR Put ,
 .B Undo
 and
 .B Redo
-there are the text window's, and its tag and label follow the text window's name.
+there are the text window's, and the tag and label follow the text window's name.
+.I Crux
+run where a window that
+.I rio
+labels
+.B crux
+and the text window's file shows deletes that window and exits, so
+.B Crux
+in the text window's tag turns it on and off.
+.PP
 .PP
 .B Huh
 .B -t
@@ -251,7 +346,7 @@ writes the alternatives for the token at the window's dot to
 and exits, in any window, with or without
 .I Huh
 or
-.IR Bits ;
+.IR Crux ;
 .B cmd-k
 .B h
 in
@@ -323,20 +418,35 @@ With
 prints every stretch, a run of tokens above the median score, highlighted or not.
 Nothing is parsed: the text is plain text to the model, and every stretch comes from the tokens'
 bits and their places.
+.PP
+.I Crux
+.B -l
+prints, as text, the heat the strip draws: a line for each line of each
+.IR file ,
+or of its standard input, with its address, the mean and the largest of the smoothed score over
+the tokens in the line, the mean weighted by runes, and the line's heat, that of its hottest
+token, on the relative scale:
+.IP
+.EX
+README.md:#2210,#2291 2.95 3.41 0.97
+.EE
+.LP
+A line's address takes in its newline, and the score is the one
+.I crux
+draws by.
+Its preamble and addresses are as
+.IR huh 's,
+and
+.B -n
+names standard input the same way.
 .SH FILES
-.TF /lib/acme/layers
+.TF /lib/hotkey/acme
 .TP
 .B $home/lib/huh
 the user's density, written by
 .I Huh+
 and
 .IR Huh-
-.TP
-.B /lib/acme/layers
-places
-.B bits
-below
-.B highlight
 .TP
 .B /lib/hotkey/acme
 .B cmd-k
@@ -351,15 +461,24 @@ on
 .BR /mnt/lm :
 .IP
 .EX
-Huh+ Huh- Huh Bits
+Huh+ Huh- Huh Crux
+.EE
+.LP
+The lines of a file whose heat passes 0.9:
+.IP
+.EX
+crux -l README.md | awk '$4 > 0.9'
 .EE
 .SH SOURCE
 .B src/cmd/huh
+.br
+.B /acme/bin/Crux
 .SH SEE ALSO
 .IR acme (1),
 .IR bits (1),
 .IR rio (1),
 .IR segment (1),
+.IR window (1),
 .IR acme (2),
 .IR adraw (2),
 .IR acme (4),
@@ -372,8 +491,15 @@ Huh+ Huh- Huh Bits
 The window, the clip and the position baseline come from a measurement with Qwen3-0.6B over the
 tree's docs, man pages and C
 .RB ( doc/words.md );
-the bands' bounds and
-.IR segment 's
-penalty and least length are placeholders, set on
+.IR Crux 's
+relative scale, 1.5 times the spread with a least spread of 0.1 bits a rune, is set by eye on
 .IR lmsim 's
-model of bytes; the real model's scores over the tree's text will set them.
+model of bytes, not on the real model.
+.PP
+.I Crux
+knows dot, not the lines the text window shows, so while the reader scrolls the text window and
+dot stays behind, the strip stays behind too, until the next click.
+.PP
+.I Crux
+finds the window it turns off by its label, so two text windows on one file share one.
+

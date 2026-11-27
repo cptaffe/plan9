@@ -1,0 +1,29 @@
+#!/bin/rc
+# Crux - crux on the window $winid, in a rio window by window's geometry form; again, it ends it
+rfork en
+if(~ $#winid 0 || ~ $winid ''){
+	echo 'Crux: no $winid' >[1=2]
+	exit winid
+}
+l=crux
+if(! ~ $"% '')
+	l='crux '$"%
+if(mount $wsys /mnt/wsys >[2]/dev/null){
+	off=()
+	for(w in /mnt/wsys/wsys/*){
+		x=`{cat $w/label >[2]/dev/null}
+		if(~ $"x $l){
+			echo delete >$w/wctl
+			off=yes
+		}
+	}
+	unmount /mnt/wsys
+	if(~ $#off 1)
+		exit
+}
+r=`{dd -if /dev/wctl -bs 128 -count 1 >[2]/dev/null}
+if(! ~ $#r 6)
+	r=(0 0 200 0)
+g=`{echo $r(2) $r(3) | awk '{x = $2-200; if(x < 0) x = 0; print x, $1, x+200, $1+150}'}
+unmount /mnt/acme /dev >[2]/dev/null
+window $"g rc -c 'exec crux -w '$winid' >[2]/mnt/acme/cons'

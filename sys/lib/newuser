@@ -263,7 +263,8 @@ where you left it.
 
 Huh, in the tag of a window, colors the text by its surprisal, the bits a
 small language model spends on each word, so the words that carry the most
-information stand out. Bits colors every token by its bits. See huh(1).
+information stand out. Crux draws the whole text as a strip in a window of
+its own, hottest where Huh highlights. See huh(1).
 adict(1) looks words up in the dictionaries of dict(7); button 3 on a word in
 an entry looks that word up.
 
